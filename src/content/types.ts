@@ -55,7 +55,7 @@ export interface KitBuilder {
   add(spec: PieceSpec): void;
 }
 
-export type BuildingCategory = 'residential' | 'energy' | 'tech' | 'commercial' | 'nature' | 'food';
+export type BuildingCategory = 'residential' | 'energy' | 'utility' | 'tech' | 'commercial' | 'nature' | 'food';
 
 export interface BuildingStats {
   cost: number;
@@ -67,6 +67,20 @@ export interface BuildingStats {
   population: number;
   jobs: number;
   pollution: number;
+  /** Positive = supplies water, negative = consumes (units/s at full occupancy). */
+  water: number;
+  /** Residents fed by this building's produce. */
+  food: number;
+  /** Credits per sim second. */
+  upkeep: number;
+}
+
+/** Stats as authored: utility values default to 0, upkeep to 0.03% of cost per second. */
+export type BuildingStatsInput = Omit<BuildingStats, 'water' | 'food' | 'upkeep'> & Partial<Pick<BuildingStats, 'water' | 'food' | 'upkeep'>>;
+
+export interface PlacementRules {
+  /** Footprint must touch sea, river or reservoir water (intakes, harbours). */
+  nearWater?: boolean;
 }
 
 export interface BuildingDef {
@@ -78,15 +92,52 @@ export interface BuildingDef {
   stats: BuildingStats;
   /** Sim seconds to reach full greenery. */
   growthTime: number;
+  placement?: PlacementRules;
+  /** Number of procedural variants (recipe runs cached per variant). Default 3. */
+  variants?: number;
   /** Procedural recipe, or a GLB asset path for hero models. */
   recipe: ((b: KitBuilder) => void) | { glb: string; scale?: number };
 }
 
-export const defineBuilding = (def: BuildingDef): BuildingDef => def;
+export type BuildingDefInput = Omit<BuildingDef, 'stats'> & { stats: BuildingStatsInput };
+
+export const defineBuilding = (def: BuildingDefInput): BuildingDef => ({
+  ...def,
+  stats: { water: 0, food: 0, upkeep: def.stats.cost * 0.0003, ...def.stats },
+});
+
+/**
+ * Scenarios describe a starting city. They run once at new-game time through a sim-implemented
+ * builder (deterministic), so the bulk content exists before any renderer attaches.
+ */
+export interface ScenarioBuilder {
+  readonly size: number;
+  rand(): number;
+  /** Living Highway along an L-path; water tiles on the path become bridges when `bridges` is true. */
+  road(x0: number, z0: number, x1: number, z1: number, bridges?: boolean): void;
+  /** Tries to place a building; returns false if invalid. */
+  building(def: string, x: number, z: number, rot?: number): boolean;
+  /** Fills free road-adjacent land in a rectangle using weighted building picks. Returns count. */
+  fill(x0: number, z0: number, x1: number, z1: number, weights: Record<string, number>, density?: number, limit?: number): number;
+  isLand(x: number, z: number): boolean;
+  /** Running utility totals of everything placed so far (at full occupancy). */
+  totals(): { energyProduced: number; energyUsed: number; waterProduced: number; waterUsed: number; food: number; population: number; jobs: number };
+}
+
+export interface ScenarioDef {
+  id: string;
+  name: string;
+  description: string;
+  credits: number;
+  build(b: ScenarioBuilder): void;
+}
+
+export const defineScenario = (def: ScenarioDef): ScenarioDef => def;
 
 export const CATEGORY_ICONS: Record<BuildingCategory, string> = {
   residential: '⌂',
   energy: '☀',
+  utility: '◍',
   tech: '⚗',
   commercial: '❖',
   nature: '❀',
@@ -96,6 +147,7 @@ export const CATEGORY_ICONS: Record<BuildingCategory, string> = {
 export const CATEGORY_LABELS: Record<BuildingCategory, string> = {
   residential: 'Living',
   energy: 'Energy',
+  utility: 'Water',
   tech: 'Tech',
   commercial: 'Work',
   nature: 'Nature',

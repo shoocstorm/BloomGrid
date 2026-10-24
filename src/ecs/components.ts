@@ -19,3 +19,23 @@ export const Greenery = {
   value: new Float32Array(MAX_ENTITIES),
   rate: new Float32Array(MAX_ENTITIES),
 };
+
+/** Problem flags (bitmask) shown to the player as building alerts. */
+export const Problem = {
+  NO_ROAD: 1,
+  NO_POWER: 2,
+  NO_WATER: 4,
+  UNSTAFFED: 8,
+} as const;
+
+/**
+ * Utility service state, written once per pulse (1 s) by the City Pulse systems.
+ * `occupancy` is residents / capacity for homes, staffing ratio for workplaces.
+ */
+export const Service = {
+  network: new Int32Array(MAX_ENTITIES).fill(-1),
+  power: new Float32Array(MAX_ENTITIES),
+  water: new Float32Array(MAX_ENTITIES),
+  occupancy: new Float32Array(MAX_ENTITIES),
+  problems: new Uint8Array(MAX_ENTITIES),
+};

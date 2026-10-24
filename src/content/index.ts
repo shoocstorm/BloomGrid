@@ -1,5 +1,5 @@
 import { Registry } from './Registry';
-import type { BuildingDef } from './types';
+import type { BuildingDef, ScenarioDef } from './types';
 
 export const buildings = new Registry<BuildingDef>('building');
 
@@ -7,3 +7,7 @@ export const buildings = new Registry<BuildingDef>('building');
 // Sorted by path so registry indices are deterministic.
 const modules = import.meta.glob<{ default: BuildingDef }>('./buildings/*.ts', { eager: true });
 for (const path of Object.keys(modules).sort()) buildings.register(modules[path]!.default);
+
+export const scenarios = new Registry<ScenarioDef>('scenario');
+const scenarioModules = import.meta.glob<{ default: ScenarioDef }>('./scenarios/*.ts', { eager: true });
+for (const path of Object.keys(scenarioModules).sort()) scenarios.register(scenarioModules[path]!.default);

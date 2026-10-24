@@ -41,7 +41,8 @@ export class Atmosphere {
   readonly hemi = new HemisphereLight(0xcfeaff, 0x5a7a4a, 1);
   readonly fog = new Fog(0xcfeaff, 180, 900);
   private sunDir = new Vector3();
-  private shadowExtent = 60;
+  /** Half-size of the shadow frustum; casters beyond it are culled from the shadow pass. */
+  shadowExtent = 60;
   sunElevation = 1;
 
   constructor(private scene: Scene) {
@@ -116,7 +117,8 @@ export class Atmosphere {
   /** Keeps the sky centred on the camera and the shadow frustum around the view target. */
   follow(cameraPos: Vector3, target: Vector3, distance: number): void {
     this.sky.position.copy(cameraPos);
-    const ext = Math.min(160, Math.max(25, distance * 0.9));
+    // Capped: at overview zoom, distant shadows are sub-pixel but cost a draw call per batch.
+    const ext = Math.min(110, Math.max(25, distance * 0.9));
     if (Math.abs(ext - this.shadowExtent) > 4) {
       this.shadowExtent = ext;
       const cam = this.sun.shadow.camera;

@@ -1,7 +1,13 @@
 import type { CommandStack } from '@/core/Commands';
 import { buildings } from '@/content';
 import { NO_ENTITY } from './Grid';
-import type { BuildingRecord } from './City';
+import type { BuildingRecord, City } from './City';
+import { TAX_MAX, TAX_MIN } from './pulseState';
+
+/** Cost of building a highway on a tile (bridges over water cost more). */
+export function roadTileCost(city: City, t: number): number {
+  return city.isWaterTile(t % city.grid.w, (t / city.grid.w) | 0) ? BRIDGE_COST : ROAD_COST;
+}
 import type { SimCtx } from './systems';
 
 export interface BuildPayload {
@@ -16,9 +22,15 @@ export interface TilePayload {
 }
 export interface RoadPayload {
   tiles: number[];
+  /** Allow bridge decks over water tiles on the path. */
+  bridges?: boolean;
+}
+export interface TaxPayload {
+  rate: number;
 }
 
 export const ROAD_COST = 4;
+export const BRIDGE_COST = 20;
 export const DEMOLISH_REFUND = 0.5;
 
 /** Registers the core city-building commands. Feature modules register their own. */
@@ -54,21 +66,27 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
     },
   });
 
-  stack.register<RoadPayload, number[]>('road', {
+  stack.register<RoadPayload, { placed: number[]; cost: number }>('road', {
     apply({ city }, p) {
       const placed: number[] = [];
+      const seen = new Set<number>();
+      let cost = 0;
       for (const t of p.tiles) {
-        if (city.credits < ROAD_COST * (placed.length + 1)) break;
-        if (city.canRoad(t) && !placed.includes(t)) placed.push(t);
+        if (seen.has(t) || !city.canRoad(t, p.bridges)) continue;
+        const c = roadTileCost(city, t);
+        if (city.credits < cost + c) break;
+        seen.add(t);
+        placed.push(t);
+        cost += c;
       }
       if (!placed.length) return null;
-      city.credits -= placed.length * ROAD_COST;
+      city.credits -= cost;
       city.setRoads(placed, true);
-      return placed;
+      return { placed, cost };
     },
-    revert({ city }, _p, placed) {
-      city.setRoads(placed, false);
-      city.credits += placed.length * ROAD_COST;
+    revert({ city }, _p, u) {
+      city.setRoads(u.placed, false);
+      city.credits += u.cost;
     },
   });
 
@@ -81,6 +99,19 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
     },
     revert({ city }, _p, removed) {
       city.setRoads(removed, true);
+    },
+  });
+
+  stack.register<TaxPayload, number>('setTax', {
+    apply({ city }, p) {
+      const rate = Math.min(TAX_MAX, Math.max(TAX_MIN, Math.round(p.rate * 100) / 100));
+      if (rate === city.pulse.taxRate) return null;
+      const prev = city.pulse.taxRate;
+      city.pulse.taxRate = rate;
+      return prev;
+    },
+    revert({ city }, _p, prev) {
+      city.pulse.taxRate = prev;
     },
   });
 }

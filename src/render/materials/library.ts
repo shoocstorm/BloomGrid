@@ -101,7 +101,8 @@ export function initMaterials(): void {
     m.colorNode = mix(pane, color(0xf3efe4), mullion);
     m.roughnessNode = mix(float(0.12), float(0.7), mullion);
     m.metalnessNode = mix(float(0.45), float(0.0), mullion);
-    const lit = step(0.45, hash(floorIdx.mul(17.0).add(col.mul(3.0)).add(iSeed.mul(91))));
+    // aParams.w = power supply: windows go dark during brownouts.
+    const lit = step(0.45, hash(floorIdx.mul(17.0).add(col.mul(3.0)).add(iSeed.mul(91)))).mul(iParams.w);
     const warm = mix(color(0xffc77a), color(0xfff0d0), hash(col.add(floorIdx)));
     m.emissiveNode = warm.mul(lit).mul(float(1).sub(mullion)).mul(U.night).mul(0.9).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.4));
     return m;
@@ -231,6 +232,14 @@ export function initMaterials(): void {
     const rut = smoothstep(0.12, 0.2, d).mul(0.12);
     m.colorNode = mix(turf.add(rut), color(0xd9fff4), line.mul(0.6));
     m.emissiveNode = color(0x7ff7e6).mul(line).mul(dots.mul(0.6).add(0.4)).mul(U.night.mul(1.2).add(0.12));
+    return m;
+  });
+
+  // Floating problem marker: bobbing, spinning-light octahedron in its alert colour.
+  define('alert', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.3, flatShading: true });
+    m.positionNode = positionLocal.add(vec3(0, sin(time.mul(3).add(iSeed.mul(20))).mul(0.18), 0));
+    m.emissiveNode = instanceColor.mul(sin(time.mul(5).add(iSeed.mul(20))).mul(0.3).add(1.2));
     return m;
   });
 

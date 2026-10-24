@@ -91,6 +91,9 @@ export const worldModule: GameModule = {
         const t = (c.city.timeOfDay + (f.alpha * c.engine.speed * c.engine.step) / DAY_LENGTH) % 1;
         atmosphere.applyTime(t);
         atmosphere.follow(c.camera.position, c.cameraCtl.target, c.cameraCtl.distance);
+        c.instancer.shadowFocus.copy(c.cameraCtl.target);
+        // Zoomed far out, distant shadows are sub-pixel: only the area around the focus casts them.
+        c.instancer.shadowRadius = atmosphere.shadowExtent * (c.cameraCtl.distance > 180 ? 0.45 : 1.1);
       },
     });
   },

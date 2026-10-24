@@ -1,11 +1,13 @@
 import { addComponent, addEntity, createWorld, query, removeEntity, type World } from 'bitecs';
 import type { EventBus } from '@/core/EventBus';
-import { Building, Greenery } from '@/ecs/components';
+import { Building, Greenery, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { BuildingDef } from '@/content/types';
-import { Grid, NO_ENTITY } from './Grid';
+import { Grid, NO_ENTITY, SEA_LEVEL } from './Grid';
 import { generateTerrain } from './terrain';
 import { Rng, fnv1a } from './random';
+import { RoadNetworks } from './networks';
+import { createPulseState, type PulseState } from './pulseState';
 import './events';
 
 export interface BuildingRecord {
@@ -14,25 +16,45 @@ export interface BuildingRecord {
   z: number;
   rot: number;
   greenery: number;
+  /** Residents / staffing fill 0..1. */
+  occupancy?: number;
 }
 
 export interface CityStats {
+  /** Actual residents (capacity × occupancy). */
   population: number;
+  /** Housing capacity. */
+  capacity: number;
   jobs: number;
+  employed: number;
   energyProduced: number;
   energyUsed: number;
+  waterProduced: number;
+  waterUsed: number;
+  foodProduced: number;
   eco: number;
   pollution: number;
+  /** "Harmony" 0..100. */
   happiness: number;
   income: number;
+  upkeep: number;
   buildings: number;
+  /** Demand meters in [-1, 1]: positive = the city wants more of this. */
+  demandHomes: number;
+  demandWork: number;
+  demandFood: number;
 }
 
-export type PlacementResult = { ok: true } | { ok: false; reason: string };
+export type PlacementResult = { ok: true; warning?: string } | { ok: false; reason: string };
 
 export const MAP_SIZE = 256;
 export const START_CREDITS = 2500;
 export const DAY_LENGTH = 360; // sim seconds per full day
+
+export const ROAD = 1;
+export const BRIDGE = 2;
+/** Bridge deck height above sea level (world units). */
+export const BRIDGE_DECK = 0.9;
 
 /**
  * Authoritative simulation state. Renderer-agnostic and deterministic for a given seed and
@@ -42,6 +64,8 @@ export class City {
   grid!: Grid;
   world!: World;
   rng!: Rng;
+  networks!: RoadNetworks;
+  pulse!: PulseState;
   seed = 0;
   tick = 0;
   /** 0..1, 0 = midnight, 0.5 = noon. */
@@ -64,6 +88,8 @@ export class City {
     generateTerrain(this.grid, seed);
     this.world = createWorld();
     this.rng = new Rng(seed);
+    this.networks = new RoadNetworks(this.grid);
+    this.pulse = createPulseState();
     this.tick = 0;
     this.timeOfDay = 0.3;
     this.day = 1;
@@ -75,6 +101,10 @@ export class City {
   footprint(def: BuildingDef, rot: number): [number, number] {
     const [w, d] = def.footprint;
     return rot % 2 ? [d, w] : [w, d];
+  }
+
+  isWaterTile(x: number, z: number): boolean {
+    return this.grid.rangeOver(x, z, 1, 1).min < SEA_LEVEL + 0.05;
   }
 
   checkPlacement(def: BuildingDef, x: number, z: number, rot: number): PlacementResult {
@@ -91,8 +121,19 @@ export class City {
         if (g.road[idx]) return { ok: false, reason: 'Living Highway in the way' };
       }
     }
+    if (def.placement?.nearWater && !this.touchesWater(x, z, w, d)) return { ok: false, reason: 'Must touch the sea or a reservoir' };
     if (this.credits < def.stats.cost) return { ok: false, reason: 'Not enough credits' };
+    if (!RoadNetworks.touchesRoad(g, x, z, w, d)) return { ok: true, warning: 'No highway access: no power or water' };
     return { ok: true };
+  }
+
+  private touchesWater(x: number, z: number, w: number, d: number): boolean {
+    for (let j = z - 1; j <= z + d; j++)
+      for (let i = x - 1; i <= x + w; i++) {
+        if (!this.grid.inBounds(i, j) || (i >= x && i < x + w && j >= z && j < z + d)) continue;
+        if (this.isWaterTile(i, j) && !this.grid.road[this.grid.index(i, j)]) return true;
+      }
+    return false;
   }
 
   addBuilding(rec: BuildingRecord): number {
@@ -101,6 +142,7 @@ export class City {
     const eid = addEntity(this.world);
     addComponent(this.world, eid, Building);
     addComponent(this.world, eid, Greenery);
+    addComponent(this.world, eid, Service);
     Building.def[eid] = buildings.indexOf(rec.def);
     Building.x[eid] = rec.x;
     Building.z[eid] = rec.z;
@@ -109,6 +151,12 @@ export class City {
     Building.d[eid] = d;
     Greenery.value[eid] = rec.greenery;
     Greenery.rate[eid] = 1 / def.growthTime;
+    // New homes start partly occupied, workplaces partly staffed; the pulse moves them from here.
+    Service.occupancy[eid] = rec.occupancy ?? 0.25;
+    Service.power[eid] = 1;
+    Service.water[eid] = 1;
+    Service.problems[eid] = 0;
+    Service.network[eid] = this.networks.dirty ? -1 : this.networks.networkFor(rec.x, rec.z, w, d);
     for (let j = rec.z; j < rec.z + d; j++)
       for (let i = rec.x; i < rec.x + w; i++) this.grid.occupant[this.grid.index(i, j)] = eid;
     this.bus.emit('building:added', { eid });
@@ -142,6 +190,7 @@ export class City {
       z: Building.z[eid]!,
       rot: Building.rot[eid]!,
       greenery: Greenery.value[eid]!,
+      occupancy: Service.occupancy[eid]!,
     };
   }
 
@@ -149,17 +198,24 @@ export class City {
     return query(this.world, [Building]) as unknown as readonly number[];
   }
 
-  canRoad(idx: number): boolean {
+  /** Whether a highway can go here. Water tiles need `bridges` (and become bridge decks). */
+  canRoad(idx: number, bridges = false): boolean {
     const g = this.grid;
     const x = idx % g.w;
     const z = (idx / g.w) | 0;
     if (g.road[idx] || g.occupant[idx] !== NO_ENTITY) return false;
     const { min, max } = g.rangeOver(x, z, 1, 1);
-    return min >= 0.05 && max - min <= 0.9;
+    if (min < SEA_LEVEL + 0.05) return bridges;
+    return max - min <= 0.9;
   }
 
   setRoads(tiles: number[], on: boolean): void {
-    for (const t of tiles) this.grid.road[t] = on ? 1 : 0;
+    const g = this.grid;
+    for (const t of tiles) {
+      if (!on) g.road[t] = 0;
+      else g.road[t] = this.isWaterTile(t % g.w, (t / g.w) | 0) ? BRIDGE : ROAD;
+    }
+    this.networks.dirty = true;
     this.bus.emit('road:changed', { tiles });
   }
 
@@ -178,11 +234,34 @@ export class City {
   }
 
   hash(): string {
-    const b = this.snapshotBuildings().map((r) => `${r.def}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)}`);
-    return fnv1a(`${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${b.join(';')}|${this.roadTiles().join(',')}`);
+    const b = this.snapshotBuildings().map(
+      (r) => `${r.def}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)}`,
+    );
+    return fnv1a(
+      `${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${b.join(';')}|${this.roadTiles().join(',')}`,
+    );
   }
 }
 
-function emptyStats(): CityStats {
-  return { population: 0, jobs: 0, energyProduced: 0, energyUsed: 0, eco: 0, pollution: 0, happiness: 50, income: 0, buildings: 0 };
+export function emptyStats(): CityStats {
+  return {
+    population: 0,
+    capacity: 0,
+    jobs: 0,
+    employed: 0,
+    energyProduced: 0,
+    energyUsed: 0,
+    waterProduced: 0,
+    waterUsed: 0,
+    foodProduced: 0,
+    eco: 0,
+    pollution: 0,
+    happiness: 60,
+    income: 0,
+    upkeep: 0,
+    buildings: 0,
+    demandHomes: 0.5,
+    demandWork: 0,
+    demandFood: 0,
+  };
 }

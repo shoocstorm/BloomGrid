@@ -2,7 +2,12 @@ import { Color, Group, InstancedMesh, Matrix4, Mesh, PlaneGeometry, type Scene }
 import { getPiece } from '@/assets/kit/pieces';
 import { getMaterial } from '@/render/materials/library';
 import { U } from '@/render/uniforms';
-import type { PlacedPiece } from './BuildingRenderer';
+import type { Matrix4 as M4 } from 'three/webgpu';
+
+export interface GhostPiece {
+  piece: string;
+  matrix: M4;
+}
 
 const VALID = new Color(0x7ff7e6);
 const INVALID = new Color(0xff7a7a);
@@ -32,7 +37,7 @@ export class Ghost {
   }
 
   /** Shows a building preview from world-space placed pieces. Meshes are pooled per piece type. */
-  showPieces(pieces: PlacedPiece[]): void {
+  showPieces(pieces: GhostPiece[]): void {
     const counts = new Map<string, number>();
     for (const p of pieces) counts.set(p.piece, (counts.get(p.piece) ?? 0) + 1);
     for (const [id, mesh] of this.pool) if (!counts.has(id)) mesh.count = 0;
@@ -52,7 +57,7 @@ export class Ghost {
       }
       const i = fill.get(p.piece) ?? 0;
       fill.set(p.piece, i + 1);
-      mesh.setMatrixAt(i, _m.compose(p.pos, p.quat, p.scale));
+      mesh.setMatrixAt(i, p.matrix);
       mesh.count = need;
       mesh.instanceMatrix.needsUpdate = true;
     }

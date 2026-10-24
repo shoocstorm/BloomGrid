@@ -172,14 +172,14 @@ class InstanceBatch {
 
 interface Tween {
   handle: InstanceHandle;
-  pos: Vector3;
-  quat: Quaternion;
-  scale: Vector3;
+  /** Final transform; the tween scales it about the piece pivot (M · S(e)). */
+  matrix: Matrix4;
   start: number;
   duration: number;
 }
 
 const _m = new Matrix4();
+const _m2 = new Matrix4();
 const _s = new Vector3();
 const _v = new Vector3();
 
@@ -199,6 +199,9 @@ export class ChunkedInstancer {
   private tweens: Tween[] = [];
   lodScale = 1;
   time = 0;
+  /** Batches farther than this from `shadowFocus` (xz) stop casting shadows. */
+  shadowRadius = Infinity;
+  readonly shadowFocus = new Vector3();
 
   constructor(
     private parent: Object3D,
@@ -228,9 +231,23 @@ export class ChunkedInstancer {
   }
 
   /**
-   * Adds an instance. With `growDelay >= 0` it pops in with an elastic scale tween after
-   * that many seconds; otherwise it appears immediately.
+   * Adds an instance from a world matrix. With `growDelay >= 0` it pops in with an elastic
+   * scale tween (about the piece pivot) after that many seconds; otherwise it appears at once.
    */
+  addMatrix(pieceId: string, matrix: Matrix4, color: Color, params: ArrayLike<number>, growDelay = -1, growDuration = 0.6): InstanceHandle {
+    const handle: InstanceHandle = { batch: null, slot: -1 };
+    const e = matrix.elements;
+    const batch = this.batchFor(pieceId, e[12]!, e[14]!);
+    if (growDelay >= 0) {
+      batch.add(handle, _m.copy(matrix).scale(_s.setScalar(1e-4)), color, params);
+      this.tweens.push({ handle, matrix: matrix.clone(), start: this.time + growDelay, duration: growDuration });
+    } else {
+      batch.add(handle, matrix, color, params);
+    }
+    return handle;
+  }
+
+  /** Convenience wrapper over `addMatrix` for position / rotation / scale. */
   add(
     pieceId: string,
     pos: Vector3,
@@ -241,17 +258,7 @@ export class ChunkedInstancer {
     growDelay = -1,
     growDuration = 0.6,
   ): InstanceHandle {
-    const handle: InstanceHandle = { batch: null, slot: -1 };
-    const batch = this.batchFor(pieceId, pos.x, pos.z);
-    if (growDelay >= 0) {
-      _m.compose(pos, quat, _s.copy(scale).multiplyScalar(1e-4));
-      batch.add(handle, _m, color, params);
-      this.tweens.push({ handle, pos: pos.clone(), quat: quat.clone(), scale: scale.clone(), start: this.time + growDelay, duration: growDuration });
-    } else {
-      _m.compose(pos, quat, scale);
-      batch.add(handle, _m, color, params);
-    }
-    return handle;
+    return this.addMatrix(pieceId, _m2.compose(pos, quat, scale), color, params, growDelay, growDuration);
   }
 
   remove(handle: InstanceHandle): void {
@@ -297,7 +304,7 @@ export class ChunkedInstancer {
       if (k <= 0) continue;
       const done = k >= 1;
       const e = done ? 1 : Math.max(1e-4, easeOutBack(k));
-      _m.compose(t.pos, t.quat, _s.copy(t.scale).multiplyScalar(e));
+      _m.copy(t.matrix).scale(_s.setScalar(e));
       t.handle.batch.writeSlot(t.handle.slot, _m, null, null);
       if (done) {
         this.tweens[i] = this.tweens[this.tweens.length - 1]!;
@@ -305,14 +312,20 @@ export class ChunkedInstancer {
       }
     }
 
-    // Bounds + distance LOD per batch.
+    // Bounds, distance LOD and shadow LOD per batch.
     const cam = camera.position;
     const half = this.chunkSize / 2;
+    const sf = this.shadowFocus;
     for (const b of this.batches.values()) {
       b.flush();
       if (b.boundsDirty) {
         b.mesh.computeBoundingSphere();
         b.boundsDirty = false;
+      }
+      if (b.piece.castShadow) {
+        const sx = Math.max(0, Math.abs(sf.x - (b.cx * this.chunkSize + half)) - half);
+        const sz = Math.max(0, Math.abs(sf.z - (b.cz * this.chunkSize + half)) - half);
+        b.mesh.castShadow = Math.hypot(sx, sz) < this.shadowRadius;
       }
       if (b.piece.lod !== Infinity) {
         _v.set(b.cx * this.chunkSize + half, 0, b.cz * this.chunkSize + half);

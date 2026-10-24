@@ -7,7 +7,7 @@ export default defineBuilding({
   description: 'A high-density tower with forested sky-gardens every few floors and breathing moss facades.',
   category: 'residential',
   footprint: [3, 3],
-  stats: { cost: 480, energy: -14, eco: 6, happiness: 6, population: 110, jobs: 6, pollution: 1 },
+  stats: { cost: 480, energy: -14, eco: 6, happiness: 6, population: 110, jobs: 6, pollution: 1, water: -14 },
   growthTime: 180,
   recipe(b) {
     const segments = 3 + Math.floor(b.rand() * 2);

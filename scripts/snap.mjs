@@ -36,7 +36,8 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage();
 await page.setViewport({ width: w, height: h });
 let errors = 0;
-page.on('console', (m) => ['warn', 'error'].includes(m.type()) && console.log(`[${m.type()}] ${m.text()}`));
+// Warnings/errors, plus the app's own tagged logs (e.g. "[boot] …", "[scenario] …").
+page.on('console', (m) => (['warn', 'error'].includes(m.type()) || /^\[[a-z]+\]/.test(m.text())) && console.log(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => (errors++, console.log(`[pageerror] ${e.message}`)));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const t0 = Date.now();

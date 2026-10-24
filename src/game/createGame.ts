@@ -8,6 +8,8 @@ import { SystemRegistry } from '@/core/Systems';
 import { City } from '@/sim/City';
 import { registerSimCommands } from '@/sim/commands';
 import { simSystems } from '@/sim/systems';
+import { applyScenario } from '@/sim/scenario';
+import { PULSE_TICKS } from '@/sim/pulse';
 import { createRenderer } from '@/render/Renderer';
 import { ChunkedInstancer } from '@/render/Instancer';
 import { DynamicResolution, QUALITY_TIERS, type QualityTier } from '@/render/Quality';
@@ -49,6 +51,9 @@ export async function createGame(
   onProgress: ProgressFn = () => {},
 ): Promise<GameContext> {
   const params = new URLSearchParams(location.search);
+  const t0 = performance.now();
+  const timings: Record<string, number> = {};
+  const lap = (k: string, since: number) => (timings[k] = Math.round(performance.now() - since));
   await onProgress('Negotiating GPU link', 0.05);
   const { renderer, isWebGPU } = await createRenderer(canvas, params.get('renderer') === 'webgl');
   const tier = (params.get('quality') as QualityTier) || (isWebGPU ? 'high' : 'medium');
@@ -91,6 +96,17 @@ export async function createGame(
   registerSimCommands(ctx.commands);
   simSystems.forEach((s) => systems.add(s));
   U.mapSize.value = city.grid.w;
+
+  // Founding content is generated in bulk before any renderer exists; renderers sync on init.
+  const scenarioId = params.get('scenario') ?? 'founding-city';
+  if (scenarioId !== 'empty') {
+    await onProgress('Founding the city: districts, highways & bridges', 0.3);
+    const ts = performance.now();
+    const r = applyScenario(city, scenarioId);
+    lap('scenario', ts);
+    console.info(`[scenario] ${scenarioId}: ${r.buildings} buildings, ${r.roads} highway tiles`);
+    ctx.engine.stepTicks(PULSE_TICKS * 8); // settle occupancy, utilities and harmony
+  }
 
   // Rendering services.
   const postfx = new PostFX(renderer, scene, camera);
@@ -148,7 +164,9 @@ export async function createGame(
   });
 
   await onProgress('Seeding forests, meadows & mangroves', 0.4);
+  const tm = performance.now();
   await loadModules(ctx, modules);
+  lap('modules', tm);
   ctx.tools.attach();
   ctx.tools.setActive('select');
   setQuality(tier);
@@ -157,10 +175,14 @@ export async function createGame(
   await onProgress('Compiling luminous materials', 0.75);
   ctx.cameraCtl.lookAt(city.grid.w * 0.52, city.grid.h * 0.66, 60, true);
   ctx.cameraCtl.update(0);
+  const tw = performance.now();
   await ctx.instancer.warmup(renderer, scene, camera, pieceIds(), ctx.cameraCtl.target);
+  lap('shaderWarmup', tw);
 
   // Autosave every 2 minutes.
   setInterval(() => void save.save('autosave'), 120_000);
+  lap('total', t0);
+  console.info('[boot] ms', JSON.stringify(timings));
   await onProgress('Synchronising city pulse', 0.95);
   return ctx;
 }

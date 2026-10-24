@@ -7,7 +7,7 @@ export default defineBuilding({
   description: 'Terraced homes where every balcony is a garden and ivy cascades down solar-glass walls.',
   category: 'residential',
   footprint: [2, 2],
-  stats: { cost: 120, energy: -4, eco: 3, happiness: 4, population: 24, jobs: 0, pollution: 0 },
+  stats: { cost: 120, energy: -4, eco: 3, happiness: 4, population: 24, jobs: 0, pollution: 0, water: -3 },
   growthTime: 90,
   recipe(b) {
     const floors = 3 + Math.floor(b.rand() * 4);

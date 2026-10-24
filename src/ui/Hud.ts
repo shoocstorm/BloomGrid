@@ -1,4 +1,4 @@
-import { Greenery } from '@/ecs/components';
+import { Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import { CATEGORY_ICONS, CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
 import { NO_ENTITY } from '@/sim/Grid';
@@ -149,6 +149,7 @@ class Hud {
     stat('credits', '◈ Credits');
     stat('pop', 'Residents');
     stat('energy', '⚡ Energy');
+    stat('water', '💧 Water');
     stat('eco', '🌿 Eco');
     this.happyMeter = h('i');
     stat('happy', '☺ Harmony', h('div', { class: 'meter' }, this.happyMeter));
@@ -291,6 +292,7 @@ class Hud {
       h('h3', {}, def.name),
       h('p', {}, def.description),
       h('div', { class: 'grow' }, h('div', { class: 'row' }, h('span', {}, 'Greenery'), h('b', { 'data-g': '1' }, '')), h('div', { class: 'meter' }, h('i', { 'data-gm': '1' }))),
+      h('div', { class: 'svc', 'data-svc': '1' }),
       row('Energy', `${s.energy > 0 ? '+' : ''}${s.energy}`),
       row('Ecology', s.eco),
       row('Residents', s.population),
@@ -308,6 +310,26 @@ class Hud {
     const meter = this.infoBody.querySelector<HTMLElement>('[data-gm]');
     if (label) setText(label, `${Math.round(g * 100)}%`);
     if (meter) meter.style.width = `${g * 100}%`;
+    const svc = this.infoBody.querySelector<HTMLElement>('[data-svc]');
+    if (svc) {
+      const eid = this.selected;
+      const st = this.ctx.city.buildingDef(eid).stats;
+      const p = Service.problems[eid]!;
+      const issues = [
+        p & Problem.NO_ROAD && 'No highway access: connect it to a Living Highway',
+        p & Problem.NO_POWER && 'Brownout: the grid lacks power',
+        p & Problem.NO_WATER && 'Dry taps: the network lacks water',
+        p & Problem.UNSTAFFED && 'Understaffed: not enough workers',
+      ].filter(Boolean) as string[];
+      const occLabel = st.population > 0 ? 'Occupancy' : st.jobs > 0 ? 'Staffing' : '';
+      const lines = [
+        st.energy < 0 ? `Power ${Math.round(Service.power[eid]! * 100)}%` : '',
+        st.water < 0 ? `Water ${Math.round(Service.water[eid]! * 100)}%` : '',
+        occLabel ? `${occLabel} ${Math.round(Service.occupancy[eid]! * 100)}%` : '',
+      ].filter(Boolean);
+      setText(svc, [lines.join(' · '), ...issues.map((i) => `⚠ ${i}`)].filter(Boolean).join('\n'));
+      svc.classList.toggle('bad', issues.length > 0);
+    }
   }
 
   /** Per frame (cheap) + throttled stat refresh. */
@@ -329,9 +351,11 @@ class Hud {
       setText(e.v, text);
       e.el.classList.toggle('bad', bad);
     };
-    set('credits', `${fmt(city.credits)}  +${s.income.toFixed(1)}/s`);
-    set('pop', fmt(s.population));
+    const net = s.income - s.upkeep;
+    set('credits', `${fmt(city.credits)}  ${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(1)}/s`, city.credits < 0 || net < 0);
+    set('pop', `${fmt(s.population)} / ${fmt(s.capacity)}`);
     set('energy', `${fmt(s.energyProduced - s.energyUsed)}`, s.energyUsed > s.energyProduced);
+    set('water', `${fmt(s.waterProduced - s.waterUsed)}`, s.waterUsed > s.waterProduced);
     set('eco', fmt(s.eco), s.eco < 0);
     set('happy', `${Math.round(s.happiness)}`);
     this.happyMeter.style.width = `${s.happiness}%`;

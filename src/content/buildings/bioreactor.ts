@@ -7,7 +7,7 @@ export default defineBuilding({
   description: 'Glowing algae columns digest waste into clean power. Pair with greenery to purify its output.',
   category: 'tech',
   footprint: [3, 3],
-  stats: { cost: 300, energy: 70, eco: -6, happiness: -2, population: 0, jobs: 20, pollution: 6 },
+  stats: { cost: 300, energy: 70, eco: -6, happiness: -2, population: 0, jobs: 20, pollution: 6, water: -6 },
   growthTime: 120,
   recipe(b) {
     // Main hall with living membrane walls

@@ -1,10 +1,10 @@
 import { buildings } from '@/content';
 import { NO_ENTITY } from '@/sim/Grid';
-import { ROAD_COST } from '@/sim/commands';
+import { roadTileCost } from '@/sim/commands';
 import type { GameContext } from '@/game/context';
 import type { Tool } from '@/game/Tools';
 import type { GroundHit } from '@/world/Picking';
-import { assembleBuilding } from './BuildingRenderer';
+import { placeBuilding, placementMatrices } from './BuildingRenderer';
 import type { Ghost } from './Ghost';
 
 declare module '@/core/EventBus' {
@@ -84,12 +84,14 @@ export function createTools(ghost: Ghost, build: BuildState) {
       ghost.setValid(res.ok);
       const inside = x >= 0 && z >= 0 && x + w <= ctx.city.grid.w && z + d <= ctx.city.grid.h;
       if (inside) {
-        ghost.showPieces(assembleBuilding(ctx.city.grid, def, x, z, build.rot));
+        ghost.showPieces(placementMatrices(placeBuilding(ctx.city.grid, def, x, z, build.rot)));
         ghost.showCursor(x, ctx.city.grid.rangeOver(x, z, w, d).max, z, w, d);
       } else ghost.hideAll();
       ctx.bus.emit('tool:tooltip', {
-        text: res.ok ? `${def.name} · ${fmt(def.stats.cost)} ◈ · R to rotate` : `${def.name} — ${res.reason}`,
-        tone: res.ok ? 'ok' : 'bad',
+        text: res.ok
+          ? `${def.name} · ${fmt(def.stats.cost)} ◈ · R to rotate${res.warning ? ` · ⚠ ${res.warning}` : ''}`
+          : `${def.name} — ${res.reason}`,
+        tone: res.ok && !res.warning ? 'ok' : 'bad',
       });
     },
     up(ctx, hit) {
@@ -156,11 +158,15 @@ export function createTools(ghost: Ghost, build: BuildState) {
       if (!hit?.inBounds) return ghost.hideAll();
       const cur = { x: hit.tx, z: hit.tz };
       const tiles = pathTiles(ctx, dragStart ?? cur, cur);
-      const valid = tiles.filter((t) => ctx.city.canRoad(t));
+      const valid = tiles.filter((t) => ctx.city.canRoad(t, true));
+      const cost = valid.reduce((a, t) => a + roadTileCost(ctx.city, t), 0);
+      const bridges = valid.filter((t) => ctx.city.isWaterTile(t % ctx.city.grid.w, (t / ctx.city.grid.w) | 0)).length;
       ghost.setValid(valid.length > 0);
       ghost.showTiles(tileList(ctx, tiles));
       ctx.bus.emit('tool:tooltip', {
-        text: dragStart ? `${valid.length} tiles · ${fmt(valid.length * ROAD_COST)} ◈` : 'Drag to grow a moss highway',
+        text: dragStart
+          ? `${valid.length} tiles${bridges ? ` (${bridges} bridge)` : ''} · ${fmt(cost)} ◈`
+          : 'Drag to grow a moss highway · crosses water as a bridge',
         tone: valid.length ? 'ok' : 'bad',
       });
     },
@@ -168,7 +174,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
       if (hit?.inBounds) dragStart = { x: hit.tx, z: hit.tz };
     },
     up(ctx, hit) {
-      if (dragStart && hit?.inBounds) ctx.commands.execute('road', { tiles: pathTiles(ctx, dragStart, { x: hit.tx, z: hit.tz }) });
+      if (dragStart && hit?.inBounds) ctx.commands.execute('road', { tiles: pathTiles(ctx, dragStart, { x: hit.tx, z: hit.tz }), bridges: true });
       dragStart = null;
     },
   };

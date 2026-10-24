@@ -51,7 +51,7 @@ export class Terrain {
   constructor(
     private grid: Grid,
     private seed: number,
-    private chunk = 32,
+    private chunk = 64,
   ) {
     this.group.name = 'terrain';
     this.build();
