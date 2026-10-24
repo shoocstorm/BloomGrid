@@ -25,15 +25,22 @@ export class CityCamera {
 
   minDistance = 6;
   maxDistance = 320;
+  /** Distance that frames the whole island (overview). */
+  get overviewDistance(): number {
+    return this.grid.w * 1.1;
+  }
 
   constructor(
     private camera: PerspectiveCamera,
     private input: Input,
     private grid: Grid,
-  ) {}
+  ) {
+    this.maxDistance = grid.w * 1.2;
+  }
 
   setGrid(grid: Grid): void {
     this.grid = grid;
+    this.maxDistance = grid.w * 1.2;
   }
 
   lookAt(x: number, z: number, distance?: number, instant = false): void {
@@ -49,7 +56,7 @@ export class CityCamera {
   intro(x: number, z: number, distance: number, duration = 5): void {
     this.goalTarget.set(this.grid.w / 2, 0, this.grid.h / 2);
     this.target.copy(this.goalTarget);
-    this.distance = this.goalDistance = this.grid.w * 1.25;
+    this.distance = this.goalDistance = this.overviewDistance;
     this.pitch = this.goalPitch = 1.25;
     this.yaw = this.goalYaw - 0.9;
     this.goalPitch = 0.85;

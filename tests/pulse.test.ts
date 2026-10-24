@@ -4,7 +4,7 @@ import { applyScenario } from '@/sim/scenario';
 import { deserializeCity, serializeCity, type SaveData } from '@/sim/save';
 import { City } from '@/sim/City';
 import { EventBus } from '@/core/EventBus';
-import { makeSim } from './helpers';
+import { findLandRow, makeSim } from './helpers';
 
 /** Lays a straight east-west highway and returns the first free land x along it. */
 function strip(s: ReturnType<typeof makeSim>, z: number, x0: number, len: number) {
@@ -17,21 +17,24 @@ describe('city pulse', () => {
   it('cuts power to homes without a producer, and restores it when one is connected', () => {
     const s = makeSim(42);
     s.city.credits = 1e6;
-    const z = 140;
-    strip(s, z, 60, 40);
-    let x = 60;
+    const { x0, z } = findLandRow(s.city);
+    strip(s, z, x0, 40);
     let homes = 0;
-    for (; x < 96 && homes < 4; x += 3) if (s.commands.execute('build', { def: 'garden-residence', x, z: z + 1, rot: 0 })) homes++;
+    let eid = -1;
+    for (let x = x0; x < x0 + 36 && homes < 4; x += 3)
+      if (s.commands.execute('build', { def: 'garden-residence', x, z: z + 1, rot: 0 })) {
+        if (eid < 0) eid = s.city.buildingAt(x, z + 1);
+        homes++;
+      }
     expect(homes).toBeGreaterThan(0);
     s.step(100);
-    const eid = s.city.buildingAt(60, z + 1);
     expect(Service.power[eid]).toBe(0);
     expect(Service.problems[eid]! & Problem.NO_POWER).toBeTruthy();
     expect(s.city.pulse.tiers.energy).toBeGreaterThanOrEqual(3);
 
     // Connect a solar spire to the same highway.
     let ok = false;
-    for (let sx = 60; sx < 100 && !ok; sx++) ok = s.commands.execute('build', { def: 'solar-spire', x: sx, z: z - 2, rot: 0 });
+    for (let sx = x0; sx < x0 + 40 && !ok; sx++) ok = s.commands.execute('build', { def: 'solar-spire', x: sx, z: z - 2, rot: 0 });
     expect(ok).toBe(true);
     s.step(30);
     expect(Service.power[eid]).toBe(1);
@@ -40,9 +43,10 @@ describe('city pulse', () => {
   it('buildings without highway access report NO_ROAD', () => {
     const s = makeSim(42);
     s.city.credits = 1e6;
+    const { x0, z } = findLandRow(s.city);
     let placed = -1;
-    for (let x = 60; x < 120 && placed < 0; x += 3)
-      if (s.commands.execute('build', { def: 'garden-residence', x, z: 120, rot: 0 })) placed = s.city.buildingAt(x, 120);
+    for (let x = x0; x < x0 + 30 && placed < 0; x += 3)
+      if (s.commands.execute('build', { def: 'garden-residence', x, z, rot: 0 })) placed = s.city.buildingAt(x, z);
     s.step(20);
     expect(Service.problems[placed]! & Problem.NO_ROAD).toBeTruthy();
   });

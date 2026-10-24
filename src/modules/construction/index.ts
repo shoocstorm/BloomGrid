@@ -1,5 +1,6 @@
 import type { GameModule } from '@/game/context';
 import { buildings } from '@/content';
+import { chunkSizeFor } from '@/sim/City';
 import { BuildingRenderer } from './BuildingRenderer';
 import { RoadRenderer } from './RoadRenderer';
 import { Ghost } from './Ghost';
@@ -24,7 +25,7 @@ export const constructionModule: GameModule = {
   deps: ['world'],
   init(ctx) {
     const renderer = new BuildingRenderer(ctx);
-    new RoadRenderer(ctx);
+    new RoadRenderer(ctx, chunkSizeFor(ctx.city.size));
     const ghost = new Ghost(ctx.scene);
     const state: BuildState = { def: buildings.all()[0]!.id, rot: 0 };
     for (const t of createTools(ghost, state)) ctx.tools.register(t);

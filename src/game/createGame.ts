@@ -9,6 +9,7 @@ import { City } from '@/sim/City';
 import { registerSimCommands } from '@/sim/commands';
 import { simSystems } from '@/sim/systems';
 import { applyScenario } from '@/sim/scenario';
+import { chunkSizeFor } from '@/sim/City';
 import { PULSE_TICKS } from '@/sim/pulse';
 import { createRenderer } from '@/render/Renderer';
 import { ChunkedInstancer } from '@/render/Instancer';
@@ -80,7 +81,7 @@ export async function createGame(
     isWebGPU,
     scene,
     camera,
-    instancer: new ChunkedInstancer(scene),
+    instancer: new ChunkedInstancer(scene, chunkSizeFor(city.size)),
     assets: new AssetManager(),
     quality: { tier, settings: QUALITY_TIERS[tier] },
     input,

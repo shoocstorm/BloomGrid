@@ -5,6 +5,7 @@ import {
   InstancedMesh,
   Matrix4,
   Quaternion,
+  Sphere,
   Vector3,
   type Camera,
   type Object3D,
@@ -21,20 +22,89 @@ export interface InstanceHandle {
 
 const INITIAL_CAPACITY = 64;
 
+/**
+ * Tracks which instance slots changed since the last upload. A few scattered slots become
+ * individual GPU update ranges; many become one span. Kept per attribute, so a matrix-only
+ * tween never re-uploads colours or params.
+ */
+class DirtySlots {
+  private slots: number[] = [];
+  private min = Infinity;
+  private max = -1;
+  private span = false;
+
+  constructor(private limit = 48) {}
+
+  mark(slot: number): void {
+    if (slot < this.min) this.min = slot;
+    if (slot > this.max) this.max = slot;
+    if (!this.span) {
+      if (this.slots.length < this.limit) this.slots.push(slot);
+      else this.span = true;
+    }
+  }
+
+  markAll(count: number): void {
+    this.min = 0;
+    this.max = Math.max(this.max, count - 1);
+    this.span = true;
+  }
+
+  flush(attr: InstancedBufferAttribute, size: number): void {
+    if (this.max < 0) return;
+    attr.clearUpdateRanges();
+    if (this.span) attr.addUpdateRange(this.min * size, (this.max - this.min + 1) * size);
+    else {
+      this.slots.sort((a, b) => a - b);
+      let start = this.slots[0]!;
+      let prev = start;
+      for (let i = 1; i <= this.slots.length; i++) {
+        const s = this.slots[i];
+        if (s !== undefined && s <= prev + 1) {
+          prev = s;
+          continue;
+        }
+        attr.addUpdateRange(start * size, (prev - start + 1) * size);
+        if (s !== undefined) start = prev = s;
+      }
+    }
+    attr.needsUpdate = true;
+    this.slots.length = 0;
+    this.min = Infinity;
+    this.max = -1;
+    this.span = false;
+  }
+}
+
+/** Conservative vertical extent for chunk bounds (terrain + tallest towers). */
+const CHUNK_Y_MIN = -12;
+const CHUNK_Y_MAX = 40;
+
 /** One InstancedMesh for a (piece, chunk) pair. Swap-remove keeps instances densely packed. */
 class InstanceBatch {
   mesh: InstancedMesh;
   params: InstancedBufferAttribute;
   handles: InstanceHandle[] = [];
   capacity = INITIAL_CAPACITY;
-  boundsDirty = false;
+  private dMatrix = new DirtySlots();
+  private dColor = new DirtySlots();
+  private dParams = new DirtySlots();
+  private bounds: Sphere;
 
   constructor(
     readonly piece: PieceType,
     readonly cx: number,
     readonly cz: number,
+    chunkSize: number,
     private parent: Object3D,
   ) {
+    // Fixed chunk-sized bounds: frustum culling stays per chunk and never needs an O(n) recompute.
+    const half = chunkSize / 2;
+    const hy = (CHUNK_Y_MAX - CHUNK_Y_MIN) / 2;
+    this.bounds = new Sphere(
+      new Vector3(cx * chunkSize + half, CHUNK_Y_MIN + hy, cz * chunkSize + half),
+      Math.hypot(half, half, hy) + 4,
+    );
     const { mesh, params } = this.create(this.capacity);
     this.mesh = mesh;
     this.params = params;
@@ -59,6 +129,7 @@ class InstanceBatch {
     mesh.castShadow = this.piece.castShadow;
     mesh.receiveShadow = this.piece.receiveShadow;
     mesh.frustumCulled = true;
+    mesh.boundingSphere = this.bounds;
     mesh.name = `${this.piece.id}@${this.cx},${this.cz}`;
     this.parent.add(mesh);
     return { mesh, params };
@@ -79,8 +150,6 @@ class InstanceBatch {
     old.dispose();
     this.mesh = mesh;
     this.params = params;
-    this.dMin = 0;
-    this.dMax = this.capacity - 1;
   }
 
   add(handle: InstanceHandle, m: Matrix4, color: Color, p: ArrayLike<number>): void {
@@ -93,34 +162,28 @@ class InstanceBatch {
     this.writeSlot(slot, m, color, p);
   }
 
-  /** Dirty slot range, flushed as a single GPU upload range per attribute each frame. */
-  private dMin = Infinity;
-  private dMax = -1;
-
-  private touch(slot: number): void {
-    if (slot < this.dMin) this.dMin = slot;
-    if (slot > this.dMax) this.dMax = slot;
-  }
-
   writeSlot(slot: number, m: Matrix4 | null, color: Color | null, p: ArrayLike<number> | null): void {
     if (m) {
       m.toArray(this.mesh.instanceMatrix.array as Float32Array, slot * 16);
-      this.boundsDirty = true;
+      this.dMatrix.mark(slot);
     }
-    if (color) color.toArray(this.mesh.instanceColor!.array as Float32Array, slot * 3);
+    if (color) {
+      color.toArray(this.mesh.instanceColor!.array as Float32Array, slot * 3);
+      this.dColor.mark(slot);
+    }
     if (p) {
       const a = this.params.array as Float32Array;
       a[slot * 4] = p[0]!;
       a[slot * 4 + 1] = p[1]!;
       a[slot * 4 + 2] = p[2]!;
       a[slot * 4 + 3] = p[3]!;
+      this.dParams.mark(slot);
     }
-    this.touch(slot);
   }
 
   setParam(slot: number, component: number, value: number): void {
     (this.params.array as Float32Array)[slot * 4 + component] = value;
-    this.touch(slot);
+    this.dParams.mark(slot);
   }
 
   remove(handle: InstanceHandle): void {
@@ -137,30 +200,20 @@ class InstanceBatch {
       const moved = this.handles[last]!;
       moved.slot = slot;
       this.handles[slot] = moved;
-      this.touch(slot);
+      this.dMatrix.mark(slot);
+      this.dColor.mark(slot);
+      this.dParams.mark(slot);
     }
     this.handles.pop();
     this.mesh.count = this.handles.length;
     handle.batch = null;
     handle.slot = -1;
-    this.boundsDirty = true;
   }
 
   flush(): void {
-    if (this.dMax < 0) return;
-    const n = this.dMax - this.dMin + 1;
-    const attrs: [InstancedBufferAttribute, number][] = [
-      [this.mesh.instanceMatrix, 16],
-      [this.mesh.instanceColor!, 3],
-      [this.params, 4],
-    ];
-    for (const [a, size] of attrs) {
-      a.clearUpdateRanges();
-      a.addUpdateRange(this.dMin * size, n * size);
-      a.needsUpdate = true;
-    }
-    this.dMin = Infinity;
-    this.dMax = -1;
+    this.dMatrix.flush(this.mesh.instanceMatrix, 16);
+    this.dColor.flush(this.mesh.instanceColor!, 3);
+    this.dParams.flush(this.params, 4);
   }
 
   dispose(): void {
@@ -224,7 +277,7 @@ export class ChunkedInstancer {
     const key = `${pieceId}|${cx}|${cz}`;
     let b = this.batches.get(key);
     if (!b) {
-      b = new InstanceBatch(getPiece(pieceId), cx, cz, this.parent);
+      b = new InstanceBatch(getPiece(pieceId), cx, cz, this.chunkSize, this.parent);
       this.batches.set(key, b);
     }
     return b;
@@ -318,10 +371,6 @@ export class ChunkedInstancer {
     const sf = this.shadowFocus;
     for (const b of this.batches.values()) {
       b.flush();
-      if (b.boundsDirty) {
-        b.mesh.computeBoundingSphere();
-        b.boundsDirty = false;
-      }
       if (b.piece.castShadow) {
         const sx = Math.max(0, Math.abs(sf.x - (b.cx * this.chunkSize + half)) - half);
         const sz = Math.max(0, Math.abs(sf.z - (b.cz * this.chunkSize + half)) - half);

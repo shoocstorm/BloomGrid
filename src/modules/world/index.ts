@@ -4,7 +4,7 @@ import { Atmosphere } from '@/world/Atmosphere';
 import { Flora } from '@/world/Flora';
 import { Terrain } from '@/world/Terrain';
 import { createWater } from '@/world/Water';
-import { DAY_LENGTH } from '@/sim/City';
+import { DAY_LENGTH, chunkSizeFor } from '@/sim/City';
 import { Building } from '@/ecs/components';
 import { buildings } from '@/content';
 
@@ -47,7 +47,7 @@ export const worldModule: GameModule = {
           ctx.scene.remove(water);
           water.geometry.dispose();
         }
-        terrain = new Terrain(city.grid, city.seed);
+        terrain = new Terrain(city.grid, city.seed, chunkSizeFor(city.size));
         water = createWater(city.grid);
         ctx.scene.add(terrain.group, water);
       }
