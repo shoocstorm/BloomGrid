@@ -27,6 +27,7 @@ Alt+1–4 / Shift+1–4 store / recall views · Space pause · 1/2/3 speed · �
 
 - [`AGENTS.md`](AGENTS.md): how to work on this repo (rules, commands, definition of done, doc upkeep)
 - [`BloomGrid_Implementation_Requirements-v3.md`](BloomGrid_Implementation_Requirements-v3.md): canonical requirements
+- [`docs/progress.md`](docs/progress.md): handoff snapshot (where things stand, what's next)
 - [`docs/roadmap.md`](docs/roadmap.md): phases and status
 - [`docs/architecture.md`](docs/architecture.md): layers and extension points
 - [`docs/decisions.md`](docs/decisions.md): decision log

@@ -10,14 +10,15 @@ BloomGrid is a single-player **solarpunk island city builder and manager** in th
 WebGL2), written in TypeScript with Vite. The player is a _city steward_: they monitor the whole 3D island,
 build and modify it, and keep it running well. Neglect can make the city decline or spiral out of control.
 
-| Doc                                                                                          | Purpose                                                                       |
-| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| [`BloomGrid_Implementation_Requirements-v3.md`](BloomGrid_Implementation_Requirements-v3.md) | **Canonical requirements** (player role, island world, systems, crises, NFRs) |
-| [`BloomGrid_Implementation_Requirements-v2.md`](BloomGrid_Implementation_Requirements-v2.md) | Original aesthetic and content pillars (still valid unless v3 overrides)      |
-| [`docs/roadmap.md`](docs/roadmap.md)                                                         | Phases, status and checklists. **What to work on next.**                      |
-| [`docs/architecture.md`](docs/architecture.md)                                               | Layers, frame order, data flow, extension points                              |
-| [`docs/decisions.md`](docs/decisions.md)                                                     | Architecture decision log (append-only)                                       |
-| [`README.md`](README.md)                                                                     | Player-facing quickstart and controls                                         |
+| Doc                                                                                          | Purpose                                                                                    |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [`BloomGrid_Implementation_Requirements-v3.md`](BloomGrid_Implementation_Requirements-v3.md) | **Canonical requirements** (player role, island world, systems, crises, NFRs)              |
+| [`BloomGrid_Implementation_Requirements-v2.md`](BloomGrid_Implementation_Requirements-v2.md) | Original aesthetic and content pillars (still valid unless v3 overrides)                   |
+| [`docs/progress.md`](docs/progress.md)                                                       | **Handoff snapshot**: branch, last commit, baselines, next up, open decisions. Start here. |
+| [`docs/roadmap.md`](docs/roadmap.md)                                                         | Phases, status and checklists. **What to work on next.**                                   |
+| [`docs/architecture.md`](docs/architecture.md)                                               | Layers, frame order, data flow, extension points                                           |
+| [`docs/decisions.md`](docs/decisions.md)                                                     | Architecture decision log (append-only)                                                    |
+| [`README.md`](README.md)                                                                     | Player-facing quickstart and controls                                                      |
 
 ## 2. Commands
 
@@ -158,7 +159,7 @@ own `requestAnimationFrame` loops.
 
 ## 9. Picking up work
 
-1. Read `docs/roadmap.md` and find the first ⏳ or 🚧 phase.
+1. Read `docs/progress.md` (snapshot and next up), then `docs/roadmap.md`, and find the first ⏳ or 🚧 phase.
 2. Skim `docs/decisions.md` for constraints.
 3. Run `npm run check` and `npm run dev` + `npm run snap` to see the current state.
 4. Implement in small, verified steps; update the roadmap checkboxes as you go.
