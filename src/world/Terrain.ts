@@ -4,6 +4,7 @@ import type { Grid } from '@/sim/Grid';
 import { terrainHeight } from '@/sim/terrain';
 import { fbm } from '@/sim/noise';
 import { U } from '@/render/uniforms';
+import { withOverlay } from '@/render/materials/overlay';
 
 const C = {
   deep: new Color(0x5b7f6a),
@@ -33,12 +34,12 @@ function shade(out: Color, h: number, slope: number, x: number, z: number, seed:
 function material(): MeshStandardNodeMaterial {
   const m = new MeshStandardNodeMaterial({ roughness: 0.95, metalness: 0 });
   const detail = mx_noise_float(positionWorld.mul(0.9)).mul(0.035).add(mx_noise_float(positionWorld.mul(7)).mul(0.02));
-  const base = vertexColor().add(detail);
+  const base = vertexColor().xyz.add(detail);
   // Build-mode tile grid overlay.
   const gx = abs(fract(positionWorld.x).sub(0.5));
   const gz = abs(fract(positionWorld.z).sub(0.5));
   const line = smoothstep(0.46, 0.5, max(gx, gz)).mul(U.grid);
-  m.colorNode = mix(base, color(0xeafff6), line.mul(0.5));
+  m.colorNode = withOverlay(mix(base, color(0xeafff6), line.mul(0.5)), false);
   m.emissiveNode = color(0x7ff7e6).mul(line).mul(U.night).mul(0.25).add(float(0));
   return m;
 }

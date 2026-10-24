@@ -4,12 +4,13 @@ import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { SimCtx } from './systems';
 import { HISTORY_LENGTH, HISTORY_METRICS, SYSTEMS, tierFromRatio, type SystemKey, type Tier } from './pulseState';
+import { FIELD_PULSES, computeFields } from './fields';
 
 export const PULSE_TICKS = 10; // one pulse per sim second
 const HISTORY_EVERY = 10; // pulses
 const LABOUR_SHARE = 0.65;
 /** Credits per taxed resident-second; tuned so a mature city nets a modest surplus at 12% tax. */
-const INCOME_SCALE = 0.06;
+export const INCOME_SCALE = 0.06;
 
 // Scratch buffers reused across pulses (no per-pulse allocation for typical network counts).
 let prodE = new Float64Array(64);
@@ -34,6 +35,8 @@ export const pulseSystem: System<SimCtx> = {
     if (city.tick % PULSE_TICKS !== 0) return;
     const { networks, pulse, stats: s } = city;
     const ents = query(city.world, [Building]);
+    if (pulse.count++ % FIELD_PULSES === 0) computeFields(city, city.fields);
+    const desirability = city.fields.desirability;
 
     if (networks.dirty) {
       networks.recompute();
@@ -81,7 +84,10 @@ export const pulseSystem: System<SimCtx> = {
       if (st.water > 0) prodW[net] += st.water * activity * Service.power[eid]!;
       else demW[net] -= st.water * activity;
     }
+    const netStats = pulse.networks;
+    netStats.length = n;
     for (let i = 0; i < n; i++) {
+      netStats[i] = { buildings: 0, energyProduced: prodE[i]!, energyUsed: demE[i]!, waterProduced: prodW[i]!, waterUsed: demW[i]! };
       s.energyProduced += prodE[i]!;
       s.energyUsed += demE[i]!;
       s.waterProduced += prodW[i]!;
@@ -104,6 +110,7 @@ export const pulseSystem: System<SimCtx> = {
       const def = buildings.at(Building.def[eid]!);
       const st = def.stats;
       const net = Service.network[eid]!;
+      if (net >= 0) netStats[net]!.buildings++;
       const needsGrid = st.energy < 0 || st.water < 0 || st.population > 0 || st.jobs > 0;
       const power = st.energy < 0 ? (net < 0 ? 0 : demE[net]! > 0 ? Math.min(1, prodE[net]! / demE[net]!) : 1) : 1;
       const water = st.water < 0 ? (net < 0 ? 0 : demW[net]! > 0 ? Math.min(1, prodW[net]! / demW[net]!) : 1) : 1;
@@ -118,7 +125,9 @@ export const pulseSystem: System<SimCtx> = {
       const occ = Service.occupancy[eid]!;
       if (st.population > 0) {
         const jobFactor = workers > jobsTotal ? 0.6 + 0.4 * (jobsTotal / Math.max(1, workers)) : 1;
-        const target = clamp(0.1 + 0.9 * service * jobFactor * clamp(harmony01 * 1.4, 0.2, 1) * clamp(foodRatio, 0.5, 1), 0, 1);
+        // Desirable land (green, clean, coastal, connected) fills up more readily.
+        const desire = 0.85 + 0.3 * desirability[city.grid.index(Building.x[eid]!, Building.z[eid]!)]!;
+        const target = clamp(0.1 + 0.9 * service * jobFactor * clamp(harmony01 * 1.4, 0.2, 1) * clamp(foodRatio, 0.5, 1) * desire, 0, 1);
         // Residents arrive faster than they leave: a crisis gives the steward ~1–2 minutes to act.
         Service.occupancy[eid] = approach(occ, target, 0.015, 0.008);
         resServices += service * st.population;

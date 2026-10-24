@@ -17,6 +17,11 @@ export const U = {
   sunColor: uniform(new Color(0xfff2d6)),
   /** Placement ghost / cursor colour (valid = cyan, invalid = coral). */
   ghost: uniform(new Color(0x7ff7e6)),
+  /** Data-lens overlay strength 0..1 (animated), and its 3-stop colour ramp (low → high). */
+  overlay: uniform(0),
+  ovLow: uniform(new Color(0xff5a6e)),
+  ovMid: uniform(new Color(0xffd166)),
+  ovHigh: uniform(new Color(0x3ccf8e)),
   /** Map size in world units (for terrain-space lookups such as water depth). */
   mapSize: uniform(256),
 };

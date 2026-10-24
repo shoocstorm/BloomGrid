@@ -42,6 +42,8 @@ const _params = new Float32Array(4);
 const UP = new Vector3(0, 1, 0);
 
 const templates = new Map<string, BuildingTemplate>();
+/** Pieces whose materials read vitality from aParams.w. */
+const PLANT_PIECES = new Set(['mossBox', 'canopy', 'bush', 'grass', 'ivy', 'flower', 'fungus']);
 
 /**
  * Runs a recipe once per (definition, variant) and caches the result. Thousands of buildings
@@ -100,13 +102,17 @@ interface Entry {
   handles: InstanceHandle[];
   /** Membrane pieces whose shader reads live greenery. */
   moss: InstanceHandle[];
-  /** Glass pieces whose lit windows follow the power supply (aParams.w). */
+  /** Glass pieces whose lit windows follow power and occupancy (aParams.w). */
   glass: InstanceHandle[];
+  /** Plant and membrane pieces that wilt with low vitality (aParams.w). */
+  plants: InstanceHandle[];
+  vitality: number;
   /** Template pieces waiting for greenery to reach their threshold, sorted by growAt. */
   pending: TemplatePiece[];
   base: Matrix4;
   height: number;
   lastGreenery: number;
+  /** Window lighting 0..1 (power × occupancy). */
   power: number;
   problems: number;
   alert: InstanceHandle | null;
@@ -153,6 +159,8 @@ export class BuildingRenderer {
       handles: [],
       moss: [],
       glass: [],
+      plants: [],
+      vitality: 1,
       pending: [],
       base: place.base,
       height: place.template.height,
@@ -190,12 +198,15 @@ export class BuildingRenderer {
     _params[0] = greenery;
     _params[1] = p.seed;
     _params[2] = p.glow;
-    _params[3] = entry.power;
+    const glass = p.piece === 'glassBox' || p.piece === 'glassCyl';
+    const plant = PLANT_PIECES.has(p.piece);
+    _params[3] = glass ? entry.power : plant ? entry.vitality : 1;
     const world = _m.multiplyMatrices(entry.base, p.local);
     const h = this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(p.tint), _params, delay, 0.7);
     entry.handles.push(h);
     if (p.piece === 'mossBox') entry.moss.push(h);
-    else if (p.piece === 'glassBox' || p.piece === 'glassCyl') entry.glass.push(h);
+    if (glass) entry.glass.push(h);
+    else if (plant) entry.plants.push(h);
   }
 
   private remove(eid: number): void {
@@ -206,14 +217,26 @@ export class BuildingRenderer {
     this.entries.delete(eid);
   }
 
-  /** Once per pulse: window lighting from power, and problem markers. */
+  /**
+   * Once per pulse: windows light with power and occupancy, plants wilt without water (or when
+   * a home is all but abandoned), and problem markers appear.
+   */
   private syncService(): void {
-    const { instancer } = this.ctx;
+    const { instancer, city } = this.ctx;
     for (const [eid, entry] of this.entries) {
-      const power = Service.power[eid]!;
-      if (Math.abs(power - entry.power) > 0.02) {
+      const st = city.buildingDef(eid).stats;
+      const occ = Service.occupancy[eid]!;
+      const occupied = st.population > 0 || st.jobs > 0 ? 0.2 + 0.8 * occ : 1;
+      const power = Service.power[eid]! * occupied;
+      if (Math.abs(power - entry.power) > 0.03) {
         entry.power = power;
         for (const h of entry.glass) instancer.setParam(h, 3, power);
+      }
+      const abandoned = st.population > 0 && occ < 0.2 ? 0.55 : 1;
+      const vitality = (st.water < 0 ? Service.water[eid]! : 1) * abandoned;
+      if (Math.abs(vitality - entry.vitality) > 0.04) {
+        entry.vitality = vitality;
+        for (const h of entry.plants) instancer.setParam(h, 3, vitality);
       }
       const problems = Service.problems[eid]!;
       if (problems === entry.problems) continue;

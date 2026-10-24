@@ -62,9 +62,9 @@ export default defineScenario({
     };
     const t = () => b.totals();
     sweep('greenhouse-hub', () => t().jobs > t().population * 0.65 * 0.85);
-    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 0.98);
-    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 0.98, island);
-    sweep('water-works', () => t().waterProduced > t().waterUsed * 1.15, island);
+    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06);
+    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06, island);
+    sweep('water-works', () => t().waterProduced > t().waterUsed * 1.12, island);
     sweep('vertical-farm', () => t().food > t().population * 0.55);
   },
 });

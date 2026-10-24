@@ -7,6 +7,14 @@ import type { Input } from './Input';
  * Controls: WASD / arrows pan, Q/E rotate, wheel zoom, right-drag orbit, middle-drag pan.
  * Left-drag panning is enabled by tools that request it (`dragPan`).
  */
+export interface CameraView {
+  x: number;
+  z: number;
+  yaw: number;
+  pitch: number;
+  distance: number;
+}
+
 export class CityCamera {
   readonly target = new Vector3();
   yaw = Math.PI * 0.25;
@@ -50,6 +58,32 @@ export class CityCamera {
       this.target.copy(this.goalTarget);
       this.distance = this.goalDistance;
     }
+  }
+
+  private smoothTimer = 0;
+
+  /** Smooth, slower glide to a point (advisor "show me", bookmarks, overview). */
+  flyTo(x: number, z: number, distance?: number, pitch?: number): void {
+    this.goalTarget.set(x, 0, z);
+    if (distance !== undefined) this.goalDistance = Math.min(this.maxDistance, distance);
+    if (pitch !== undefined) this.goalPitch = pitch;
+    this.smoothing = 3.5;
+    clearTimeout(this.smoothTimer);
+    this.smoothTimer = window.setTimeout(() => (this.smoothing = 10), 1600);
+  }
+
+  /** Frames the whole island from high above. */
+  overview(): void {
+    this.flyTo(this.grid.w / 2, this.grid.h * 0.52, this.overviewDistance, 1.1);
+  }
+
+  getView(): CameraView {
+    return { x: this.goalTarget.x, z: this.goalTarget.z, yaw: this.goalYaw, pitch: this.goalPitch, distance: this.goalDistance };
+  }
+
+  setView(v: CameraView): void {
+    this.goalYaw = v.yaw;
+    this.flyTo(v.x, v.z, v.distance, v.pitch);
   }
 
   /** Cinematic establishing shot: start high over the island, glide down to the target view. */

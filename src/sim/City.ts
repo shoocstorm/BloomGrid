@@ -8,6 +8,7 @@ import { generateTerrain } from './terrain';
 import { Rng, fnv1a } from './random';
 import { RoadNetworks } from './networks';
 import { createPulseState, type PulseState } from './pulseState';
+import { createFields, type Fields } from './fields';
 import './events';
 
 export interface BuildingRecord {
@@ -68,6 +69,7 @@ export class City {
   rng!: Rng;
   networks!: RoadNetworks;
   pulse!: PulseState;
+  fields!: Fields;
   seed = 0;
   tick = 0;
   /** 0..1, 0 = midnight, 0.5 = noon. */
@@ -91,6 +93,7 @@ export class City {
     this.world = createWorld();
     this.rng = new Rng(seed);
     this.networks = new RoadNetworks(this.grid);
+    this.fields = createFields(this.grid);
     this.pulse = createPulseState();
     this.tick = 0;
     this.timeOfDay = 0.3;

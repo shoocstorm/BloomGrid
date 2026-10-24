@@ -22,6 +22,15 @@ export interface HarmonyBreakdown {
   amenities: number;
 }
 
+/** Per highway-network utility totals from the last pulse (index = network id). Not saved. */
+export interface NetworkStats {
+  buildings: number;
+  energyProduced: number;
+  energyUsed: number;
+  waterProduced: number;
+  waterUsed: number;
+}
+
 export interface PulseState {
   taxRate: number;
   tiers: Record<SystemKey, Tier>;
@@ -34,6 +43,9 @@ export interface PulseState {
   waterRatio: number;
   foodRatio: number;
   unemployment: number;
+  networks: NetworkStats[];
+  /** Pulses since start (drives field recompute cadence). */
+  count: number;
 }
 
 export const TAX_MIN = 0.04;
@@ -51,6 +63,8 @@ export function createPulseState(): PulseState {
     waterRatio: 1,
     foodRatio: 1,
     unemployment: 0,
+    networks: [],
+    count: 0,
   };
 }
 

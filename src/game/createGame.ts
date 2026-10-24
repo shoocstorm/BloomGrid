@@ -156,7 +156,7 @@ export async function createGame(
     if (mod && e.code === 'KeyY') return ctx.commands.redo(), true;
     if (mod && e.code === 'KeyS') return void save.save(), true;
     if (mod && e.code === 'KeyL') return void save.load(), true;
-    if (mod) return false;
+    if (mod || e.shiftKey || e.altKey) return false;
     if (e.code === 'Space') return (ctx.engine.speed = ctx.engine.speed ? 0 : 1), true;
     if (e.code === 'Digit1') return (ctx.engine.speed = 1), true;
     if (e.code === 'Digit2') return (ctx.engine.speed = 3), true;

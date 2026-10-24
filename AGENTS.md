@@ -31,8 +31,8 @@ npm run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo
 
 `npm run snap` drives headless Chrome against the running dev server, saves screenshots and prints console
 warnings and errors plus the app's tagged logs such as `[boot] ms {…}` (it exits 1 on page errors). Use it to _look_ at
-your change. `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js` (small district) and `blackout.js`
-(night power-failure drill).
+your change. `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js` (small district), `blackout.js` (night power-failure
+drill) and `drought.js` (water-failure drill; buildings should visibly wilt).
 
 ## 3. Hard rules
 
@@ -78,6 +78,8 @@ your change. `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js
 | Terrain / island shape   | `src/sim/terrain.ts` (pure height function)                                                         |
 | Starting city content    | `src/content/scenarios/<id>.ts` (`defineScenario`); builder in `src/sim/scenario.ts`                |
 | Management metric / tier | `src/sim/pulse.ts` + `src/sim/pulseState.ts`; UI in `src/modules/pulse/`                            |
+| Data lens / advisor rule | `registerOverlay` in `src/sim/overlays.ts`; `registerAdvisorRule` in `src/sim/advisor.ts`           |
+| New lit material         | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)      |
 
 The full layer description is in `docs/architecture.md`.
 
@@ -110,7 +112,7 @@ code no longer has.
 - File-level JSDoc explains _why_ a module exists; comment non-obvious intent, not mechanics.
 - Naming: `PascalCase` classes, `camelCase` functions, kebab-case content ids (`canopy-tower`).
 - Events are `domain:verb` (`building:added`); service keys are short nouns (`construction`, `world`).
-- Units: 1 tile = 1 world unit; sea level y = 0; map 256×256 tiles; sim ticks at 10 Hz; `timeOfDay` in [0, 1).
+- Units: 1 tile = 1 world unit; sea level y = 0; map `MAP_SIZE`² tiles (384); sim ticks at 10 Hz; `timeOfDay` in [0, 1).
 
 ## 8. Gotchas (three r186 / tooling)
 
@@ -119,8 +121,8 @@ code no longer has.
 - TSL `material.positionNode` runs **after** instancing, so `positionLocal` is already instance-transformed.
   Scale-from-pivot effects (growth) go through CPU matrix tweens in `ChunkedInstancer`; sway is an additive world
   offset in the shader.
-- Per-instance shader data comes from the `aParams` vec4 attribute (x greenery, y seed, z glow, w spare) and
-  `instanceColor`. Ask before repurposing `w`.
+- Per-instance shader data comes from the `aParams` vec4 attribute (x greenery, y seed, z glow, w = window lighting
+  for glass / vitality for plants, see D-013) and `instanceColor`.
 - Never dispose a geometry whose attributes are shared (WebGPU frees the GPU buffers). Batches clone piece geometry.
 - WebGL2 compiles pipelines lazily; `ChunkedInstancer.warmup` precompiles every piece at boot. Re-check it when
   adding pieces or materials.

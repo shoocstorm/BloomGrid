@@ -7,7 +7,7 @@ export default defineBuilding({
   description: 'Draws from the sea or a reservoir and purifies it through reed beds and membrane tanks. Must touch water.',
   category: 'utility',
   footprint: [3, 2],
-  stats: { cost: 350, energy: -12, eco: 1, happiness: 0, population: 0, jobs: 10, pollution: 0, water: 150 },
+  stats: { cost: 350, energy: -12, eco: 1, happiness: 0, population: 0, jobs: 10, pollution: 0, water: 220 },
   growthTime: 110,
   placement: { nearWater: true },
   recipe(b) {

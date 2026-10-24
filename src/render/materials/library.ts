@@ -5,6 +5,7 @@ import {
   MeshBasicNodeMaterial,
   MeshStandardNodeMaterial,
   type Material,
+  type Node,
 } from 'three/webgpu';
 import {
   abs,
@@ -13,7 +14,9 @@ import {
   float,
   floor,
   fract,
+  dot,
   hash,
+  materialColor,
   instanceColor,
   max,
   min,
@@ -33,6 +36,7 @@ import {
   vec3,
 } from 'three/tsl';
 import { U } from '../uniforms';
+import { overlayDim, withOverlay } from './overlay';
 
 /**
  * Shared material library. Every instanced piece references one of these, so the whole city
@@ -57,8 +61,38 @@ const swayed = (amp: number) => {
 
 const lib = new Map<string, Material>();
 
-function define(name: string, make: () => Material): void {
-  lib.set(name, make());
+/**
+ * Per-instance vitality (aParams.w on plant and membrane pieces): 1 = thriving, 0 = failing.
+ * Struggling buildings visibly wilt: greens turn dry and brown, and their glow fades.
+ */
+const iVitality = iParams.w;
+const withVitality = (base: Node<'vec3'>) => {
+  // Dry straw-brown keeps the base's lightness so the form still reads.
+  const lum = dot(base, vec3(0.3, 0.59, 0.11));
+  const dry = vec3(lum.mul(0.9).add(0.18)).mul(vec3(1.0, 0.8, 0.52));
+  return mix(dry, base, smoothstep(0.15, 0.9, iVitality)) as Node<'vec3'>;
+};
+
+interface DefineOptions {
+  /** How the data-lens overlay applies: per-instance tint divided out, plain mesh, or not at all. */
+  overlay?: 'instanced' | 'plain' | 'none';
+  /** Wilt with low vitality (aParams.w). */
+  vitality?: boolean;
+}
+
+function define(name: string, make: () => Material, opts: DefineOptions = {}): void {
+  const m = make();
+  if (m instanceof MeshStandardNodeMaterial && opts.overlay !== 'none') {
+    let base = (m.colorNode ?? materialColor) as Node<'vec3'>;
+    if (opts.vitality) base = withVitality(base);
+    m.colorNode = withOverlay(base, (opts.overlay ?? 'instanced') === 'instanced');
+    if (m.emissiveNode) {
+      let e = m.emissiveNode as Node<'vec3'>;
+      if (opts.vitality) e = e.mul(iVitality) as Node<'vec3'>;
+      m.emissiveNode = overlayDim(e);
+    }
+  }
+  lib.set(name, m);
 }
 
 export function getMaterial(name: string): Material {
@@ -125,7 +159,7 @@ export function initMaterials(): void {
     const veins = smoothstep(0.08, 0.0, abs(mx_noise_float(positionWorld.mul(1.8)))).mul(cover);
     m.emissiveNode = color(0x6ff7d8).mul(veins).mul(bioPulse()).mul(0.55).add(petal.mul(blossom).mul(U.night).mul(0.6));
     return m;
-  });
+  }, { vitality: true });
 
   define('plinth', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 1 });
@@ -146,10 +180,10 @@ export function initMaterials(): void {
     m.emissiveNode = mix(instanceColor, color(0x7ff7e6), 0.6).mul(iGlow).mul(bioPulse()).mul(0.5);
     return m;
   };
-  define('canopy', foliage(0.05));
-  define('bush', foliage(0.05));
-  define('grass', foliage(0.25, true));
-  define('ivy', foliage(0.12, true));
+  define('canopy', foliage(0.05), { vitality: true });
+  define('bush', foliage(0.05), { vitality: true });
+  define('grass', foliage(0.25, true), { vitality: true });
+  define('ivy', foliage(0.12, true), { vitality: true });
 
   define('bark', () => new MeshStandardNodeMaterial({ roughness: 1, flatShading: true }));
 
@@ -159,7 +193,7 @@ export function initMaterials(): void {
     m.positionNode = swayed(0.3);
     m.emissiveNode = instanceColor.mul(iGlow).mul(bioPulse()).mul(1.3);
     return m;
-  });
+  }, { vitality: true });
 
   define('fungus', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.5 });
@@ -167,7 +201,7 @@ export function initMaterials(): void {
     m.colorNode = mix(color(0xf6efe4), color(0xffffff), cap);
     m.emissiveNode = color(0x8ff3ff).mul(cap).mul(iGlow).mul(bioPulse()).mul(1.6);
     return m;
-  });
+  }, { vitality: true });
 
   // Solar petals: deep iridescent cells with a faint cyan circuit glow at night.
   define('solar', () => {
@@ -233,7 +267,7 @@ export function initMaterials(): void {
     m.colorNode = mix(turf.add(rut), color(0xd9fff4), line.mul(0.6));
     m.emissiveNode = color(0x7ff7e6).mul(line).mul(dots.mul(0.6).add(0.4)).mul(U.night.mul(1.2).add(0.12));
     return m;
-  });
+  }, { overlay: 'plain' });
 
   // Floating problem marker: bobbing, spinning-light octahedron in its alert colour.
   define('alert', () => {
@@ -241,7 +275,7 @@ export function initMaterials(): void {
     m.positionNode = positionLocal.add(vec3(0, sin(time.mul(3).add(iSeed.mul(20))).mul(0.18), 0));
     m.emissiveNode = instanceColor.mul(sin(time.mul(5).add(iSeed.mul(20))).mul(0.3).add(1.2));
     return m;
-  });
+  }, { overlay: 'none' });
 
   define('ghost', () => {
     const m = new MeshBasicNodeMaterial({ transparent: true, opacity: 0.42, depthWrite: false });

@@ -33,6 +33,8 @@ function tags(def: BuildingDef): HTMLElement {
 
 class Hud {
   private root: HTMLElement;
+  /** Right-hand panel column (info, advisor, help…), stacked without overlap. */
+  right!: HTMLElement;
   private statEls = new Map<string, { el: HTMLElement; v: HTMLElement }>();
   private timeEl!: HTMLElement;
   private speedBtns: HTMLButtonElement[] = [];
@@ -89,7 +91,9 @@ class Hud {
       ' · Hide this ',
       h('kbd', {}, 'H'),
     );
-    this.root.append(this.tooltip, this.toasts, this.help);
+    this.right = h('div', { class: 'rightcol' });
+    this.root.append(this.tooltip, this.toasts, this.right);
+    this.right.append(this.info, this.help);
     setTimeout(() => this.help.classList.add('hidden'), 25_000);
 
     const { bus } = ctx;
@@ -102,7 +106,7 @@ class Hud {
       }
     });
     bus.on('toast', ({ text, tone }) => this.toast(text, tone));
-    bus.on('selection:changed', ({ eid }) => this.select(eid));
+    bus.on('selection:changed', ({ eid, road }) => (road !== undefined ? this.selectNetwork(road) : this.select(eid)));
     bus.on('building:removed', ({ eid }) => eid === this.selected && this.select(null));
     bus.on('save:done', () => this.toast('City saved', 'ok'));
     bus.on('load:done', () => this.toast('City restored', 'ok'));
@@ -162,6 +166,8 @@ class Hud {
       { class: 'actions panel' },
       this.undoBtn,
       this.redoBtn,
+      h('button', { class: 'icon-btn', title: 'City dashboard (K)', onClick: () => ctx.services.get('dashboard').toggle() }, '▤'),
+      h('button', { class: 'icon-btn', title: 'Overview (O) · bookmarks: Alt+1–4 store, Shift+1–4 recall', onClick: () => ctx.cameraCtl.overview() }, '⌖'),
       h('button', { class: 'icon-btn', title: 'Save (⌘S)', onClick: () => void save.save() }, 'Save'),
       h('button', { class: 'icon-btn', title: 'Load (⌘L)', onClick: () => void save.load().then((ok) => ok || this.toast('No save yet', 'bad')) }, 'Load'),
     );
@@ -278,7 +284,28 @@ class Hud {
       h('button', { class: 'icon-btn', style: 'float:right;margin:-8px -8px 0 0', onClick: () => this.select(null) }, '✕'),
       this.infoBody,
     );
-    this.root.append(this.info);
+  }
+
+  /** Highway network ("district") inspector. */
+  private selectNetwork(road: number): void {
+    const { city } = this.ctx;
+    this.selected = null;
+    const id = city.networks.comp[road]!;
+    const n = city.pulse.networks[id];
+    this.info.classList.toggle('hidden', !n);
+    if (!n) return;
+    let tiles = 0;
+    for (let i = 0; i < city.networks.comp.length; i++) if (city.networks.comp[i] === id) tiles++;
+    const ratio = (p: number, u: number) => (u > 0 ? `${Math.round((p / u) * 100)}%` : '—');
+    const row = (k: string, v: string | number) => h('div', { class: 'row' }, h('span', {}, k), h('b', {}, String(v)));
+    this.infoBody.replaceChildren(
+      h('h3', {}, `Highway network #${id + 1}`),
+      h('p', {}, 'Power and water flow along connected Living Highways. Everything touching this network shares its supply.'),
+      row('Highway tiles', fmt(tiles)),
+      row('Connected buildings', fmt(n.buildings)),
+      row('Energy', `${fmt(n.energyProduced)} / ${fmt(n.energyUsed)} (${ratio(n.energyProduced, n.energyUsed)})`),
+      row('Water', `${fmt(n.waterProduced)} / ${fmt(n.waterUsed)} (${ratio(n.waterProduced, n.waterUsed)})`),
+    );
   }
 
   private select(eid: number | null): void {
@@ -365,11 +392,22 @@ class Hud {
   }
 }
 
+export interface HudService {
+  right: HTMLElement;
+}
+
+declare module '@/core/Services' {
+  interface GameServices {
+    hud: HudService;
+  }
+}
+
 export const hudModule: GameModule = {
   id: 'hud',
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
+    ctx.services.provide('hud', { right: hud.right });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

@@ -15,7 +15,8 @@ URL flags: `?renderer=webgl` (force the WebGL2 fallback), `?quality=low|medium|h
 `?stress=2000` (add a stress city), `?scenario=empty` (blank island instead of the founding city), `?seed=123`, `?nodynres`.
 
 Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · X bulldoze ·
-4–0 build categories · P City Pulse panel · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
+4–0 build categories · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·
+Alt+1–4 / Shift+1–4 store / recall views · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
 
 ## Docs
 

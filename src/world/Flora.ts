@@ -60,7 +60,7 @@ export class Flora {
       params[0] = 1;
       params[1] = rng.next();
       params[2] = glow;
-      params[3] = 0;
+      params[3] = 1; // vitality: wild nature is healthy
       handles.push(this.instancer.add(piece, _p, _q, scale, _c.setHex(tint), params, delay(d)));
     };
 

@@ -59,15 +59,20 @@ The city is a system that can run well or badly.
 - [ ] Loans → moved to Phase 5 (debt mechanics)
 - **Accept:** ✅ `tests/pulse.test.ts`: a blackout drives energy to Collapse and residents leave over tens of seconds (not instantly); reconnecting a producer restores power. Visual drill: `npm run snap -- --eval @scripts/scenes/blackout.js`.
 
-## ⏳ Phase 4 — Monitoring & Management UX
+## ✅ Phase 4 — Monitoring & Management UX
 
-- [ ] Overlay framework (sim layer → GPU texture → terrain/building tint) + overlays for energy, water, pollution, eco, harmony, land value
-- [ ] City dashboard with KPI sparklines, budget breakdown, demand meters
-- [ ] Flora-Net advisor: prioritised alerts, "show me" camera jump, suggested fixes, event log
-- [ ] Building and district inspector (inputs/outputs/problems); overview camera, district bookmarks
-- [ ] World readability: wilting / dimming / grey-moss shader states driven by building health
+- [x] Larger island: map 256 → 384 tiles; render chunk size derived from map size (4×4 chunks) so draw calls stay flat
+- [x] Spatial fields (`sim/fields.ts`): pollution, ecology, desirability, shore distance; recomputed every 5 pulses; desirability feeds home occupancy
+- [x] Overlay framework: sim lens registry (`sim/overlays.ts`) → per-tile texture → every lit material blends via `withOverlay`; lenses for power, water, pollution, ecology, desirability, access (L cycles); legend; auto-contrast for relative fields
+- [x] City dashboard (K): headline tiles, six single-series trend charts with hover crosshair, budget and land-use breakdowns, system health with icon + label
+- [x] Flora-Net advisor (F): rule registry in the sim (`sim/advisor.ts`), severity-sorted advisories with "Show me" camera jumps and one-click remedies; event log tab
+- [x] Network ("district") inspector: click a highway to see its buildings and energy/water balance
+- [x] Overview camera (O, ⌖ button) and four bookmarks (Alt+1–4 store, Shift+1–4 recall), saved with the city
+- [x] World readability: plants and membranes wilt (straw-brown, glow fades) with low vitality; windows follow power × occupancy
+- **Measured (WebGPU, headless):** founding city ~1670 buildings / 22k residents; boot 1.9 s; 60 fps; 223 draws near / 202 at overview, CPU 3.7–7 ms per frame, with or without a lens
+- **Accept:** ✅ `tests/monitoring.test.ts` (fields, every lens in range, advisor flags the founding water shortage and a blackout as critical, network stats). Visual drills: `scripts/scenes/drought.js`, `blackout.js`.
 
-## ⬜ Phase 5 — Decline, Crises & Control
+## ⏳ Phase 5 — Decline, Crises & Control
 
 - [ ] Cascades: brownout → job loss → exodus → revenue (basic version live since Phase 3); pollution → wilt → eco collapse; debt → upkeep cuts
 - [ ] Loans and debt: borrowing, interest, forced upkeep cuts
@@ -117,9 +122,10 @@ window settings); save migrations.
 
 Keep this list current; remove items when fixed.
 
-- [ ] **WebGL2 shader warm-up is about 6 s** in headless Chrome (WebGPU about 1.1 s). Investigate `KHR_parallel_shader_compile`, fewer material variants, or warming only near-camera pieces first.
-- [ ] Draw calls approach the budget at full-island zoom with ~1700 buildings (242). Next steps if content grows: merge far chunks into static impostor meshes, or GPU-driven culling with indirect draws.
+- [ ] **WebGL2 shader warm-up is ~2–10 s in headless Chrome** (grew with the overlay/vitality nodes; WebGPU stays ~1.1 s). Options: reveal the city while compiling far pieces in the background, split overlay into a material variant only compiled on first lens use, `KHR_parallel_shader_compile`.
+- [ ] Draw calls are ~200–225 with ~1700 buildings; ~2× more content would approach the budget. Next steps if content grows: merge far chunks into static impostor meshes, or GPU-driven culling with indirect draws.
 - [ ] JS bundle is about 1.2 MB (single chunk): code-split debug (Tweakpane) and future modules.
 - [ ] Main thread blocks during world generation (terrain + flora, about 0.2 s now); move to a worker when the sim moves.
 - [ ] Stress spawner fills the map row-major; make it spread across the island.
-- [ ] Utility networks are global per highway component (no per-district capacity limits yet); revisit with overlays in Phase 4.
+- [ ] Utility networks are global per highway component (no per-district capacity limits).
+- [ ] Field recompute (~every 5 s) runs on the main thread in one go; spread over ticks or move to a worker if maps grow further.

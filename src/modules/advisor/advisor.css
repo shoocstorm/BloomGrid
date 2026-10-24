@@ -1,0 +1,133 @@
+.advisor {
+  padding: 10px 12px;
+  font-size: 12.5px;
+}
+.advisor.collapsed .adv-list {
+  display: none;
+}
+.adv-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.adv-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.adv-leaf {
+  color: #3ccf8e;
+  font-size: 16px;
+}
+.adv-badge {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  color: #fff;
+}
+.adv-badge:empty {
+  display: none;
+}
+.adv-badge.warn {
+  background: #e0a020;
+}
+.adv-badge.crit {
+  background: #e8505f;
+  animation: tier-blink 1.2s steps(2) infinite;
+}
+.adv-tabs {
+  display: flex;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 2px;
+}
+.adv-tab {
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-size: 11.5px;
+}
+.adv-tab.on {
+  background: var(--glass-strong);
+  color: #1d3a33;
+}
+.adv-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 42vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.adv-card {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border-left: 3px solid #8fd3b8;
+  background: rgba(255, 255, 255, 0.35);
+}
+.night .adv-card {
+  background: rgba(127, 247, 230, 0.06);
+}
+.adv-card.warn {
+  border-color: #ffcf6a;
+}
+.adv-card.crit {
+  border-color: #ff5a6e;
+}
+.adv-card-title {
+  font-weight: 600;
+}
+.adv-detail {
+  color: var(--ink-soft);
+  margin: 2px 0;
+  line-height: 1.35;
+}
+.adv-fix {
+  line-height: 1.35;
+}
+.adv-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.adv-actions button {
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  background: rgba(0, 0, 0, 0.06);
+}
+.adv-actions button:hover {
+  background: var(--ink);
+  color: #f3fff8;
+}
+.adv-empty {
+  color: var(--ink-soft);
+  padding: 6px 2px;
+}
+.adv-log {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 6px;
+  font-size: 11.5px;
+  padding: 2px 0;
+}
+.adv-log.warn {
+  color: #b07a10;
+}
+.adv-log.crit {
+  color: var(--bad);
+}
+.night .adv-log.warn {
+  color: #ffcf6a;
+}
+.adv-stamp {
+  font-family: ui-monospace, Menlo, monospace;
+  color: var(--ink-soft);
+}

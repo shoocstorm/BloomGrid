@@ -9,7 +9,8 @@ import type { Ghost } from './Ghost';
 
 declare module '@/core/EventBus' {
   interface GameEvents {
-    'selection:changed': { eid: number | null };
+    /** A building (eid) or, with `road`, the highway network containing that tile. */
+    'selection:changed': { eid: number | null; road?: number };
     toast: { text: string; tone?: 'ok' | 'bad' | 'info' };
   }
 }
@@ -50,7 +51,9 @@ export function createTools(ghost: Ghost, build: BuildState) {
       if (ctx.input.dragDistance > 6) return;
       const eid = hit?.inBounds ? ctx.city.buildingAt(hit.tx, hit.tz) : NO_ENTITY;
       selected = eid === NO_ENTITY ? null : eid;
-      ctx.bus.emit('selection:changed', { eid: selected });
+      const tile = hit?.inBounds ? ctx.city.grid.index(hit.tx, hit.tz) : -1;
+      if (selected === null && tile >= 0 && ctx.city.grid.road[tile]) ctx.bus.emit('selection:changed', { eid: null, road: tile });
+      else ctx.bus.emit('selection:changed', { eid: selected });
     },
   };
 

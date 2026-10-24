@@ -29,6 +29,9 @@ main.ts ── createGame()  core runtime: renderer, sim, input, tools, save, sy
 | Pulse       | `sim/pulse.ts`                            | Once per sim second: utilities per network → service levels → occupancy/staffing → demand → harmony → budget → tiers → history |
 | Pulse state | `sim/pulseState.ts`                       | Tax rate, tiers, harmony breakdown, history ring buffers (plain data, saved)                                                   |
 | Scenarios   | `sim/scenario.ts` + `content/scenarios/*` | Bulk, deterministic starting content applied before renderers attach                                                           |
+| Fields      | `sim/fields.ts`                           | Pollution / ecology / desirability / shore layers on the grid, recomputed every `FIELD_PULSES`                                 |
+| Lenses      | `sim/overlays.ts`                         | Registry of per-tile overlays (value + mask) → `modules/overlays` uploads to `overlayTexture`                                  |
+| Advisor     | `sim/advisor.ts`                          | Registry of pure advisory rules → `modules/advisor` renders and logs                                                           |
 
 ## Frame
 
@@ -61,3 +64,7 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Boot stage           | `onProgress(label, fraction)` inside `createGame`                                                     |
 | Starting city        | `src/content/scenarios/<id>.ts` with `defineScenario` (`?scenario=<id>`, `?scenario=empty`)           |
 | Management metric    | compute in `sim/pulse.ts`, store in `CityStats` / `PulseState`, show in `modules/pulse/PulsePanel.ts` |
+| Data lens            | `registerOverlay({ id, label, icon, legend, smooth, compute })` in `sim/overlays.ts` (or a module)    |
+| Advisor rule         | `registerAdvisorRule((city) => Advisory \| null)`                                                     |
+| Right-hand HUD panel | append to `ctx.services.get('hud').right`                                                             |
+| Dashboard chart      | `new LineChart({ format, step })` from `modules/dashboard/LineChart.ts` (one series per chart)        |
