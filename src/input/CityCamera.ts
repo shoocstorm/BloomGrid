@@ -18,6 +18,8 @@ export class CityCamera {
   private goalPitch = this.pitch;
   private goalDistance = this.distance;
   private tmp = new Vector3();
+  /** Damping rate; lower = slower, more cinematic glides. */
+  smoothing = 10;
   /** Set by tools: left-drag pans the camera. */
   dragPan = false;
 
@@ -41,6 +43,28 @@ export class CityCamera {
       this.target.copy(this.goalTarget);
       this.distance = this.goalDistance;
     }
+  }
+
+  /** Cinematic establishing shot: start high over the island, glide down to the target view. */
+  intro(x: number, z: number, distance: number, duration = 5): void {
+    this.goalTarget.set(this.grid.w / 2, 0, this.grid.h / 2);
+    this.target.copy(this.goalTarget);
+    this.distance = this.goalDistance = this.grid.w * 1.25;
+    this.pitch = this.goalPitch = 1.25;
+    this.yaw = this.goalYaw - 0.9;
+    this.goalPitch = 0.85;
+    this.goalTarget.set(x, 0, z);
+    this.goalDistance = distance;
+    if (duration <= 0) {
+      // Hold the establishing shot.
+      this.goalTarget.copy(this.target);
+      this.goalDistance = this.distance;
+      this.goalPitch = this.pitch;
+      this.goalYaw = this.yaw;
+      return;
+    }
+    this.smoothing = 0.9;
+    setTimeout(() => (this.smoothing = 10), duration * 1000);
   }
 
   update(dt: number): void {
@@ -78,7 +102,7 @@ export class CityCamera {
     this.goalTarget.y = Math.max(0, g.heightAt(this.goalTarget.x, this.goalTarget.z));
 
     // Exponential smoothing (frame-rate independent).
-    const a = 1 - Math.exp(-dt * 10);
+    const a = 1 - Math.exp(-dt * this.smoothing);
     this.target.lerp(this.goalTarget, a);
     this.yaw += (this.goalYaw - this.yaw) * a;
     this.pitch += (this.goalPitch - this.pitch) * a;

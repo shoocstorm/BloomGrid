@@ -40,23 +40,6 @@ body {
   touch-action: none;
 }
 
-#boot {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 22px;
-  letter-spacing: 0.08em;
-  color: var(--ink);
-  background: radial-gradient(circle at 50% 40%, #f3fff0, #bfe6d6 70%);
-  transition: opacity 0.8s;
-  z-index: 50;
-}
-#boot.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
 #hud {
   position: fixed;
   inset: 0;

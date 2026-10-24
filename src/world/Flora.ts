@@ -49,7 +49,8 @@ export class Flora {
     const rng = new Rng(Math.floor(hash2(x, z, this.seed) * 2 ** 31));
     if (rng.next() > this.density) return;
     const handles: InstanceHandle[] = [];
-    const forest = fbm(x * 0.03, z * 0.03, this.seed + 21, 3);
+    // The central hills are a protected forest reserve.
+    const forest = fbm(x * 0.03, z * 0.03, this.seed + 21, 3) + (min > 2.5 ? 0.45 : 0);
     const meadow = fbm(x * 0.05, z * 0.05, this.seed + 33, 2);
     const delay = (k: number) => (animate ? k * 0.08 + rng.next() * 0.4 : -1);
     const at = (ox: number, oz: number) => _p.set(x + ox, g.heightAt(x + ox, z + oz), z + oz);
@@ -63,7 +64,7 @@ export class Flora {
       handles.push(this.instancer.add(piece, _p, _q, scale, _c.setHex(tint), params, delay(d)));
     };
 
-    const high = min > 6;
+    const high = min > 7;
     // Trees: dense where the forest field is high; sparse elsewhere.
     const treeChance = forest > 0.2 ? 0.28 + forest * 0.3 : 0.015;
     if (slope < 2.5 && rng.next() < treeChance) {

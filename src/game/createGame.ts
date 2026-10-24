@@ -40,14 +40,24 @@ declare module '@/core/Services' {
  * Builds the core runtime (sim, renderer, input, tools, persistence) and then loads feature
  * modules in dependency order. Everything feature-specific lives in modules.
  */
-export async function createGame(canvas: HTMLCanvasElement, hud: HTMLElement, modules: GameModule[]): Promise<GameContext> {
+export type ProgressFn = (label: string, progress: number) => Promise<void> | void;
+
+export async function createGame(
+  canvas: HTMLCanvasElement,
+  hud: HTMLElement,
+  modules: GameModule[],
+  onProgress: ProgressFn = () => {},
+): Promise<GameContext> {
   const params = new URLSearchParams(location.search);
+  await onProgress('Negotiating GPU link', 0.05);
   const { renderer, isWebGPU } = await createRenderer(canvas, params.get('renderer') === 'webgl');
   const tier = (params.get('quality') as QualityTier) || (isWebGPU ? 'high' : 'medium');
+  await onProgress(`${isWebGPU ? 'WebGPU' : 'WebGL2'} core · calibrating bio-shaders`, 0.15);
 
   initMaterials();
   initPieces();
 
+  await onProgress('Raising the island from the sea', 0.25);
   const bus = new EventBus();
   const seed = Number(params.get('seed')) || 20261024;
   const city = new City(bus, seed);
@@ -137,17 +147,20 @@ export async function createGame(canvas: HTMLCanvasElement, hud: HTMLElement, mo
     return false;
   });
 
+  await onProgress('Seeding forests, meadows & mangroves', 0.4);
   await loadModules(ctx, modules);
   ctx.tools.attach();
   ctx.tools.setActive('select');
   setQuality(tier);
 
   // Start looking at a pleasant buildable spot near the map centre.
-  ctx.cameraCtl.lookAt(city.grid.w * 0.42, city.grid.h * 0.62, 60, true);
+  await onProgress('Compiling luminous materials', 0.75);
+  ctx.cameraCtl.lookAt(city.grid.w * 0.52, city.grid.h * 0.66, 60, true);
   ctx.cameraCtl.update(0);
   await ctx.instancer.warmup(renderer, scene, camera, pieceIds(), ctx.cameraCtl.target);
 
   // Autosave every 2 minutes.
   setInterval(() => void save.save('autosave'), 120_000);
+  await onProgress('Synchronising city pulse', 0.95);
   return ctx;
 }

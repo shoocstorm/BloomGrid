@@ -29,7 +29,9 @@ export function createWater(grid: Grid): Mesh {
   const deep = color(0x1d6a86);
   const base = mix(shallow, deep, smoothstep(0.0, 0.7, depth));
   const foam = smoothstep(0.09, 0.0, depth.add(ripple.mul(0.03))).mul(smoothstep(-0.2, 0.6, ripple2));
-  m.colorNode = mix(base.add(ripple.mul(0.04)), color(0xf4fffb), foam.mul(0.8));
+  // Ripples fade with depth so open ocean reads calm from the overview camera.
+  const rippleAmt = mix(float(0.04), float(0.012), smoothstep(0.3, 1.0, depth));
+  m.colorNode = mix(base.add(ripple.mul(rippleAmt)), color(0xf4fffb), foam.mul(0.8));
   m.opacityNode = smoothstep(0.0, 0.08, depth).mul(0.75).add(0.2).add(foam.mul(0.3)).min(float(0.96));
   m.roughnessNode = float(0.05).add(ripple2.abs().mul(0.12));
   m.emissiveNode = color(0x2fd0ff).mul(U.night).mul(0.08).add(color(0x9ff7ff).mul(foam).mul(U.night).mul(0.25));
