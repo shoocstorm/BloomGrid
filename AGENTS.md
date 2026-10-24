@@ -23,14 +23,16 @@ build and modify it, and keep it running well. Neglect can make the city decline
 
 ```bash
 npm install
-npm run dev            # http://localhost:5173  (?perf ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?nodynres)
+npm run dev            # http://localhost:5173  (?perf ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty ?nodynres)
 npm run check          # typecheck + lint + tests + production build (must pass before you finish)
 npm test               # vitest only
 npm run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500]
 ```
 
 `npm run snap` drives headless Chrome against the running dev server, saves screenshots and prints console
-warnings and errors (it exits 1 on page errors). Use it to _look_ at your change. `shots/` is git-ignored.
+warnings and errors plus the app's tagged logs such as `[boot] ms {…}` (it exits 1 on page errors). Use it to _look_ at
+your change. `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js` (small district) and `blackout.js`
+(night power-failure drill).
 
 ## 3. Hard rules
 
@@ -52,7 +54,12 @@ warnings and errors (it exits 1 on page errors). Use it to _look_ at your change
    **< 300 draw calls**; sim tick < 4 ms; 50k+ plant instances. Render repeated things through
    `ctx.instancer` (kit pieces + shared materials). Don't allocate in per-frame loops (reuse
    vectors/matrices). Throttle DOM updates (~5 Hz) and use `setText`.
-8. **Don't break saves silently.** Saves store string ids, not registry indices.
+8. **Don't break saves silently.** Saves store string ids, not registry indices. Bump `SAVE_VERSION` and add a step to
+   `migrateSave` whenever the format changes.
+9. **Renderers sync existing state at init.** Startup content is applied in bulk before modules load (D-007), so
+   anything that mirrors sim state must render what already exists in its constructor, not only react to events.
+10. **Startup content must stay cheap.** Watch the `[boot] ms` log: scenario under 100 ms and modules under 400 ms on
+    WebGPU. Recipes are cached per variant (D-008); never run recipes per instance.
 
 ## 4. Where things go
 
@@ -69,6 +76,8 @@ warnings and errors (it exits 1 on page errors). Use it to _look_ at your change
 | Boot progress stage      | `await onProgress(label, fraction)` in `src/game/createGame.ts`                                     |
 | Hero GLB model           | building `recipe: { glb: '/assets/x.glb' }`; files in `public/assets/`                              |
 | Terrain / island shape   | `src/sim/terrain.ts` (pure height function)                                                         |
+| Starting city content    | `src/content/scenarios/<id>.ts` (`defineScenario`); builder in `src/sim/scenario.ts`                |
+| Management metric / tier | `src/sim/pulse.ts` + `src/sim/pulseState.ts`; UI in `src/modules/pulse/`                            |
 
 The full layer description is in `docs/architecture.md`.
 
@@ -77,7 +86,8 @@ The full layer description is in `docs/architecture.md`.
 - [ ] `npm run check` passes.
 - [ ] New sim logic has Vitest coverage in `tests/` (determinism, undo/redo or save round-trip, as relevant).
 - [ ] Visual change verified with `npm run snap` on WebGPU and `?renderer=webgl`; no new console errors.
-- [ ] Perf overlay is still within budget for a demo city (`--eval @scripts/scenes/demo-city.js`).
+- [ ] Perf still within budget with the founding city (default boot) **and** `?stress=1500`: fps and
+      `renderer.info.render.drawCalls` at near and full-island zoom, plus the `[boot] ms` log.
 - [ ] **Docs updated in the same change** (see §6).
 
 ## 6. Keeping docs current

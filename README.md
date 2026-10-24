@@ -12,10 +12,10 @@ npm run snap -- --out shots/x.png   # headless screenshot (dev server must be ru
 ```
 
 URL flags: `?renderer=webgl` (force the WebGL2 fallback), `?quality=low|medium|high|ultra`, `?perf` (perf overlay),
-`?stress=2000` (spawn a stress city), `?seed=123`, `?nodynres`.
+`?stress=2000` (add a stress city), `?scenario=empty` (blank island instead of the founding city), `?seed=123`, `?nodynres`.
 
 Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · X bulldoze ·
-4–9 build categories · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
+4–0 build categories · P City Pulse panel · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
 
 ## Docs
 

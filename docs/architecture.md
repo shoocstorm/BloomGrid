@@ -19,6 +19,17 @@ main.ts ── createGame()  core runtime: renderer, sim, input, tools, save, sy
 | Modules   | `src/modules/*`, `src/ui`, `src/debug` | Features. Each registers systems, commands, tools, services and events.                                                                                            |
 | Platform  | `src/platform`                         | Storage and file export; web (IndexedDB) now, Tauri later.                                                                                                         |
 
+## Simulation model (City Pulse)
+
+| Piece       | Where                                     | Notes                                                                                                                          |
+| ----------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Tile grid   | `sim/Grid.ts`                             | Corner heights, `occupant`, `road` (0 none, 1 highway, 2 bridge), pluggable layers                                             |
+| Entities    | `ecs/components.ts`                       | `Building`, `Greenery`, `Service` (network, power, water, occupancy, problem bits)                                             |
+| Networks    | `sim/networks.ts`                         | Highway connected components; buildings join via footprint perimeter                                                           |
+| Pulse       | `sim/pulse.ts`                            | Once per sim second: utilities per network → service levels → occupancy/staffing → demand → harmony → budget → tiers → history |
+| Pulse state | `sim/pulseState.ts`                       | Tax rate, tiers, harmony breakdown, history ring buffers (plain data, saved)                                                   |
+| Scenarios   | `sim/scenario.ts` + `content/scenarios/*` | Bulk, deterministic starting content applied before renderers attach                                                           |
+
 ## Frame
 
 1. `input` phase: tools hover/pick, camera update.
@@ -36,15 +47,17 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 
 ## Extension points
 
-| Want to add          | Do this                                                                               |
-| -------------------- | ------------------------------------------------------------------------------------- |
-| Building             | `src/content/buildings/<id>.ts` with `defineBuilding`                                 |
-| Kit piece / material | `registerPiece` (`assets/kit/pieces.ts`), `define` (`render/materials/library.ts`)    |
-| Sim system           | `System` with `phase: 'sim'` in the module that owns it; pure TS                      |
-| Player action        | `commands.register(type, { apply, revert })`                                          |
-| Tool                 | `ctx.tools.register({ id, hover, down, up, key, grid, dragPan })`                     |
-| Event / service      | declaration-merge `GameEvents` / `GameServices`, then `bus.emit` / `services.provide` |
-| Tile data            | `city.grid.addLayer(name, n => new Float32Array(n))`                                  |
-| Saved module state   | `services.get('save').addHook({ id, save, load })`                                    |
-| Global shader input  | add a uniform to `render/uniforms.ts` (`U`)                                           |
-| Boot stage           | `onProgress(label, fraction)` inside `createGame`                                     |
+| Want to add          | Do this                                                                                               |
+| -------------------- | ----------------------------------------------------------------------------------------------------- |
+| Building             | `src/content/buildings/<id>.ts` with `defineBuilding`                                                 |
+| Kit piece / material | `registerPiece` (`assets/kit/pieces.ts`), `define` (`render/materials/library.ts`)                    |
+| Sim system           | `System` with `phase: 'sim'` in the module that owns it; pure TS                                      |
+| Player action        | `commands.register(type, { apply, revert })`                                                          |
+| Tool                 | `ctx.tools.register({ id, hover, down, up, key, grid, dragPan })`                                     |
+| Event / service      | declaration-merge `GameEvents` / `GameServices`, then `bus.emit` / `services.provide`                 |
+| Tile data            | `city.grid.addLayer(name, n => new Float32Array(n))`                                                  |
+| Saved module state   | `services.get('save').addHook({ id, save, load })`                                                    |
+| Global shader input  | add a uniform to `render/uniforms.ts` (`U`)                                                           |
+| Boot stage           | `onProgress(label, fraction)` inside `createGame`                                                     |
+| Starting city        | `src/content/scenarios/<id>.ts` with `defineScenario` (`?scenario=<id>`, `?scenario=empty`)           |
+| Management metric    | compute in `sim/pulse.ts`, store in `CityStats` / `PulseState`, show in `modules/pulse/PulsePanel.ts` |

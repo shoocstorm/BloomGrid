@@ -31,19 +31,35 @@ Living Highways, ghost placement, bulldoze, undo/redo, save/load, HUD.
 - [x] Futuristic loading sequence with real progress stages and a reveal transition
 - [x] `AGENTS.md`, `docs/` (roadmap, architecture, decisions) and the headless snapshot script
 
-## ⏳ Phase 3 — City Pulse (core management sim)
+## ✅ Phase 2.6 — Scale Foundation
 
-The city becomes a system that can run well or badly.
+Lots of known content at startup (buildings, highways, bridges) without hurting boot time or frame rate.
 
-- [ ] Demand model: housing / work / food demand meters driven by population, jobs, food
-- [ ] Energy grid: district capacity, deficits → brownouts (per-building `powered` state)
-- [ ] Water: reservoir level, supply vs demand, player-placed filtration lines (grid layer)
-- [ ] Economy: taxes / budget sliders, upkeep per building, loans, income statement
-- [ ] Health tiers (Thriving … Collapse) per system, computed in sim, emitted as events
-- [ ] Stats history ring buffer (for trends), included in saves
-- **Accept:** a city with no power plants visibly fails (brownouts, residents leave); fixing it recovers.
+- [x] Data-driven **scenarios** (`src/content/scenarios/`) applied in bulk before renderers attach; renderers sync existing state on init
+- [x] Founding city: ~680 buildings, ~3300 highway tiles, bridges to all islets, balanced but with water strained
+- [x] **Recipe templates**: each building recipe runs once per (definition, variant) and is cached; placement is a matrix multiply per piece
+- [x] Matrix-based instancing path and growth tweens; shadow casting culled by distance from the view focus; 64-tile terrain and road chunks
+- [x] Bridges: highways over water become decks at `BRIDGE_DECK` with shore ramps, deck slabs and pillars
+- [x] Boot timing log (`[boot] ms {…}`)
+- **Measured (WebGPU, M-series, headless):** founding city boots in about 1.6 s (scenario 40 ms, world + render sync 230 ms, shader warm-up 1.1 s); 1715 buildings at 60 fps, 216 draws near / 242 at full-island overview
 
-## ⬜ Phase 4 — Monitoring & Management UX
+## ✅ Phase 3 — City Pulse (core management sim)
+
+The city is a system that can run well or badly.
+
+- [x] Demand model: homes / work / food demand meters
+- [x] Utility networks follow Living Highways (connected components); per-network energy and water supply and demand → brownouts and dry taps
+- [x] Water: NEWater Reclamation Works (must touch water, needs power); greenery dies back without water
+- [x] Occupancy (homes) and staffing (workplaces) move toward targets driven by services, jobs, food and harmony; producers scale with staffing
+- [x] Economy: tax rate (undoable `setTax`), per-building upkeep, income statement
+- [x] Health tiers (Thriving … Collapse) for energy, water, food, jobs, ecology, harmony, budget; `pulse:tier` events and toasts
+- [x] Stats history ring buffer (40 sim minutes), saved; save format v2 with v1 migration
+- [x] City Pulse panel (P): health, demand, budget + tax slider, harmony factors, sparklines; inspector shows power, water, occupancy and problems
+- [x] World readability: windows go dark with power; floating markers for no highway / no power / no water / understaffed
+- [ ] Loans → moved to Phase 5 (debt mechanics)
+- **Accept:** ✅ `tests/pulse.test.ts`: a blackout drives energy to Collapse and residents leave over tens of seconds (not instantly); reconnecting a producer restores power. Visual drill: `npm run snap -- --eval @scripts/scenes/blackout.js`.
+
+## ⏳ Phase 4 — Monitoring & Management UX
 
 - [ ] Overlay framework (sim layer → GPU texture → terrain/building tint) + overlays for energy, water, pollution, eco, harmony, land value
 - [ ] City dashboard with KPI sparklines, budget breakdown, demand meters
@@ -53,7 +69,8 @@ The city becomes a system that can run well or badly.
 
 ## ⬜ Phase 5 — Decline, Crises & Control
 
-- [ ] Cascades: brownout → job loss → exodus → revenue; pollution → wilt → eco collapse; debt → upkeep cuts
+- [ ] Cascades: brownout → job loss → exodus → revenue (basic version live since Phase 3); pollution → wilt → eco collapse; debt → upkeep cuts
+- [ ] Loans and debt: borrowing, interest, forced upkeep cuts
 - [ ] Neglect overgrowth (nature reclaims unmaintained infrastructure)
 - [ ] Event system with forecasts: monsoon flood, king tide, heatwave, algal bloom, grid failure, blight
 - [ ] Fail state ("Steward replaced") + sandbox mode + difficulty presets
@@ -100,7 +117,9 @@ window settings); save migrations.
 
 Keep this list current; remove items when fixed.
 
-- [ ] **Draw calls at full-island zoom:** the 1644-building stress city framed whole uses 395 draws (budget 300) at 60 fps on WebGPU. Options: merge far chunks into per-chunk impostor meshes, skip shadow casting for far batches, or `BatchedMesh` for static far LOD.
-- [ ] JS bundle is 1.2 MB (single chunk): code-split debug (Tweakpane) and future modules.
-- [ ] Main thread blocks for about 1 s during world generation (terrain + flora); move generation to a worker when the sim moves.
-- [ ] Stress spawner fills the map row-major and stops at the target count; make it spread across the island.
+- [ ] **WebGL2 shader warm-up is about 6 s** in headless Chrome (WebGPU about 1.1 s). Investigate `KHR_parallel_shader_compile`, fewer material variants, or warming only near-camera pieces first.
+- [ ] Draw calls approach the budget at full-island zoom with ~1700 buildings (242). Next steps if content grows: merge far chunks into static impostor meshes, or GPU-driven culling with indirect draws.
+- [ ] JS bundle is about 1.2 MB (single chunk): code-split debug (Tweakpane) and future modules.
+- [ ] Main thread blocks during world generation (terrain + flora, about 0.2 s now); move to a worker when the sim moves.
+- [ ] Stress spawner fills the map row-major; make it spread across the island.
+- [ ] Utility networks are global per highway component (no per-district capacity limits yet); revisit with overlays in Phase 4.
