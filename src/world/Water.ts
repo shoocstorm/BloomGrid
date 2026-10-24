@@ -1,0 +1,44 @@
+import { DataTexture, LinearFilter, Mesh, MeshStandardNodeMaterial, PlaneGeometry, RGBAFormat, ClampToEdgeWrapping } from 'three/webgpu';
+import { color, float, mix, mx_noise_float, positionWorld, smoothstep, texture, time, vec2, vec3 } from 'three/tsl';
+import type { Grid } from '@/sim/Grid';
+import { SEA_LEVEL } from '@/sim/Grid';
+import { U } from '@/render/uniforms';
+
+/** Stylised water: depth-tinted from a baked heightmap texture, animated ripples and shore foam. */
+export function createWater(grid: Grid): Mesh {
+  const W = grid.w + 1;
+  const data = new Uint8Array(W * W * 4);
+  for (let z = 0; z < W; z++)
+    for (let x = 0; x < W; x++) {
+      const h = grid.corner(Math.min(x, grid.w), Math.min(z, grid.h));
+      const depth = Math.max(0, Math.min(1, (SEA_LEVEL - h) / 2));
+      data[(z * W + x) * 4] = depth * 255;
+      data[(z * W + x) * 4 + 3] = 255;
+    }
+  const tex = new DataTexture(data, W, W, RGBAFormat);
+  tex.magFilter = tex.minFilter = LinearFilter;
+  tex.wrapS = tex.wrapT = ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+
+  const m = new MeshStandardNodeMaterial({ roughness: 0.06, metalness: 0.15, transparent: true });
+  const mapUV = vec2(positionWorld.x, positionWorld.z).div(U.mapSize);
+  const depth = texture(tex, mapUV).r;
+  const ripple = mx_noise_float(vec3(positionWorld.x.mul(0.6), time.mul(0.35), positionWorld.z.mul(0.6)));
+  const ripple2 = mx_noise_float(vec3(positionWorld.x.mul(2.2), time.mul(0.8), positionWorld.z.mul(2.2)));
+  const shallow = color(0x7fe3d2);
+  const deep = color(0x1d6a86);
+  const base = mix(shallow, deep, smoothstep(0.0, 0.7, depth));
+  const foam = smoothstep(0.09, 0.0, depth.add(ripple.mul(0.03))).mul(smoothstep(-0.2, 0.6, ripple2));
+  m.colorNode = mix(base.add(ripple.mul(0.04)), color(0xf4fffb), foam.mul(0.8));
+  m.opacityNode = smoothstep(0.0, 0.08, depth).mul(0.75).add(0.2).add(foam.mul(0.3)).min(float(0.96));
+  m.roughnessNode = float(0.05).add(ripple2.abs().mul(0.12));
+  m.emissiveNode = color(0x2fd0ff).mul(U.night).mul(0.08).add(color(0x9ff7ff).mul(foam).mul(U.night).mul(0.25));
+
+  const geo = new PlaneGeometry(grid.w * 4, grid.h * 4, 1, 1).rotateX(-Math.PI / 2);
+  const mesh = new Mesh(geo, m);
+  mesh.position.set(grid.w / 2, SEA_LEVEL, grid.h / 2);
+  mesh.receiveShadow = true;
+  mesh.name = 'water';
+  mesh.renderOrder = 1;
+  return mesh;
+}

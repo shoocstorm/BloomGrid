@@ -1,0 +1,328 @@
+import {
+  Color,
+  DynamicDrawUsage,
+  InstancedBufferAttribute,
+  InstancedMesh,
+  Matrix4,
+  Quaternion,
+  Vector3,
+  type Camera,
+  type Object3D,
+  type Scene,
+  type WebGPURenderer,
+} from 'three/webgpu';
+import { getPiece, type PieceType } from '@/assets/kit/pieces';
+import { getMaterial } from './materials/library';
+
+export interface InstanceHandle {
+  batch: InstanceBatch | null;
+  slot: number;
+}
+
+const INITIAL_CAPACITY = 64;
+
+/** One InstancedMesh for a (piece, chunk) pair. Swap-remove keeps instances densely packed. */
+class InstanceBatch {
+  mesh: InstancedMesh;
+  params: InstancedBufferAttribute;
+  handles: InstanceHandle[] = [];
+  capacity = INITIAL_CAPACITY;
+  boundsDirty = false;
+
+  constructor(
+    readonly piece: PieceType,
+    readonly cx: number,
+    readonly cz: number,
+    private parent: Object3D,
+  ) {
+    const { mesh, params } = this.create(this.capacity);
+    this.mesh = mesh;
+    this.params = params;
+  }
+
+  get count(): number {
+    return this.handles.length;
+  }
+
+  private create(capacity: number) {
+    // Each batch owns a geometry clone so it can carry its own per-instance attribute and be
+    // disposed safely (shared GPU buffers would be freed by dispose()).
+    const geometry = this.piece.geometry.clone();
+    const params = new InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
+    params.setUsage(DynamicDrawUsage);
+    geometry.setAttribute('aParams', params);
+    const mesh = new InstancedMesh(geometry, getMaterial(this.piece.material), capacity);
+    mesh.instanceMatrix.setUsage(DynamicDrawUsage);
+    mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
+    mesh.instanceColor.setUsage(DynamicDrawUsage);
+    mesh.count = 0;
+    mesh.castShadow = this.piece.castShadow;
+    mesh.receiveShadow = this.piece.receiveShadow;
+    mesh.frustumCulled = true;
+    mesh.name = `${this.piece.id}@${this.cx},${this.cz}`;
+    this.parent.add(mesh);
+    return { mesh, params };
+  }
+
+  private grow(): void {
+    const old = this.mesh;
+    const oldParams = this.params;
+    this.capacity *= 2;
+    const { mesh, params } = this.create(this.capacity);
+    mesh.instanceMatrix.array.set(old.instanceMatrix.array as Float32Array);
+    mesh.instanceColor!.array.set(old.instanceColor!.array as Float32Array);
+    params.array.set(oldParams.array as Float32Array);
+    mesh.count = old.count;
+    mesh.visible = old.visible;
+    this.parent.remove(old);
+    old.geometry.dispose();
+    old.dispose();
+    this.mesh = mesh;
+    this.params = params;
+    this.dMin = 0;
+    this.dMax = this.capacity - 1;
+  }
+
+  add(handle: InstanceHandle, m: Matrix4, color: Color, p: ArrayLike<number>): void {
+    if (this.count >= this.capacity) this.grow();
+    const slot = this.count;
+    handle.batch = this;
+    handle.slot = slot;
+    this.handles.push(handle);
+    this.mesh.count = this.handles.length;
+    this.writeSlot(slot, m, color, p);
+  }
+
+  /** Dirty slot range, flushed as a single GPU upload range per attribute each frame. */
+  private dMin = Infinity;
+  private dMax = -1;
+
+  private touch(slot: number): void {
+    if (slot < this.dMin) this.dMin = slot;
+    if (slot > this.dMax) this.dMax = slot;
+  }
+
+  writeSlot(slot: number, m: Matrix4 | null, color: Color | null, p: ArrayLike<number> | null): void {
+    if (m) {
+      m.toArray(this.mesh.instanceMatrix.array as Float32Array, slot * 16);
+      this.boundsDirty = true;
+    }
+    if (color) color.toArray(this.mesh.instanceColor!.array as Float32Array, slot * 3);
+    if (p) {
+      const a = this.params.array as Float32Array;
+      a[slot * 4] = p[0]!;
+      a[slot * 4 + 1] = p[1]!;
+      a[slot * 4 + 2] = p[2]!;
+      a[slot * 4 + 3] = p[3]!;
+    }
+    this.touch(slot);
+  }
+
+  setParam(slot: number, component: number, value: number): void {
+    (this.params.array as Float32Array)[slot * 4 + component] = value;
+    this.touch(slot);
+  }
+
+  remove(handle: InstanceHandle): void {
+    const slot = handle.slot;
+    const last = this.handles.length - 1;
+    if (slot !== last) {
+      // Move last instance into the freed slot.
+      const mArr = this.mesh.instanceMatrix.array as Float32Array;
+      mArr.copyWithin(slot * 16, last * 16, last * 16 + 16);
+      const cArr = this.mesh.instanceColor!.array as Float32Array;
+      cArr.copyWithin(slot * 3, last * 3, last * 3 + 3);
+      const pArr = this.params.array as Float32Array;
+      pArr.copyWithin(slot * 4, last * 4, last * 4 + 4);
+      const moved = this.handles[last]!;
+      moved.slot = slot;
+      this.handles[slot] = moved;
+      this.touch(slot);
+    }
+    this.handles.pop();
+    this.mesh.count = this.handles.length;
+    handle.batch = null;
+    handle.slot = -1;
+    this.boundsDirty = true;
+  }
+
+  flush(): void {
+    if (this.dMax < 0) return;
+    const n = this.dMax - this.dMin + 1;
+    const attrs: [InstancedBufferAttribute, number][] = [
+      [this.mesh.instanceMatrix, 16],
+      [this.mesh.instanceColor!, 3],
+      [this.params, 4],
+    ];
+    for (const [a, size] of attrs) {
+      a.clearUpdateRanges();
+      a.addUpdateRange(this.dMin * size, n * size);
+      a.needsUpdate = true;
+    }
+    this.dMin = Infinity;
+    this.dMax = -1;
+  }
+
+  dispose(): void {
+    this.parent.remove(this.mesh);
+    this.mesh.geometry.dispose();
+    this.mesh.dispose();
+  }
+}
+
+interface Tween {
+  handle: InstanceHandle;
+  pos: Vector3;
+  quat: Quaternion;
+  scale: Vector3;
+  start: number;
+  duration: number;
+}
+
+const _m = new Matrix4();
+const _s = new Vector3();
+const _v = new Vector3();
+
+const easeOutBack = (t: number) => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
+
+/**
+ * Spatially chunked instancing for every kit piece. Chunks give per-region frustum culling
+ * and distance LOD (small pieces like grass and flowers are dropped far from the camera)
+ * while keeping draw calls proportional to *visible* chunks × piece types.
+ */
+export class ChunkedInstancer {
+  private batches = new Map<string, InstanceBatch>();
+  private tweens: Tween[] = [];
+  lodScale = 1;
+  time = 0;
+
+  constructor(
+    private parent: Object3D,
+    readonly chunkSize = 64,
+  ) {}
+
+  get instanceCount(): number {
+    let n = 0;
+    for (const b of this.batches.values()) n += b.count;
+    return n;
+  }
+
+  get batchCount(): number {
+    return this.batches.size;
+  }
+
+  private batchFor(pieceId: string, x: number, z: number): InstanceBatch {
+    const cx = Math.floor(x / this.chunkSize);
+    const cz = Math.floor(z / this.chunkSize);
+    const key = `${pieceId}|${cx}|${cz}`;
+    let b = this.batches.get(key);
+    if (!b) {
+      b = new InstanceBatch(getPiece(pieceId), cx, cz, this.parent);
+      this.batches.set(key, b);
+    }
+    return b;
+  }
+
+  /**
+   * Adds an instance. With `growDelay >= 0` it pops in with an elastic scale tween after
+   * that many seconds; otherwise it appears immediately.
+   */
+  add(
+    pieceId: string,
+    pos: Vector3,
+    quat: Quaternion,
+    scale: Vector3,
+    color: Color,
+    params: ArrayLike<number>,
+    growDelay = -1,
+    growDuration = 0.6,
+  ): InstanceHandle {
+    const handle: InstanceHandle = { batch: null, slot: -1 };
+    const batch = this.batchFor(pieceId, pos.x, pos.z);
+    if (growDelay >= 0) {
+      _m.compose(pos, quat, _s.copy(scale).multiplyScalar(1e-4));
+      batch.add(handle, _m, color, params);
+      this.tweens.push({ handle, pos: pos.clone(), quat: quat.clone(), scale: scale.clone(), start: this.time + growDelay, duration: growDuration });
+    } else {
+      _m.compose(pos, quat, scale);
+      batch.add(handle, _m, color, params);
+    }
+    return handle;
+  }
+
+  remove(handle: InstanceHandle): void {
+    handle.batch?.remove(handle);
+  }
+
+  /**
+   * Compiles every piece pipeline up front (one temporary instance each at `at`), so the first
+   * placement of a building type never stalls on shader compilation — notably on WebGL2.
+   */
+  async warmup(renderer: WebGPURenderer, scene: Scene, camera: Camera, pieceIds: string[], at: Vector3): Promise<void> {
+    const params = [0, 0, 0, 0];
+    const white = new Color(1, 1, 1);
+    const q = new Quaternion();
+    const s = new Vector3(1, 1, 1);
+    const handles = pieceIds.map((id) => this.add(id, at, q, s, white, params));
+    this.update(0, camera);
+    await renderer.compileAsync(scene, camera);
+    handles.forEach((h) => this.remove(h));
+  }
+
+  setParam(handle: InstanceHandle, component: number, value: number): void {
+    if (handle.batch) handle.batch.setParam(handle.slot, component, value);
+  }
+
+  clear(): void {
+    for (const b of this.batches.values()) b.dispose();
+    this.batches.clear();
+    this.tweens.length = 0;
+  }
+
+  update(dt: number, camera: Camera): void {
+    this.time += dt;
+    // Growth tweens (swap-remove from the tween list when done).
+    for (let i = this.tweens.length - 1; i >= 0; i--) {
+      const t = this.tweens[i]!;
+      if (!t.handle.batch) {
+        this.tweens[i] = this.tweens[this.tweens.length - 1]!;
+        this.tweens.pop();
+        continue;
+      }
+      const k = (this.time - t.start) / t.duration;
+      if (k <= 0) continue;
+      const done = k >= 1;
+      const e = done ? 1 : Math.max(1e-4, easeOutBack(k));
+      _m.compose(t.pos, t.quat, _s.copy(t.scale).multiplyScalar(e));
+      t.handle.batch.writeSlot(t.handle.slot, _m, null, null);
+      if (done) {
+        this.tweens[i] = this.tweens[this.tweens.length - 1]!;
+        this.tweens.pop();
+      }
+    }
+
+    // Bounds + distance LOD per batch.
+    const cam = camera.position;
+    const half = this.chunkSize / 2;
+    for (const b of this.batches.values()) {
+      b.flush();
+      if (b.boundsDirty) {
+        b.mesh.computeBoundingSphere();
+        b.boundsDirty = false;
+      }
+      if (b.piece.lod !== Infinity) {
+        _v.set(b.cx * this.chunkSize + half, 0, b.cz * this.chunkSize + half);
+        const dx = Math.max(0, Math.abs(cam.x - _v.x) - half);
+        const dz = Math.max(0, Math.abs(cam.z - _v.z) - half);
+        const d = Math.hypot(dx, dz, cam.y * 0.5);
+        b.mesh.visible = b.count > 0 && d < b.piece.lod * this.lodScale;
+      } else {
+        b.mesh.visible = b.count > 0;
+      }
+    }
+  }
+}
