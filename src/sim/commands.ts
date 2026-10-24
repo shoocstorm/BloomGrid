@@ -4,6 +4,7 @@ import { NO_ENTITY } from './Grid';
 import type { BuildingRecord, City } from './City';
 import { TAX_MAX, TAX_MIN } from './pulseState';
 import { registerFinanceCommands } from './finance';
+import { Building, Greenery } from '@/ecs/components';
 
 /** Cost of building a highway on a tile (bridges over water cost more). */
 export function roadTileCost(city: City, t: number): number {
@@ -140,4 +141,102 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
       city.pulse.taxRate = prev;
     },
   });
+
+  stack.register<RoadPayload, [number, number][]>('channel', {
+    apply({ city }, p) {
+      const placed: [number, number][] = [];
+      let cost = 0;
+      for (const t of p.tiles) {
+        if (placed.some(([u]) => u === t) || !city.canChannel(t) || city.credits < cost + CHANNEL_COST) continue;
+        placed.push([t, 1]);
+        cost += CHANNEL_COST;
+      }
+      if (!placed.length) return null;
+      city.credits -= cost;
+      city.setChannels(placed);
+      return placed;
+    },
+    revert({ city }, _p, placed) {
+      city.setChannels(placed.map(([t]) => [t, 0]));
+      city.credits += placed.length * CHANNEL_COST;
+    },
+  });
+
+  stack.register<RoadPayload, [number, number][]>('unchannel', {
+    apply({ city }, p) {
+      const removed = p.tiles.filter((t) => city.channelAt(t)).map((t) => [t, city.channelAt(t)] as [number, number]);
+      if (!removed.length) return null;
+      city.setChannels(removed.map(([t]) => [t, 0]));
+      return removed;
+    },
+    revert({ city }, _p, removed) {
+      city.setChannels(removed);
+    },
+  });
+
+  stack.register<RetrofitPayload, RetrofitUndo>('retrofit', {
+    apply({ city }, p) {
+      const plan = retrofitPlan(city, p.x, p.z, p.radius);
+      if (!plan.eids.length || city.credits < plan.cost) return null;
+      const undo: RetrofitUndo = { eids: plan.eids.map((e) => [e, Greenery.value[e]!]), channels: plan.channels.map((t) => [t, city.channelAt(t)]), cost: plan.cost };
+      for (const e of plan.eids) {
+        Building.level[e] = 1;
+        Greenery.value[e] = Math.max(Greenery.value[e]!, 0.85);
+      }
+      if (plan.channels.length) city.setChannels(plan.channels.map((t) => [t, 2]));
+      city.credits -= plan.cost;
+      city.bus.emit('buildings:level', { eids: plan.eids, origin: { x: p.x, z: p.z, radius: p.radius } });
+      return undo;
+    },
+    revert({ city }, _p, u) {
+      for (const [e, g] of u.eids) {
+        Building.level[e] = 0;
+        Greenery.value[e] = g;
+      }
+      if (u.channels.length) city.setChannels(u.channels);
+      city.credits += u.cost;
+      city.bus.emit('buildings:level', { eids: u.eids.map(([e]) => e) });
+    },
+  });
+}
+
+export interface RetrofitPayload {
+  x: number;
+  z: number;
+  radius: number;
+}
+interface RetrofitUndo {
+  eids: [number, number][];
+  channels: [number, number][];
+  cost: number;
+}
+
+export const CHANNEL_COST = 6;
+/** Retrofit costs this share of each building's price. */
+export const RETROFIT_SHARE = 0.4;
+export const RETROFIT_RADIUS = 14;
+
+/** Which buildings and channels a Bloom Retrofit at (x, z) would transform, and the price. */
+export function retrofitPlan(city: City, x: number, z: number, radius: number): { eids: number[]; channels: number[]; cost: number } {
+  const eids: number[] = [];
+  let cost = 0;
+  for (const e of city.buildingEntities()) {
+    if (Building.level[e]) continue;
+    const def = city.buildingDef(e);
+    if (typeof def.recipe !== 'function' || def.category === 'nature') continue;
+    const dx = Building.x[e]! + Building.w[e]! / 2 - x;
+    const dz = Building.z[e]! + Building.d[e]! / 2 - z;
+    if (dx * dx + dz * dz > radius * radius) continue;
+    eids.push(e);
+    cost += def.stats.cost * RETROFIT_SHARE;
+  }
+  const channels: number[] = [];
+  const ch = city.grid.layer<Uint8Array>('channel');
+  if (ch)
+    for (let j = Math.max(0, Math.floor(z - radius)); j <= Math.min(city.grid.h - 1, Math.ceil(z + radius)); j++)
+      for (let i = Math.max(0, Math.floor(x - radius)); i <= Math.min(city.grid.w - 1, Math.ceil(x + radius)); i++) {
+        const t = j * city.grid.w + i;
+        if (ch[t] === 1 && (i + 0.5 - x) ** 2 + (j + 0.5 - z) ** 2 <= radius * radius) channels.push(t);
+      }
+  return { eids, channels, cost: Math.round(cost) };
 }

@@ -9,10 +9,10 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests",
-    "test": "vitest run",
+    "test": "rm -rf node_modules/.vitest-cache && vitest run",
     "format": "prettier --write .",
     "snap": "node scripts/snap.mjs",
-    "check": "tsc --noEmit && eslint src tests && vitest run && vite build",
+    "check": "tsc --noEmit && eslint src tests && npm test && vite build",
     "perf": "node scripts/perf.mjs"
   },
   "dependencies": {

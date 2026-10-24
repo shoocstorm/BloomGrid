@@ -1,8 +1,9 @@
 import { Color, Euler, Matrix4, Quaternion, Vector3 } from 'three/webgpu';
-import { Greenery, Problem, Service } from '@/ecs/components';
+import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { BuildingDef, KitBuilder, PieceSpec } from '@/content/types';
 import { Rng, hash2 } from '@/sim/random';
+import { PALETTE } from '@/content/kit';
 import type { Grid } from '@/sim/Grid';
 import type { InstanceHandle } from '@/render/Instancer';
 import type { GameContext } from '@/game/context';
@@ -23,6 +24,11 @@ export interface BuildingTemplate {
   pieces: TemplatePiece[];
   /** Top of the tallest piece (local), for placing alert markers. */
   height: number;
+  /** Local bounds of the solid building volume (for façade decoration). */
+  bounds: { minX: number; maxX: number; minZ: number; maxZ: number; top: number };
+  /** Bloom Retrofit overlay (flower walls, ivy curtains, sunflower roof), built on demand. */
+  retrofit?: TemplatePiece[];
+  rng: Rng;
 }
 
 /** World-space placement of a building: template + base transform + terrain plinth. */
@@ -44,6 +50,9 @@ const UP = new Vector3(0, 1, 0);
 const templates = new Map<string, BuildingTemplate>();
 /** Pieces whose materials read vitality from aParams.w. */
 const PLANT_PIECES = new Set(['mossBox', 'canopy', 'bush', 'grass', 'ivy', 'flower', 'fungus']);
+/** Pieces that make up a building's solid volume (for façade bounds). */
+// Domes and tanks are excluded: dressing their bounding box would float flowers in mid-air.
+const SOLID_PIECES = new Set(['slab', 'glassBox', 'glassCyl', 'concreteCyl', 'mossBox']);
 
 /**
  * Runs a recipe once per (definition, variant) and caches the result. Thousands of buildings
@@ -56,6 +65,7 @@ export function buildingTemplate(def: BuildingDef, variant: number): BuildingTem
   const rng = new Rng(Math.floor(hash2(variant, 7, buildings.indexOf(def.id) + 1) * 2 ** 31));
   const pieces: TemplatePiece[] = [];
   let height = 0.5;
+  const bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, top: 0 };
   const add = (spec: PieceSpec) => {
     const p = spec.p ?? [0, 0, 0];
     const s = spec.s ?? 1;
@@ -63,14 +73,82 @@ export function buildingTemplate(def: BuildingDef, variant: number): BuildingTem
     _q.setFromEuler(_e.set(spec.rx ?? 0, spec.r ?? 0, spec.rz ?? 0, 'YXZ'));
     const local = new Matrix4().compose(_v.set(p[0], p[1], p[2]), _q, sv);
     height = Math.max(height, p[1] + (spec.piece === 'ivy' ? 0 : sv.y));
+    if (SOLID_PIECES.has(spec.piece)) {
+      // Rotated half-extents of a unit piece (pivot at base centre).
+      const hx = Math.abs(Math.cos(spec.r ?? 0)) * sv.x * 0.5 + Math.abs(Math.sin(spec.r ?? 0)) * sv.z * 0.5;
+      const hz = Math.abs(Math.sin(spec.r ?? 0)) * sv.x * 0.5 + Math.abs(Math.cos(spec.r ?? 0)) * sv.z * 0.5;
+      bounds.minX = Math.min(bounds.minX, p[0] - hx);
+      bounds.maxX = Math.max(bounds.maxX, p[0] + hx);
+      bounds.minZ = Math.min(bounds.minZ, p[2] - hz);
+      bounds.maxZ = Math.max(bounds.maxZ, p[2] + hz);
+      bounds.top = Math.max(bounds.top, p[1] + sv.y);
+    }
     pieces.push({ piece: spec.piece, local, tint: spec.tint ?? 0xffffff, glow: spec.glow ?? 0, growAt: spec.growAt ?? 0, seed: rng.next(), y: p[1] });
   };
   const [w, d] = def.footprint;
   const builder: KitBuilder = { w, d, rand: () => rng.next(), range: (a, b) => rng.range(a, b), pick: (arr) => rng.pick(arr), add };
   if (typeof def.recipe === 'function') def.recipe(builder);
-  t = { pieces, height };
+  if (bounds.minX === Infinity) Object.assign(bounds, { minX: -0.4, maxX: 0.4, minZ: -0.4, maxZ: 0.4, top: 0.5 });
+  t = { pieces, height, bounds, rng };
   templates.set(key, t);
   return t;
+}
+
+/**
+ * Bloom Retrofit overlay for a template: flowering façades and ivy curtains on all four faces,
+ * plus a sunflower solar crown on the roof. Generated once per template and cached.
+ */
+export function retrofitPieces(t: BuildingTemplate): TemplatePiece[] {
+  if (t.retrofit) return t.retrofit;
+  const out: TemplatePiece[] = [];
+  const { minX, maxX, minZ, maxZ, top } = t.bounds;
+  const rng = t.rng;
+  const push = (piece: string, p: [number, number, number], s: [number, number, number], r: number, tint: number, glow: number, rz = 0) => {
+    _q.setFromEuler(_e.set(0, r, rz, 'YXZ'));
+    out.push({ piece, local: new Matrix4().compose(_v.set(...p), _q, _s.set(...s)), tint, glow, growAt: 0, seed: rng.next(), y: p[1] });
+  };
+  const blossoms = PALETTE.blossoms;
+  // Faces: [fixed coord, along-axis min, max, outward normal x, z]
+  const faces: [number, number, number, number, number][] = [
+    [maxX + 0.03, minZ, maxZ, 1, 0],
+    [minX - 0.03, minZ, maxZ, -1, 0],
+    [maxZ + 0.03, minX, maxX, 0, 1],
+    [minZ - 0.03, minX, maxX, 0, -1],
+  ];
+  // Only buildings with a real box-like volume get flowering façades.
+  const hasFacade = maxX - minX > 0.5 && maxZ - minZ > 0.5 && top > 0.4;
+  const perFace = Math.max(8, Math.min(18, Math.round(top * 5)));
+  for (const [fixed, a, b, nx, nz] of hasFacade ? faces : []) {
+    // Blossom clusters climbing the façade, densest low down like a cascading planting.
+    for (let i = 0; i < perFace; i++) {
+      const u = a + 0.06 + rng.next() * (b - a - 0.12);
+      const y = 0.12 + Math.pow(rng.next(), 1.4) * Math.max(0.2, top * 0.95 - 0.12);
+      const p: [number, number, number] = nx ? [fixed, y, u] : [u, y, fixed];
+      const s = 0.11 + rng.next() * 0.07;
+      push('flower', p, [s, s, s], 0, rng.pick(blossoms), rng.next() < 0.6 ? 0.6 + rng.next() * 0.4 : 0);
+    }
+    // Short ivy fringes under each roof edge.
+    for (let i = 0; i < 4; i++) {
+      const u = a + ((i + 0.5) / 4) * (b - a);
+      const p: [number, number, number] = nx ? [fixed, top, u] : [u, top, fixed];
+      push('ivy', p, [0.13, Math.min(1, top * (0.25 + rng.next() * 0.2)), 1], Math.atan2(nx, nz), rng.pick(PALETTE.leaves), rng.next() < 0.3 ? 0.6 : 0);
+    }
+  }
+  // A ring of blossoms around the base for every retrofitted building (domes included).
+  for (let i = 0; i < 12; i++) {
+    const ang = rng.next() * Math.PI * 2;
+    const rx = (maxX - minX) / 2 + 0.12;
+    const rz = (maxZ - minZ) / 2 + 0.12;
+    const s = 0.1 + rng.next() * 0.05;
+    push('flower', [(minX + maxX) / 2 + Math.cos(ang) * rx, 0.02, (minZ + maxZ) / 2 + Math.sin(ang) * rz], [s, s, s], 0, rng.pick(blossoms), 0.7);
+  }
+  // Sunflower crown.
+  const cx = (minX + maxX) / 2;
+  const cz = (minZ + maxZ) / 2;
+  push('concreteCyl', [cx, top, cz], [0.32, 0.08, 0.32], 0, 0xffe08a, 0.5);
+  for (let i = 0; i < 10; i++) push('sunPetal', [cx, top + 0.06, cz], [0.6, 1, 0.6], (i / 10) * Math.PI * 2, 0xffc83a, 0.6, 0.45); // golden sunflower petals
+  t.retrofit = out;
+  return out;
 }
 
 export function variantFor(def: BuildingDef, x: number, z: number): number {
@@ -109,6 +187,9 @@ interface Entry {
   vitality: number;
   /** 0..1 how far nature has reclaimed a worn-down building (extra moss). */
   wild: number;
+  template: BuildingTemplate | null;
+  /** Bloom Retrofit overlay instances (empty when not retrofitted). */
+  retro: InstanceHandle[];
   /** Template pieces waiting for greenery to reach their threshold, sorted by growAt. */
   pending: TemplatePiece[];
   base: Matrix4;
@@ -148,6 +229,18 @@ export class BuildingRenderer {
       for (const eid of [...this.entries.keys()]) this.remove(eid);
     });
     bus.on('stats:updated', () => this.syncService());
+    // District transformation wave: overlays pop in by distance from the retrofit origin.
+    bus.on('buildings:level', ({ eids, origin }) => {
+      for (const eid of eids) {
+        const entry = this.entries.get(eid);
+        if (!entry) continue;
+        if (Building.level[eid]) {
+          const e = entry.base.elements;
+          const dist = origin ? Math.hypot(e[12]! - origin.x, e[14]! - origin.z) : 0;
+          this.addRetrofit(entry, ctx.loading ? -1 : dist * 0.09);
+        } else this.removeRetrofit(entry);
+      }
+    });
     // Bulk content (scenario) may exist before this renderer attaches.
     for (const eid of ctx.city.buildingEntities()) this.add(eid, false);
   }
@@ -168,6 +261,8 @@ export class BuildingRenderer {
       plants: [],
       vitality: 1,
       wild: 0,
+      template: typeof def.recipe === 'function' ? place.template : null,
+      retro: [],
       pending: [],
       base: place.base,
       height: place.template.height,
@@ -199,6 +294,23 @@ export class BuildingRenderer {
       else entry.pending.push(p);
     }
     entry.pending.sort((a, b) => a.growAt - b.growAt);
+    if (Building.level[eid]) this.addRetrofit(entry, animate ? 0.3 : -1);
+  }
+
+  /** Adds the retrofit overlay; `delay` < 0 = instant, else pop-in staggered bottom-up. */
+  private addRetrofit(entry: Entry, delay: number): void {
+    if (!entry.template || entry.retro.length) return;
+    for (const p of retrofitPieces(entry.template)) {
+      _params.set([1, p.seed, p.glow, 1]);
+      const world = _m.multiplyMatrices(entry.base, p.local);
+      const d = delay < 0 ? -1 : delay + p.y * 0.25 + Math.random() * 0.25;
+      entry.retro.push(this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(p.tint), _params, d, 0.8));
+    }
+  }
+
+  private removeRetrofit(entry: Entry): void {
+    for (const h of entry.retro) this.ctx.instancer.remove(h);
+    entry.retro = [];
   }
 
   private spawn(entry: Entry, p: TemplatePiece, greenery: number, delay: number): void {
@@ -220,6 +332,7 @@ export class BuildingRenderer {
     const entry = this.entries.get(eid);
     if (!entry) return;
     for (const h of entry.handles) this.ctx.instancer.remove(h);
+    this.removeRetrofit(entry);
     if (entry.alert) this.ctx.instancer.remove(entry.alert);
     this.entries.delete(eid);
   }

@@ -9,6 +9,7 @@ export default defineBuilding({
   footprint: [3, 3],
   stats: { cost: 300, energy: 70, eco: -6, happiness: -2, population: 0, jobs: 20, pollution: 6, water: -6 },
   growthTime: 120,
+  symbiosis: { partners: ['phyto-garden'], radius: 7, pollutionMul: 0.25, outputMul: 1.15, label: 'phyto-garden reed beds purify its effluent' },
   recipe(b) {
     // Main hall with living membrane walls
     b.add({ piece: 'slab', p: [-0.4, 0, 0], s: [1.8, 0.9, 2.4], tint: PALETTE.concrete });

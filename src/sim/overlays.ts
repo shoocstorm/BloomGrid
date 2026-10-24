@@ -87,6 +87,20 @@ registerOverlay({ id: 'pollution', label: 'Pollution', icon: '☁', legend: ['Cl
 registerOverlay({ id: 'ecology', label: 'Ecology', icon: '🌿', legend: ['Barren', 'Lush'], smooth: true, compute: fieldLens('ecology', 1, true) });
 registerOverlay({ id: 'desirability', label: 'Desirability', icon: '◆', legend: ['Low', 'High'], smooth: true, compute: fieldLens('desirability', 1, true) });
 registerOverlay({
+  id: 'bloom',
+  label: 'Bloom',
+  icon: '🌸',
+  legend: ['Barren', 'In bloom'],
+  smooth: true,
+  compute(city, f, value, mask) {
+    const b = city.grid.layer<Float32Array>('bloom');
+    for (let i = 0; i < value.length; i++) {
+      value[i] = b ? b[i]! : 0;
+      mask[i] = f.shore[i] === 0 ? 0 : 1;
+    }
+  },
+});
+registerOverlay({
   id: 'access',
   label: 'Access',
   icon: '≋',

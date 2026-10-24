@@ -1,4 +1,4 @@
-import { Greenery, Problem, Service } from '@/ecs/components';
+import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import { CATEGORY_ICONS, CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
 import { NO_ENTITY } from '@/sim/Grid';
@@ -196,7 +196,7 @@ class Hud {
       this.toolBtns.set(id, b);
       toolbar.append(b);
     };
-    for (const id of ['select', 'road', 'bulldoze']) {
+    for (const id of ['select', 'road', 'channel', 'bulldoze', 'retrofit']) {
       const t = ctx.tools.get(id);
       if (!t) continue;
       toolBtn(id, t.icon, t.label, t.hotkey?.replace('Key', '').replace('Escape', 'Esc'), () => {
@@ -352,12 +352,19 @@ class Hud {
         p & Problem.UNSTAFFED && 'Understaffed: not enough workers',
       ].filter(Boolean) as string[];
       const occLabel = st.population > 0 ? 'Occupancy' : st.jobs > 0 ? 'Staffing' : '';
+      const def = this.ctx.city.buildingDef(eid);
+      const sym = def.symbiosis;
+      const extra = [
+        Building.level[eid] ? '✾ Bloom Retrofit: flowering façade, sunflower crown (eco ×1.5, uses less power and water)' : '',
+        sym ? (Service.paired[eid] ? `✓ Symbiosis: ${sym.label}` : `✗ Unpaired: place a ${sym.partners.map((p) => buildings.get(p).name).join(' or ')} within ${sym.radius} tiles`) : '',
+        `Bloom ${Math.round(Service.bloom[eid]! * 100)}% · Condition ${Math.round(Service.condition[eid]! * 100)}%`,
+      ].filter(Boolean);
       const lines = [
         st.energy < 0 ? `Power ${Math.round(Service.power[eid]! * 100)}%` : '',
         st.water < 0 ? `Water ${Math.round(Service.water[eid]! * 100)}%` : '',
         occLabel ? `${occLabel} ${Math.round(Service.occupancy[eid]! * 100)}%` : '',
       ].filter(Boolean);
-      setText(svc, [lines.join(' · '), ...issues.map((i) => `⚠ ${i}`)].filter(Boolean).join('\n'));
+      setText(svc, [lines.join(' · '), ...extra, ...issues.map((i) => `⚠ ${i}`)].filter(Boolean).join('\n'));
       svc.classList.toggle('bad', issues.length > 0);
     }
   }

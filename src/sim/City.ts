@@ -23,6 +23,8 @@ export interface BuildingRecord {
   occupancy?: number;
   /** Physical condition 0..1 (default 1). */
   condition?: number;
+  /** Retrofit level (0 original, 1 Bloom Retrofit). */
+  level?: number;
 }
 
 export interface CityStats {
@@ -78,6 +80,8 @@ export class City {
   pulse!: PulseState;
   fields!: Fields;
   steward!: StewardState;
+  /** Channels changed: irrigation must be recomputed on the next pulse. */
+  channelsDirty = true;
   /** Number of highway tiles (kept in sync by setRoads). */
   roadCount = 0;
   seed = 0;
@@ -106,6 +110,7 @@ export class City {
     this.fields = createFields(this.grid);
     this.steward = createStewardState(difficulty);
     this.roadCount = 0;
+    this.channelsDirty = true;
     this.pulse = createPulseState();
     this.tick = 0;
     this.timeOfDay = 0.3;
@@ -136,6 +141,7 @@ export class City {
         const idx = g.index(i, j);
         if (g.occupant[idx] !== NO_ENTITY) return { ok: false, reason: 'Occupied' };
         if (g.road[idx]) return { ok: false, reason: 'Living Highway in the way' };
+        if (this.channelAt(idx)) return { ok: false, reason: 'Filtration channel in the way' };
       }
     }
     if (def.placement?.nearWater && !this.touchesWater(x, z, w, d)) return { ok: false, reason: 'Must touch the sea or a reservoir' };
@@ -174,6 +180,9 @@ export class City {
     Service.water[eid] = 1;
     Service.problems[eid] = 0;
     Service.condition[eid] = rec.condition ?? 1;
+    Building.level[eid] = rec.level ?? 0;
+    Service.paired[eid] = 0;
+    Service.bloom[eid] = 0.4;
     Service.network[eid] = this.networks.dirty ? -1 : this.networks.networkFor(rec.x, rec.z, w, d);
     for (let j = rec.z; j < rec.z + d; j++)
       for (let i = rec.x; i < rec.x + w; i++) this.grid.occupant[this.grid.index(i, j)] = eid;
@@ -210,6 +219,7 @@ export class City {
       greenery: Greenery.value[eid]!,
       occupancy: Service.occupancy[eid]!,
       condition: Service.condition[eid]!,
+      level: Building.level[eid]!,
     };
   }
 
@@ -222,7 +232,7 @@ export class City {
     const g = this.grid;
     const x = idx % g.w;
     const z = (idx / g.w) | 0;
-    if (g.road[idx] || g.occupant[idx] !== NO_ENTITY) return false;
+    if (g.road[idx] || g.occupant[idx] !== NO_ENTITY || this.channelAt(idx)) return false;
     const { min, max } = g.rangeOver(x, z, 1, 1);
     if (min < SEA_LEVEL + 0.05) return bridges;
     return max - min <= 0.9;
@@ -246,6 +256,35 @@ export class City {
     this.bus.emit('road:changed', { tiles });
   }
 
+  channelAt(idx: number): number {
+    return this.grid.layer<Uint8Array>('channel')?.[idx] ?? 0;
+  }
+
+  /** Filtration channels go on dry, gentle, free land. */
+  canChannel(idx: number): boolean {
+    const g = this.grid;
+    const x = idx % g.w;
+    const z = (idx / g.w) | 0;
+    if (g.road[idx] || g.occupant[idx] !== NO_ENTITY || this.channelAt(idx)) return false;
+    const { min, max } = g.rangeOver(x, z, 1, 1);
+    return min >= 0.05 && max - min <= 0.9;
+  }
+
+  /** Sets channel tiles (0 none, 1 channel, 2 lush) and announces the change. */
+  setChannels(values: [number, number][]): void {
+    const ch = this.grid.addLayer('channel', (n) => new Uint8Array(n));
+    for (const [t, v] of values) ch[t] = v;
+    this.channelsDirty = true;
+    this.bus.emit('channel:changed', { tiles: values.map(([t]) => t) });
+  }
+
+  channelTiles(): [number, number][] {
+    const ch = this.grid.layer<Uint8Array>('channel');
+    const out: [number, number][] = [];
+    if (ch) for (let i = 0; i < ch.length; i++) if (ch[i]) out.push([i, ch[i]!]);
+    return out;
+  }
+
   /** Canonical, order-independent snapshot used for saves and determinism checks. */
   snapshotBuildings(): BuildingRecord[] {
     return this.buildingEntities()
@@ -262,10 +301,10 @@ export class City {
 
   hash(): string {
     const b = this.snapshotBuildings().map(
-      (r) => `${r.def}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)}`,
+      (r) => `${r.def}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}`,
+      `${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}`,
     );
   }
 }

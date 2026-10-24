@@ -10,6 +10,8 @@ import { updateFinance } from './finance';
 import { updateCondition, updateOvergrowth } from './upkeep';
 import { updateStewardship } from './steward';
 import { PULSE_TICKS } from './pulseConst';
+import { bloomLayers, computeBloom, computeIrrigation, computePairing } from './bloom';
+import { seasonAt } from './seasons';
 import { MAX_ENTITIES } from '@/ecs/components';
 
 export { PULSE_TICKS };
@@ -44,8 +46,26 @@ export const pulseSystem: System<SimCtx> = {
     if (city.tick % PULSE_TICKS !== 0) return;
     const { networks, pulse, stats: s } = city;
     const ents = query(city.world, [Building]);
-    if (pulse.count++ % FIELD_PULSES === 0) computeFields(city, city.fields);
+    const { season, index: seasonIdx } = seasonAt(city.tick);
+    if (pulse.season !== seasonIdx) {
+      if (pulse.season >= 0) city.bus.emit('season:changed', { index: seasonIdx });
+      pulse.season = seasonIdx;
+    }
+    if (city.channelsDirty) {
+      computeIrrigation(city);
+      city.channelsDirty = false;
+    }
+    // Field work is staggered across pulses so no single frame carries it all.
+    const phase = pulse.count++ % FIELD_PULSES;
+    if (phase === 0) {
+      computePairing(city);
+      computeFields(city, city.fields);
+    } else if (phase === 2) {
+      computeBloom(city, city.fields);
+      city.bus.emit('bloom:updated', undefined);
+    }
     const desirability = city.fields.desirability;
+    const bloomField = bloomLayers(city).bloom;
 
     if (networks.dirty) {
       networks.recompute();
@@ -76,7 +96,8 @@ export const pulseSystem: System<SimCtx> = {
     let amenity = 0;
     s.energyProduced = s.energyUsed = s.waterProduced = s.waterUsed = 0;
     for (const eid of ents) {
-      const st = buildings.at(Building.def[eid]!).stats;
+      const def0 = buildings.at(Building.def[eid]!);
+      const st = def0.stats;
       const occ = Service.occupancy[eid]!;
       const net = Service.network[eid]!;
       capacity += st.population;
@@ -84,20 +105,25 @@ export const pulseSystem: System<SimCtx> = {
       jobsTotal += st.jobs;
       staffedJobs += st.jobs * occ;
       upkeep += st.upkeep;
-      amenity += st.happiness;
+      amenity += st.happiness + (Building.level[eid]! > 0 ? 2 : 0);
       // Flooded buildings are evacuated: they neither produce nor consume. Offline plants trip.
       const fl = mod.floodLevel > 0 && !buildings.at(Building.def[eid]!).floodproof && city.grid.rangeOver(Building.x[eid]!, Building.z[eid]!, Building.w[eid]!, Building.d[eid]!).min < mod.floodLevel;
       flooded[eid] = fl ? 1 : 0;
+      const centre = city.grid.index(Building.x[eid]! + (Building.w[eid]! >> 1), Building.z[eid]! + (Building.d[eid]! >> 1));
+      Service.bloom[eid] = bloomField[centre]!;
       if (fl || eid === mod.offline) continue;
       // Worn-down buildings work at reduced capacity.
       const activity = (st.population > 0 ? 0.3 + 0.7 * occ : st.jobs > 0 ? 0.4 + 0.6 * occ : 1) * (0.4 + 0.6 * Service.condition[eid]!);
-      if (st.food > 0) food += st.food * (st.jobs > 0 ? occ : 1) * Service.power[eid]!;
+      // Pollinated farms yield more; seasons shift harvests.
+      if (st.food > 0) food += st.food * (st.jobs > 0 ? occ : 1) * Service.power[eid]! * (0.7 + 0.5 * Service.bloom[eid]!) * season.foodMul;
       if (net < 0) continue;
-      if (st.energy > 0) prodE[net] += st.energy * activity * mod.energySupply;
-      else demE[net] -= st.energy * activity * mod.energyDemand;
+      const retro = Building.level[eid]! > 0;
+      const sym = def0.symbiosis && Service.paired[eid] ? def0.symbiosis.outputMul : 1;
+      if (st.energy > 0) prodE[net] += st.energy * activity * mod.energySupply * sym;
+      else demE[net] -= st.energy * activity * mod.energyDemand * (retro ? 0.8 : 1);
       // Water works need power to pump.
-      if (st.water > 0) prodW[net] += st.water * activity * Service.power[eid]! * mod.waterSupply;
-      else demW[net] -= st.water * activity * mod.waterDemand;
+      if (st.water > 0) prodW[net] += st.water * activity * Service.power[eid]! * mod.waterSupply * season.waterMul;
+      else demW[net] -= st.water * activity * mod.waterDemand * (retro ? 0.85 : 1);
     }
     const netStats = pulse.networks;
     netStats.length = n;
@@ -170,8 +196,10 @@ export const pulseSystem: System<SimCtx> = {
       const g = Greenery.value[eid]!;
       greenSum += g;
       condSum += cond;
-      s.eco += st.eco * (0.3 + 0.7 * g);
-      s.pollution += Math.max(0, st.pollution * (1 - 0.4 * g));
+      const retro = Building.level[eid]! > 0;
+      s.eco += st.eco * (0.3 + 0.7 * g) * (retro ? 1.5 : 1);
+      const pairMul = def.symbiosis && Service.paired[eid] ? def.symbiosis.pollutionMul : 1;
+      s.pollution += Math.max(0, st.pollution * (1 - 0.4 * g) * pairMul * (retro ? 0.7 : 1));
       built++;
     }
 
@@ -203,7 +231,8 @@ export const pulseSystem: System<SimCtx> = {
     // Amenities only delight when maintained.
     h.amenities = clamp((amenity / per) * 2, -10, 15) * (condSum / per);
     h.crises = mod.harmony;
-    const target = clamp(h.base + h.ecology + h.services + h.jobs + h.food + h.taxes + h.amenities + h.crises, 0, 100);
+    h.bloom = clamp((pulse.bloomIndex - 0.4) * 16, -4, 6);
+    const target = clamp(h.base + h.ecology + h.services + h.jobs + h.food + h.taxes + h.amenities + h.crises + h.bloom, 0, 100);
     pulse.avgGreenery = greenSum / per;
     s.happiness += (target - s.happiness) * 0.06;
 
@@ -245,6 +274,7 @@ export const pulseSystem: System<SimCtx> = {
         waterBalance: s.waterProduced - s.waterUsed,
         eco: s.eco,
         net,
+        bloom: pulse.bloomIndex,
       };
       for (const m of HISTORY_METRICS) {
         const arr = pulse.history[m];

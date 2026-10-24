@@ -8,7 +8,7 @@ export type Tier = 0 | 1 | 2 | 3 | 4;
 export const SYSTEMS = ['energy', 'water', 'food', 'jobs', 'ecology', 'harmony', 'budget'] as const;
 export type SystemKey = (typeof SYSTEMS)[number];
 
-export const HISTORY_METRICS = ['population', 'credits', 'happiness', 'energyBalance', 'waterBalance', 'eco', 'net'] as const;
+export const HISTORY_METRICS = ['population', 'credits', 'happiness', 'energyBalance', 'waterBalance', 'eco', 'net', 'bloom'] as const;
 export type HistoryMetric = (typeof HISTORY_METRICS)[number];
 export const HISTORY_LENGTH = 240; // samples (one per 10 sim seconds = 40 sim minutes)
 
@@ -22,6 +22,8 @@ export interface HarmonyBreakdown {
   amenities: number;
   /** Active crises (heatwave, monsoon…). */
   crises: number;
+  /** City-wide bloom (pollinated, flowering districts delight residents). */
+  bloom: number;
 }
 
 /** Per highway-network utility totals from the last pulse (index = network id). Not saved. */
@@ -50,6 +52,11 @@ export interface PulseState {
   avgGreenery: number;
   /** Mean pollution on coastal tiles (algal bloom likelihood). */
   coastalPollution: number;
+  /** Mean bloom over land (0..1) and share of generation that is clean. */
+  bloomIndex: number;
+  cleanShare: number;
+  /** Last season index (emits `season:changed`). */
+  season: number;
   /** Pulses since start (drives field recompute cadence). */
   count: number;
 }
@@ -64,7 +71,7 @@ export function createPulseState(): PulseState {
     tiers: { energy: 1, water: 1, food: 1, jobs: 1, ecology: 1, harmony: 1, budget: 1 },
     primed: false,
     history: Object.fromEntries(HISTORY_METRICS.map((m) => [m, []])) as unknown as Record<HistoryMetric, number[]>,
-    harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0, crises: 0 },
+    harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0, crises: 0, bloom: 0 },
     energyRatio: 1,
     waterRatio: 1,
     foodRatio: 1,
@@ -72,6 +79,9 @@ export function createPulseState(): PulseState {
     networks: [],
     avgGreenery: 0.5,
     coastalPollution: 0,
+    bloomIndex: 0.4,
+    cleanShare: 1,
+    season: -1,
     count: 0,
   };
 }

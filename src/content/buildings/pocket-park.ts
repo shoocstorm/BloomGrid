@@ -9,6 +9,7 @@ export default defineBuilding({
   footprint: [2, 2],
   stats: { cost: 60, energy: 0, eco: 8, happiness: 6, population: 0, jobs: 1, pollution: -2, water: -1 },
   growthTime: 70,
+  pollinators: 1,
   recipe(b) {
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [1.96, 0.06, 1.96] });
     b.add({ piece: 'pool', p: [0.35, 0.06, -0.3], s: [0.8, 0.02, 0.7] });

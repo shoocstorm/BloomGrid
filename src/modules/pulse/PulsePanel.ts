@@ -61,6 +61,8 @@ export class PulsePanel {
   private sparks: { canvas: HTMLCanvasElement; metric: HistoryMetric; color: string; label: HTMLElement }[] = [];
   private taxInput: HTMLInputElement;
   private taxLabel: HTMLElement;
+  private bloomEl!: HTMLElement;
+  private cleanEl!: HTMLElement;
   private owed!: HTMLElement;
   private funding!: HTMLElement;
   private loanBtns: [number, HTMLButtonElement][] = [];
@@ -76,6 +78,15 @@ export class PulsePanel {
       body,
     );
 
+    this.bloomEl = h('b');
+    this.cleanEl = h('b');
+    const bloomSec = h(
+      'div',
+      { class: 'pulse-sec' },
+      h('div', { class: 'pulse-title' }, 'Seasonal bloom'),
+      h('div', { class: 'kv' }, h('span', {}, 'Bloom index'), this.bloomEl),
+      h('div', { class: 'kv' }, h('span', {}, 'Clean energy'), this.cleanEl),
+    );
     const health = h('div', { class: 'pulse-sec' }, h('div', { class: 'pulse-title' }, 'System health'));
     for (const k of SYSTEMS) {
       const dot = h('i', { class: 'tier-dot' });
@@ -134,6 +145,7 @@ export class PulsePanel {
       ['taxes', 'Taxes'],
       ['amenities', 'Amenities'],
       ['crises', 'Crises'],
+      ['bloom', 'Bloom'],
     ]) {
       const v = h('b');
       this.harmony.set(id!, v);
@@ -152,7 +164,7 @@ export class PulsePanel {
       trends.append(h('div', { class: 'spark-row' }, h('span', {}, label), canvas, lab));
     }
 
-    body.append(health, demand, budget, harmony, trends);
+    body.append(health, bloomSec, demand, budget, harmony, trends);
     ctx.hud.append(this.el);
     ctx.input.onKey((e) => {
       if (e.code === 'KeyP' && !e.metaKey && !e.ctrlKey) {
@@ -206,6 +218,8 @@ export class PulsePanel {
     bar('homes', s.demandHomes);
     bar('work', s.demandWork);
     bar('food', s.demandFood);
+    setText(this.bloomEl, `${Math.round(p.bloomIndex * 100)}%`);
+    setText(this.cleanEl, `${Math.round(p.cleanShare * 100)}%`);
     const net = s.income - s.upkeep - s.debtService;
     setText(this.budget.get('debt')!, s.debtService > 0 ? `−${s.debtService.toFixed(1)}` : '0');
     const owed = totalDebt(city);

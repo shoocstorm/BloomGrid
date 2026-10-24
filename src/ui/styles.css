@@ -509,3 +509,13 @@ button {
     width: 36px;
   }
 }
+
+/* Many tools: icon + hotkey only on narrower screens (labels stay as tooltips). */
+@media (max-width: 1800px) {
+  .tool span.l {
+    display: none;
+  }
+  .tool {
+    padding: 8px 10px;
+  }
+}

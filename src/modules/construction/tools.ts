@@ -1,6 +1,6 @@
 import { buildings } from '@/content';
 import { NO_ENTITY } from '@/sim/Grid';
-import { roadTileCost } from '@/sim/commands';
+import { CHANNEL_COST, RETROFIT_RADIUS, retrofitPlan, roadTileCost } from '@/sim/commands';
 import type { GameContext } from '@/game/context';
 import type { Tool } from '@/game/Tools';
 import type { GroundHit } from '@/world/Picking';
@@ -230,9 +230,72 @@ export function createTools(ghost: Ghost, build: BuildState) {
         ctx.commands.execute('demolish', { x: hit.tx, z: hit.tz });
         return;
       }
-      ctx.commands.execute('unroad', { tiles: rectTiles(ctx, start, { x: hit.tx, z: hit.tz }) });
+      const tiles = rectTiles(ctx, start, { x: hit.tx, z: hit.tz });
+      ctx.commands.execute('unroad', { tiles });
+      ctx.commands.execute('unchannel', { tiles });
     },
   };
 
-  return [select, place, road, bulldoze];
+  let chStart: { x: number; z: number } | null = null;
+  const channel: Tool = {
+    id: 'channel',
+    label: 'Filtration Channel',
+    icon: '≈',
+    hotkey: 'KeyC',
+    grid: true,
+    activate: () => (chStart = null),
+    deactivate: () => ghost.hideAll(),
+    hover(ctx, hit) {
+      if (!hit?.inBounds) return ghost.hideAll();
+      const cur = { x: hit.tx, z: hit.tz };
+      const tiles = pathTiles(ctx, chStart ?? cur, cur);
+      const valid = tiles.filter((t) => ctx.city.canChannel(t));
+      ghost.setValid(valid.length > 0);
+      ghost.showTiles(tileList(ctx, tiles));
+      ctx.bus.emit('tool:tooltip', {
+        text: chStart
+          ? `${valid.length} tiles · ${fmt(valid.length * CHANNEL_COST)} ◈`
+          : 'Drag a bioswale: cleans nearby pollution and irrigates gardens (bloom +)',
+        tone: valid.length ? 'ok' : 'bad',
+      });
+    },
+    down(_ctx, hit) {
+      if (hit?.inBounds) chStart = { x: hit.tx, z: hit.tz };
+    },
+    up(ctx, hit) {
+      if (chStart && hit?.inBounds) ctx.commands.execute('channel', { tiles: pathTiles(ctx, chStart, { x: hit.tx, z: hit.tz }) });
+      chStart = null;
+    },
+  };
+
+  const retrofit: Tool = {
+    id: 'retrofit',
+    label: 'Bloom Retrofit',
+    icon: '✾',
+    hotkey: 'KeyB',
+    deactivate: () => ghost.hideAll(),
+    hover(ctx, hit) {
+      if (!hit?.inBounds) {
+        ghost.hideRing();
+        return;
+      }
+      const plan = retrofitPlan(ctx.city, hit.point.x, hit.point.z, RETROFIT_RADIUS);
+      const ok = plan.eids.length > 0 && ctx.city.credits >= plan.cost;
+      ghost.setValid(ok);
+      ghost.showRing(hit.point.x, hit.point.y, hit.point.z, RETROFIT_RADIUS);
+      ctx.bus.emit('tool:tooltip', {
+        text: plan.eids.length
+          ? `Transform ${plan.eids.length} buildings${plan.channels.length ? ` + ${plan.channels.length} channel tiles` : ''} · ${fmt(plan.cost)} ◈${ok ? '' : ' (not enough credits)'}`
+          : 'No buildings left to retrofit here',
+        tone: ok ? 'ok' : 'bad',
+      });
+    },
+    up(ctx, hit) {
+      if (!hit?.inBounds || ctx.input.dragDistance > 6) return;
+      if (ctx.commands.execute('retrofit', { x: hit.point.x, z: hit.point.z, radius: RETROFIT_RADIUS }))
+        ctx.bus.emit('toast', { text: 'The district bursts into bloom', tone: 'ok' });
+    },
+  };
+
+  return [select, place, road, bulldoze, channel, retrofit];
 }

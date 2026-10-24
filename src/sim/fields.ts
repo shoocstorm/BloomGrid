@@ -1,8 +1,9 @@
 import { query } from 'bitecs';
-import { Building, Greenery } from '@/ecs/components';
+import { Building, Greenery, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import { NO_ENTITY, SEA_LEVEL, type Grid } from './Grid';
 import type { City } from './City';
+import { blurPeak, boxBlur } from './blur';
 
 /** Pulses between field recomputes (fields change slowly; recompute is O(tiles)). */
 export const FIELD_PULSES = 5;
@@ -61,41 +62,11 @@ export function createFields(grid: Grid): Fields {
   return f;
 }
 
-/** Adds `amount` with linear falloff over `radius` tiles around (cx, cz). */
-function splat(out: Float32Array, grid: Grid, cx: number, cz: number, radius: number, amount: number): void {
-  const x0 = Math.max(0, Math.floor(cx - radius));
-  const x1 = Math.min(grid.w - 1, Math.ceil(cx + radius));
-  const z0 = Math.max(0, Math.floor(cz - radius));
-  const z1 = Math.min(grid.h - 1, Math.ceil(cz + radius));
-  for (let z = z0; z <= z1; z++)
-    for (let x = x0; x <= x1; x++) {
-      const d = Math.hypot(x + 0.5 - cx, z + 0.5 - cz);
-      if (d < radius) out[z * grid.w + x] += amount * (1 - d / radius);
-    }
-}
-
-let scratch = new Float32Array(0);
-
-/** Separable box blur in place. */
-function blur(a: Float32Array, w: number, h: number, r: number): void {
-  if (scratch.length < a.length) scratch = new Float32Array(a.length);
-  const t = scratch;
-  const k = 1 / (2 * r + 1);
-  for (let z = 0; z < h; z++) {
-    const row = z * w;
-    for (let x = 0; x < w; x++) {
-      let s = 0;
-      for (let i = -r; i <= r; i++) s += a[row + Math.min(w - 1, Math.max(0, x + i))]!;
-      t[row + x] = s * k;
-    }
-  }
-  for (let x = 0; x < w; x++)
-    for (let z = 0; z < h; z++) {
-      let s = 0;
-      for (let i = -r; i <= r; i++) s += t[Math.min(h - 1, Math.max(0, z + i)) * w + x]!;
-      a[z * w + x] = s * k;
-    }
-}
+// Deposits are scaled so a single source peaks at about the same value as the old radial splats.
+const POLLUTION_BLUR = { r: 5, passes: 2 };
+const ECO_BLUR = { r: 4, passes: 2 };
+const POLLUTION_SCALE = 1 / blurPeak(POLLUTION_BLUR.r, POLLUTION_BLUR.passes);
+const ECO_SCALE = 0.6 / blurPeak(ECO_BLUR.r, ECO_BLUR.passes);
 
 /**
  * Recomputes the spatial fields from buildings and land use:
@@ -115,15 +86,19 @@ export function computeFields(city: City, f: Fields): void {
     else f.ecology[i] = 0.3;
   }
   for (const eid of query(city.world, [Building])) {
-    const st = buildings.at(Building.def[eid]!).stats;
+    const d0 = buildings.at(Building.def[eid]!);
+    const st = d0.stats;
     const cx = Building.x[eid]! + Building.w[eid]! / 2;
     const cz = Building.z[eid]! + Building.d[eid]! / 2;
     const green = Greenery.value[eid]!;
-    if (st.pollution !== 0) splat(f.pollution, g, cx, cz, st.pollution > 0 ? 12 : 8, (st.pollution > 0 ? st.pollution * (1 - 0.4 * green) : st.pollution) * 0.12);
-    if (st.eco !== 0) splat(f.ecology, g, cx, cz, 6, st.eco * (0.3 + 0.7 * green) * 0.025);
+    const pairMul = d0.symbiosis && Service.paired[eid] ? d0.symbiosis.pollutionMul : 1;
+    const retroMul = Building.level[eid]! > 0 ? 0.7 : 1;
+    const c = g.index(Math.floor(cx), Math.floor(cz));
+    if (st.pollution !== 0) f.pollution[c] += (st.pollution > 0 ? st.pollution * (1 - 0.4 * green) * pairMul * retroMul : st.pollution) * 0.12 * POLLUTION_SCALE;
+    if (st.eco !== 0) f.ecology[c] += st.eco * (0.3 + 0.7 * green) * 0.025 * ECO_SCALE;
   }
-  blur(f.pollution, g.w, g.h, 2);
-  blur(f.ecology, g.w, g.h, 3);
+  boxBlur(f.pollution, g.w, g.h, POLLUTION_BLUR.r, POLLUTION_BLUR.passes);
+  boxBlur(f.ecology, g.w, g.h, ECO_BLUR.r, ECO_BLUR.passes);
   for (let i = 0; i < n; i++) {
     const p = Math.max(0, f.pollution[i]!);
     f.pollution[i] = p;

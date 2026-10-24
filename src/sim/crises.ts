@@ -5,6 +5,7 @@ import { DAY_LENGTH, type City } from './City';
 import { DIFFICULTIES } from './difficulty';
 import { neutralModifiers, type CrisisInstance, type Modifiers } from './stewardState';
 import { PULSE_TICKS } from './pulseConst';
+import { seasonAt } from './seasons';
 
 /**
  * Crises: forecast → active → over. Definitions are data plus pure functions; scheduling uses
@@ -92,7 +93,8 @@ export function updateCrises(city: City): Modifiers {
   if (st.autoCrises && st.crises.length === 0 && city.tick - st.lastCrisisEndTick > MIN_GAP * PULSE_TICKS) {
     const rate = DIFFICULTIES[st.difficulty].eventRate / DAY_LENGTH; // per second
     if (city.rng.next() < rate) {
-      const pool = allCrises().map((d) => [d, Math.max(0, d.weight(city))] as const);
+      const season = seasonAt(city.tick).season;
+      const pool = allCrises().map((d) => [d, Math.max(0, d.weight(city)) * (season.crisis[d.id] ?? 1)] as const);
       const total = pool.reduce((a, [, w]) => a + w, 0);
       let r = city.rng.next() * total;
       for (const [d, w] of pool) {

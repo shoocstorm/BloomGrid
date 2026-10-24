@@ -29,6 +29,13 @@ export const U = {
   heat: uniform(0),
   algae: uniform(0),
   rain: uniform(0),
+  /** Season look: tint colour and strength for flowers and canopies. */
+  seasonTint: uniform(new Color(0xffb7d5)),
+  seasonAmount: uniform(0),
+  /** Pollen particle density 0..1 (season, bloom bursts). */
+  pollen: uniform(0.6),
+  /** World offset of the pollen particle box (follows the camera target). */
+  pollenOrigin: uniform(new Vector3()),
   /** Map size in world units (for terrain-space lookups such as water depth). */
   mapSize: uniform(256),
 };

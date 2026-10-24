@@ -45,3 +45,15 @@ export function withOverlay(base: N, instanced: boolean): N {
 
 /** Dims emissive glow while a lens is shown, so data colours dominate. */
 export const overlayDim = (emissive: N): N => emissive.mul(float(1).sub(U.overlay.mul(0.85))) as N;
+
+/**
+ * Bloom field texture (Seasonal Bloom Engine): R = bloom 0..1 per tile, uploaded when the sim
+ * recomputes the field. Flowers open and glow with it; pollen particles follow it.
+ */
+export const bloomTexture = new DataTexture(new Uint8Array(MAP_SIZE * MAP_SIZE * 4), MAP_SIZE, MAP_SIZE, RGBAFormat);
+bloomTexture.wrapS = bloomTexture.wrapT = ClampToEdgeWrapping;
+bloomTexture.magFilter = bloomTexture.minFilter = LinearFilter;
+bloomTexture.needsUpdate = true;
+
+/** Bloom at a world xz (node). */
+export const bloomAt = (x: Node<'float'>, z: Node<'float'>) => texture(bloomTexture, vec2(x, z).div(U.mapSize)).r;

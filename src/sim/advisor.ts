@@ -294,3 +294,54 @@ registerAdvisorRule((city) => {
     focus: { x: (first % city.grid.w) + 0.5, z: ((first / city.grid.w) | 0) + 0.5 },
   };
 });
+
+// ── Phase 6: Seasonal Bloom Engine ───────────────────────────────────────────
+
+registerAdvisorRule((city) => {
+  let count = 0;
+  let focus: Advisory['focus'];
+  let partner = '';
+  for (const eid of query(city.world, [Building])) {
+    const d = city.buildingDef(eid);
+    if (!d.symbiosis || Service.paired[eid]) continue;
+    count++;
+    partner = d.symbiosis.partners[0]!;
+    focus ??= { x: Building.x[eid]! + Building.w[eid]! / 2, z: Building.z[eid]! + Building.d[eid]! / 2, eid };
+  }
+  if (!count) return null;
+  return {
+    id: 'symbiosis',
+    severity: 1,
+    title: `${count} polluter${count > 1 ? 's' : ''} without a symbiotic partner`,
+    detail: 'Paired with phyto-remediation, a Bioreactor emits a quarter of the pollution and produces 15% more.',
+    fix: 'Place a Phyto Garden within 7 tiles of each Bioreactor.',
+    focus,
+    build: partner,
+  };
+});
+
+registerAdvisorRule((city) => {
+  if (city.pulse.bloomIndex >= 0.3) return null;
+  return {
+    id: 'bloom',
+    severity: 0,
+    title: `Bloom is low (${Math.round(city.pulse.bloomIndex * 100)}%)`,
+    detail: 'Bloom speeds greenery, pollinates farms (more food) and lifts harmony. It needs pollinators, water, clean air and clean energy.',
+    fix: 'Add Pollinator Sanctuaries and Bloom Parks, dig Filtration Channels (C), and favour Sunflower Spires.',
+    build: 'pollinator-sanctuary',
+  };
+});
+
+registerAdvisorRule((city) => {
+  // Suggest a Bloom Retrofit once the treasury can comfortably afford one.
+  if (city.credits < 15000 || city.steward.crises.length) return null;
+  const unretro = query(city.world, [Building]).filter((e) => !Building.level[e]).length;
+  if (unretro < 20) return null;
+  return {
+    id: 'retrofit',
+    severity: 0,
+    title: 'The treasury can fund a Bloom Retrofit',
+    detail: 'Transform a district: flowering façades, sunflower roofs, lily-pad channels. Ecology ×1.5, less power and water use.',
+    fix: 'Choose Bloom Retrofit (B) and click the heart of a busy district.',
+  };
+});

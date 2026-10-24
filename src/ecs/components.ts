@@ -12,6 +12,8 @@ export const Building = {
   rot: new Uint8Array(MAX_ENTITIES),
   w: new Uint8Array(MAX_ENTITIES),
   d: new Uint8Array(MAX_ENTITIES),
+  /** 0 = original, 1 = Bloom Retrofit (district transformation). */
+  level: new Uint8Array(MAX_ENTITIES),
 };
 
 /** Living greenery level 0..1 — drives membrane moss coverage and staged plant growth. */
@@ -43,4 +45,8 @@ export const Service = {
   problems: new Uint8Array(MAX_ENTITIES),
   /** Physical condition 0..1: decays under austerity, flooding and abandonment. */
   condition: new Float32Array(MAX_ENTITIES).fill(1),
+  /** 1 when a symbiotic partner is nearby (see `sim/bloom.ts`). */
+  paired: new Uint8Array(MAX_ENTITIES),
+  /** Bloom field at the building (0..1), sampled each pulse. */
+  bloom: new Float32Array(MAX_ENTITIES),
 };

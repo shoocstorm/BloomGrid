@@ -90,12 +90,18 @@ The city is a system that can run well or badly.
 - **Accept:** ✅ `tests/crises.test.ts`: neglect reaches Collapse and replacement deterministically; Sandbox never fails; a timely rebuild unwinds the clock; crisis lifecycle and effects; scheduler determinism; save v3 round-trip. Drills: `?drill=<crisis>`, inspector → Crisis drills.
 - **Measured:** power budget unchanged (≈17% main thread active, 15% idle); a monsoon with rain adds ~2 ms GPU while active.
 
-## ⏳ Phase 6 — Seasonal Bloom Engine
+## ✅ Phase 6 — Seasonal Bloom Engine
 
-Plant growth and bloom driven by energy efficiency and water; pollen spread; symbiotic pairing rules;
-**district transformation wave** on upgrade (steel → flower walls, sunflower roofs, lily-pad channels with koi).
+- [x] Seasons (`sim/seasons.ts`): Bloom, Monsoon, Harvest, Haze, each two sim days; they scale bloom, food and water, shift crisis likelihood, and tint flowers and canopies; season chip with progress; toasts
+- [x] Pollen and bloom fields (`sim/bloom.ts`): pollen from habitat (Pollinator Sanctuary, parks, lush or retrofitted buildings, wild meadows); bloom = pollen × water × clean air × season × clean-energy share, plus irrigation. Bloom speeds greenery, pollinates farms (food ×0.7–1.2) and lifts harmony; urban Bloom index and clean-energy share in City Pulse; Bloom lens
+- [x] Filtration Channels (C): bioswales that irrigate gardens within 4 tiles (they grow even when the network is dry), scrub nearby pollution and lift desirability; reeds; lush channels get lily pads and koi
+- [x] Symbiotic pairing: a Bioreactor with a Phyto Garden within 7 tiles emits 25% of its pollution and produces 15% more; inspector shows paired / unpaired; advisor flags unpaired polluters
+- [x] District transformation wave: Bloom Retrofit (B) radius brush (40% of building cost) upgrades buildings (eco ×1.5, −20% power, −15% water, −30% pollution, faster growth) and makes channels lush; an expanding ring and pollen burst while flowering façades, ivy fringes and golden sunflower crowns pop in by distance from the click
+- [x] Visuals: bloom texture drives flower open/closed state and glow; pollen motes in one draw call (density follows bloom); two new buildings (Phyto Garden, Pollinator Sanctuary); save v4
+- **Accept:** ✅ `tests/bloom.test.ts` (seasons, pollinators vs pollution, channels irrigate and scrub, symbiosis cuts pollution, retrofit with undo, save v4). Drill: `npm run snap -- --eval @scripts/scenes/retrofit.js`.
+- **Measured:** field passes optimised (point deposits + sliding box blur, staggered across pulses): fields 11 → 4.1 ms, bloom 1.8 ms, average pulse 2.4 ms; power budget unchanged (≈17% active / 15% idle main thread).
 
-## ⬜ Phase 7 — Bioluminescence & Atmosphere
+## ⏳ Phase 7 — Bioluminescence & Atmosphere
 
 Glow intensity from a pedestrian-density field, GPU pollen/spore particles, courtyards and waterfalls,
 weather (monsoon rain, haze) tied to Phase 5 events.

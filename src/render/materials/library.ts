@@ -36,7 +36,7 @@ import {
   vec3,
 } from 'three/tsl';
 import { U } from '../uniforms';
-import { overlayDim, withOverlay } from './overlay';
+import { bloomAt, overlayDim, withOverlay } from './overlay';
 
 /**
  * Shared material library. Every instanced piece references one of these, so the whole city
@@ -58,6 +58,9 @@ const swayed = (amp: number) => {
   const s = sin(phase).mul(amp).mul(h).mul(U.wind);
   return positionLocal.add(vec3(s, 0, s.mul(0.6)));
 };
+
+/** Season tint as a vec3 node (uniform colour nodes are typed as `color`). */
+const seasonTint = U.seasonTint as unknown as Node<'vec3'>;
 
 const lib = new Map<string, Material>();
 
@@ -176,7 +179,8 @@ export function initMaterials(): void {
     if (side) m.side = DoubleSide;
     m.positionNode = swayed(amp);
     const v = mx_noise_float(positionWorld.mul(2.3)).mul(0.18);
-    m.colorNode = color(0xffffff).add(v);
+    // Seasonal foliage: a gentle wash toward the season tint (golden Harvest, dusty Haze).
+    m.colorNode = mix(color(0xffffff).add(v), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
     m.emissiveNode = mix(instanceColor, color(0x7ff7e6), 0.6).mul(iGlow).mul(bioPulse()).mul(0.5);
     return m;
   };
@@ -188,12 +192,46 @@ export function initMaterials(): void {
   define('bark', () => new MeshStandardNodeMaterial({ roughness: 1, flatShading: true }));
 
   // Pastel flowers: glow in their own colour at night (bioluminescent street lighting).
+  // Flowers open with the bloom field: closed buds are green; open blooms take the instance
+  // colour (shifted toward the season's tint) and glow. Divide out the instance tint for the bud.
   define('flower', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.6, flatShading: true });
     m.positionNode = swayed(0.3);
-    m.emissiveNode = instanceColor.mul(iGlow).mul(bioPulse()).mul(1.3);
+    const open = smoothstep(0.12, 0.55, bloomAt(positionWorld.x, positionWorld.z));
+    const tinted = mix(vec3(1), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
+    m.colorNode = mix(vec3(0.44, 0.6, 0.29).div(max(instanceColor, vec3(0.08))), tinted, open);
+    m.emissiveNode = instanceColor.mul(iGlow).mul(bioPulse()).mul(1.3).mul(open);
     return m;
   }, { vitality: true });
+
+  define('lily', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.5, flatShading: true });
+    m.positionNode = positionLocal.add(vec3(0, sin(time.mul(0.9).add(iSeed.mul(30))).mul(0.01), 0));
+    const petal = smoothstep(0.03, 0.06, positionGeometry.y);
+    m.colorNode = mix(vec3(0.31, 0.6, 0.23).div(max(instanceColor, vec3(0.08))), vec3(1), petal);
+    m.emissiveNode = instanceColor.mul(petal).mul(U.night).mul(0.8);
+    return m;
+  });
+
+  // Koi swim lazy circles around their instance origin.
+  define('koi', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.35, metalness: 0.1 });
+    const a = time.mul(0.7).add(iSeed.mul(6.283));
+    m.positionNode = positionLocal.add(vec3(sin(a).mul(0.28), 0, sin(a.add(1.5708)).mul(0.28)));
+    const spots = step(0.55, mx_noise_float(positionLocal.mul(30)));
+    m.colorNode = mix(vec3(1), vec3(1.0, 0.98, 0.95).div(max(instanceColor, vec3(0.08))), spots);
+    return m;
+  });
+
+  // Filtration channel: clear green-blue water with drifting ripples and a faint night glow.
+  define('channel', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.08, metalness: 0.1 });
+    const rip = mx_noise_float(vec3(positionWorld.x.mul(2.5), time.mul(0.6), positionWorld.z.mul(2.5)));
+    const lush = attribute('aLush', 'float');
+    m.colorNode = mix(mix(color(0x2f8f8a), color(0x4fc3a8), rip.mul(0.5).add(0.5)), color(0x3fa0b8), lush.mul(0.4));
+    m.emissiveNode = color(0x4fe0ff).mul(U.night).mul(0.18).mul(rip.mul(0.5).add(0.6));
+    return m;
+  }, { overlay: 'plain' });
 
   define('fungus', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.5 });

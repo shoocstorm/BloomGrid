@@ -1,4 +1,4 @@
-import { Color, Group, InstancedMesh, Matrix4, Mesh, PlaneGeometry, type Scene } from 'three/webgpu';
+import { Color, Group, InstancedMesh, Matrix4, Mesh, PlaneGeometry, RingGeometry, type Scene } from 'three/webgpu';
 import { getPiece } from '@/assets/kit/pieces';
 import { getMaterial } from '@/render/materials/library';
 import { U } from '@/render/uniforms';
@@ -93,7 +93,26 @@ export class Ghost {
     this.tiles.instanceMatrix.needsUpdate = true;
   }
 
+  private ring: Mesh | null = null;
+
+  /** Radius brush outline (Bloom Retrofit). */
+  showRing(x: number, y: number, z: number, r: number): void {
+    if (!this.ring) {
+      this.ring = new Mesh(new RingGeometry(0.97, 1, 96, 1).rotateX(-Math.PI / 2), getMaterial('cursor'));
+      this.ring.renderOrder = 10;
+      this.group.parent?.add(this.ring);
+    }
+    this.ring.visible = true;
+    this.ring.position.set(x, y + 0.5, z);
+    this.ring.scale.setScalar(r);
+  }
+
+  hideRing(): void {
+    if (this.ring) this.ring.visible = false;
+  }
+
   hideAll(): void {
+    this.hideRing();
     this.clearPieces();
     this.hideCursor();
     this.tiles.count = 0;

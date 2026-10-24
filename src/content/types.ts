@@ -95,10 +95,26 @@ export interface BuildingDef {
   placement?: PlacementRules;
   /** Built for the waterfront (raised intakes): ignores floods. */
   floodproof?: boolean;
+  /** Pollen output (pollinator habitat) feeding the bloom field. Lush buildings add a little anyway. */
+  pollinators?: number;
+  /** Clean generation (counts toward the clean-energy share that boosts bloom). */
+  cleanEnergy?: boolean;
+  /** Symbiotic pairing: with a partner nearby, pollution is purified and output rises. */
+  symbiosis?: Symbiosis;
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */
   variants?: number;
   /** Procedural recipe, or a GLB asset path for hero models. */
   recipe: ((b: KitBuilder) => void) | { glb: string; scale?: number };
+}
+
+export interface Symbiosis {
+  /** Partner building ids (any one within `radius` tiles counts). */
+  partners: string[];
+  radius: number;
+  pollutionMul: number;
+  outputMul: number;
+  /** Short phrase for the inspector, e.g. "reed beds purify its effluent". */
+  label: string;
 }
 
 export type BuildingDefInput = Omit<BuildingDef, 'stats'> & { stats: BuildingStatsInput };

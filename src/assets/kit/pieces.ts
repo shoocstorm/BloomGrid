@@ -115,6 +115,8 @@ export function initPieces(): void {
   registerPiece({ id: 'pool', geometry: box(), material: 'pool', castShadow: false });
   registerPiece({ id: 'dome', geometry: new SphereGeometry(0.5, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), material: 'dome', castShadow: false });
   registerPiece({ id: 'solarLeaf', geometry: petalGeometry(), material: 'solar' });
+  // Living sunflower petal (Bloom Retrofit crowns): flower material, opens and glows with bloom.
+  registerPiece({ id: 'sunPetal', geometry: petalGeometry(), material: 'flower' });
 
   registerPiece({ id: 'trunk', geometry: base(new CylinderGeometry(0.32, 0.5, 1, 6)), material: 'bark', lod: 260 });
   registerPiece({ id: 'canopy', geometry: base(jitter(new IcosahedronGeometry(0.5, 1), 0.12)), material: 'canopy', lod: 320 });
@@ -122,6 +124,13 @@ export function initPieces(): void {
   registerPiece({ id: 'ivy', geometry: new PlaneGeometry(1, 1, 1, 3).translate(0, -0.5, 0.01), material: 'ivy', castShadow: false, lod: 140 });
   registerPiece({ id: 'grass', geometry: grassGeometry(), material: 'grass', castShadow: false, receiveShadow: false, lod: 90 });
   registerPiece({ id: 'flower', geometry: base(new IcosahedronGeometry(0.5, 0).scale(1, 0.7, 1), 0.35), material: 'flower', castShadow: false, lod: 110 });
+  // Lily pad (flat disc) with a small raised flower in the middle.
+  const lily = mergeGeometries([
+    new CylinderGeometry(0.5, 0.5, 0.04, 10).translate(0, 0.02, 0).toNonIndexed(),
+    new IcosahedronGeometry(0.12, 0).scale(1, 0.6, 1).translate(0.08, 0.1, 0.04), // already non-indexed
+  ])!;
+  registerPiece({ id: 'lily', geometry: lily, material: 'lily', castShadow: false, lod: 120 });
+  registerPiece({ id: 'koi', geometry: new IcosahedronGeometry(0.5, 1).scale(1, 0.35, 0.4).translate(0, 0.1, 0), material: 'koi', castShadow: false, lod: 90 });
   registerPiece({ id: 'alert', geometry: base(new OctahedronGeometry(0.5, 0)), material: 'alert', castShadow: false, receiveShadow: false, lod: 400 });
   registerPiece({ id: 'fungus', geometry: fungusGeometry(), material: 'fungus', castShadow: false, lod: 140 });
 }

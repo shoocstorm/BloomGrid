@@ -18,7 +18,8 @@ URL flags: `?renderer=webgl` (force the WebGL2 fallback), `?quality=low|medium|h
 
 Settings (⚙ in the top bar): power mode (Battery 30 fps / Balanced 60 fps, idles at 30 / Max) and graphics quality.
 
-Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · X bulldoze ·
+Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · C filtration channel ·
+B Bloom Retrofit · X bulldoze ·
 4–0 build categories · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·
 Alt+1–4 / Shift+1–4 store / recall views · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
 

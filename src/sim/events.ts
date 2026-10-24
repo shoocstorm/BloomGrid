@@ -15,6 +15,12 @@ declare module '@/core/EventBus' {
     'crisis:end': { crisis: CrisisInstance };
     'road:overgrowth': { tiles: number[] };
     'loan:repaid': { id: number };
+    'season:changed': { index: number };
+    /** The bloom field was recomputed (renderers re-upload it). */
+    'bloom:updated': void;
+    'channel:changed': { tiles: number[] };
+    /** Buildings whose retrofit level changed; `origin` drives the transformation wave. */
+    'buildings:level': { eids: number[]; origin?: { x: number; z: number; radius: number } };
     /** The fail clock started (seconds left) or stopped (null). */
     'steward:warning': { secondsLeft: number | null };
     'steward:replaced': { day: number; peakPopulation: number };

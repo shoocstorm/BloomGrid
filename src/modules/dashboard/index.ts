@@ -59,6 +59,7 @@ class Dashboard {
       ['happiness', 'Harmony', (v: number) => v.toFixed(0)],
       ['energyBalance', 'Energy surplus', (v: number) => signed(v, 0)],
       ['waterBalance', 'Water surplus', (v: number) => signed(v, 0)],
+      ['bloom', 'Bloom index', (v: number) => `${Math.round(v * 100)}%`],
     ] as [HistoryMetric, string, (v: number) => string][]) {
       const chart = new LineChart({ format, step: HISTORY_STEP });
       this.charts.push({ metric, chart });
