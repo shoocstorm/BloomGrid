@@ -74,6 +74,7 @@ export const worldModule: GameModule = {
       const [w, d] = ctx.city.footprint(buildings.get(record.def), record.rot);
       for (let z = record.z; z < record.z + d; z++) for (let x = record.x; x < record.x + w; x++) flora.showTile(g.index(x, z));
     });
+    for (const ev of ['building:added', 'building:removed', 'city:reset'] as const) ctx.bus.on(ev, () => atmosphere.invalidateShadows());
     ctx.bus.on('road:changed', ({ tiles }) => {
       for (const t of tiles) {
         if (ctx.city.grid.road[t]) flora.hideTile(t);
@@ -90,7 +91,8 @@ export const worldModule: GameModule = {
         // Interpolate time of day between ticks for smooth sun motion.
         const t = (c.city.timeOfDay + (f.alpha * c.engine.speed * c.engine.step) / DAY_LENGTH) % 1;
         atmosphere.applyTime(t);
-        atmosphere.follow(c.camera.position, c.cameraCtl.target, c.cameraCtl.distance);
+        if (c.instancer.animating) atmosphere.invalidateShadows();
+        atmosphere.follow(c.camera.position, c.cameraCtl.target, c.cameraCtl.distance, f.dt);
         c.instancer.shadowFocus.copy(c.cameraCtl.target);
         // Zoomed far out, distant shadows are sub-pixel: only the area around the focus casts them.
         c.instancer.shadowRadius = atmosphere.shadowExtent * (c.cameraCtl.distance > 180 ? 0.45 : 1.1);

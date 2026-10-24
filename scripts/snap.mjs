@@ -14,7 +14,7 @@ import { mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const args = Object.fromEntries(
-  process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1]?.startsWith('--') ? 'true' : all[i + 1]]] : acc), []),
+  process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1] === undefined || all[i + 1].startsWith('--') ? 'true' : all[i + 1]]] : acc), []),
 );
 const base = args.base ?? 'http://localhost:5173';
 const out = args.out ?? 'shots/snap.png';

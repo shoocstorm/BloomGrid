@@ -12,7 +12,8 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "snap": "node scripts/snap.mjs",
-    "check": "tsc --noEmit && eslint src tests && vitest run && vite build"
+    "check": "tsc --noEmit && eslint src tests && vitest run && vite build",
+    "perf": "node scripts/perf.mjs"
   },
   "dependencies": {
     "bitecs": "0.4.0",

@@ -56,7 +56,6 @@
   padding: 4px 10px;
   border-radius: 10px;
   background: var(--glass);
-  backdrop-filter: blur(10px);
 }
 .night .lens-legend {
   background: var(--glass-dark);

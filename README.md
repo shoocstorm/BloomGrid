@@ -9,10 +9,13 @@ npm run dev        # http://localhost:5173
 npm test           # sim determinism, undo/redo, save/load
 npm run check      # typecheck + lint + tests + build
 npm run snap -- --out shots/x.png   # headless screenshot (dev server must be running)
+npm run perf                        # power/perf probe: main-thread %, fps, CPU/GPU ms per frame
 ```
 
 URL flags: `?renderer=webgl` (force the WebGL2 fallback), `?quality=low|medium|high|ultra`, `?perf` (perf overlay),
-`?stress=2000` (add a stress city), `?scenario=empty` (blank island instead of the founding city), `?seed=123`, `?nodynres`.
+`?stress=2000` (add a stress city), `?scenario=empty` (blank island instead of the founding city), `?seed=123`, `?nodynres`, `?gputime` (GPU timing), `?pr=1 ?msaa=0 ?shadows=0 ?bloom=0` (quality overrides).
+
+Settings (⚙ in the top bar): power mode (Battery 30 fps / Balanced 60 fps, idles at 30 / Max) and graphics quality.
 
 Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · X bulldoze ·
 4–0 build categories · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·

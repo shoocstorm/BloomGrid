@@ -157,6 +157,17 @@ export class CityCamera {
     this.camera.lookAt(this.target);
   }
 
+  /** True while the camera is still gliding toward its goal (or a key is held). */
+  isMoving(): boolean {
+    return (
+      this.target.distanceToSquared(this.goalTarget) > 1e-4 ||
+      Math.abs(this.goalDistance - this.distance) > 0.01 ||
+      Math.abs(this.goalYaw - this.yaw) > 1e-4 ||
+      Math.abs(this.goalPitch - this.pitch) > 1e-4 ||
+      this.input.keys.size > 0
+    );
+  }
+
   /** Pan in camera-relative ground space. */
   pan(dx: number, dz: number): void {
     const s = Math.sin(this.yaw);

@@ -27,6 +27,7 @@ npm run dev            # http://localhost:5173  (?perf ?renderer=webgl ?quality=
 npm run check          # typecheck + lint + tests + production build (must pass before you finish)
 npm test               # vitest only
 npm run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500]
+npm run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--profile 15]   # power/perf probe (see §8)
 ```
 
 `npm run snap` drives headless Chrome against the running dev server, saves screenshots and prints console
@@ -88,6 +89,7 @@ The full layer description is in `docs/architecture.md`.
 - [ ] `npm run check` passes.
 - [ ] New sim logic has Vitest coverage in `tests/` (determinism, undo/redo or save round-trip, as relevant).
 - [ ] Visual change verified with `npm run snap` on WebGPU and `?renderer=webgl`; no new console errors.
+- [ ] `npm run perf` and `npm run perf -- --idle` still within the §7½ power budget.
 - [ ] Perf still within budget with the founding city (default boot) **and** `?stress=1500`: fps and
       `renderer.info.render.drawCalls` at near and full-island zoom, plus the `[boot] ms` log.
 - [ ] **Docs updated in the same change** (see §6).
@@ -114,6 +116,16 @@ code no longer has.
 - Events are `domain:verb` (`building:added`); service keys are short nouns (`construction`, `world`).
 - Units: 1 tile = 1 world unit; sea level y = 0; map `MAP_SIZE`² tiles (384); sim ticks at 10 Hz; `timeOfDay` in [0, 1).
 
+## 7½. Power budget (laptops must stay cool)
+
+`npm run perf` reports main-thread busy %, fps, CPU ms per frame and (with `?gputime`) GPU ms per frame; `--profile`
+lists the hottest functions. Reference (headless, 60 Hz, founding city, High): **main thread ≈ 16% active / 14% idle,
+GPU ≈ 3.5 ms per frame, GPU uploads < 1 MB/s.** If a change raises these noticeably, fix it or record why in
+`docs/decisions.md`. Rules: never set `DynamicDrawUsage` on instance attributes; keep instanced batches ≥ 1040
+capacity; never use `backdrop-filter` or animate `box-shadow`/layout properties in the HUD; anything that changes
+shadow casters must call `atmosphere.invalidateShadows()`; rendering is paced by `PowerManager`, so don't add your
+own `requestAnimationFrame` loops.
+
 ## 8. Gotchas (three r186 / tooling)
 
 - Import from `three/webgpu` and `three/tsl`. Post-processing is **`RenderPipeline`** (`PostProcessing` was renamed);
@@ -123,6 +135,10 @@ code no longer has.
   offset in the shader.
 - Per-instance shader data comes from the `aParams` vec4 attribute (x greenery, y seed, z glow, w = window lighting
   for glass / vitality for plants, see D-013) and `instanceColor`.
+- `DynamicDrawUsage` attributes are re-uploaded in full **every frame and pass** by three's WebGPU backend. Use
+  static usage + `needsUpdate` + `addUpdateRange`.
+- `InstancedMesh` with ≤ 1024 instances stores matrices in a UBO (re-uploaded every frame, capacity baked into the
+  shader). `ChunkedInstancer` keeps capacity ≥ 1040 to avoid this.
 - Never dispose a geometry whose attributes are shared (WebGPU frees the GPU buffers). Batches clone piece geometry.
 - WebGL2 compiles pipelines lazily; `ChunkedInstancer.warmup` precompiles every piece at boot. Re-check it when
   adding pieces or materials.

@@ -13,8 +13,9 @@ import { chunkSizeFor } from '@/sim/City';
 import { PULSE_TICKS } from '@/sim/pulse';
 import { createRenderer } from '@/render/Renderer';
 import { ChunkedInstancer } from '@/render/Instancer';
-import { DynamicResolution, QUALITY_TIERS, type QualityTier } from '@/render/Quality';
+import { DynamicResolution, QUALITY_TIERS, type QualitySettings, type QualityTier } from '@/render/Quality';
 import { PostFX } from '@/render/PostFX';
+import { PowerManager } from '@/render/Power';
 import { initMaterials } from '@/render/materials/library';
 import { initPieces, pieceIds } from '@/assets/kit/pieces';
 import { AssetManager } from '@/assets/AssetManager';
@@ -27,6 +28,7 @@ import { SaveManager } from './SaveManager';
 import { U } from '@/render/uniforms';
 
 export interface RenderService {
+  power: PowerManager;
   postfx: PostFX;
   dynamicResolution: DynamicResolution;
   setQuality(tier: QualityTier): void;
@@ -43,6 +45,17 @@ declare module '@/core/Services' {
  * Builds the core runtime (sim, renderer, input, tools, persistence) and then loads feature
  * modules in dependency order. Everything feature-specific lives in modules.
  */
+/** URL overrides for measuring GPU cost: ?pr=1 ?msaa=0 ?shadows=0 ?bloom=0 ?shadowmap=1024. */
+function withOverrides(base: QualitySettings, params: URLSearchParams): QualitySettings {
+  const q = { ...base };
+  if (params.has('pr')) q.maxPixelRatio = Number(params.get('pr'));
+  if (params.has('msaa')) q.msaa = Number(params.get('msaa'));
+  if (params.has('shadows')) q.shadows = params.get('shadows') !== '0';
+  if (params.has('bloom')) q.bloom = params.get('bloom') !== '0';
+  if (params.has('shadowmap')) q.shadowMapSize = Number(params.get('shadowmap'));
+  return q;
+}
+
 export type ProgressFn = (label: string, progress: number) => Promise<void> | void;
 
 export async function createGame(
@@ -56,7 +69,8 @@ export async function createGame(
   const timings: Record<string, number> = {};
   const lap = (k: string, since: number) => (timings[k] = Math.round(performance.now() - since));
   await onProgress('Negotiating GPU link', 0.05);
-  const { renderer, isWebGPU } = await createRenderer(canvas, params.get('renderer') === 'webgl');
+  const gpuTiming = params.has('gputime');
+  const { renderer, isWebGPU } = await createRenderer(canvas, params.get('renderer') === 'webgl', gpuTiming);
   const tier = (params.get('quality') as QualityTier) || (isWebGPU ? 'high' : 'medium');
   await onProgress(`${isWebGPU ? 'WebGPU' : 'WebGL2'} core · calibrating bio-shaders`, 0.15);
 
@@ -83,7 +97,7 @@ export async function createGame(
     camera,
     instancer: new ChunkedInstancer(scene, chunkSizeFor(city.size)),
     assets: new AssetManager(),
-    quality: { tier, settings: QUALITY_TIERS[tier] },
+    quality: { tier, settings: withOverrides(QUALITY_TIERS[tier], params) },
     input,
     cameraCtl: new CityCamera(camera, input, city.grid),
     platform: createPlatform(),
@@ -111,7 +125,11 @@ export async function createGame(
 
   // Rendering services.
   const postfx = new PostFX(renderer, scene, camera);
+  const gpuMs = { value: 0, lastFrame: 0, pending: false };
+  (globalThis as unknown as { __gpuMs: typeof gpuMs }).__gpuMs = gpuMs;
   const dynRes = new DynamicResolution();
+  const power = new PowerManager(ctx.input, ctx.cameraCtl);
+  ctx.engine.targetFps = () => power.targetFps();
   dynRes.enabled = !params.has('nodynres');
   const applySize = () => {
     const pr = Math.min(window.devicePixelRatio, ctx.quality.settings.maxPixelRatio) * dynRes.scale;
@@ -121,7 +139,7 @@ export async function createGame(
     camera.updateProjectionMatrix();
   };
   const setQuality = (t: QualityTier) => {
-    ctx.quality = { tier: t, settings: QUALITY_TIERS[t] };
+    ctx.quality = { tier: t, settings: withOverrides(QUALITY_TIERS[t], params) };
     const q = ctx.quality.settings;
     renderer.shadowMap.enabled = q.shadows;
     ctx.instancer.lodScale = q.lodScale;
@@ -130,7 +148,7 @@ export async function createGame(
     dynRes.scale = 1;
     applySize();
   };
-  ctx.services.provide('render', { postfx, dynamicResolution: dynRes, setQuality });
+  ctx.services.provide('render', { postfx, dynamicResolution: dynRes, setQuality, power });
   ctx.services.provide('save', new SaveManager(ctx));
   window.addEventListener('resize', applySize);
 
@@ -142,9 +160,20 @@ export async function createGame(
     id: 'core.render',
     phase: 'render',
     update(c, f) {
-      if (dynRes.update(f.dt)) applySize();
+      if (dynRes.update(f.dt, power.targetFps())) applySize();
       postfx.render();
       c.input.endFrame();
+      // Optional GPU timing (?gputime). three reports the *total* GPU time of all frames since
+      // the previous resolve, so divide by the number of frames in that window.
+      if (gpuTiming && !gpuMs.pending && c.engine.frames - gpuMs.lastFrame >= 10) {
+        const start = c.engine.frames;
+        gpuMs.pending = true;
+        void renderer.resolveTimestampsAsync('render').then((total) => {
+          gpuMs.value = (total ?? 0) / Math.max(1, start - gpuMs.lastFrame);
+          gpuMs.lastFrame = start;
+          gpuMs.pending = false;
+        });
+      }
     },
   });
 
@@ -170,7 +199,7 @@ export async function createGame(
   lap('modules', tm);
   ctx.tools.attach();
   ctx.tools.setActive('select');
-  setQuality(tier);
+  setQuality(ctx.quality.tier); // may have been changed by the settings module (saved preference)
 
   // Start looking at a pleasant buildable spot near the map centre.
   await onProgress('Compiling luminous materials', 0.75);

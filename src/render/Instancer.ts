@@ -1,6 +1,5 @@
 import {
   Color,
-  DynamicDrawUsage,
   InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
@@ -20,7 +19,13 @@ export interface InstanceHandle {
   slot: number;
 }
 
-const INITIAL_CAPACITY = 64;
+/**
+ * Minimum batch capacity. three puts instance matrices that fit in a uniform buffer (≤ 64 KiB,
+ * i.e. ≤ 1024 matrices) into a UBO that is re-uploaded every frame, with the array length baked
+ * into the shader (one shader variant per capacity). Staying above that size forces the vertex
+ * attribute path: one shader for all batches and uploads only of changed ranges.
+ */
+const INITIAL_CAPACITY = 1040;
 
 /**
  * Tracks which instance slots changed since the last upload. A few scattered slots become
@@ -33,7 +38,11 @@ class DirtySlots {
   private max = -1;
   private span = false;
 
-  constructor(private limit = 48) {}
+  /**
+   * Each range is one `writeBuffer` call with fixed IPC overhead, so keep ranges few: beyond
+   * `limit` scattered slots, upload one span instead.
+   */
+  constructor(private limit = 8) {}
 
   mark(slot: number): void {
     if (slot < this.min) this.min = slot;
@@ -60,7 +69,8 @@ class DirtySlots {
       let prev = start;
       for (let i = 1; i <= this.slots.length; i++) {
         const s = this.slots[i];
-        if (s !== undefined && s <= prev + 1) {
+        // Merge nearby slots: re-uploading a short clean gap is cheaper than another call.
+        if (s !== undefined && s <= prev + 16) {
           prev = s;
           continue;
         }
@@ -119,12 +129,11 @@ class InstanceBatch {
     // disposed safely (shared GPU buffers would be freed by dispose()).
     const geometry = this.piece.geometry.clone();
     const params = new InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
-    params.setUsage(DynamicDrawUsage);
     geometry.setAttribute('aParams', params);
     const mesh = new InstancedMesh(geometry, getMaterial(this.piece.material), capacity);
-    mesh.instanceMatrix.setUsage(DynamicDrawUsage);
+    // Static usage on purpose: three re-uploads DynamicDrawUsage attributes in full on *every*
+    // frame and pass. Static + version bumps + update ranges uploads only what changed.
     mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
-    mesh.instanceColor.setUsage(DynamicDrawUsage);
     mesh.count = 0;
     mesh.castShadow = this.piece.castShadow;
     mesh.receiveShadow = this.piece.receiveShadow;
@@ -265,6 +274,11 @@ export class ChunkedInstancer {
     let n = 0;
     for (const b of this.batches.values()) n += b.count;
     return n;
+  }
+
+  /** True while growth tweens are playing (shadows should refresh). */
+  get animating(): boolean {
+    return this.tweens.length > 0;
   }
 
   get batchCount(): number {

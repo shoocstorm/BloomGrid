@@ -54,6 +54,10 @@ export class Atmosphere {
     scene.add(this.sky, this.sun, this.sun.target, this.hemi);
     scene.fog = this.fog;
     this.sun.castShadow = true;
+    // Shadows are re-rendered on demand (see `follow`), not every frame: the shadow pass is a
+    // second full draw of every caster and the single biggest avoidable GPU cost.
+    this.sun.shadow.autoUpdate = false;
+    this.sun.shadow.needsUpdate = true;
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.03;
     this.setShadowMapSize(2048);
@@ -63,6 +67,7 @@ export class Atmosphere {
     this.sun.shadow.mapSize.set(size, size);
     this.sun.shadow.map?.dispose();
     this.sun.shadow.map = null as never;
+    this.sun.shadow.needsUpdate = true;
   }
 
   /** Bakes an image-based lighting environment from the daytime sky (once). */
@@ -114,13 +119,30 @@ export class Atmosphere {
     this.scene.environmentIntensity = 0.25 + 0.75 * (1 - night);
   }
 
-  /** Keeps the sky centred on the camera and the shadow frustum around the view target. */
-  follow(cameraPos: Vector3, target: Vector3, distance: number): void {
+  private lastShadowPos = new Vector3(Infinity, 0, 0);
+  private lastShadowDir = new Vector3();
+  private shadowDirty = true;
+  private sinceShadow = 0;
+  /** Upper bound on shadow-map refreshes per second. */
+  maxShadowHz = 15;
+
+  /** Request a shadow refresh (geometry changed: building placed, removed, growing…). */
+  invalidateShadows(): void {
+    this.shadowDirty = true;
+  }
+
+  /**
+   * Keeps the sky centred on the camera and the shadow frustum around the view target.
+   * The shadow map refreshes only when the light moved (sun angle / snapped frustum position) or
+   * geometry was invalidated, throttled to `maxShadowHz`.
+   */
+  follow(cameraPos: Vector3, target: Vector3, distance: number, dt = 0): void {
     this.sky.position.copy(cameraPos);
     // Capped: at overview zoom, distant shadows are sub-pixel but cost a draw call per batch.
     const ext = Math.min(110, Math.max(25, distance * 0.9));
     if (Math.abs(ext - this.shadowExtent) > 4) {
       this.shadowExtent = ext;
+      this.shadowDirty = true;
       const cam = this.sun.shadow.camera;
       cam.left = cam.bottom = -ext;
       cam.right = cam.top = ext;
@@ -134,6 +156,17 @@ export class Atmosphere {
     const tz = Math.round(target.z / texel) * texel;
     this.sun.target.position.set(tx, target.y, tz);
     this.sun.position.set(tx, target.y, tz).addScaledVector(this.sunDir, 250);
+    this.sinceShadow += dt;
+    const moved = this.lastShadowPos.distanceToSquared(this.sun.position) > 1e-6;
+    // ~0.6° of sun travel (≈ every 0.6 s at 1× speed): shadows creep imperceptibly in between.
+    const turned = this.lastShadowDir.angleTo(this.sunDir) > 0.01;
+    if ((moved || turned || this.shadowDirty) && this.sinceShadow >= 1 / this.maxShadowHz) {
+      this.sun.shadow.needsUpdate = true;
+      this.lastShadowPos.copy(this.sun.position);
+      this.lastShadowDir.copy(this.sunDir);
+      this.shadowDirty = false;
+      this.sinceShadow = 0;
+    }
     this.fog.near = Math.max(120, distance * 1.6);
     this.fog.far = this.fog.near + 700;
   }

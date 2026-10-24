@@ -25,7 +25,7 @@ export class Ghost {
     this.cursor = new Mesh(new PlaneGeometry(1, 1).rotateX(-Math.PI / 2), getMaterial('cursor'));
     this.cursor.renderOrder = 10;
     this.cursor.visible = false;
-    this.tiles = new InstancedMesh(new PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2), getMaterial('cursor'), 1024);
+    this.tiles = new InstancedMesh(new PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2), getMaterial('cursor'), 1100); // > UBO limit: see Instancer INITIAL_CAPACITY
     this.tiles.count = 0;
     this.tiles.frustumCulled = false;
     this.tiles.renderOrder = 10;
@@ -50,7 +50,7 @@ export class Ghost {
           this.group.remove(mesh);
           mesh.dispose();
         }
-        mesh = new InstancedMesh(getPiece(p.piece).geometry, getMaterial('ghost'), Math.max(need, 32));
+        mesh = new InstancedMesh(getPiece(p.piece).geometry, getMaterial('ghost'), Math.max(need, 1040)); // > UBO limit: see Instancer INITIAL_CAPACITY
         mesh.frustumCulled = false;
         this.pool.set(p.piece, mesh);
         this.group.add(mesh);

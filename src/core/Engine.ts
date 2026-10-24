@@ -14,6 +14,13 @@ export class Engine<Ctx> {
   simMs = 0;
   frameMs = 0;
   fps = 60;
+  /** Frames actually rendered since start (for power/perf measurement). */
+  frames = 0;
+  /**
+   * Frame-rate cap provider (0 = uncapped). Called every display refresh; frames arriving sooner
+   * than 1/cap are skipped entirely, which is what keeps laptops cool on 120 Hz displays.
+   */
+  targetFps: () => number = () => 0;
 
   private acc = 0;
   private last = 0;
@@ -39,6 +46,9 @@ export class Engine<Ctx> {
     const loop = (now: number) => {
       if (!this.running) return;
       this.raf = requestAnimationFrame(loop);
+      const cap = this.targetFps();
+      // 2 ms tolerance absorbs vsync jitter so a 60 cap on a 120 Hz display renders every 2nd refresh.
+      if (cap > 0 && now - this.last < 1000 / cap - 2) return;
       this.runFrame(now);
     };
     this.raf = requestAnimationFrame(loop);
@@ -88,5 +98,6 @@ export class Engine<Ctx> {
     this.systems.run('sync', this.ctx, f);
     this.systems.run('render', this.ctx, f);
     this.frameMs = this.frameMs * 0.9 + (performance.now() - t0) * 0.1;
+    this.frames++;
   }
 }

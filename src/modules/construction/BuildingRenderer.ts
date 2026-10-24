@@ -256,17 +256,18 @@ export class BuildingRenderer {
 
   /** Per-frame: stage plant growth and feed live greenery to membrane shaders. */
   update(dt: number): void {
+    // Greenery changes slowly (~1%/s), so check at 2 Hz and only re-upload moss coverage once it
+    // has visibly moved: every param write is GPU upload traffic.
     this.mossTimer += dt;
-    const updateMoss = this.mossTimer > 0.25;
-    if (updateMoss) this.mossTimer = 0;
+    if (this.mossTimer < 0.5) return;
+    this.mossTimer = 0;
     for (const [eid, entry] of this.entries) {
       const g = Greenery.value[eid]!;
-      if (g === entry.lastGreenery) continue;
       let spawned = 0;
       while (entry.pending.length && entry.pending[0]!.growAt <= g) {
         this.spawn(entry, entry.pending.shift()!, g, spawned++ * 0.04);
       }
-      if (updateMoss) {
+      if (Math.abs(g - entry.lastGreenery) >= 0.03 || (g >= 1 && entry.lastGreenery < 1)) {
         entry.lastGreenery = g;
         for (const h of entry.moss) this.ctx.instancer.setParam(h, 0, g);
       }

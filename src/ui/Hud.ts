@@ -146,12 +146,15 @@ class Hud {
     const stats = h('div', { class: 'stats panel' });
     const stat = (id: string, key: string, extra?: HTMLElement) => {
       const v = h('span', { class: 'v' });
-      const el = h('div', { class: 'stat' }, h('span', { class: 'k' }, key), v, extra ?? null);
+      // "◈ Credits" → icon + label; the label collapses on narrow screens, the icon and tooltip stay.
+      const [icon, ...rest] = key.split(' ');
+      const label = rest.join(' ');
+      const el = h('div', { class: 'stat', title: label }, h('span', { class: 'ki' }, icon!), h('span', { class: 'k' }, label), v, extra ?? null);
       this.statEls.set(id, { el, v });
       stats.append(el);
     };
     stat('credits', '◈ Credits');
-    stat('pop', 'Residents');
+    stat('pop', '👥 Residents');
     stat('energy', '⚡ Energy');
     stat('water', '💧 Water');
     stat('eco', '🌿 Eco');
@@ -363,8 +366,8 @@ class Hud {
   update(dt: number): void {
     const { ctx } = this;
     const p = ctx.input.pointer;
-    this.tooltip.style.left = `${p.x}px`;
-    this.tooltip.style.top = `${p.y}px`;
+    // transform (not left/top) so moving the tooltip never triggers layout.
+    if (!this.tooltip.classList.contains('hidden')) this.tooltip.style.transform = `translate(${p.x + 16}px, ${p.y + 16}px)`;
     this.timer += dt;
     if (this.timer < 0.2) return;
     this.timer = 0;

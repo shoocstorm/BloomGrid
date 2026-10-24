@@ -72,6 +72,12 @@ The city is a system that can run well or badly.
 - **Measured (WebGPU, headless):** founding city ~1670 buildings / 22k residents; boot 1.9 s; 60 fps; 223 draws near / 202 at overview, CPU 3.7–7 ms per frame, with or without a lens
 - **Accept:** ✅ `tests/monitoring.test.ts` (fields, every lens in range, advisor flags the founding water shortage and a blackout as critical, network stats). Visual drills: `scripts/scenes/drought.js`, `blackout.js`.
 
+## ✅ Interlude — Power & heat (2026-10-24)
+
+- [x] Diagnosed laptop heat with measurements (`scripts/perf.mjs`): uncapped 120 Hz rendering, 318 MB/s of redundant GPU uploads, shadows every frame, backdrop blur
+- [x] Frame pacing with power modes (Settings ⚙); static instance buffers + update ranges; batch capacity above the UBO limit; on-demand shadow refresh; HUD without backdrop blur; High pixel ratio 1.5 → 1.25
+- **Measured:** main thread 38% → 16% active / 14% idle; uploads 318 → 0.8 MB/s (D-014)
+
 ## ⏳ Phase 5 — Decline, Crises & Control
 
 - [ ] Cascades: brownout → job loss → exodus → revenue (basic version live since Phase 3); pollution → wilt → eco collapse; debt → upkeep cuts
@@ -123,6 +129,7 @@ window settings); save migrations.
 Keep this list current; remove items when fixed.
 
 - [ ] **WebGL2 shader warm-up is ~2–10 s in headless Chrome** (grew with the overlay/vitality nodes; WebGPU stays ~1.1 s). Options: reveal the city while compiling far pieces in the background, split overlay into a material variant only compiled on first lens use, `KHR_parallel_shader_compile`.
+- [ ] Remaining CPU is three's per-draw overhead (~230 draws incl. shadow pass). Next lever: merge piece types per chunk with `BatchedMesh` (needs per-instance params via a data texture), or GPU-driven culling.
 - [ ] Draw calls are ~200–225 with ~1700 buildings; ~2× more content would approach the budget. Next steps if content grows: merge far chunks into static impostor meshes, or GPU-driven culling with indirect draws.
 - [ ] JS bundle is about 1.2 MB (single chunk): code-split debug (Tweakpane) and future modules.
 - [ ] Main thread blocks during world generation (terrain + flora, about 0.2 s now); move to a worker when the sim moves.
