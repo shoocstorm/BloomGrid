@@ -9,6 +9,8 @@ import { simSystems, type SimCtx } from '@/sim/systems';
 export function makeSim(seed = 42) {
   const bus = new EventBus();
   const city = new City(bus, seed);
+  // Random crises off by default so balance tests are stable; crisis tests opt in.
+  city.steward.autoCrises = false;
   const ctx: SimCtx = { city };
   const commands = new CommandStack(ctx);
   registerSimCommands(commands);

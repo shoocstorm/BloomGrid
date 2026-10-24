@@ -20,6 +20,8 @@ export interface HarmonyBreakdown {
   food: number;
   taxes: number;
   amenities: number;
+  /** Active crises (heatwave, monsoon…). */
+  crises: number;
 }
 
 /** Per highway-network utility totals from the last pulse (index = network id). Not saved. */
@@ -44,6 +46,10 @@ export interface PulseState {
   foodRatio: number;
   unemployment: number;
   networks: NetworkStats[];
+  /** Mean building greenery (heatwave resilience). */
+  avgGreenery: number;
+  /** Mean pollution on coastal tiles (algal bloom likelihood). */
+  coastalPollution: number;
   /** Pulses since start (drives field recompute cadence). */
   count: number;
 }
@@ -58,12 +64,14 @@ export function createPulseState(): PulseState {
     tiers: { energy: 1, water: 1, food: 1, jobs: 1, ecology: 1, harmony: 1, budget: 1 },
     primed: false,
     history: Object.fromEntries(HISTORY_METRICS.map((m) => [m, []])) as unknown as Record<HistoryMetric, number[]>,
-    harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0 },
+    harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0, crises: 0 },
     energyRatio: 1,
     waterRatio: 1,
     foodRatio: 1,
     unemployment: 0,
     networks: [],
+    avgGreenery: 0.5,
+    coastalPollution: 0,
     count: 0,
   };
 }

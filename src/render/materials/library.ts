@@ -264,8 +264,12 @@ export function initMaterials(): void {
     const dots = step(0.45, fract(positionWorld.x.add(positionWorld.z).mul(3).sub(time.mul(0.8))));
     const turf = mix(color(0x3e7a3a), color(0x5c9a48), mx_noise_float(positionWorld.mul(5)).mul(0.5).add(0.5));
     const rut = smoothstep(0.12, 0.2, d).mul(0.12);
-    m.colorNode = mix(turf.add(rut), color(0xd9fff4), line.mul(0.6));
-    m.emissiveNode = color(0x7ff7e6).mul(line).mul(dots.mul(0.6).add(0.4)).mul(U.night.mul(1.2).add(0.12));
+    // Unfunded highways are reclaimed: wild meadow creeps in and the guideline goes dark.
+    const og = attribute('aOvergrowth', 'float');
+    const wild = mix(color(0x6f9a3c), color(0x9cbf5a), mx_noise_float(positionWorld.mul(9)).mul(0.5).add(0.5));
+    const lit = line.mul(float(1).sub(smoothstep(0.3, 0.9, og)));
+    m.colorNode = mix(mix(turf.add(rut), color(0xd9fff4), lit.mul(0.6)), wild, smoothstep(0.2, 1, og));
+    m.emissiveNode = color(0x7ff7e6).mul(lit).mul(dots.mul(0.6).add(0.4)).mul(U.night.mul(1.2).add(0.12));
     return m;
   }, { overlay: 'plain' });
 

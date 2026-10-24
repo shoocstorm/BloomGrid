@@ -58,6 +58,10 @@ export const settingsModule: GameModule = {
         }
       }),
     );
+    pop.append(
+      h('h4', {}, 'City'),
+      h('button', { class: 'set-new', onClick: () => (pop.classList.add('hidden'), ctx.services.get('crises').newCity()) }, '✦ Found a new city…'),
+    );
     const btn = h('button', { class: 'icon-btn', title: 'Settings', onClick: () => pop.classList.toggle('hidden') }, '⚙');
     document.querySelector('.topbar .actions')?.append(btn);
     ctx.hud.append(pop);

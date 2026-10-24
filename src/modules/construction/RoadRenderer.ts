@@ -31,6 +31,11 @@ export class RoadRenderer {
     this.group.name = 'roads';
     ctx.scene.add(this.group);
     ctx.bus.on('road:changed', ({ tiles }) => this.onChanged(tiles));
+    ctx.bus.on('road:overgrowth', ({ tiles }) => {
+      const g = ctx.city.grid;
+      const dirty = new Set(tiles.map((t) => this.key(t % g.w, (t / g.w) | 0)));
+      for (const k of dirty) this.rebuild(k);
+    });
     ctx.bus.on('city:reset', () => {
       for (const m of this.chunks.values()) {
         this.group.remove(m);
@@ -100,7 +105,9 @@ export class RoadRenderer {
     const pos: number[] = [];
     const uv: number[] = [];
     const mask: number[] = [];
+    const cond: number[] = [];
     const idx: number[] = [];
+    const og = g.layer<Uint8Array>('overgrowth');
     const road = (x: number, z: number) => (g.inBounds(x, z) && g.road[g.index(x, z)] ? 1 : 0);
     for (let z = cz; z < Math.min(cz + this.chunk, g.h); z++)
       for (let x = cx; x < Math.min(cx + this.chunk, g.w); x++) {
@@ -111,6 +118,8 @@ export class RoadRenderer {
         pos.push(x, h(x, z), z, x + 1, h(x + 1, z), z, x, h(x, z + 1), z + 1, x + 1, h(x + 1, z + 1), z + 1);
         uv.push(0, 0, 1, 0, 0, 1, 1, 1);
         mask.push(m, m, m, m);
+        const o = og ? og[g.index(x, z)]! / 255 : 0;
+        cond.push(o, o, o, o);
         idx.push(v, v + 2, v + 1, v + 1, v + 2, v + 3);
       }
     const old = this.chunks.get(key);
@@ -124,6 +133,7 @@ export class RoadRenderer {
     geo.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
     geo.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
     geo.setAttribute('aMask', new BufferAttribute(new Float32Array(mask), 1));
+    geo.setAttribute('aOvergrowth', new BufferAttribute(new Float32Array(cond), 1));
     geo.setIndex(idx);
     geo.computeVertexNormals();
     const mesh = new Mesh(geo, getMaterial('road'));

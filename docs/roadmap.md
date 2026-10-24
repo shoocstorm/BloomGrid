@@ -78,16 +78,19 @@ The city is a system that can run well or badly.
 - [x] Frame pacing with power modes (Settings ⚙); static instance buffers + update ranges; batch capacity above the UBO limit; on-demand shadow refresh; HUD without backdrop blur; High pixel ratio 1.5 → 1.25
 - **Measured:** main thread 38% → 16% active / 14% idle; uploads 318 → 0.8 MB/s (D-014)
 
-## ⏳ Phase 5 — Decline, Crises & Control
+## ✅ Phase 5 — Decline, Crises & Control
 
-- [ ] Cascades: brownout → job loss → exodus → revenue (basic version live since Phase 3); pollution → wilt → eco collapse; debt → upkeep cuts
-- [ ] Loans and debt: borrowing, interest, forced upkeep cuts
-- [ ] Neglect overgrowth (nature reclaims unmaintained infrastructure)
-- [ ] Event system with forecasts: monsoon flood, king tide, heatwave, algal bloom, grid failure, blight
-- [ ] Fail state ("Steward replaced") + sandbox mode + difficulty presets
-- **Accept:** a scripted neglect test reaches Collapse deterministically; a scripted response recovers.
+- [x] Loans and debt: borrow (5k / 15k / 40k, limit ≈ 10 min of income), simple interest by difficulty, amortised repayments, early repay; all undoable commands
+- [x] Austerity: a negative treasury pays only 40% of upkeep → building condition decays (reduced capacity, dark windows, moss overruns them) and highways overgrow until they stop carrying power and water; redrawing a highway clears it
+- [x] Cascades: brownout → job loss → exodus → revenue; flood → evacuation → damage; pollution → algal blooms; debt → austerity → decay
+- [x] Crises with forecasts (`sim/crises.ts`): monsoon flood, king tide, heatwave, algal bloom, grid failure, plant blight; deterministic scheduler (one at a time, calm gap), severity by difficulty; effects only through pulse `Modifiers`
+- [x] Crisis visuals: rising water (height-based water shader), rain, storm/heat/algae tints, region rings; banner with countdown, prep advice and "Show"; toasts and log entries; advisor rules
+- [x] Fail state: harmony or budget in Collapse for 120 s → "Steward replaced" (load save / continue in sandbox / new city); warning banner with countdown; recovery unwinds the clock twice as fast
+- [x] Difficulty presets (Sandbox, Relaxed, Steward, Hard) and a New City dialog (⚙ → Found a new city); save format v3 (+ v2 migration)
+- **Accept:** ✅ `tests/crises.test.ts`: neglect reaches Collapse and replacement deterministically; Sandbox never fails; a timely rebuild unwinds the clock; crisis lifecycle and effects; scheduler determinism; save v3 round-trip. Drills: `?drill=<crisis>`, inspector → Crisis drills.
+- **Measured:** power budget unchanged (≈17% main thread active, 15% idle); a monsoon with rain adds ~2 ms GPU while active.
 
-## ⬜ Phase 6 — Seasonal Bloom Engine
+## ⏳ Phase 6 — Seasonal Bloom Engine
 
 Plant growth and bloom driven by energy efficiency and water; pollen spread; symbiotic pairing rules;
 **district transformation wave** on upgrade (steel → flower walls, sunflower roofs, lily-pad channels with koi).

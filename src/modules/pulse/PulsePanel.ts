@@ -1,6 +1,7 @@
 import { SYSTEMS, TAX_MAX, TAX_MIN, TIERS, type HistoryMetric, type SystemKey } from '@/sim/pulseState';
 import type { GameContext } from '@/game/context';
 import { h, setText } from '@/ui/dom';
+import { LOAN_SIZES, creditLimit, totalDebt } from '@/sim/finance';
 
 export const SYSTEM_LABELS: Record<SystemKey, string> = {
   energy: 'Energy grid',
@@ -60,6 +61,10 @@ export class PulsePanel {
   private sparks: { canvas: HTMLCanvasElement; metric: HistoryMetric; color: string; label: HTMLElement }[] = [];
   private taxInput: HTMLInputElement;
   private taxLabel: HTMLElement;
+  private owed!: HTMLElement;
+  private funding!: HTMLElement;
+  private loanBtns: [number, HTMLButtonElement][] = [];
+  private repayBtn!: HTMLButtonElement;
   private timer = 0;
 
   constructor(private ctx: GameContext) {
@@ -99,6 +104,7 @@ export class PulsePanel {
     for (const [id, label] of [
       ['income', 'Tax income'],
       ['upkeep', 'Upkeep'],
+      ['debt', 'Loan repayments'],
       ['net', 'Net'],
     ]) {
       const v = h('b');
@@ -106,6 +112,18 @@ export class PulsePanel {
       budget.append(h('div', { class: 'kv' }, h('span', {}, label!), v));
     }
     budget.append(h('div', { class: 'kv tax' }, h('span', {}, 'Tax rate'), this.taxInput, this.taxLabel));
+    this.owed = h('b');
+    this.funding = h('b');
+    budget.append(h('div', { class: 'kv' }, h('span', {}, 'Owed'), this.owed), h('div', { class: 'kv' }, h('span', {}, 'Maintenance'), this.funding));
+    const loans = h('div', { class: 'loan-row' });
+    for (const amount of LOAN_SIZES) {
+      const b = h('button', { onClick: () => ctx.commands.execute('takeLoan', { amount }) }, `Borrow ${amount / 1000}k`) as HTMLButtonElement;
+      this.loanBtns.push([amount, b]);
+      loans.append(b);
+    }
+    this.repayBtn = h('button', { onClick: () => this.repayAll() }, 'Repay') as HTMLButtonElement;
+    loans.append(this.repayBtn);
+    budget.append(loans);
 
     const harmony = h('div', { class: 'pulse-sec' }, h('div', { class: 'pulse-title' }, 'Harmony factors'));
     for (const [id, label] of [
@@ -115,6 +133,7 @@ export class PulsePanel {
       ['food', 'Food'],
       ['taxes', 'Taxes'],
       ['amenities', 'Amenities'],
+      ['crises', 'Crises'],
     ]) {
       const v = h('b');
       this.harmony.set(id!, v);
@@ -143,6 +162,11 @@ export class PulsePanel {
       return false;
     });
     this.refresh();
+  }
+
+  /** Repays loans (oldest first) while the treasury can afford them. */
+  private repayAll(): void {
+    for (const l of [...this.ctx.city.steward.loans]) if (this.ctx.city.credits >= l.remaining) this.ctx.commands.execute('repayLoan', { id: l.id });
   }
 
   update(dt: number): void {
@@ -182,7 +206,16 @@ export class PulsePanel {
     bar('homes', s.demandHomes);
     bar('work', s.demandWork);
     bar('food', s.demandFood);
-    const net = s.income - s.upkeep;
+    const net = s.income - s.upkeep - s.debtService;
+    setText(this.budget.get('debt')!, s.debtService > 0 ? `−${s.debtService.toFixed(1)}` : '0');
+    const owed = totalDebt(city);
+    setText(this.owed, owed > 0 ? Math.round(owed).toLocaleString() : 'none');
+    const f = city.steward.funding;
+    setText(this.funding, f >= 1 ? 'Fully funded' : `Austerity (${Math.round(f * 100)}%)`);
+    this.funding.className = f >= 1 ? 'good' : 'bad';
+    const limit = creditLimit(city);
+    for (const [amount, b] of this.loanBtns) b.disabled = amount > limit;
+    this.repayBtn.disabled = owed <= 0 || city.credits < Math.min(...city.steward.loans.map((l) => l.remaining));
     setText(this.budget.get('income')!, `+${s.income.toFixed(1)}`);
     setText(this.budget.get('upkeep')!, `−${s.upkeep.toFixed(1)}`);
     const n = this.budget.get('net')!;

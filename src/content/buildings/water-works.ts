@@ -10,6 +10,7 @@ export default defineBuilding({
   stats: { cost: 350, energy: -12, eco: 1, happiness: 0, population: 0, jobs: 10, pollution: 0, water: 220 },
   growthTime: 110,
   placement: { nearWater: true },
+  floodproof: true,
   recipe(b) {
     // Treatment hall with a living roof.
     b.add({ piece: 'slab', p: [-0.7, 0, 0], s: [1.4, 0.7, 1.7], tint: PALETTE.concrete });

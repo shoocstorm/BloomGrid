@@ -107,6 +107,8 @@ interface Entry {
   /** Plant and membrane pieces that wilt with low vitality (aParams.w). */
   plants: InstanceHandle[];
   vitality: number;
+  /** 0..1 how far nature has reclaimed a worn-down building (extra moss). */
+  wild: number;
   /** Template pieces waiting for greenery to reach their threshold, sorted by growAt. */
   pending: TemplatePiece[];
   base: Matrix4;
@@ -118,10 +120,14 @@ interface Entry {
   alert: InstanceHandle | null;
 }
 
+// Marker colour by most urgent problem first.
 const ALERT_COLORS: [number, number][] = [
+  [Problem.FLOODED, 0x2fe6c8],
+  [Problem.OFFLINE, 0xff8a3a],
   [Problem.NO_ROAD, 0xe8e8e8],
   [Problem.NO_POWER, 0xffcf3a],
   [Problem.NO_WATER, 0x4ab8ff],
+  [Problem.NEGLECTED, 0x8a6a3a],
   [Problem.UNSTAFFED, 0xc9a6ff],
 ];
 
@@ -161,6 +167,7 @@ export class BuildingRenderer {
       glass: [],
       plants: [],
       vitality: 1,
+      wild: 0,
       pending: [],
       base: place.base,
       height: place.template.height,
@@ -227,10 +234,18 @@ export class BuildingRenderer {
       const st = city.buildingDef(eid).stats;
       const occ = Service.occupancy[eid]!;
       const occupied = st.population > 0 || st.jobs > 0 ? 0.2 + 0.8 * occ : 1;
-      const power = Service.power[eid]! * occupied;
+      const cond = Service.condition[eid]!;
+      const power = Service.power[eid]! * occupied * (0.3 + 0.7 * cond);
       if (Math.abs(power - entry.power) > 0.03) {
         entry.power = power;
         for (const h of entry.glass) instancer.setParam(h, 3, power);
+      }
+      // Nature reclaims worn-down buildings: moss spreads over every surface.
+      const wild = cond < 0.6 ? (0.6 - cond) / 0.6 : 0;
+      if (Math.abs(wild - entry.wild) > 0.05) {
+        entry.wild = wild;
+        const g = Math.min(1.4, Greenery.value[eid]! + wild);
+        for (const h of entry.moss) instancer.setParam(h, 0, g);
       }
       const abandoned = st.population > 0 && occ < 0.2 ? 0.55 : 1;
       const vitality = (st.water < 0 ? Service.water[eid]! : 1) * abandoned;
@@ -269,7 +284,7 @@ export class BuildingRenderer {
       }
       if (Math.abs(g - entry.lastGreenery) >= 0.03 || (g >= 1 && entry.lastGreenery < 1)) {
         entry.lastGreenery = g;
-        for (const h of entry.moss) this.ctx.instancer.setParam(h, 0, g);
+        for (const h of entry.moss) this.ctx.instancer.setParam(h, 0, Math.min(1.4, g + entry.wild));
       }
     }
   }

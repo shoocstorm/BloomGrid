@@ -22,6 +22,13 @@ export const U = {
   ovLow: uniform(new Color(0xff5a6e)),
   ovMid: uniform(new Color(0xffd166)),
   ovHigh: uniform(new Color(0x3ccf8e)),
+  /** Water surface height (sea level 0; raised during floods). */
+  waterLevel: uniform(0),
+  /** Weather / crisis atmosphere 0..1. */
+  storm: uniform(0),
+  heat: uniform(0),
+  algae: uniform(0),
+  rain: uniform(0),
   /** Map size in world units (for terrain-space lookups such as water depth). */
   mapSize: uniform(256),
 };

@@ -89,6 +89,7 @@ export function applyScenario(city: City, id: string): { buildings: number; road
   def.build(builder);
   city.credits = def.credits;
   city.networks.dirty = true;
+  city.roadCount += roadTiles.length;
   if (roadTiles.length) city.bus.emit('road:changed', { tiles: roadTiles });
   return { buildings: placed, roads: roadTiles.length };
 }

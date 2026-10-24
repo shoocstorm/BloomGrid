@@ -2,6 +2,9 @@ import { query } from 'bitecs';
 import { Building, Problem, Service } from '@/ecs/components';
 import type { City } from './City';
 import { TIERS, type Tier } from './pulseState';
+import { getCrisis } from './crises';
+import { FAIL_SECONDS } from './steward';
+import { creditLimit } from './finance';
 
 export type Severity = 0 | 1 | 2; // info, warning, critical
 
@@ -182,7 +185,10 @@ registerAdvisorRule((city) => {
     severity: city.credits < 0 ? 2 : 1,
     title: city.credits < 0 ? 'The city is in debt' : `Running a deficit (${net.toFixed(1)}/s)`,
     detail: 'Upkeep exceeds tax income.',
-    fix: 'Raise the tax rate a little (City Pulse panel), or return unused buildings to nature.',
+    fix:
+      city.credits < 0
+        ? `Austerity is cutting maintenance. Borrow (up to ${Math.round(creditLimit(city)).toLocaleString()}) or raise taxes to get out of debt.`
+        : 'Raise the tax rate a little (City Pulse panel), or return unused buildings to nature.',
   };
 });
 
@@ -219,5 +225,72 @@ registerAdvisorRule((city) => {
     fix: 'Build homes near workplaces.',
     focus,
     build: 'garden-residence',
+  };
+});
+
+// ── Phase 5: crises, neglect and the council ─────────────────────────────────
+
+registerAdvisorRule((city) => {
+  const st = city.steward;
+  if (st.failClock <= 0 || st.failed) return null;
+  const left = Math.max(0, FAIL_SECONDS - st.failClock);
+  return {
+    id: 'council',
+    severity: 2,
+    title: `The council's patience: ${left}s left`,
+    detail: 'Harmony or the budget has collapsed. If it stays that way, you will be replaced as steward.',
+    fix: city.pulse.tiers.budget === 4 ? 'Get the treasury out of deep debt: borrow, raise taxes, cut costly buildings.' : 'Restore power, water, food and jobs; the harmony panel shows the biggest drag.',
+  };
+});
+
+registerAdvisorRule((city) => {
+  const c = city.steward.crises[0];
+  if (!c) return null;
+  const d = getCrisis(c.def);
+  const active = c.phase === 'active';
+  let focus: Advisory['focus'] = c.x !== undefined ? { x: c.x, z: c.z! } : undefined;
+  if (!focus && active) focus = problemBuildings(city, Problem.FLOODED).focus;
+  const secs = Math.max(0, Math.ceil(((active ? c.endTick : c.startTick) - city.tick) / 10));
+  return {
+    id: `crisis-${c.id}`,
+    severity: active ? 2 : 1,
+    title: `${d.icon} ${d.name} ${active ? `under way (${secs}s left)` : `forecast in ${secs}s`}`,
+    detail: d.description,
+    fix: d.prep,
+    focus,
+  };
+});
+
+registerAdvisorRule((city) => {
+  const { count, focus } = problemBuildings(city, Problem.NEGLECTED);
+  if (count < 5) return null;
+  return {
+    id: 'neglect',
+    severity: city.steward.funding < 1 ? 2 : 1,
+    title: `${count} buildings worn down; nature is reclaiming them`,
+    detail: 'Worn buildings run at reduced capacity and lose residents. Underfunded maintenance and floods cause it.',
+    fix: city.steward.funding < 1 ? 'Get out of debt so maintenance is fully funded; buildings then recover on their own.' : 'They recover over time now that maintenance is funded.',
+    focus,
+  };
+});
+
+registerAdvisorRule((city) => {
+  const og = city.grid.layer<Uint8Array>('overgrowth');
+  if (!og || city.steward.overgrown === 0) return null;
+  let blocked = 0;
+  let first = -1;
+  for (let i = 0; i < og.length; i++)
+    if (og[i]! >= 255) {
+      blocked++;
+      if (first < 0) first = i;
+    }
+  if (!blocked) return null;
+  return {
+    id: 'overgrowth',
+    severity: blocked > 20 ? 2 : 1,
+    title: `${blocked} highway tile${blocked > 1 ? 's' : ''} overgrown`,
+    detail: 'Reclaimed highways no longer carry power or water, which can split districts off the grid.',
+    fix: 'Redraw the highway (G) over the overgrown stretch to clear it, and fund maintenance.',
+    focus: { x: (first % city.grid.w) + 0.5, z: ((first / city.grid.w) | 0) + 0.5 },
   };
 });

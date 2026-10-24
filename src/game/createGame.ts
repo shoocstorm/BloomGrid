@@ -8,9 +8,8 @@ import { SystemRegistry } from '@/core/Systems';
 import { City } from '@/sim/City';
 import { registerSimCommands } from '@/sim/commands';
 import { simSystems } from '@/sim/systems';
-import { applyScenario } from '@/sim/scenario';
+import { foundCity, preferredDifficulty } from './newCity';
 import { chunkSizeFor } from '@/sim/City';
-import { PULSE_TICKS } from '@/sim/pulse';
 import { createRenderer } from '@/render/Renderer';
 import { ChunkedInstancer } from '@/render/Instancer';
 import { DynamicResolution, QUALITY_TIERS, type QualitySettings, type QualityTier } from '@/render/Quality';
@@ -114,14 +113,11 @@ export async function createGame(
 
   // Founding content is generated in bulk before any renderer exists; renderers sync on init.
   const scenarioId = params.get('scenario') ?? 'founding-city';
-  if (scenarioId !== 'empty') {
-    await onProgress('Founding the city: districts, highways & bridges', 0.3);
-    const ts = performance.now();
-    const r = applyScenario(city, scenarioId);
-    lap('scenario', ts);
-    console.info(`[scenario] ${scenarioId}: ${r.buildings} buildings, ${r.roads} highway tiles`);
-    ctx.engine.stepTicks(PULSE_TICKS * 8); // settle occupancy, utilities and harmony
-  }
+  await onProgress('Founding the city: districts, highways & bridges', 0.3);
+  const ts = performance.now();
+  const r = foundCity(ctx, seed, preferredDifficulty(params), scenarioId);
+  lap('scenario', ts);
+  console.info(`[scenario] ${scenarioId}: ${r.buildings} buildings, ${r.roads} highway tiles (${city.steward.difficulty})`);
 
   // Rendering services.
   const postfx = new PostFX(renderer, scene, camera);

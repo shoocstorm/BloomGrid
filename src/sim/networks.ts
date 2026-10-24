@@ -22,7 +22,7 @@ export class RoadNetworks {
     const q = this.queue;
     let id = 0;
     for (let start = 0; start < comp.length; start++) {
-      if (!g.road[start] || comp[start] !== -1) continue;
+      if (!this.passable(start) || comp[start] !== -1) continue;
       let head = 0;
       let tail = 0;
       q[tail++] = start;
@@ -42,8 +42,14 @@ export class RoadNetworks {
     this.dirty = false;
   }
 
+  /** Highways fully reclaimed by nature carry nothing (see `upkeep.ts`). */
+  private passable(t: number): boolean {
+    const og = this.grid.layer<Uint8Array>('overgrowth');
+    return this.grid.road[t]! > 0 && (!og || og[t]! < 255);
+  }
+
   private push(t: number, id: number, tail: number): number {
-    if (this.grid.road[t] && this.comp[t] === -1) {
+    if (this.passable(t) && this.comp[t] === -1) {
       this.comp[t] = id;
       this.queue[tail++] = t;
     }

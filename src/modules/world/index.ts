@@ -12,6 +12,7 @@ export interface WorldService {
   atmosphere: Atmosphere;
   flora: Flora;
   terrain: Terrain;
+  water: Mesh;
 }
 
 declare module '@/core/Services' {
@@ -58,6 +59,7 @@ export const worldModule: GameModule = {
       ctx.cameraCtl.setGrid(city.grid);
       service.terrain = terrain;
       service.flora = flora;
+      service.water = water!;
     };
     build();
     ctx.bus.on('city:reset', build);

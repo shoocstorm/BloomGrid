@@ -21,17 +21,20 @@ main.ts ── createGame()  core runtime: renderer, sim, input, tools, save, sy
 
 ## Simulation model (City Pulse)
 
-| Piece       | Where                                     | Notes                                                                                                                          |
-| ----------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Tile grid   | `sim/Grid.ts`                             | Corner heights, `occupant`, `road` (0 none, 1 highway, 2 bridge), pluggable layers                                             |
-| Entities    | `ecs/components.ts`                       | `Building`, `Greenery`, `Service` (network, power, water, occupancy, problem bits)                                             |
-| Networks    | `sim/networks.ts`                         | Highway connected components; buildings join via footprint perimeter                                                           |
-| Pulse       | `sim/pulse.ts`                            | Once per sim second: utilities per network → service levels → occupancy/staffing → demand → harmony → budget → tiers → history |
-| Pulse state | `sim/pulseState.ts`                       | Tax rate, tiers, harmony breakdown, history ring buffers (plain data, saved)                                                   |
-| Scenarios   | `sim/scenario.ts` + `content/scenarios/*` | Bulk, deterministic starting content applied before renderers attach                                                           |
-| Fields      | `sim/fields.ts`                           | Pollution / ecology / desirability / shore layers on the grid, recomputed every `FIELD_PULSES`                                 |
-| Lenses      | `sim/overlays.ts`                         | Registry of per-tile overlays (value + mask) → `modules/overlays` uploads to `overlayTexture`                                  |
-| Advisor     | `sim/advisor.ts`                          | Registry of pure advisory rules → `modules/advisor` renders and logs                                                           |
+| Piece            | Where                                                        | Notes                                                                                                                          |
+| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Tile grid        | `sim/Grid.ts`                                                | Corner heights, `occupant`, `road` (0 none, 1 highway, 2 bridge), pluggable layers                                             |
+| Entities         | `ecs/components.ts`                                          | `Building`, `Greenery`, `Service` (network, power, water, occupancy, problem bits)                                             |
+| Networks         | `sim/networks.ts`                                            | Highway connected components; buildings join via footprint perimeter                                                           |
+| Pulse            | `sim/pulse.ts`                                               | Once per sim second: utilities per network → service levels → occupancy/staffing → demand → harmony → budget → tiers → history |
+| Pulse state      | `sim/pulseState.ts`                                          | Tax rate, tiers, harmony breakdown, history ring buffers (plain data, saved)                                                   |
+| Scenarios        | `sim/scenario.ts` + `content/scenarios/*`                    | Bulk, deterministic starting content applied before renderers attach                                                           |
+| Fields           | `sim/fields.ts`                                              | Pollution / ecology / desirability / shore layers on the grid, recomputed every `FIELD_PULSES`                                 |
+| Lenses           | `sim/overlays.ts`                                            | Registry of per-tile overlays (value + mask) → `modules/overlays` uploads to `overlayTexture`                                  |
+| Advisor          | `sim/advisor.ts`                                             | Registry of pure advisory rules → `modules/advisor` renders and logs                                                           |
+| Crises           | `sim/crises.ts`                                              | Crisis registry + scheduler → per-pulse `Modifiers` (D-015) → `modules/crises` visuals and HUD                                 |
+| Finance & upkeep | `sim/finance.ts`, `sim/upkeep.ts`                            | Loans, austerity funding, building condition, highway overgrowth (D-016)                                                       |
+| Stewardship      | `sim/steward.ts`, `sim/difficulty.ts`, `sim/stewardState.ts` | Fail clock, difficulty presets, saved steward state (D-017)                                                                    |
 
 ## Frame
 
@@ -50,21 +53,22 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 
 ## Extension points
 
-| Want to add          | Do this                                                                                               |
-| -------------------- | ----------------------------------------------------------------------------------------------------- |
-| Building             | `src/content/buildings/<id>.ts` with `defineBuilding`                                                 |
-| Kit piece / material | `registerPiece` (`assets/kit/pieces.ts`), `define` (`render/materials/library.ts`)                    |
-| Sim system           | `System` with `phase: 'sim'` in the module that owns it; pure TS                                      |
-| Player action        | `commands.register(type, { apply, revert })`                                                          |
-| Tool                 | `ctx.tools.register({ id, hover, down, up, key, grid, dragPan })`                                     |
-| Event / service      | declaration-merge `GameEvents` / `GameServices`, then `bus.emit` / `services.provide`                 |
-| Tile data            | `city.grid.addLayer(name, n => new Float32Array(n))`                                                  |
-| Saved module state   | `services.get('save').addHook({ id, save, load })`                                                    |
-| Global shader input  | add a uniform to `render/uniforms.ts` (`U`)                                                           |
-| Boot stage           | `onProgress(label, fraction)` inside `createGame`                                                     |
-| Starting city        | `src/content/scenarios/<id>.ts` with `defineScenario` (`?scenario=<id>`, `?scenario=empty`)           |
-| Management metric    | compute in `sim/pulse.ts`, store in `CityStats` / `PulseState`, show in `modules/pulse/PulsePanel.ts` |
-| Data lens            | `registerOverlay({ id, label, icon, legend, smooth, compute })` in `sim/overlays.ts` (or a module)    |
-| Advisor rule         | `registerAdvisorRule((city) => Advisory \| null)`                                                     |
-| Right-hand HUD panel | append to `ctx.services.get('hud').right`                                                             |
-| Dashboard chart      | `new LineChart({ format, step })` from `modules/dashboard/LineChart.ts` (one series per chart)        |
+| Want to add          | Do this                                                                                                           |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Building             | `src/content/buildings/<id>.ts` with `defineBuilding`                                                             |
+| Kit piece / material | `registerPiece` (`assets/kit/pieces.ts`), `define` (`render/materials/library.ts`)                                |
+| Sim system           | `System` with `phase: 'sim'` in the module that owns it; pure TS                                                  |
+| Player action        | `commands.register(type, { apply, revert })`                                                                      |
+| Tool                 | `ctx.tools.register({ id, hover, down, up, key, grid, dragPan })`                                                 |
+| Event / service      | declaration-merge `GameEvents` / `GameServices`, then `bus.emit` / `services.provide`                             |
+| Tile data            | `city.grid.addLayer(name, n => new Float32Array(n))`                                                              |
+| Saved module state   | `services.get('save').addHook({ id, save, load })`                                                                |
+| Global shader input  | add a uniform to `render/uniforms.ts` (`U`)                                                                       |
+| Boot stage           | `onProgress(label, fraction)` inside `createGame`                                                                 |
+| Starting city        | `src/content/scenarios/<id>.ts` with `defineScenario` (`?scenario=<id>`, `?scenario=empty`)                       |
+| Management metric    | compute in `sim/pulse.ts`, store in `CityStats` / `PulseState`, show in `modules/pulse/PulsePanel.ts`             |
+| Data lens            | `registerOverlay({ id, label, icon, legend, smooth, compute })` in `sim/overlays.ts` (or a module)                |
+| Advisor rule         | `registerAdvisorRule((city) => Advisory \| null)`                                                                 |
+| Crisis               | `registerCrisis({ id, name, icon, description, prep, lead, duration, weight, begin?, apply })` in `sim/crises.ts` |
+| Right-hand HUD panel | append to `ctx.services.get('hud').right`                                                                         |
+| Dashboard chart      | `new LineChart({ format, step })` from `modules/dashboard/LineChart.ts` (one series per chart)                    |

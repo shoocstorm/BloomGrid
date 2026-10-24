@@ -93,6 +93,8 @@ export interface BuildingDef {
   /** Sim seconds to reach full greenery. */
   growthTime: number;
   placement?: PlacementRules;
+  /** Built for the waterfront (raised intakes): ignores floods. */
+  floodproof?: boolean;
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */
   variants?: number;
   /** Procedural recipe, or a GLB asset path for hero models. */

@@ -3,6 +3,7 @@ import { buildings } from '@/content';
 import { NO_ENTITY } from './Grid';
 import type { BuildingRecord, City } from './City';
 import { TAX_MAX, TAX_MIN } from './pulseState';
+import { registerFinanceCommands } from './finance';
 
 /** Cost of building a highway on a tile (bridges over water cost more). */
 export function roadTileCost(city: City, t: number): number {
@@ -33,8 +34,21 @@ export const ROAD_COST = 4;
 export const BRIDGE_COST = 20;
 export const DEMOLISH_REFUND = 0.5;
 
+/** Writes overgrowth values for road tiles, keeping counts, networks and renderers in sync. */
+function setOvergrowth(city: City, values: [number, number][]): void {
+  const og = city.grid.addLayer('overgrowth', (n) => new Uint8Array(n));
+  for (const [t, v] of values) {
+    if (og[t] === 0 && v > 0) city.steward.overgrown++;
+    if (og[t]! > 0 && v === 0) city.steward.overgrown--;
+    og[t] = v;
+  }
+  city.networks.dirty = true;
+  city.bus.emit('road:overgrowth', { tiles: values.map(([t]) => t) });
+}
+
 /** Registers the core city-building commands. Feature modules register their own. */
 export function registerSimCommands(stack: CommandStack<SimCtx>): void {
+  registerFinanceCommands(stack);
   stack.register<BuildPayload, true>('build', {
     apply({ city }, p) {
       const def = buildings.get(p.def);
@@ -66,26 +80,38 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
     },
   });
 
-  stack.register<RoadPayload, { placed: number[]; cost: number }>('road', {
+  stack.register<RoadPayload, { placed: number[]; cleared: [number, number][]; cost: number }>('road', {
     apply({ city }, p) {
       const placed: number[] = [];
+      const cleared: [number, number][] = [];
       const seen = new Set<number>();
+      const og = city.grid.layer<Uint8Array>('overgrowth');
       let cost = 0;
       for (const t of p.tiles) {
-        if (seen.has(t) || !city.canRoad(t, p.bridges)) continue;
+        if (seen.has(t)) continue;
+        // Redrawing over an overgrown highway clears it.
+        if (city.grid.road[t] && og && og[t]! > 0 && city.credits >= cost + ROAD_COST) {
+          seen.add(t);
+          cleared.push([t, og[t]!]);
+          cost += ROAD_COST;
+          continue;
+        }
+        if (!city.canRoad(t, p.bridges)) continue;
         const c = roadTileCost(city, t);
         if (city.credits < cost + c) break;
         seen.add(t);
         placed.push(t);
         cost += c;
       }
-      if (!placed.length) return null;
+      if (!placed.length && !cleared.length) return null;
       city.credits -= cost;
-      city.setRoads(placed, true);
-      return { placed, cost };
+      if (placed.length) city.setRoads(placed, true);
+      if (cleared.length) setOvergrowth(city, cleared.map(([t]) => [t, 0]));
+      return { placed, cleared, cost };
     },
     revert({ city }, _p, u) {
-      city.setRoads(u.placed, false);
+      if (u.placed.length) city.setRoads(u.placed, false);
+      if (u.cleared.length) setOvergrowth(city, u.cleared);
       city.credits += u.cost;
     },
   });

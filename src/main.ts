@@ -9,13 +9,14 @@ import { advisorModule } from '@/modules/advisor';
 import { viewsModule } from '@/modules/views';
 import { dashboardModule } from '@/modules/dashboard';
 import { settingsModule } from '@/modules/settings';
+import { crisesModule } from '@/modules/crises';
 import { createBootScreen } from '@/ui/Boot';
 
 /**
  * Feature modules. New gameplay layers (city pulse, overlays, crises, bloom engine, mobility,
  * Flora-Net, Green Weaver, explore modes…) are added here as self-contained modules.
  */
-const MODULES = [worldModule, constructionModule, hudModule, pulseModule, overlaysModule, advisorModule, viewsModule, dashboardModule, settingsModule, debugModule];
+const MODULES = [worldModule, constructionModule, hudModule, pulseModule, overlaysModule, advisorModule, viewsModule, dashboardModule, settingsModule, crisesModule, debugModule];
 
 async function boot() {
   const canvas = document.getElementById('game') as HTMLCanvasElement;

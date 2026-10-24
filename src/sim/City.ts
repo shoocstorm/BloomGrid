@@ -9,6 +9,8 @@ import { Rng, fnv1a } from './random';
 import { RoadNetworks } from './networks';
 import { createPulseState, type PulseState } from './pulseState';
 import { createFields, type Fields } from './fields';
+import { createStewardState, type StewardState } from './stewardState';
+import type { DifficultyId } from './difficulty';
 import './events';
 
 export interface BuildingRecord {
@@ -19,6 +21,8 @@ export interface BuildingRecord {
   greenery: number;
   /** Residents / staffing fill 0..1. */
   occupancy?: number;
+  /** Physical condition 0..1 (default 1). */
+  condition?: number;
 }
 
 export interface CityStats {
@@ -38,7 +42,10 @@ export interface CityStats {
   /** "Harmony" 0..100. */
   happiness: number;
   income: number;
+  /** Upkeep actually paid (reduced under austerity). */
   upkeep: number;
+  /** Loan repayments per second. */
+  debtService: number;
   buildings: number;
   /** Demand meters in [-1, 1]: positive = the city wants more of this. */
   demandHomes: number;
@@ -70,6 +77,9 @@ export class City {
   networks!: RoadNetworks;
   pulse!: PulseState;
   fields!: Fields;
+  steward!: StewardState;
+  /** Number of highway tiles (kept in sync by setRoads). */
+  roadCount = 0;
   seed = 0;
   tick = 0;
   /** 0..1, 0 = midnight, 0.5 = noon. */
@@ -86,7 +96,7 @@ export class City {
     this.reset(seed);
   }
 
-  reset(seed: number): void {
+  reset(seed: number, difficulty: DifficultyId = this.steward?.difficulty ?? 'steward'): void {
     this.seed = seed;
     this.grid = new Grid(this.size, this.size);
     generateTerrain(this.grid, seed);
@@ -94,6 +104,8 @@ export class City {
     this.rng = new Rng(seed);
     this.networks = new RoadNetworks(this.grid);
     this.fields = createFields(this.grid);
+    this.steward = createStewardState(difficulty);
+    this.roadCount = 0;
     this.pulse = createPulseState();
     this.tick = 0;
     this.timeOfDay = 0.3;
@@ -161,6 +173,7 @@ export class City {
     Service.power[eid] = 1;
     Service.water[eid] = 1;
     Service.problems[eid] = 0;
+    Service.condition[eid] = rec.condition ?? 1;
     Service.network[eid] = this.networks.dirty ? -1 : this.networks.networkFor(rec.x, rec.z, w, d);
     for (let j = rec.z; j < rec.z + d; j++)
       for (let i = rec.x; i < rec.x + w; i++) this.grid.occupant[this.grid.index(i, j)] = eid;
@@ -196,6 +209,7 @@ export class City {
       rot: Building.rot[eid]!,
       greenery: Greenery.value[eid]!,
       occupancy: Service.occupancy[eid]!,
+      condition: Service.condition[eid]!,
     };
   }
 
@@ -216,9 +230,17 @@ export class City {
 
   setRoads(tiles: number[], on: boolean): void {
     const g = this.grid;
+    const og = g.layer<Uint8Array>('overgrowth');
     for (const t of tiles) {
+      const had = g.road[t]! > 0;
       if (!on) g.road[t] = 0;
       else g.road[t] = this.isWaterTile(t % g.w, (t / g.w) | 0) ? BRIDGE : ROAD;
+      this.roadCount += (g.road[t]! > 0 ? 1 : 0) - (had ? 1 : 0);
+      if (og && og[t]) {
+        // Rebuilt or removed highways start clean.
+        og[t] = 0;
+        this.steward.overgrown--;
+      }
     }
     this.networks.dirty = true;
     this.bus.emit('road:changed', { tiles });
@@ -240,10 +262,10 @@ export class City {
 
   hash(): string {
     const b = this.snapshotBuildings().map(
-      (r) => `${r.def}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)}`,
+      (r) => `${r.def}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${b.join(';')}|${this.roadTiles().join(',')}`,
+      `${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}`,
     );
   }
 }
@@ -264,6 +286,7 @@ export function emptyStats(): CityStats {
     happiness: 60,
     income: 0,
     upkeep: 0,
+    debtService: 0,
     buildings: 0,
     demandHomes: 0.5,
     demandWork: 0,

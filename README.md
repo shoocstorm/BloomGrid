@@ -13,7 +13,8 @@ npm run perf                        # power/perf probe: main-thread %, fps, CPU/
 ```
 
 URL flags: `?renderer=webgl` (force the WebGL2 fallback), `?quality=low|medium|high|ultra`, `?perf` (perf overlay),
-`?stress=2000` (add a stress city), `?scenario=empty` (blank island instead of the founding city), `?seed=123`, `?nodynres`, `?gputime` (GPU timing), `?pr=1 ?msaa=0 ?shadows=0 ?bloom=0` (quality overrides).
+`?stress=2000` (add a stress city), `?scenario=empty` (blank island instead of the founding city), `?difficulty=sandbox|relaxed|steward|hard`,
+`?drill=monsoon|king-tide|heatwave|algal-bloom|grid-failure|blight` (start a crisis), `?seed=123`, `?nodynres`, `?gputime` (GPU timing), `?pr=1 ?msaa=0 ?shadows=0 ?bloom=0` (quality overrides).
 
 Settings (⚙ in the top bar): power mode (Battery 30 fps / Balanced 60 fps, idles at 30 / Max) and graphics quality.
 

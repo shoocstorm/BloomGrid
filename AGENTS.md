@@ -23,7 +23,7 @@ build and modify it, and keep it running well. Neglect can make the city decline
 
 ```bash
 npm install
-npm run dev            # http://localhost:5173  (?perf ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty ?nodynres)
+npm run dev            # http://localhost:5173  (?perf ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty ?difficulty=sandbox|relaxed|steward|hard ?drill=<crisis> ?nodynres)
 npm run check          # typecheck + lint + tests + production build (must pass before you finish)
 npm test               # vitest only
 npm run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500]
@@ -33,7 +33,8 @@ npm run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--profile 15]   # 
 `npm run snap` drives headless Chrome against the running dev server, saves screenshots and prints console
 warnings and errors plus the app's tagged logs such as `[boot] ms {…}` (it exits 1 on page errors). Use it to _look_ at
 your change. `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js` (small district), `blackout.js` (night power-failure
-drill) and `drought.js` (water-failure drill; buildings should visibly wilt).
+drill) and `drought.js` (water-failure drill; buildings should visibly wilt). Crises: `--path "/?drill=monsoon"`
+(any crisis id; `&severity=1.2`), or the inspector's Crisis drills.
 
 ## 3. Hard rules
 
@@ -44,6 +45,8 @@ drill) and `drought.js` (water-failure drill; buildings should visibly wilt).
    `apply` (returns undo data or `null` to reject) and `revert`. Bulk or scripted actions pass `undoable=false`.
 3. **Determinism is tested.** Same seed and command log must give the same `city.hash()`. If you add sim state,
    include it in `hash()` and in `sim/save.ts` (bump `SAVE_VERSION` and add a migration when the format changes).
+   Sim randomness (including crisis scheduling) uses `city.rng`. Tests' `makeSim` sets `steward.autoCrises = false`
+   so balance tests stay stable; crisis tests opt in.
 4. **Features are modules.** New gameplay goes in `src/modules/<feature>/index.ts` as a `GameModule`, registered in
    `MODULES` in `src/main.ts`. Core code never imports a feature. Cross-module APIs use `ctx.services`, and
    notifications use `ctx.bus`. Extend `GameServices` / `GameEvents` through declaration merging in the module.
@@ -64,23 +67,24 @@ drill) and `drought.js` (water-failure drill; buildings should visibly wilt).
 
 ## 4. Where things go
 
-| Task                     | Location / API                                                                                      |
-| ------------------------ | --------------------------------------------------------------------------------------------------- |
-| New building             | `src/content/buildings/<id>.ts` → `defineBuilding({...})`; helpers in `src/content/kit.ts`          |
-| New kit piece / material | `registerPiece` in `src/assets/kit/pieces.ts`; `define` in `src/render/materials/library.ts`        |
-| Sim system               | `System` with `phase: 'sim'` inside its module (or `src/sim/systems.ts` for core economy and clock) |
-| Per-tile data            | `city.grid.addLayer(name, n => new Float32Array(n))`                                                |
-| Player tool              | `ctx.tools.register(tool)`; tools get `hover / down / up / key`, plus `grid` and `dragPan` flags    |
-| HUD panel                | `src/ui/*` with the `h()` helper and the `.panel` glass style; dark theme via `body.night`          |
-| Global shader input      | `U` in `src/render/uniforms.ts`                                                                     |
-| Saved module state       | `ctx.services.get('save').addHook({ id, save, load })`                                              |
-| Boot progress stage      | `await onProgress(label, fraction)` in `src/game/createGame.ts`                                     |
-| Hero GLB model           | building `recipe: { glb: '/assets/x.glb' }`; files in `public/assets/`                              |
-| Terrain / island shape   | `src/sim/terrain.ts` (pure height function)                                                         |
-| Starting city content    | `src/content/scenarios/<id>.ts` (`defineScenario`); builder in `src/sim/scenario.ts`                |
-| Management metric / tier | `src/sim/pulse.ts` + `src/sim/pulseState.ts`; UI in `src/modules/pulse/`                            |
-| Data lens / advisor rule | `registerOverlay` in `src/sim/overlays.ts`; `registerAdvisorRule` in `src/sim/advisor.ts`           |
-| New lit material         | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)      |
+| Task                     | Location / API                                                                                           |
+| ------------------------ | -------------------------------------------------------------------------------------------------------- |
+| New building             | `src/content/buildings/<id>.ts` → `defineBuilding({...})`; helpers in `src/content/kit.ts`               |
+| New kit piece / material | `registerPiece` in `src/assets/kit/pieces.ts`; `define` in `src/render/materials/library.ts`             |
+| Sim system               | `System` with `phase: 'sim'` inside its module (or `src/sim/systems.ts` for core economy and clock)      |
+| Per-tile data            | `city.grid.addLayer(name, n => new Float32Array(n))`                                                     |
+| Player tool              | `ctx.tools.register(tool)`; tools get `hover / down / up / key`, plus `grid` and `dragPan` flags         |
+| HUD panel                | `src/ui/*` with the `h()` helper and the `.panel` glass style; dark theme via `body.night`               |
+| Global shader input      | `U` in `src/render/uniforms.ts`                                                                          |
+| Saved module state       | `ctx.services.get('save').addHook({ id, save, load })`                                                   |
+| Boot progress stage      | `await onProgress(label, fraction)` in `src/game/createGame.ts`                                          |
+| Hero GLB model           | building `recipe: { glb: '/assets/x.glb' }`; files in `public/assets/`                                   |
+| Terrain / island shape   | `src/sim/terrain.ts` (pure height function)                                                              |
+| Starting city content    | `src/content/scenarios/<id>.ts` (`defineScenario`); builder in `src/sim/scenario.ts`                     |
+| Management metric / tier | `src/sim/pulse.ts` + `src/sim/pulseState.ts`; UI in `src/modules/pulse/`                                 |
+| Data lens / advisor rule | `registerOverlay` in `src/sim/overlays.ts`; `registerAdvisorRule` in `src/sim/advisor.ts`                |
+| Crisis / difficulty      | `registerCrisis` in `src/sim/crises.ts`; presets in `src/sim/difficulty.ts`; UI in `src/modules/crises/` |
+| New lit material         | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)           |
 
 The full layer description is in `docs/architecture.md`.
 

@@ -139,4 +139,13 @@ export function computeFields(city: City, f: Fields): void {
         : 0;
     f.desirability[i] = Math.min(1, Math.max(0, 0.3 + e * 0.45 - Math.min(1, p) * 0.6 + view + access));
   }
+  // Mean pollution along the coast (drives algal bloom likelihood).
+  let cp = 0;
+  let cn = 0;
+  for (let i = 0; i < n; i++)
+    if (f.shore[i]! >= 1 && f.shore[i]! <= 3) {
+      cp += f.pollution[i]!;
+      cn++;
+    }
+  city.pulse.coastalPollution = cn ? cp / cn : 0;
 }

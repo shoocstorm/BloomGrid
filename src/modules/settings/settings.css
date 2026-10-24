@@ -46,3 +46,12 @@
 .set-opt input {
   accent-color: #3ccf8e;
 }
+
+.set-new {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}

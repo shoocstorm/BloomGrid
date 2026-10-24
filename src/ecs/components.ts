@@ -26,6 +26,9 @@ export const Problem = {
   NO_POWER: 2,
   NO_WATER: 4,
   UNSTAFFED: 8,
+  FLOODED: 16,
+  NEGLECTED: 32,
+  OFFLINE: 64,
 } as const;
 
 /**
@@ -38,4 +41,6 @@ export const Service = {
   water: new Float32Array(MAX_ENTITIES),
   occupancy: new Float32Array(MAX_ENTITIES),
   problems: new Uint8Array(MAX_ENTITIES),
+  /** Physical condition 0..1: decays under austerity, flooding and abandonment. */
+  condition: new Float32Array(MAX_ENTITIES).fill(1),
 };
