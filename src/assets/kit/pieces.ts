@@ -133,4 +133,6 @@ export function initPieces(): void {
   registerPiece({ id: 'koi', geometry: new IcosahedronGeometry(0.5, 1).scale(1, 0.35, 0.4).translate(0, 0.1, 0), material: 'koi', castShadow: false, lod: 90 });
   registerPiece({ id: 'alert', geometry: base(new OctahedronGeometry(0.5, 0)), material: 'alert', castShadow: false, receiveShadow: false, lod: 400 });
   registerPiece({ id: 'fungus', geometry: fungusGeometry(), material: 'fungus', castShadow: false, lod: 140 });
+  // Façade waterfall sheet: unit plane facing +Z with its pivot at the bottom edge.
+  registerPiece({ id: 'waterfall', geometry: new PlaneGeometry(1, 1).translate(0, 0.5, 0), material: 'waterfall', castShadow: false, lod: 220 });
 }

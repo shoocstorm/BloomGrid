@@ -101,6 +101,23 @@ registerOverlay({
   },
 });
 registerOverlay({
+  id: 'nightlife',
+  label: 'Night life',
+  icon: '✨',
+  legend: ['Quiet', 'Bustling'],
+  smooth: true,
+  compute(city, f, value, mask) {
+    // Stretched to the island's busiest tile so differences between districts read.
+    const a = city.grid.layer<Float32Array>('activity');
+    let hi = 1e-3;
+    if (a) for (let i = 0; i < a.length; i++) hi = Math.max(hi, a[i]!);
+    for (let i = 0; i < value.length; i++) {
+      value[i] = a ? a[i]! / hi : 0;
+      mask[i] = f.shore[i] === 0 ? 0 : 1;
+    }
+  },
+});
+registerOverlay({
   id: 'access',
   label: 'Access',
   icon: '≋',

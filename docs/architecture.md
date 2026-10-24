@@ -34,6 +34,7 @@ main.ts ── createGame()  core runtime: renderer, sim, input, tools, save, sy
 | Advisor          | `sim/advisor.ts`                                             | Registry of pure advisory rules → `modules/advisor` renders and logs                                                           |
 | Crises           | `sim/crises.ts`                                              | Crisis registry + scheduler → per-pulse `Modifiers` (D-015) → `modules/crises` visuals and HUD                                 |
 | Bloom & seasons  | `sim/bloom.ts`, `sim/seasons.ts`, `sim/blur.ts`              | Pollen / bloom / irrigation fields, symbiotic pairing, season from tick (D-018, D-020)                                         |
+| Night life       | `sim/nightlife.ts`                                           | Derived pedestrian-activity field (pulse phase 4) → `bloomTexture` G → `activityGlow()` in materials (D-021)                   |
 | Finance & upkeep | `sim/finance.ts`, `sim/upkeep.ts`                            | Loans, austerity funding, building condition, highway overgrowth (D-016)                                                       |
 | Stewardship      | `sim/steward.ts`, `sim/difficulty.ts`, `sim/stewardState.ts` | Fail clock, difficulty presets, saved steward state (D-017)                                                                    |
 

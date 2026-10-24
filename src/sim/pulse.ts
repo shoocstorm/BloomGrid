@@ -11,6 +11,7 @@ import { updateCondition, updateOvergrowth } from './upkeep';
 import { updateStewardship } from './steward';
 import { PULSE_TICKS } from './pulseConst';
 import { bloomLayers, computeBloom, computeIrrigation, computePairing } from './bloom';
+import { computeActivity } from './nightlife';
 import { seasonAt } from './seasons';
 import { MAX_ENTITIES } from '@/ecs/components';
 
@@ -63,6 +64,9 @@ export const pulseSystem: System<SimCtx> = {
     } else if (phase === 2) {
       computeBloom(city, city.fields);
       city.bus.emit('bloom:updated', undefined);
+    } else if (phase === 4) {
+      computeActivity(city, city.fields);
+      city.bus.emit('activity:updated', undefined);
     }
     const desirability = city.fields.desirability;
     const bloomField = bloomLayers(city).bloom;

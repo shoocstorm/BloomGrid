@@ -63,6 +63,7 @@ export class PulsePanel {
   private taxLabel: HTMLElement;
   private bloomEl!: HTMLElement;
   private cleanEl!: HTMLElement;
+  private nightEl!: HTMLElement;
   private owed!: HTMLElement;
   private funding!: HTMLElement;
   private loanBtns: [number, HTMLButtonElement][] = [];
@@ -80,12 +81,14 @@ export class PulsePanel {
 
     this.bloomEl = h('b');
     this.cleanEl = h('b');
+    this.nightEl = h('b');
     const bloomSec = h(
       'div',
       { class: 'pulse-sec' },
       h('div', { class: 'pulse-title' }, 'Seasonal bloom'),
       h('div', { class: 'kv' }, h('span', {}, 'Bloom index'), this.bloomEl),
       h('div', { class: 'kv' }, h('span', {}, 'Clean energy'), this.cleanEl),
+      h('div', { class: 'kv', title: 'Pedestrian activity across the built city; night glow follows it' }, h('span', {}, 'Night life'), this.nightEl),
     );
     const health = h('div', { class: 'pulse-sec' }, h('div', { class: 'pulse-title' }, 'System health'));
     for (const k of SYSTEMS) {
@@ -220,6 +223,7 @@ export class PulsePanel {
     bar('food', s.demandFood);
     setText(this.bloomEl, `${Math.round(p.bloomIndex * 100)}%`);
     setText(this.cleanEl, `${Math.round(p.cleanShare * 100)}%`);
+    setText(this.nightEl, `${Math.round(p.nightlife * 100)}%`);
     const net = s.income - s.upkeep - s.debtService;
     setText(this.budget.get('debt')!, s.debtService > 0 ? `−${s.debtService.toFixed(1)}` : '0');
     const owed = totalDebt(city);

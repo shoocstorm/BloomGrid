@@ -36,7 +36,7 @@ import {
   vec3,
 } from 'three/tsl';
 import { U } from '../uniforms';
-import { bloomAt, overlayDim, withOverlay } from './overlay';
+import { activityGlow, bloomAt, overlayDim, withOverlay } from './overlay';
 
 /**
  * Shared material library. Every instanced piece references one of these, so the whole city
@@ -160,7 +160,7 @@ export function initMaterials(): void {
     const petal = mix(color(0xffb7d5), color(0xffe08a), hash(floor(positionWorld.mul(9)).dot(vec3(1, 7, 13))));
     m.colorNode = mix(mix(color(0xe9e4d6), mossCol, cover), petal, blossom);
     const veins = smoothstep(0.08, 0.0, abs(mx_noise_float(positionWorld.mul(1.8)))).mul(cover);
-    m.emissiveNode = color(0x6ff7d8).mul(veins).mul(bioPulse()).mul(0.55).add(petal.mul(blossom).mul(U.night).mul(0.6));
+    m.emissiveNode = color(0x6ff7d8).mul(veins).mul(bioPulse()).mul(0.55).add(petal.mul(blossom).mul(U.night).mul(0.6)).mul(activityGlow());
     return m;
   }, { vitality: true });
 
@@ -181,7 +181,10 @@ export function initMaterials(): void {
     const v = mx_noise_float(positionWorld.mul(2.3)).mul(0.18);
     // Seasonal foliage: a gentle wash toward the season tint (golden Harvest, dusty Haze).
     m.colorNode = mix(color(0xffffff).add(v), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
-    m.emissiveNode = mix(instanceColor, color(0x7ff7e6), 0.6).mul(iGlow).mul(bioPulse()).mul(0.5);
+    // Luminous canopies: busy streets light up even un-flagged foliage with a faint teal rim.
+    const glow = activityGlow();
+    const rim = float(1).sub(normalWorld.y.abs()).mul(glow.sub(0.6).max(0)).mul(0.12);
+    m.emissiveNode = mix(instanceColor, color(0x7ff7e6), 0.6).mul(iGlow.mul(0.5).add(rim)).mul(bioPulse()).mul(glow);
     return m;
   };
   define('canopy', foliage(0.05), { vitality: true });
@@ -200,7 +203,7 @@ export function initMaterials(): void {
     const open = smoothstep(0.12, 0.55, bloomAt(positionWorld.x, positionWorld.z));
     const tinted = mix(vec3(1), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
     m.colorNode = mix(vec3(0.44, 0.6, 0.29).div(max(instanceColor, vec3(0.08))), tinted, open);
-    m.emissiveNode = instanceColor.mul(iGlow).mul(bioPulse()).mul(1.3).mul(open);
+    m.emissiveNode = instanceColor.mul(iGlow).mul(bioPulse()).mul(1.3).mul(open).mul(activityGlow());
     return m;
   }, { vitality: true });
 
@@ -237,7 +240,7 @@ export function initMaterials(): void {
     const m = new MeshStandardNodeMaterial({ roughness: 0.5 });
     const cap = smoothstep(0.35, 0.6, positionGeometry.y);
     m.colorNode = mix(color(0xf6efe4), color(0xffffff), cap);
-    m.emissiveNode = color(0x8ff3ff).mul(cap).mul(iGlow).mul(bioPulse()).mul(1.6);
+    m.emissiveNode = color(0x8ff3ff).mul(cap).mul(iGlow).mul(bioPulse()).mul(1.6).mul(activityGlow());
     return m;
   }, { vitality: true });
 
@@ -283,6 +286,21 @@ export function initMaterials(): void {
     return m;
   });
 
+  // Façade waterfall (retrofit courtyards): white-water streaks sliding down a teal sheet,
+  // foam where it lands, and a soft cyan glow at night that follows street activity.
+  define('waterfall', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.15, metalness: 0.1, side: DoubleSide });
+    const g = uv();
+    const lane = floor(g.x.mul(14));
+    const flow = fract(g.y.mul(3).add(time.mul(hash(lane).mul(0.6).add(0.9))).add(hash(lane.add(7))));
+    const streak = smoothstep(0.55, 0.95, flow).mul(step(0.25, hash(lane.add(3))));
+    const foam = smoothstep(0.12, 0.0, g.y);
+    const white = streak.mul(0.7).add(foam).min(1);
+    m.colorNode = mix(color(0x5fc8d8), color(0xf2fdff), white);
+    m.emissiveNode = color(0x7fe9ff).mul(white.mul(0.6).add(0.25)).mul(U.night).mul(0.7).mul(activityGlow());
+    return m;
+  }, { overlay: 'plain' });
+
   // Living Highway: bio-turf track with a glowing pollen guideline toward connected neighbours.
   define('road', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.95 });
@@ -307,7 +325,7 @@ export function initMaterials(): void {
     const wild = mix(color(0x6f9a3c), color(0x9cbf5a), mx_noise_float(positionWorld.mul(9)).mul(0.5).add(0.5));
     const lit = line.mul(float(1).sub(smoothstep(0.3, 0.9, og)));
     m.colorNode = mix(mix(turf.add(rut), color(0xd9fff4), lit.mul(0.6)), wild, smoothstep(0.2, 1, og));
-    m.emissiveNode = color(0x7ff7e6).mul(lit).mul(dots.mul(0.6).add(0.4)).mul(U.night.mul(1.2).add(0.12));
+    m.emissiveNode = color(0x7ff7e6).mul(lit).mul(dots.mul(0.6).add(0.4)).mul(U.night.mul(1.2).mul(activityGlow()).add(0.12));
     return m;
   }, { overlay: 'plain' });
 

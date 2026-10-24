@@ -1,7 +1,8 @@
 import { BufferAttribute, BufferGeometry, Color, Group, Matrix4, Mesh, Quaternion, Vector3 } from 'three/webgpu';
 import { getMaterial } from '@/render/materials/library';
 import type { Grid } from '@/sim/Grid';
-import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
+import { BRIDGE, BRIDGE_DECK, ROAD } from '@/sim/City';
+import { hash2 } from '@/sim/random';
 import type { InstanceHandle } from '@/render/Instancer';
 import type { GameContext } from '@/game/context';
 
@@ -12,17 +13,23 @@ const _s = new Vector3();
 const _q = new Quaternion();
 const _c = new Color(0xf1ede2);
 const _params = [1, 0, 0, 1];
+const _fungusTint = new Color(0xbff6ff);
+const _fungusParams = [1, 0, 1, 1];
+/** Share of highway tiles that get a roadside cluster of glowing fungi. */
+const FUNGI_SHARE = 0.2;
 
 /**
  * Living Highways: per-chunk meshes whose quads follow the exact terrain corner heights.
  * Each vertex carries a neighbour mask so the shader draws glowing guidelines that connect.
  * Over water the highway becomes a bridge: the deck rises to `BRIDGE_DECK` (ramping on the
- * shore tiles), with an instanced deck slab and pillars underneath.
+ * shore tiles), with an instanced deck slab and pillars underneath. Some kerbs carry clusters of
+ * glowing fungi ("fungi paths") whose night glow follows pedestrian activity in the shader.
  */
 export class RoadRenderer {
   readonly group = new Group();
   private chunks = new Map<number, Mesh>();
   private bridgeParts = new Map<number, InstanceHandle[]>();
+  private fungi = new Map<number, InstanceHandle[]>();
 
   constructor(
     private ctx: GameContext,
@@ -44,6 +51,8 @@ export class RoadRenderer {
       this.chunks.clear();
       for (const hs of this.bridgeParts.values()) hs.forEach((h) => ctx.instancer.remove(h));
       this.bridgeParts.clear();
+      for (const hs of this.fungi.values()) hs.forEach((h) => ctx.instancer.remove(h));
+      this.fungi.clear();
     });
     // Bulk content (scenario) may exist before this renderer attaches.
     const existing = ctx.city.roadTiles();
@@ -53,15 +62,21 @@ export class RoadRenderer {
   private onChanged(tiles: number[]): void {
     const g = this.ctx.city.grid;
     const dirty = new Set<number>();
+    const kerbs = new Set<number>();
     for (const t of tiles) {
       const x = t % g.w;
       const z = (t / g.w) | 0;
       // Neighbours' masks and ramp heights change too, which may cross chunk borders.
       for (let dz = -1; dz <= 1; dz++)
-        for (let dx = -1; dx <= 1; dx++) if (g.inBounds(x + dx, z + dz)) dirty.add(this.key(x + dx, z + dz));
+        for (let dx = -1; dx <= 1; dx++)
+          if (g.inBounds(x + dx, z + dz)) {
+            dirty.add(this.key(x + dx, z + dz));
+            if (!dx || !dz) kerbs.add(g.index(x + dx, z + dz));
+          }
       this.syncBridge(t, x, z);
     }
     for (const k of dirty) this.rebuild(k);
+    for (const t of kerbs) this.syncFungi(t);
   }
 
   private syncBridge(t: number, x: number, z: number): void {
@@ -80,6 +95,38 @@ export class RoadRenderer {
       hs.push(instancer.addMatrix('concreteCyl', _m.compose(_v.set(x + 0.5, floor, z + 0.5), _q.identity(), _s.set(0.32, deck - floor - 0.15, 0.32)), _c, _params));
     }
     this.bridgeParts.set(t, hs);
+  }
+
+  /** Roadside fungi on a hashed subset of highway tiles, on a kerb that faces open ground. */
+  private syncFungi(t: number): void {
+    const { instancer, city } = this.ctx;
+    const g = city.grid;
+    const old = this.fungi.get(t);
+    if (old) {
+      old.forEach((h) => instancer.remove(h));
+      this.fungi.delete(t);
+    }
+    const x = t % g.w;
+    const z = (t / g.w) | 0;
+    if (g.road[t] !== ROAD || hash2(x, z, 913) > FUNGI_SHARE) return;
+    const open = (i: number, j: number) => g.inBounds(i, j) && !g.road[g.index(i, j)];
+    const sides: [number, number][] = [];
+    if (open(x, z - 1)) sides.push([0, -1]);
+    if (open(x + 1, z)) sides.push([1, 0]);
+    if (open(x, z + 1)) sides.push([0, 1]);
+    if (open(x - 1, z)) sides.push([-1, 0]);
+    if (!sides.length) return;
+    const [nx, nz] = sides[Math.floor(hash2(x, z, 271) * sides.length)]!;
+    const hs: InstanceHandle[] = [];
+    for (let k = 0; k < 3; k++) {
+      const along = (hash2(x, z, 31 + k) - 0.5) * 0.8;
+      const px = x + 0.5 + nx * 0.42 + (nz ? along : 0);
+      const pz = z + 0.5 + nz * 0.42 + (nx ? along : 0);
+      const s = 0.07 + hash2(x, z, 57 + k) * 0.06;
+      _fungusParams[1] = hash2(x, z, 91 + k);
+      hs.push(instancer.addMatrix('fungus', _m.compose(_v.set(px, g.heightAt(px, pz) + LIFT, pz), _q.identity(), _s.set(s, s, s)), _fungusTint, _fungusParams));
+    }
+    this.fungi.set(t, hs);
   }
 
   private key(x: number, z: number): number {

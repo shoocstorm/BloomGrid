@@ -101,10 +101,16 @@ The city is a system that can run well or badly.
 - **Accept:** ✅ `tests/bloom.test.ts` (seasons, pollinators vs pollution, channels irrigate and scrub, symbiosis cuts pollution, retrofit with undo, save v4). Drill: `npm run snap -- --eval @scripts/scenes/retrofit.js`.
 - **Measured:** field passes optimised (point deposits + sliding box blur, staggered across pulses): fields 11 → 4.1 ms, bloom 1.8 ms, average pulse 2.4 ms; power budget unchanged (≈17% active / 15% idle main thread).
 
-## ⏳ Phase 7 — Bioluminescence & Atmosphere
+## ✅ Phase 7 — Bioluminescence & Atmosphere
 
-Glow intensity from a pedestrian-density field, GPU pollen/spore particles, courtyards and waterfalls,
-weather (monsoon rain, haze) tied to Phase 5 events.
+- [x] Pedestrian-activity field (`sim/nightlife.ts`): residents, staffed jobs and amenity visitors deposit at their building, box-blurred (D-020), weighted toward highways and parks; blackouts and decay empty streets; pulse phase 4; Night life index in City Pulse; Night life lens (✨)
+- [x] Night glow follows activity: flowers, fungi, moss veins, highway guidelines and canopies (luminous teal rim on busy streets) sample it from the field texture's G channel (D-021)
+- [x] Fungi paths: glowing fungus clusters on ~20% of highway kerbs facing open ground
+- [x] Spores: at night the pollen motes also gather over busy streets
+- [x] Seasonal weather: passing drizzle in Monsoon season (fewer drops than a storm), thicker warm haze in Haze season and during heatwaves; eases in and out at season edges; visual only
+- [x] Courtyards and waterfalls: retrofitted buildings taller than 1.2 get a façade waterfall (animated `waterfall` material) into a ground-floor basin framed by bushes and fungus lamps
+- **Accept:** ✅ `tests/nightlife.test.ts` (built city ≥3× brighter than wild land, new parks light their street, a blackout dims it, pulse recompute, determinism). Drills: `scripts/scenes/nightlife.js` (night downtown + retrofit), `scripts/scenes/season.js` (`window.SEASON = 1` for Monsoon drizzle, default Haze).
+- **Measured:** activity pass 1.7 ms on its own pulse phase; 16% / 15.5% main thread active / idle; GPU 1.5 ms; draws 178 near / 208 overview (191 / 234 with `?stress=1500`).
 
 ## ⬜ Phase 8 — Mobility Layer
 

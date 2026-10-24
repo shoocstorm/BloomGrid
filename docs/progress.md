@@ -8,23 +8,23 @@ sections whenever you stop working** (see AGENTS.md §6).
 |             |                                                                                                            |
 | ----------- | ---------------------------------------------------------------------------------------------------------- |
 | Branch      | `feature/island-city-pulse` (not yet merged to `main`)                                                     |
-| Last commit | `8e62d43` Phase 6: Seasonal Bloom Engine                                                                   |
-| Phases done | 0–6, plus 2.5 (island + loader), 2.6 (scale) and the power/heat interlude: see [`roadmap.md`](roadmap.md)  |
-| Next phase  | **Phase 7 — Bioluminescence & Atmosphere** (or Phase 9 Flora-Net first: see "Open decisions")              |
-| Tests       | 34 passing (`npm test`); `npm run check` clean                                                             |
+| Last commit | Phase 7: Bioluminescence & Atmosphere                                                                     |
+| Phases done | 0–7, plus 2.5 (island + loader), 2.6 (scale) and the power/heat interlude: see [`roadmap.md`](roadmap.md)  |
+| Next phase  | **Phase 8 — Mobility Layer** (or Phase 9 Flora-Net first: see "Open decisions")                            |
+| Tests       | 37 passing (`npm test`); `npm run check` clean                                                             |
 | Save format | v4 (migrations from v1–v3 in `src/sim/save.ts`)                                                            |
 | Map         | 384×384 tiles, Singapore-like island; founding city ≈1 670 buildings, ≈6 800 highway tiles, ≈22k residents |
 
 ### Measured baselines (headless Chrome, WebGPU, M-series, founding city, High quality)
 
-| Metric      | Value                                                                      | How to measure                                        |
-| ----------- | -------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Boot        | ≈1.9–2.1 s (scenario ≈0.2 s, modules ≈0.4 s, shader warm-up ≈1.1 s)        | `[boot] ms` log via `npm run snap`                    |
-| Frame rate  | 60 fps active, 30 idle (power mode Balanced)                               | `npm run perf` / `npm run perf -- --idle`             |
-| Main thread | ≈17% active, ≈15% idle                                                     | `npm run perf`                                        |
-| GPU         | ≈2.4–3.5 ms per frame (+≈2 ms during rain)                                 | `npm run perf -- --path "/?gputime"`                  |
-| Draw calls  | ≈185–225 near, ≈200–245 overview (budget 300)                              | perf overlay (F3) or `renderer.info.render.drawCalls` |
-| Sim         | average pulse ≈2.4 ms; field pass 4.1 ms (phase 0), bloom 1.8 ms (phase 2) | see the bench pattern in D-020                        |
+| Metric      | Value                                                                       | How to measure                                        |
+| ----------- | --------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Boot        | ≈1.9–2.1 s (scenario ≈0.23 s, modules ≈0.37 s, shader warm-up ≈1.1 s)       | `[boot] ms` log via `npm run snap`                    |
+| Frame rate  | 60 fps active, 30 idle (power mode Balanced)                                | `npm run perf` / `npm run perf -- --idle`             |
+| Main thread | ≈16% active, ≈15.5% idle                                                    | `npm run perf`                                        |
+| GPU         | ≈1.5–3.5 ms per frame (+≈2 ms during storm rain; drizzle draws fewer drops) | `npm run perf -- --path "/?gputime"`                  |
+| Draw calls  | ≈178–191 near, ≈208–234 overview incl. `?stress=1500` (budget 300)          | perf overlay (F3) or `renderer.info.render.drawCalls` |
+| Sim         | pulse ≈2.4 ms; fields 4.1 ms (phase 0), bloom 1.8 (2), activity 1.7 (4)     | see the bench pattern in D-020                        |
 
 ## How to resume
 
@@ -32,36 +32,37 @@ sections whenever you stop working** (see AGENTS.md §6).
    [`decisions.md`](decisions.md) (D-001…D-020) and [`architecture.md`](architecture.md).
 2. `npm install && npm run check` (it clears the Vitest cache first: see the gotcha in AGENTS.md).
 3. `npm run dev`, then `npm run snap -- --path "/?perf" --out shots/now.png` to see the current state.
-   Useful drills: `--eval @scripts/scenes/retrofit.js`, `blackout.js`, `drought.js`, `demo-city.js`, or
+   Useful drills: `--eval @scripts/scenes/retrofit.js`, `nightlife.js`, `season.js`, `blackout.js`, `drought.js`, `demo-city.js`, or
    `--path "/?drill=monsoon"` (any crisis id).
 4. Pick the ⏳ phase in the roadmap, implement it in verified steps, and update roadmap, decisions, architecture,
    AGENTS and this file in the same change.
 
 ## What exists (one-line map)
 
-| Area            | Where                                                      | Notes                                                                                                                        |
-| --------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Sim core        | `src/sim/`                                                 | `City`, `Grid`, `pulse.ts` (1 Hz management pulse), fields, bloom, crises, finance, upkeep, steward, seasons, scenario, save |
-| Content         | `src/content/buildings/*.ts`, `src/content/scenarios/*.ts` | 10 buildings, founding-city scenario; auto-discovered                                                                        |
-| Rendering       | `src/render/`, `src/assets/kit/pieces.ts`                  | `ChunkedInstancer` (static buffers, ≥1040 capacity, update ranges), TSL material library with lens/vitality/season support   |
-| Feature modules | `src/modules/*`                                            | world, construction (buildings, roads, channels, tools), pulse, overlays, advisor, views, dashboard, settings, crises, bloom |
-| HUD             | `src/ui/`                                                  | vanilla DOM; right column via `services.get('hud').right`                                                                    |
-| Tooling         | `scripts/snap.mjs`, `scripts/perf.mjs`, `scripts/scenes/`  | headless screenshots, power/perf probe, drills                                                                               |
+| Area            | Where                                                      | Notes                                                                                                                                    |
+| --------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Sim core        | `src/sim/`                                                 | `City`, `Grid`, `pulse.ts` (1 Hz management pulse), fields, bloom, night life, crises, finance, upkeep, steward, seasons, scenario, save |
+| Content         | `src/content/buildings/*.ts`, `src/content/scenarios/*.ts` | 10 buildings, founding-city scenario; auto-discovered                                                                                    |
+| Rendering       | `src/render/`, `src/assets/kit/pieces.ts`                  | `ChunkedInstancer` (static buffers, ≥1040 capacity, update ranges), TSL material library with lens/vitality/season support               |
+| Feature modules | `src/modules/*`                                            | world, construction (buildings, roads, channels, tools), pulse, overlays, advisor, views, dashboard, settings, crises, bloom             |
+| HUD             | `src/ui/`                                                  | vanilla DOM; right column via `services.get('hud').right`                                                                                |
+| Tooling         | `scripts/snap.mjs`, `scripts/perf.mjs`, `scripts/scenes/`  | headless screenshots, power/perf probe, drills                                                                                           |
 
 ## Next up
 
-### Phase 7 — Bioluminescence & Atmosphere (proposed scope)
+### Phase 8 — Mobility Layer (proposed scope, see roadmap)
 
-- **Pedestrian-density field** (sim, field pattern from D-020): residents + jobs + amenities diffused over highways
-  and parks; night glow of flowers, fungi paths, highway guidelines and canopies scales with it (sample like
-  `bloomAt` via a density texture). The lens could be "Night life".
-- **Fungi paths / luminous canopies**: glowing park and greenway decor whose brightness follows density.
-- **Weather tied to seasons and crises**: drizzle in Monsoon season (light rain without a flood), haze in the Haze
-  season (fog density + warm tint), using the existing `Weather` uniforms (`modules/crises/Weather.ts`).
-- **Indoor-outdoor courtyards and waterfalls** on ground floors: kit pieces added to recipes or the retrofit
-  overlay (`retrofitPieces`), e.g. an animated `waterfall` material.
-- Acceptance idea: density field test (busy districts brighter than empty ones); a night snapshot at the downtown
-  shows glow following activity; power budget unchanged.
+- Citizen and pod agents on flow fields: the Phase 7 activity field (`sim/nightlife.ts`) is a ready-made demand map
+  for where pedestrians and pods should go.
+- Sky-lanes with light ribbons, pod docks, canopy greenways; hyperloop under the central hills and to the islets;
+  ferries; congestion overlay (lens).
+- Watch the draw-call budget (≈234 at overview with `?stress=1500`): agents must be one instanced draw per type.
+
+### Phase 7 follow-ups (deferred)
+
+- Activity is visual only; it could feed desirability or the advisor ("quiet district") later.
+- Kerb fungi are only on highway tiles facing open ground; parks' own fungi already glow with activity.
+- WebGL2 warm-up compiled the new `waterfall` material without issue (≈2.5 s headless).
 
 ### Open decisions (ask the user if unclear)
 

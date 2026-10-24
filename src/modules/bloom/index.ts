@@ -1,9 +1,10 @@
 import { Color, DoubleSide, IcosahedronGeometry, InstancedMesh, Matrix4, Mesh, MeshBasicNodeMaterial, MeshStandardNodeMaterial, RingGeometry } from 'three/webgpu';
 import { color, float, mod, positionGeometry, positionLocal, sin, smoothstep, time, vec3 } from 'three/tsl';
 import type { GameModule } from '@/game/context';
-import { bloomAt, bloomTexture } from '@/render/materials/overlay';
+import { activityAt, bloomAt, bloomTexture } from '@/render/materials/overlay';
 import { U } from '@/render/uniforms';
 import { bloomLayers } from '@/sim/bloom';
+import { activityLayer } from '@/sim/nightlife';
 import { SEASONS, seasonAt } from '@/sim/seasons';
 import { h, setText } from '@/ui/dom';
 import './bloom.css';
@@ -25,16 +26,16 @@ export const bloomModule: GameModule = {
   init(ctx) {
     const { city, scene } = ctx;
 
-    // Bloom texture upload (every field recompute, ~5 s).
+    // Field texture upload (each field recompute, ~5 s): R = bloom, G = pedestrian activity.
     const data = bloomTexture.image.data as Uint8Array;
-    const upload = () => {
-      const b = bloomLayers(ctx.city).bloom;
+    const upload = (src: Float32Array, channel: number) => {
       const g = ctx.city.grid;
       const tw = bloomTexture.image.width;
-      for (let z = 0; z < g.h; z++) for (let x = 0; x < g.w; x++) data[(z * tw + x) * 4] = Math.round(b[z * g.w + x]! * 255);
+      for (let z = 0; z < g.h; z++) for (let x = 0; x < g.w; x++) data[(z * tw + x) * 4 + channel] = Math.round(src[z * g.w + x]! * 255);
       bloomTexture.needsUpdate = true;
     };
-    ctx.bus.on('bloom:updated', upload);
+    ctx.bus.on('bloom:updated', () => upload(bloomLayers(ctx.city).bloom, 0));
+    ctx.bus.on('activity:updated', () => upload(activityLayer(ctx.city), 1));
     ctx.bus.on('city:reset', () => data.fill(100));
     data.fill(100);
     bloomTexture.needsUpdate = true;
@@ -52,7 +53,9 @@ export const bloomModule: GameModule = {
     );
     const at = centre.add(drift);
     const world = at.add(U.pollenOrigin);
-    const size = smoothstep(0.25, 0.8, bloomAt(world.x, world.z)).mul(U.pollen);
+    // At night the motes become drifting spores that also gather over busy streets.
+    const field = bloomAt(world.x, world.z).max(activityAt(world.x, world.z).mul(U.night).mul(U.nightlife));
+    const size = smoothstep(0.25, 0.8, field).mul(U.pollen);
     pm.positionNode = at.add(positionGeometry.mul(size));
     pm.colorNode = color(0xfff2b0);
     pm.emissiveNode = color(0xffe08a).mul(0.6).add(color(0x7ff7e6).mul(U.night).mul(0.8));

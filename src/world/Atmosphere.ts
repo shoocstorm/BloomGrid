@@ -125,6 +125,8 @@ export class Atmosphere {
   private sinceShadow = 0;
   /** Upper bound on shadow-map refreshes per second. */
   maxShadowHz = 15;
+  /** 0..1 haze (set by weather): pulls the fog in so distant districts soften. */
+  haze = 0;
 
   /** Request a shadow refresh (geometry changed: building placed, removed, growing…). */
   invalidateShadows(): void {
@@ -167,8 +169,8 @@ export class Atmosphere {
       this.shadowDirty = false;
       this.sinceShadow = 0;
     }
-    this.fog.near = Math.max(120, distance * 1.6);
-    this.fog.far = this.fog.near + 700;
+    this.fog.near = Math.max(120, distance * 1.6) * (1 - 0.85 * this.haze);
+    this.fog.far = this.fog.near + 700 * (1 - 0.9 * this.haze);
   }
 }
 

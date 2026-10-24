@@ -34,8 +34,9 @@ npm run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--profile 15]   # 
 `npm run snap` drives headless Chrome against the running dev server, saves screenshots and prints console
 warnings and errors plus the app's tagged logs such as `[boot] ms {…}` (it exits 1 on page errors). Use it to _look_ at
 your change. `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js` (small district), `blackout.js` (night power-failure
-drill), `drought.js` (water-failure drill; buildings should visibly wilt) and `retrofit.js` (channel + Bloom Retrofit
-wave). Crises: `--path "/?drill=monsoon"`
+drill), `drought.js` (water-failure drill; buildings should visibly wilt), `retrofit.js` (channel + Bloom Retrofit
+wave), `nightlife.js` (night downtown: glow should follow activity; `window.NEAR = 12` for a close-up) and `season.js`
+(mid-Haze; prefix `window.SEASON = 1;` for a Monsoon shower). Crises: `--path "/?drill=monsoon"`
 (any crisis id; `&severity=1.2`), or the inspector's Crisis drills.
 
 ## 3. Hard rules
@@ -87,6 +88,8 @@ wave). Crises: `--path "/?drill=monsoon"`
 | Data lens / advisor rule           | `registerOverlay` in `src/sim/overlays.ts`; `registerAdvisorRule` in `src/sim/advisor.ts`                |
 | Crisis / difficulty                | `registerCrisis` in `src/sim/crises.ts`; presets in `src/sim/difficulty.ts`; UI in `src/modules/crises/` |
 | Bloom, seasons, channels, retrofit | `src/sim/bloom.ts`, `src/sim/seasons.ts`, `src/sim/commands.ts`; visuals in `src/modules/bloom/`         |
+| Night glow / pedestrian activity   | `src/sim/nightlife.ts`; shaders use `activityGlow()` from `render/materials/overlay.ts`                  |
+| Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                           |
 | New lit material                   | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)           |
 
 The full layer description is in `docs/architecture.md`.
@@ -156,6 +159,8 @@ own `requestAnimationFrame` loops.
   when files are added** (new content files go missing in tests). `npm test` clears it first; do the same if you run
   `vitest` directly.
 - Headless screenshots can time out while the main thread is busy generating the world; re-run, or capture later.
+- `npm run snap` ignores `--eval` when `--times` is given; use `--after <ms>` with `--eval`. An eval may return a
+  Promise (e.g. to sample `renderer.info.render.drawCalls` over a second; it reads 0 between frames).
 
 ## 9. Picking up work
 

@@ -134,6 +134,21 @@ export function retrofitPieces(t: BuildingTemplate): TemplatePiece[] {
       push('ivy', p, [0.13, Math.min(1, top * (0.25 + rng.next() * 0.2)), 1], Math.atan2(nx, nz), rng.pick(PALETTE.leaves), rng.next() < 0.3 ? 0.6 : 0);
     }
   }
+  // Indoor-outdoor courtyard on taller buildings: a waterfall down one façade into a ground-floor
+  // basin, framed by bushes and fungus lamps (their glow follows street activity at night).
+  if (hasFacade && top > 1.2) {
+    const [fixed, a, b, nx, nz] = faces[Math.floor(rng.next() * 4)]!;
+    const mid = (a + b) / 2;
+    const width = Math.min(0.55, (b - a) * 0.4);
+    const r = Math.atan2(nx, nz);
+    const at = (out: number, y: number, along = 0): [number, number, number] => (nx ? [fixed + nx * out, y, mid + along] : [mid + along, y, fixed + nz * out]);
+    push('waterfall', at(0.02, 0.04), [width, top * 0.92, 1], r, 0xffffff, 0);
+    push('pool', at(0.2, 0.0), [width + 0.18, 0.05, 0.36], r, 0xffffff, 0);
+    for (const side of [-1, 1]) {
+      push('bush', at(0.24, 0.02, side * (width / 2 + 0.17)), [0.2, 0.18, 0.2], 0, rng.pick(PALETTE.leaves), 0.4);
+      push('fungus', at(0.42, 0.02, side * (width / 2 + 0.05)), [0.09, 0.09, 0.09], 0, 0xbff6ff, 1);
+    }
+  }
   // A ring of blossoms around the base for every retrofitted building (domes included).
   for (let i = 0; i < 12; i++) {
     const ang = rng.next() * Math.PI * 2;

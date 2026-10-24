@@ -36,6 +36,8 @@ export const U = {
   pollen: uniform(0.6),
   /** World offset of the pollen particle box (follows the camera target). */
   pollenOrigin: uniform(new Vector3()),
+  /** How strongly night glow follows pedestrian activity (0 = uniform glow, 1 = full). */
+  nightlife: uniform(1),
   /** Map size in world units (for terrain-space lookups such as water depth). */
   mapSize: uniform(256),
 };

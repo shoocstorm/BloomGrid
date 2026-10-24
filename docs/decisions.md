@@ -117,3 +117,9 @@ Format: `## D-NNN — Title (YYYY-MM-DD)` then **Context / Decision / Consequenc
 **Context:** Per-building radial splats made the field pass 11 ms plus 5 ms for bloom every 5 pulses (frame hitches).
 **Decision:** Sources deposit at a single tile, scaled by `blurPeak`, then multiple O(tiles) sliding-window box blurs (`sim/blur.ts`) approximate a Gaussian. Pairing and fields run on pulse phase 0, bloom on phase 2.
 **Consequences:** Field cost is independent of building count and radius; keep new fields on this pattern and on their own pulse phase.
+
+## D-021 — Night life as a derived field in the bloom texture's G channel (2026-10-24)
+
+**Context:** Phase 7 needs night glow to follow where people are, across many materials, without new draw calls or texture bindings.
+**Decision:** `sim/nightlife.ts` computes a 0..1 pedestrian-activity layer on pulse phase 4 (D-020 pattern). It is derived (not saved, not in `hash()`). The bloom module uploads it to the G channel of `bloomTexture`; materials multiply their emissive by `activityGlow()` (contrast-stretched, `U.nightlife` = 0 disables it). Seasonal drizzle and haze are visual only, derived from `city.tick` in `Weather`.
+**Consequences:** One shared texture now carries bloom (R) and activity (G); further per-tile visual fields can use B/A before adding a texture. Gameplay does not read activity yet (a candidate input for Phase 8 mobility).

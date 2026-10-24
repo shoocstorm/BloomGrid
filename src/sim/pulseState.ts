@@ -55,6 +55,8 @@ export interface PulseState {
   /** Mean bloom over land (0..1) and share of generation that is clean. */
   bloomIndex: number;
   cleanShare: number;
+  /** Mean pedestrian activity over the built city (0..1), see `sim/nightlife.ts`. */
+  nightlife: number;
   /** Last season index (emits `season:changed`). */
   season: number;
   /** Pulses since start (drives field recompute cadence). */
@@ -80,6 +82,7 @@ export function createPulseState(): PulseState {
     avgGreenery: 0.5,
     coastalPollution: 0,
     bloomIndex: 0.4,
+    nightlife: 0,
     cleanShare: 1,
     season: -1,
     count: 0,

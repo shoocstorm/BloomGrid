@@ -47,8 +47,9 @@ export function withOverlay(base: N, instanced: boolean): N {
 export const overlayDim = (emissive: N): N => emissive.mul(float(1).sub(U.overlay.mul(0.85))) as N;
 
 /**
- * Bloom field texture (Seasonal Bloom Engine): R = bloom 0..1 per tile, uploaded when the sim
- * recomputes the field. Flowers open and glow with it; pollen particles follow it.
+ * Living-field texture: R = bloom 0..1 per tile (Seasonal Bloom Engine), G = pedestrian activity
+ * 0..1 (night life), each uploaded when the sim recomputes its field. Flowers open with bloom;
+ * night glow (flowers, fungi, guidelines, canopies) scales with activity.
  */
 export const bloomTexture = new DataTexture(new Uint8Array(MAP_SIZE * MAP_SIZE * 4), MAP_SIZE, MAP_SIZE, RGBAFormat);
 bloomTexture.wrapS = bloomTexture.wrapT = ClampToEdgeWrapping;
@@ -57,3 +58,13 @@ bloomTexture.needsUpdate = true;
 
 /** Bloom at a world xz (node). */
 export const bloomAt = (x: Node<'float'>, z: Node<'float'>) => texture(bloomTexture, vec2(x, z).div(U.mapSize)).r;
+
+/** Pedestrian activity at a world xz (node). */
+export const activityAt = (x: Node<'float'>, z: Node<'float'>) => texture(bloomTexture, vec2(x, z).div(U.mapSize)).g;
+
+/**
+ * Night-glow gain from activity at the fragment: quiet areas keep a dim ember (0.35), busy
+ * districts glow up to 1.5× (contrast-stretched: most of the founding city sits at 0.3–0.8). `U.nightlife` (0 → flat 1) lets the effect be disabled.
+ */
+export const activityGlow = () =>
+  mix(float(1), mix(float(0.35), float(1.5), smoothstep(0.25, 0.85, activityAt(positionWorld.x, positionWorld.z))), U.nightlife);

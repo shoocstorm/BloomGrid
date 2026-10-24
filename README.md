@@ -18,6 +18,9 @@ URL flags: `?renderer=webgl` (force the WebGL2 fallback), `?quality=low|medium|h
 
 Settings (⚙ in the top bar): power mode (Battery 30 fps / Balanced 60 fps, idles at 30 / Max) and graphics quality.
 
+Seasons bring weather (drizzle in Monsoon, haze in Haze). At night the island glows where people are: busy streets light
+their flowers, fungi paths and canopies brighter (see the Night life lens ✨ and the City Pulse "Night life" index).
+
 Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · C filtration channel ·
 B Bloom Retrofit · X bulldoze ·
 4–0 build categories · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·

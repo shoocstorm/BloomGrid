@@ -18,6 +18,8 @@ declare module '@/core/EventBus' {
     'season:changed': { index: number };
     /** The bloom field was recomputed (renderers re-upload it). */
     'bloom:updated': void;
+    /** The pedestrian-activity field was recomputed. */
+    'activity:updated': void;
     'channel:changed': { tiles: number[] };
     /** Buildings whose retrofit level changed; `origin` drives the transformation wave. */
     'buildings:level': { eids: number[]; origin?: { x: number; z: number; radius: number } };

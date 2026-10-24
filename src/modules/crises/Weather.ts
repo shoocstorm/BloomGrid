@@ -2,6 +2,7 @@ import { BoxGeometry, Color, DoubleSide, InstancedMesh, Matrix4, Mesh, MeshBasic
 import { color, float, mod, positionLocal, sin, time, vec3 } from 'three/tsl';
 import { U } from '@/render/uniforms';
 import { envelope, getCrisis } from '@/sim/crises';
+import { seasonAt } from '@/sim/seasons';
 import type { GameContext } from '@/game/context';
 
 const RAIN_DROPS = 1800;
@@ -11,13 +12,15 @@ const GREY = new Color(0x6d7b86);
 const HAZE = new Color(0xffd9a8);
 
 /**
- * Crisis atmosphere. Everything is driven by uniforms plus two tiny meshes (one rain draw,
+ * Crisis and seasonal atmosphere: Monsoon season brings passing drizzle (light rain, no flood),
+ * Haze season and heatwaves thicken a warm fog. Everything is driven by uniforms plus two tiny meshes (one rain draw,
  * one region ring), so weather adds at most two draw calls while active and none otherwise.
  */
 export class Weather {
   private rain: InstancedMesh;
   private ring: Mesh;
   private level = 0;
+  private haze = 0;
 
   constructor(
     private ctx: GameContext,
@@ -52,6 +55,17 @@ export class Weather {
     let heat = 0;
     let algae = 0;
     let ringAt: { x: number; z: number; r: number; tint: number } | null = null;
+    // Seasonal weather eases in and out over the first and last 6% of the season.
+    const { season, progress } = seasonAt(city.tick);
+    const edge = Math.max(0, Math.min(1, progress / 0.06, (1 - progress) / 0.06));
+    if (season.id === 'monsoon') {
+      // Showers come and go every few minutes of game time (visual only, from the tick).
+      const t = city.tick / 10;
+      const shower = Math.min(1, Math.max(0, Math.sin(t * 0.021) * 0.6 + Math.sin(t * 0.0537 + 1.3) * 0.5 - 0.1));
+      rain = shower * 0.4 * edge;
+      storm = shower * 0.3 * edge;
+    }
+    let haze = season.id === 'haze' ? 0.75 * edge : 0;
     for (const c of st.crises) {
       const lead = getCrisis(c.def).lead * 10;
       // Forecast phases build up (clouds gather) over the warning window.
@@ -60,10 +74,13 @@ export class Weather {
           ? envelope((city.tick - c.startTick) / Math.max(1, c.endTick - c.startTick))
           : 0.35 * Math.max(0, 1 - (c.startTick - city.tick) / Math.max(1, lead));
       if (c.def === 'monsoon') {
-        rain = c.phase === 'active' ? k : 0;
+        rain = Math.max(rain, c.phase === 'active' ? k : 0);
         storm = Math.max(storm, k * 0.85);
       } else if (c.def === 'king-tide') storm = Math.max(storm, k * 0.35);
-      else if (c.def === 'heatwave') heat = k;
+      else if (c.def === 'heatwave') {
+        heat = k;
+        haze = Math.max(haze, k * 0.6);
+      }
       else if (c.def === 'algal-bloom') algae = k;
       if ((c.def === 'blight' || c.def === 'grid-failure') && c.x !== undefined)
         ringAt = { x: c.x, z: c.z!, r: c.radius ?? 6, tint: c.def === 'blight' ? 0xc08a3a : 0xff8a3a };
@@ -73,6 +90,7 @@ export class Weather {
     U.storm.value += (storm - U.storm.value) * a;
     U.heat.value += (heat - U.heat.value) * a;
     U.algae.value += (algae - U.algae.value) * a;
+    this.haze += (haze - this.haze) * Math.min(1, dt * 0.5);
     this.level += (st.modifiers.floodLevel - this.level) * Math.min(1, dt * 1.5);
     U.waterLevel.value = this.level;
     const water = this.ctx.services.get('world').water;
@@ -86,9 +104,14 @@ export class Weather {
       atmo.sun.intensity *= 1 - 0.6 * U.storm.value;
     }
     if (U.heat.value > 0.01) U.horizon.value.lerp(HAZE, U.heat.value * 0.5);
+    // Haze: a dusty warm horizon (dimmer at night) and a nearer fog.
+    if (this.haze > 0.01) U.horizon.value.lerp(HAZE, this.haze * 0.7 * (1 - 0.7 * U.night.value));
+    atmo.haze = this.haze;
     atmo.fog.color.copy(U.horizon.value);
 
     this.rain.visible = U.rain.value > 0.02;
+    // Drizzle draws fewer drops than a storm (rain overdraw is the costly part).
+    this.rain.count = Math.ceil(RAIN_DROPS * Math.min(1, 0.25 + U.rain.value * 1.2));
     if (this.rain.visible) this.rain.position.set(cameraCtl.target.x, cameraCtl.target.y - 6, cameraCtl.target.z);
     this.ring.visible = !!ringAt;
     if (ringAt) {
