@@ -61,7 +61,7 @@ export class LineChart {
     const grid = css.getPropertyValue('--lc-grid').trim() || 'rgba(0,0,0,0.08)';
     const line = css.getPropertyValue('--lc-line').trim() || '#2a78d6';
     const d = this.data;
-    g.font = '10.5px Outfit, system-ui, sans-serif';
+    g.font = '10px "JetBrains Mono", ui-monospace, monospace';
     if (d.length < 2) {
       g.fillStyle = ink2;
       g.fillText('Collecting data…', PAD_L, h / 2);

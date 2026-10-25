@@ -46,11 +46,12 @@ describe('land reclamation', () => {
     expect(s.city.credits).toBe(credits - plan.cost);
     expect(changed).toBe(1);
     expect(s.city.hash()).not.toBe(h0);
-    // New land is buildable.
-    const tx = t % s.city.grid.w;
-    const tz = (t / s.city.grid.w) | 0;
-    expect(plan.tiles.includes(t + 1) || plan.tiles.includes(t + s.city.grid.w)).toBe(true);
-    const placed = s.city.checkPlacement(buildings.get('pocket-park'), tx, tz, 0);
+    // New land is buildable: find a 2×2 block that was reclaimed entirely and test a park there.
+    const w = s.city.grid.w;
+    const inPlan = new Set(plan.tiles);
+    const block = plan.tiles.find((q) => inPlan.has(q + 1) && inPlan.has(q + w) && inPlan.has(q + w + 1));
+    expect(block).toBeDefined();
+    const placed = s.city.checkPlacement(buildings.get('pocket-park'), block! % w, (block! / w) | 0, 0);
     expect(placed.ok || placed.reason !== 'Needs dry land').toBe(true);
     s.commands.undo();
     expect(s.city.grid.rangeOver(t % s.city.grid.w, (t / s.city.grid.w) | 0, 1, 1).min).toBeCloseTo(before, 5);

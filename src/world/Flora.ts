@@ -26,9 +26,31 @@ export class Flora {
     private seed: number,
   ) {}
 
-  populate(): void {
+  private disposed = false;
+
+  /**
+   * Scatters wild nature over every free tile. The first `syncRows` rows are done immediately;
+   * the rest follow in slices on later tasks, so boot doesn't block on a 512² map (they fill in
+   * behind the boot screen during shader warm-up). Built-on tiles are skipped as usual.
+   */
+  populate(syncRows = 0, sliceRows = 48): void {
     const g = this.grid;
-    for (let z = 0; z < g.h; z++) for (let x = 0; x < g.w; x++) this.showTile(g.index(x, z), false);
+    const rows = (z0: number, z1: number) => {
+      for (let z = z0; z < Math.min(g.h, z1); z++) for (let x = 0; x < g.w; x++) this.showTile(g.index(x, z), false);
+    };
+    rows(0, syncRows);
+    const next = (z: number) => {
+      if (this.disposed || z >= g.h) return;
+      rows(z, z + sliceRows);
+      setTimeout(() => next(z + sliceRows), 0);
+    };
+    if (syncRows < g.h) setTimeout(() => next(syncRows), 0);
+  }
+
+  /** Removes every flora instance and stops any population still in progress. */
+  dispose(): void {
+    this.disposed = true;
+    for (const idx of [...this.tiles.keys()]) this.hideTile(idx);
   }
 
   hideTile(idx: number): void {

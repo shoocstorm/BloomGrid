@@ -123,7 +123,7 @@ describe('crises', () => {
     const a = run();
     expect(a.length).toBeGreaterThan(1);
     expect(run()).toEqual(a);
-  });
+  }, 30_000); // two sim days on the 512 map, twice
 });
 
 describe('stewardship', () => {

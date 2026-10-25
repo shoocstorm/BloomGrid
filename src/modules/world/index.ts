@@ -53,7 +53,7 @@ export const worldModule: GameModule = {
         water = createWater(city.grid);
         ctx.scene.add(terrain.group, water);
       }
-      if (flora) for (let i = 0; i < city.grid.w * city.grid.h; i++) flora.hideTile(i);
+      flora?.dispose();
       flora = new Flora(city.grid, ctx.instancer, city.seed);
       flora.density = ctx.quality.settings.floraDensity;
       flora.populate();

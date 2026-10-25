@@ -59,7 +59,7 @@ export interface CityStats {
 
 export type PlacementResult = { ok: true; warning?: string } | { ok: false; reason: string };
 
-export const MAP_SIZE = 384;
+export const MAP_SIZE = 512;
 /** Render chunk edge in tiles: 4×4 chunks per map keeps draw calls flat as the map grows. */
 export const chunkSizeFor = (size: number) => Math.ceil(size / 4);
 export const START_CREDITS = 2500;

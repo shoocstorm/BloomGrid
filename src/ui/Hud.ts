@@ -50,6 +50,7 @@ class Hud {
   private undoBtn!: HTMLButtonElement;
   private redoBtn!: HTMLButtonElement;
   private happyMeter!: HTMLElement;
+  private readout!: { pos: HTMLElement; hdg: HTMLElement; alt: HTMLElement; sim: HTMLElement; fps: HTMLElement };
   private help!: HTMLElement;
   private timer = 0;
 
@@ -57,6 +58,7 @@ class Hud {
     this.root = ctx.hud;
     this.buildTopBar();
     this.buildDock();
+    this.buildReadout();
     this.buildInfo();
     this.tooltip = h('div', { class: 'tooltip panel hidden' });
     this.toasts = h('div', { class: 'toasts' });
@@ -178,12 +180,28 @@ class Hud {
       h(
         'div',
         { class: 'topbar' },
-        h('div', { class: 'brand panel' }, h('span', { class: 'logo' }), h('b', {}, 'BloomGrid')),
+        h('div', { class: 'brand panel' }, h('span', { class: 'logo' }), h('b', {}, 'BloomGrid', h('span', { class: 'brand-sub' }, 'ISLAND OS · v12'))),
         h('div', { class: 'clock panel' }, this.timeEl, seg),
         stats,
         actions,
       ),
     );
+  }
+
+  /** Telemetry strip (bottom-left): camera focus coordinates, heading, altitude, sim rate, fps. */
+  private buildReadout(): void {
+    const cell = (label: string, cls = '') => {
+      const b = h('b');
+      const el = h('span', { class: cls }, `${label} `, b);
+      return { el, b };
+    };
+    const pos = cell('POS');
+    const hdg = cell('HDG');
+    const alt = cell('ALT');
+    const sim = cell('SIM', 'live');
+    const fps = cell('FPS', 'opt');
+    this.readout = { pos: pos.b, hdg: hdg.b, alt: alt.b, sim: sim.b, fps: fps.b };
+    this.root.append(h('div', { class: 'readout panel' }, sim.el, pos.el, hdg.el, alt.el, fps.el));
   }
 
   private buildDock(): void {
@@ -400,6 +418,13 @@ class Hud {
     document.body.classList.toggle('night', ctx.services.get('world').atmosphere.sunElevation < -0.02);
     this.syncCards();
     this.updateInfo();
+    const cam = ctx.cameraCtl;
+    const r = this.readout;
+    setText(r.pos, `${cam.target.x.toFixed(1).padStart(5, '0')}E ${cam.target.z.toFixed(1).padStart(5, '0')}S`);
+    setText(r.hdg, `${String(Math.round((((-cam.yaw * 180) / Math.PI) % 360) + 360) % 360).padStart(3, '0')}°`);
+    setText(r.alt, `${(cam.distance * 11).toFixed(0)} m`);
+    setText(r.sim, engine.speed ? `${engine.speed}×` : 'HOLD');
+    setText(r.fps, `${Math.round(engine.fps)}`);
   }
 }
 

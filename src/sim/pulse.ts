@@ -4,7 +4,7 @@ import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { SimCtx } from './systems';
 import { HISTORY_LENGTH, HISTORY_METRICS, SYSTEMS, tierFromRatio, type SystemKey, type Tier } from './pulseState';
-import { FIELD_PULSES, computeFields } from './fields';
+import { FIELD_PULSES, computeEcology, computePollution } from './fields';
 import { blightLoss, updateCrises } from './crises';
 import { updateFinance } from './finance';
 import { updateCondition, updateOvergrowth } from './upkeep';
@@ -59,12 +59,14 @@ export const pulseSystem: System<SimCtx> = {
       computeIrrigation(city);
       city.channelsDirty = false;
     }
-    // Field work is staggered across pulses so no single frame carries it all.
+    // Field work is staggered across pulses so no pulse carries more than one O(tiles) pass (D-020).
     const phase = pulse.count++ % FIELD_PULSES;
     if (phase === 0) {
       computePairing(city);
-      computeFields(city, city.fields);
+      computePollution(city, city.fields);
     } else if (phase === 1) {
+      computeEcology(city, city.fields);
+    } else if (phase === 5) {
       computeMobility(city);
       city.bus.emit('mobility:updated', undefined);
     } else if (phase === 2) {

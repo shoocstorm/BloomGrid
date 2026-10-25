@@ -1,8 +1,20 @@
 import { defineScenario, type ScenarioBuilder } from '../types';
 
+/** Map size the founding city was designed on: on larger maps its towns keep this tile size. */
+const DESIGN_SIZE = 384;
+
+/** Shrinks a normalised rectangle around its centre so it keeps its DESIGN_SIZE footprint in tiles. */
+function fit(size: number, x0: number, z0: number, x1: number, z1: number): [number, number, number, number] {
+  const k = Math.min(1, DESIGN_SIZE / size);
+  const cx = (x0 + x1) / 2;
+  const cz = (z0 + z1) / 2;
+  return [cx - ((x1 - x0) / 2) * k, cz - ((z1 - z0) / 2) * k, cx + ((x1 - x0) / 2) * k, cz + ((z1 - z0) / 2) * k];
+}
+
 /** A district: road grid over a rectangle (normalised 0..1 map coords) filled with weighted buildings. */
 function district(b: ScenarioBuilder, x0: number, z0: number, x1: number, z1: number, spacing: number, weights: Record<string, number>, density = 0.9) {
   const S = b.size;
+  [x0, z0, x1, z1] = fit(S, x0, z0, x1, z1);
   const [ax, az, bx, bz] = [x0 * S, z0 * S, x1 * S, z1 * S].map(Math.round) as [number, number, number, number];
   for (let z = az; z <= bz; z += spacing) b.road(ax, z, bx, z);
   for (let x = ax; x <= bx; x += spacing) b.road(x, az, x, bz);
@@ -11,7 +23,8 @@ function district(b: ScenarioBuilder, x0: number, z0: number, x1: number, z1: nu
 
 /**
  * The founding city: a bayfront downtown, three housing towns, an industrial islet, bridges to
- * the islets and an arterial ring. Deliberately left a little short on water and food so the
+ * the islets and an arterial ring. Towns keep their 384-map size on larger maps (`fit`), so a
+ * bigger island means more open land for the steward, not a bigger starting city. Deliberately left a little short on water and food so the
  * steward has something to fix in the first minutes.
  */
 export default defineScenario({
@@ -46,12 +59,14 @@ export default defineScenario({
     district(b, 0.44, 0.83, 0.56, 0.89, 4, { 'pocket-park': 3, 'garden-residence': 2 }, 0.8);
 
     // Balance: jobs for most of the labour force, power with a thin margin; water and food left short.
-    const areas: [number, number, number, number][] = [
-      [0.68, 0.42, 0.88, 0.62],
-      [0.14, 0.5, 0.34, 0.68],
-      [0.4, 0.16, 0.6, 0.28],
-      [0.44, 0.6, 0.66, 0.74],
-    ];
+    const areas: [number, number, number, number][] = (
+      [
+        [0.68, 0.42, 0.88, 0.62],
+        [0.14, 0.5, 0.34, 0.68],
+        [0.4, 0.16, 0.6, 0.28],
+        [0.44, 0.6, 0.66, 0.74],
+      ] as const
+    ).map(([a, b2, c, d]) => fit(S, a, b2, c, d));
     const island: [number, number, number, number][] = [[0.03, 0.1, 0.97, 0.92]];
     /** Adds one building per area per sweep until `ok()` or nothing more fits. */
     const sweep = (id: string, ok: () => boolean, where = areas) => {
@@ -75,7 +90,7 @@ export default defineScenario({
     sweep('greenhouse-hub', () => t().jobs > t().population * 0.65 * 0.85);
     sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06);
     sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06, island);
-    sweep('water-works', () => t().waterProduced > t().waterUsed * 1.07, island);
+    sweep('water-works', () => t().waterProduced > t().waterUsed * 1.02, island);
     sweep('vertical-farm', () => t().food > t().population * 0.55);
   },
 });

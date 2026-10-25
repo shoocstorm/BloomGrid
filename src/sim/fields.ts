@@ -6,7 +6,7 @@ import type { City } from './City';
 import { blurPeak, boxBlur } from './blur';
 
 /** Pulses between field recomputes (fields change slowly; recompute is O(tiles)). */
-export const FIELD_PULSES = 5;
+export const FIELD_PULSES = 6;
 const SHORE_RANGE = 8;
 
 export interface Fields {
@@ -76,58 +76,75 @@ const POLLUTION_SCALE = 1 / blurPeak(POLLUTION_BLUR.r, POLLUTION_BLUR.passes);
 const ECO_SCALE = 0.6 / blurPeak(ECO_BLUR.r, ECO_BLUR.passes);
 
 /**
- * Recomputes the spatial fields from buildings and land use:
+ * Recomputes the spatial fields from buildings and land use (both halves; the pulse runs them on
+ * separate phases so no single pulse carries both blurs, see D-020):
  * - pollution: emitters splat with falloff; parks and greenery absorb
  * - ecology: wild land and green buildings raise it, built-up and polluted land lowers it
  * - desirability: ecology, clean air, sea views and highway access
  */
 export function computeFields(city: City, f: Fields): void {
+  computePollution(city, f);
+  computeEcology(city, f);
+}
+
+/** Pollution field (point deposits + blur, clamped ≥ 0) and mean coastal pollution. */
+export function computePollution(city: City, f: Fields): void {
   const g = city.grid;
   const n = g.w * g.h;
-  f.pollution.fill(0);
-  f.ecology.fill(0);
-  for (let i = 0; i < n; i++) {
-    if (f.shore[i] === 0) f.ecology[i] = 0.45;
-    else if (g.road[i]) f.ecology[i] = 0.25;
-    else if (g.occupant[i] === NO_ENTITY) f.ecology[i] = 0.6;
-    else f.ecology[i] = 0.3;
-  }
+  const pollution = f.pollution;
+  pollution.fill(0);
   for (const eid of query(city.world, [Building])) {
     const d0 = buildings.at(Building.def[eid]!);
     const st = d0.stats;
-    const cx = Building.x[eid]! + Building.w[eid]! / 2;
-    const cz = Building.z[eid]! + Building.d[eid]! / 2;
+    if (st.pollution === 0) continue;
     const green = Greenery.value[eid]!;
     const pairMul = d0.symbiosis && Service.paired[eid] ? d0.symbiosis.pollutionMul : 1;
     const retroMul = Building.level[eid]! > 0 ? 0.7 : 1;
-    const c = g.index(Math.floor(cx), Math.floor(cz));
-    if (st.pollution !== 0) f.pollution[c] += (st.pollution > 0 ? st.pollution * (1 - 0.4 * green) * pairMul * retroMul : st.pollution) * 0.12 * POLLUTION_SCALE;
-    if (st.eco !== 0) f.ecology[c] += st.eco * (0.3 + 0.7 * green) * 0.025 * ECO_SCALE;
+    const c = g.index(Math.floor(Building.x[eid]! + Building.w[eid]! / 2), Math.floor(Building.z[eid]! + Building.d[eid]! / 2));
+    pollution[c] += (st.pollution > 0 ? st.pollution * (1 - 0.4 * green) * pairMul * retroMul : st.pollution) * 0.12 * POLLUTION_SCALE;
   }
-  boxBlur(f.pollution, g.w, g.h, POLLUTION_BLUR.r, POLLUTION_BLUR.passes);
-  boxBlur(f.ecology, g.w, g.h, ECO_BLUR.r, ECO_BLUR.passes);
-  for (let i = 0; i < n; i++) {
-    const p = Math.max(0, f.pollution[i]!);
-    f.pollution[i] = p;
-    const e = Math.min(1, Math.max(0, f.ecology[i]! - p * 0.5));
-    f.ecology[i] = e;
-    const shore = f.shore[i]!;
-    const view = shore > 0 && shore < SHORE_RANGE ? (1 - shore / SHORE_RANGE) * 0.15 : 0;
-    const x = i % g.w;
-    const z = (i / g.w) | 0;
-    const access =
-      (x > 0 && g.road[i - 1]) || (x < g.w - 1 && g.road[i + 1]) || (z > 0 && g.road[i - g.w]) || (z < g.h - 1 && g.road[i + g.w])
-        ? 0.1
-        : 0;
-    f.desirability[i] = Math.min(1, Math.max(0, 0.3 + e * 0.45 - Math.min(1, p) * 0.6 + view + access));
-  }
-  // Mean pollution along the coast (drives algal bloom likelihood).
+  boxBlur(pollution, g.w, g.h, POLLUTION_BLUR.r, POLLUTION_BLUR.passes);
+  // Clamp, and the mean along the coast (drives algal-bloom likelihood).
+  const shore = f.shore;
   let cp = 0;
   let cn = 0;
-  for (let i = 0; i < n; i++)
-    if (f.shore[i]! >= 1 && f.shore[i]! <= 3) {
-      cp += f.pollution[i]!;
+  for (let i = 0; i < n; i++) {
+    const p = pollution[i]! > 0 ? pollution[i]! : 0;
+    pollution[i] = p;
+    const sh = shore[i]!;
+    if (sh >= 1 && sh <= 3) {
+      cp += p;
       cn++;
     }
+  }
   city.pulse.coastalPollution = cn ? cp / cn : 0;
+}
+
+/** Ecology field (land use + green buildings, blurred, minus pollution) and desirability. */
+export function computeEcology(city: City, f: Fields): void {
+  const g = city.grid;
+  const { pollution, ecology, desirability, shore } = f;
+  const road = g.road;
+  const occ = g.occupant;
+  const w = g.w;
+  const n = w * g.h;
+  for (let i = 0; i < n; i++) ecology[i] = shore[i] === 0 ? 0.45 : road[i] ? 0.25 : occ[i] === NO_ENTITY ? 0.6 : 0.3;
+  for (const eid of query(city.world, [Building])) {
+    const st = buildings.at(Building.def[eid]!).stats;
+    if (st.eco === 0) continue;
+    const c = g.index(Math.floor(Building.x[eid]! + Building.w[eid]! / 2), Math.floor(Building.z[eid]! + Building.d[eid]! / 2));
+    ecology[c] += st.eco * (0.3 + 0.7 * Greenery.value[eid]!) * 0.025 * ECO_SCALE;
+  }
+  boxBlur(ecology, w, g.h, ECO_BLUR.r, ECO_BLUR.passes);
+  // Row-major nested loops (no per-tile div/mod).
+  for (let z = 0, i = 0; z < g.h; z++)
+    for (let x = 0; x < w; x++, i++) {
+      const p = pollution[i]!;
+      const e = Math.min(1, Math.max(0, ecology[i]! - p * 0.5));
+      ecology[i] = e;
+      const sh = shore[i]!;
+      const view = sh > 0 && sh < SHORE_RANGE ? (1 - sh / SHORE_RANGE) * 0.15 : 0;
+      const access = (x > 0 && road[i - 1]) || (x < w - 1 && road[i + 1]) || (z > 0 && road[i - w]) || (z < g.h - 1 && road[i + w]) ? 0.1 : 0;
+      desirability[i] = Math.min(1, Math.max(0, 0.3 + e * 0.45 - Math.min(1, p) * 0.6 + view + access));
+    }
 }

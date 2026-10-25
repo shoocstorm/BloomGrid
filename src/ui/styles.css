@@ -12,7 +12,7 @@
   --bad: #e86a6a;
   --radius: 16px;
   --shadow: 0 10px 30px rgba(20, 50, 40, 0.18), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
-  font-family: 'Outfit', system-ui, sans-serif;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
 }
 
 * {

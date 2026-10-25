@@ -1,4 +1,5 @@
 let scratch = new Float32Array(0);
+let colSum = new Float64Array(0);
 
 /**
  * Separable box blur with a sliding window: O(tiles) per pass regardless of radius. Several
@@ -23,17 +24,23 @@ export function boxBlur(a: Float32Array, w: number, h: number, r: number, passes
         s += add - sub;
       }
     }
-    // Vertical: t → a.
-    for (let x = 0; x < w; x++) {
-      const first = t[x]!;
-      const last = t[(h - 1) * w + x]!;
-      let s = first * (r + 1);
-      for (let i = 1; i <= r; i++) s += t[Math.min(h - 1, i) * w + x]!;
-      for (let z = 0, idx = x; z < h; z++, idx += w) {
-        a[idx] = s * k;
-        const add = z + r + 1 < h ? t[idx + (r + 1) * w]! : last;
-        const sub = z - r >= 0 ? t[idx - r * w]! : first;
-        s += add - sub;
+    // Vertical: t → a, swept row by row with one running sum per column, so every access is
+    // contiguous (a column-wise walk strides the whole map and thrashes the cache at 512²).
+    if (colSum.length < w) colSum = new Float64Array(w);
+    const cs = colSum;
+    const lastRow = (h - 1) * w;
+    for (let x = 0; x < w; x++) cs[x] = t[x]! * (r + 1);
+    for (let i = 1; i <= r; i++) {
+      const row = Math.min(h - 1, i) * w;
+      for (let x = 0; x < w; x++) cs[x] += t[row + x]!;
+    }
+    for (let z = 0; z < h; z++) {
+      const row = z * w;
+      const addRow = z + r + 1 < h ? (z + r + 1) * w : lastRow;
+      const subRow = z - r >= 0 ? (z - r) * w : 0;
+      for (let x = 0; x < w; x++) {
+        a[row + x] = cs[x]! * k;
+        cs[x] += t[addRow + x]! - t[subRow + x]!;
       }
     }
   }

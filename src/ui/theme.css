@@ -1,0 +1,702 @@
+/*
+ * BloomGrid "Instrument" HUD theme: a scientific, mission-control skin over every HUD panel.
+ * Imported last (see main.ts) so it can restyle module stylesheets from one place.
+ *
+ * Look: dark translucent instrument panels (same by day and night, so they read over any sky),
+ * hairline cyan frames with chamfered corners and corner brackets, a faint static scan texture,
+ * a technical sans for labels and a monospace face for every number, coded section labels,
+ * LED tier indicators and segmented meters.
+ *
+ * Power rules (AGENTS.md §7½) still apply: no backdrop-filter, no continuous animation of
+ * box-shadow or layout; textures are static gradients painted once.
+ */
+:root {
+  --bg: rgba(6, 19, 21, 0.8);
+  --bg-strong: rgba(6, 19, 21, 0.94);
+  --bg-raise: rgba(95, 242, 218, 0.06);
+  --bg-hover: rgba(95, 242, 218, 0.11);
+  --line: rgba(95, 242, 218, 0.22);
+  --line-strong: rgba(95, 242, 218, 0.55);
+  --accent: #5ff2da;
+  --accent-2: #8ef07a;
+  --warn: #ffcf6a;
+  --crit: #ff5a6e;
+  --ink: #dcf5ee;
+  --ink-soft: #86aaa0;
+  --ink-faint: #56776e;
+  --ui: 'Space Grotesk', 'Outfit', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --cut: 9px;
+  --radius: 0px;
+  --glass: var(--bg);
+  --glass-strong: var(--bg-strong);
+  --glass-dark: var(--bg);
+  font-family: var(--ui);
+  font-feature-settings: 'ss01', 'tnum';
+}
+.night {
+  --ink: #dcf5ee;
+  --ink-soft: #86aaa0;
+}
+
+/* ── Panels: chamfered frame, corner brackets, scan texture ───────────────── */
+.panel,
+.night .panel {
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  clip-path: polygon(
+    var(--cut) 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    0 100%,
+    0 var(--cut)
+  );
+  box-shadow: none;
+  background:
+    linear-gradient(var(--accent), var(--accent)) right top / 12px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right top / 1px 12px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left bottom / 12px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left bottom / 1px 12px no-repeat,
+    repeating-linear-gradient(0deg, rgba(95, 242, 218, 0.022) 0 1px, transparent 1px 3px),
+    var(--bg);
+  background-origin: border-box;
+}
+/* Monospace for every number-bearing readout. */
+.stat .v,
+.time,
+.tier-val,
+.tier-name,
+.kv b,
+.kv > span:last-child,
+.spark-val,
+.db-tile-v,
+.db-tile-s,
+.db-bar-v,
+.cr-status,
+.fail-warn,
+.lc-tip,
+.adv-stamp,
+.adv-badge,
+kbd,
+.tooltip,
+.perf {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+kbd,
+.tool kbd,
+.help kbd,
+.lens-bar kbd {
+  font-size: 9.5px;
+  padding: 1px 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+/* ── Top bar ──────────────────────────────────────────────────────────────── */
+.brand {
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+}
+.brand .logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: conic-gradient(from 45deg, var(--accent), var(--accent-2), #ff9fc4, var(--warn), var(--accent));
+  box-shadow: none;
+}
+.brand b {
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+.brand-sub {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+.clock .time {
+  font-size: 13px;
+  color: var(--accent);
+  min-width: 96px;
+}
+.seg {
+  gap: 1px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 1px;
+}
+.seg button {
+  border-radius: 0;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.seg button.on {
+  background: var(--bg-hover);
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+/* Monospace digits are wider: keep the stat strip compact so values never clip. */
+.stats {
+  gap: 0;
+  padding: 6px 4px;
+}
+.stat {
+  border-radius: 0;
+  padding: 2px 9px;
+  gap: 5px;
+  border-left: 1px solid var(--line);
+}
+.stat:first-child {
+  border-left: 0;
+}
+.stat .k {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+}
+.stat .ki {
+  color: var(--accent);
+  filter: saturate(0.6);
+}
+.stat .v {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.stat.bad .v {
+  color: var(--crit);
+}
+/* Segmented meter: hard ticks instead of a soft pill. */
+.meter,
+.info .grow .meter {
+  height: 6px;
+  border-radius: 0;
+  background: rgba(95, 242, 218, 0.1);
+}
+.meter i {
+  border-radius: 0;
+  background: linear-gradient(90deg, var(--warn), var(--accent-2), var(--accent));
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 5px);
+  mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 5px);
+}
+.icon-btn {
+  border-radius: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.icon-btn:hover,
+.night .icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+/* ── Dock: tools and build cards ──────────────────────────────────────────── */
+.toolbar {
+  gap: 2px;
+  padding: 5px;
+}
+.toolbar .sep {
+  background: var(--line);
+}
+.tool {
+  border-radius: 0;
+  color: var(--ink-soft);
+  padding: 7px 10px;
+}
+.tool:hover,
+.night .tool:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+.tool.on,
+.night .tool.on {
+  background: var(--bg-hover);
+  color: var(--accent);
+  box-shadow:
+    inset 0 0 0 1px var(--line-strong),
+    inset 0 -2px 0 var(--accent);
+}
+.card,
+.night .card {
+  border-radius: 0;
+  background: var(--bg-raise);
+  border: 1px solid var(--line);
+}
+.card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+}
+.card.on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.card .n {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.card .c {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.tag {
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  background: rgba(142, 240, 122, 0.12);
+  color: var(--accent-2);
+}
+.tag.neg {
+  background: rgba(255, 90, 110, 0.12);
+  color: #ff9aa6;
+}
+
+/* ── Section titles: coded, ruled, numbered per panel ─────────────────────── */
+.pulse-body,
+.db,
+.settings,
+.info {
+  counter-reset: sec;
+}
+.pulse-title,
+.db h3,
+.settings h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.pulse-title::before,
+.db h3::before,
+.settings h4::before {
+  counter-increment: sec;
+  content: counter(sec, decimal-leading-zero);
+  color: var(--ink-faint);
+}
+.pulse-title::after,
+.db h3::after,
+.settings h4::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line), transparent);
+}
+.pulse-sec,
+.night .pulse-sec {
+  border-top: 0;
+}
+.pulse-head,
+.adv-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* ── LED tier indicators (square, dark-theme palette) ─────────────────────── */
+.tier-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 0;
+}
+.t0,
+.night .t0 {
+  color: #5ff2b0;
+}
+.t1,
+.night .t1 {
+  color: #a6e8d2;
+}
+.t2 {
+  color: var(--warn);
+}
+.t3 {
+  color: #ff9a5a;
+}
+.t4 {
+  color: var(--crit);
+}
+.tier-name {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.demand-bar {
+  border-radius: 0;
+  background: rgba(95, 242, 218, 0.08);
+}
+.demand-bar b {
+  background: var(--line-strong);
+}
+.kv .good,
+.night .kv .good {
+  color: #5ff2b0;
+}
+.kv .bad {
+  color: var(--crit);
+}
+.kv.tax input,
+.set-opt input,
+.nc-diff input {
+  accent-color: var(--accent);
+}
+
+/* ── Shared small buttons ─────────────────────────────────────────────────── */
+.loan-row button,
+.adv-actions button,
+.cr-show,
+.set-new,
+.btn.ghost {
+  border-radius: 0;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+.loan-row button:hover:not(:disabled),
+.adv-actions button:hover,
+.cr-show:hover,
+.set-new:hover,
+.btn.ghost:hover {
+  background: var(--bg-hover);
+  border-color: var(--line-strong);
+  color: var(--accent);
+}
+.btn {
+  border-radius: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.btn.primary,
+.night .btn.primary {
+  background: var(--accent);
+  color: #062023;
+}
+
+/* ── Flora-Net advisor ────────────────────────────────────────────────────── */
+.adv-leaf {
+  color: var(--accent);
+}
+.adv-badge {
+  border-radius: 0;
+  font-size: 10px;
+}
+.adv-tabs {
+  border-radius: 0;
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 1px;
+}
+.adv-tab {
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.adv-tab.on {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+.adv-card,
+.night .adv-card {
+  border-radius: 0;
+  background: var(--bg-raise);
+  border-left-width: 2px;
+  border-left-color: var(--accent);
+}
+.adv-card.warn {
+  border-left-color: var(--warn);
+}
+.adv-card.crit {
+  border-left-color: var(--crit);
+  background: rgba(255, 90, 110, 0.07);
+}
+.adv-card-title {
+  letter-spacing: 0.01em;
+}
+.adv-log.warn,
+.night .adv-log.warn {
+  color: var(--warn);
+}
+
+/* ── Lenses, legend, tooltip, toasts ──────────────────────────────────────── */
+.lens {
+  border-radius: 0;
+  color: var(--ink-soft);
+}
+.lens:hover,
+.night .lens:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+.lens.on,
+.night .lens.on {
+  background: var(--bg-hover);
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.lens-legend,
+.night .lens-legend {
+  border-radius: 0;
+  background: var(--bg-strong);
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lens-legend i {
+  border-radius: 0;
+}
+.tooltip {
+  font-size: 11.5px;
+  border-radius: 0;
+}
+.toast {
+  font-size: 12.5px;
+  padding: 7px 14px 7px 12px;
+  border-left: 2px solid var(--accent);
+}
+.toast.bad {
+  border-left-color: var(--crit);
+}
+.toast.ok {
+  border-left-color: var(--accent-2);
+}
+
+/* ── Inspector, help ──────────────────────────────────────────────────────── */
+.info h3 {
+  letter-spacing: 0.04em;
+}
+.info .row {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  border-bottom: 1px dashed rgba(95, 242, 218, 0.1);
+}
+.info .svc {
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg-raise);
+  border-left: 2px solid var(--accent-2);
+}
+.info .svc.bad {
+  background: rgba(255, 90, 110, 0.08);
+  border-left-color: var(--crit);
+  color: #ffb0b8;
+}
+
+/* ── Crises, modals, settings, dashboard ──────────────────────────────────── */
+.crisis {
+  border-left-width: 2px;
+}
+.cr-bar {
+  border-radius: 0;
+  background: rgba(95, 242, 218, 0.1);
+}
+.fail-warn {
+  border-radius: 0;
+  background: rgba(255, 90, 110, 0.9);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.modal-scrim,
+.db-scrim {
+  background: rgba(3, 12, 13, 0.55);
+}
+.modal,
+.night .modal,
+.settings,
+.night .settings {
+  background:
+    linear-gradient(var(--accent), var(--accent)) right top / 12px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right top / 1px 12px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left bottom / 12px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left bottom / 1px 12px no-repeat,
+    var(--bg-strong);
+}
+.modal h2,
+.db-head h2 {
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 16px;
+}
+.nc-diff {
+  border-radius: 0;
+}
+.nc-diff:hover,
+.set-opt:hover {
+  background: var(--bg-hover);
+}
+.set-opt {
+  border-radius: 0;
+}
+.nc-seed {
+  border-radius: 0;
+  border-color: var(--line);
+  font-family: var(--mono);
+}
+.db,
+.night .db {
+  --lc-ink2: #86aaa0;
+  --lc-grid: rgba(95, 242, 218, 0.1);
+  --lc-line: #5ff2da;
+  --lc-surface: #061315;
+  background:
+    linear-gradient(var(--accent), var(--accent)) right top / 14px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right top / 1px 14px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left bottom / 14px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left bottom / 1px 14px no-repeat,
+    repeating-linear-gradient(0deg, rgba(95, 242, 218, 0.02) 0 1px, transparent 1px 3px),
+    var(--bg-strong);
+}
+.db-tile,
+.night .db-tile {
+  border-radius: 0;
+  background: var(--bg-raise);
+  border: 1px solid var(--line);
+}
+.db-tile-k {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.db-tile-v {
+  color: var(--accent);
+  font-weight: 600;
+}
+.db-chart figcaption {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.lc-tip {
+  border-radius: 0;
+  background: var(--bg-strong);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  box-shadow: none;
+}
+.db-bar-t i {
+  border-radius: 0;
+}
+.season-bar {
+  border-radius: 0;
+  background: rgba(95, 242, 218, 0.12);
+}
+
+/* ── Explore bar ──────────────────────────────────────────────────────────── */
+.explore-bar .xp {
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.explore-bar .xp:hover,
+.night .explore-bar .xp:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+.explore-bar .xp.on,
+.night .explore-bar .xp.on {
+  background: var(--bg-hover);
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.explore-hint {
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--line);
+  background: var(--bg-strong);
+}
+
+/* ── Telemetry readout (bottom-left) ──────────────────────────────────────── */
+.readout {
+  position: absolute;
+  left: 12px;
+  bottom: 84px; /* above the dock, mirroring the explore bar on the right */
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 5px 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  pointer-events: none !important;
+}
+.readout span {
+  padding: 0 9px;
+  border-left: 1px solid var(--line);
+  white-space: nowrap;
+}
+.readout span:first-child {
+  border-left: 0;
+}
+.readout b {
+  color: var(--accent);
+  font-weight: 400;
+}
+.readout .live::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  background: var(--accent-2);
+  vertical-align: 1px;
+}
+@media (max-width: 1500px) {
+  .readout .opt {
+    display: none;
+  }
+}
+
+/* Leave room for the readout and explore bar under the side columns. */
+.pulse,
+.rightcol {
+  max-height: calc(100vh - 210px);
+}
+
+/* ── Scrollbars ───────────────────────────────────────────────────────────── */
+.pulse,
+.rightcol,
+.adv-list,
+.db {
+  scrollbar-color: var(--line-strong) transparent;
+}

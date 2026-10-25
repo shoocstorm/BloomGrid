@@ -6,7 +6,8 @@
   display: flex;
   gap: 2px;
   padding: 4px;
-  z-index: 20;
+  /* Below the HUD layer (z 10) so the dashboard and modals cover it. */
+  z-index: 9;
 }
 .explore-bar.hidden {
   display: none;

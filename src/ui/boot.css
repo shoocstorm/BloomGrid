@@ -14,7 +14,7 @@
   z-index: 50;
   overflow: hidden;
   color: var(--ink);
-  font-family: 'Outfit', system-ui, sans-serif;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
   background: radial-gradient(ellipse at 50% 45%, #0c2c33 0%, #061719 45%, #020a0c 100%);
   -webkit-mask: radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px));
   mask: radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px));

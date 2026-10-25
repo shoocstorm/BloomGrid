@@ -5,15 +5,15 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 ## Snapshot (2026-10-25)
 
-|             |                                                                                                                                                                                                                            |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Branch      | `main` (`feature/island-city-pulse` merged after Phase 12; no remote configured)                                                                                                                                           |
-| Last commit | Phase 12: Hero Assets & Platform                                                                                                                                                                                           |
-| Phases done | **All roadmap phases 0–12** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                                                                            |
-| Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                                                                                        |
-| Tests       | 61 passing (`npm test`); `npm run check` clean                                                                                                                                                                             |
-| Save format | v6 (terrain edits, sky-bridges, sea rise; migrations from v1–v5 in `src/sim/save.ts`)                                                                                                                                      |
-| Map         | 384×384 tiles, Singapore-like island; founding city ≈1 650 buildings (Supertree Grove landmark 10×10, Lotus Pavilion, 2 Pod Docks, a Drone Hive), ≈6 800 highway tiles, ≈24k residents, water deliberately Strained (≈91%) |
+|             |                                                                                                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Branch      | `main` (`feature/island-city-pulse` merged after Phase 12; no remote configured)                                                                                |
+| Last commit | Phase 12: Hero Assets & Platform                                                                                                                                |
+| Phases done | **All roadmap phases 0–12** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
+| Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
+| Tests       | 61 passing (`npm test`); `npm run check` clean                                                                                                                  |
+| Save format | v6 (terrain edits, sky-bridges, sea rise; migrations from v1–v5 in `src/sim/save.ts`)                                                                           |
+| Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈1 710 buildings at its original tile size, ≈24k residents, water Strained (≈95%) |
 
 ### Measured baselines (headless Chrome, WebGPU, M-series, founding city, High quality)
 
@@ -51,6 +51,8 @@ sections whenever you stop working** (see AGENTS.md §6).
 ## Next up
 
 ### Deferred work (pick next with the user)
+
+- Module boot ≈550 ms on the 512 map (guideline 400): profile per module (terrain, roads, buildings).
 
 - Phase 8 leftovers: canopy greenways, hyperloop, ferries, player-drawn sky-lanes.
 - KTX2 textures (install `toktx`, wire `KTX2Loader` + basis transcoder), Windows/Linux packaging and code signing.
