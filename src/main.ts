@@ -1,4 +1,5 @@
 import { createGame } from '@/game/createGame';
+import { openingView } from '@/game/opening';
 import { worldModule } from '@/modules/world';
 import { constructionModule } from '@/modules/construction';
 import { hudModule } from '@/ui/Hud';
@@ -32,11 +33,12 @@ async function boot() {
   hud.style.opacity = '0';
   try {
     const ctx = await createGame(canvas, hud, MODULES, screen.stage);
-    const target = ctx.cameraCtl.target.clone();
-    ctx.cameraCtl.intro(target.x, target.z, 60, 0); // park high over the island
+    // Park high over the island, then fly down to the landmark when the boot screen lifts.
+    const v = openingView(ctx.city);
+    ctx.cameraCtl.intro(v.x, v.z, v.distance, 0, v);
     ctx.engine.start();
     (window as unknown as { bloomgrid: unknown }).bloomgrid = ctx;
-    await screen.finish(() => ctx.cameraCtl.intro(target.x, target.z, 60));
+    await screen.finish(() => ctx.cameraCtl.intro(v.x, v.z, v.distance, 6, v));
     hud.style.transition = 'opacity 1s';
     hud.style.opacity = '1';
   } catch (e) {

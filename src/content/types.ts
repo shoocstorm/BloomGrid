@@ -111,6 +111,8 @@ export interface BuildingDef {
   drones?: { radius: number; count: number };
   /** Coastal defence (Mangrove Seawall): keeps flood water up to `height` out within `radius` tiles. */
   defence?: { radius: number; height: number };
+  /** The city's signature landmark: the opening camera flies to the largest one. */
+  landmark?: boolean;
   /** A tower the Green Weaver can bridge to other towers or merge with a banyan. */
   tower?: boolean;
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */

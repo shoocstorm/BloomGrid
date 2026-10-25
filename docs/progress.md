@@ -8,12 +8,12 @@ sections whenever you stop working** (see AGENTS.md §6).
 |             |                                                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Branch      | `main`, remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10)                              |
-| Last change | Wellspring Spire: central landmark at the map centre (D-033), uncommitted |
+| Last change | Wellspring Spire + hero quarter at the map centre; opening flies to it (D-033), uncommitted |
 | Phases done | **All roadmap phases 0–12** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
 | Tests       | 63 passing (`bun run test`); `bun run check` clean                                                                                                              |
 | Save format | v6 (terrain edits, sky-bridges, sea rise; migrations from v1–v5 in `src/sim/save.ts`)                                                                           |
-| Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈1 710 buildings at its original tile size, ≈24k residents, water Strained (≈95%) |
+| Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈1 720 buildings at its original tile size, ≈24k residents, water Strained (≈95%) |
 
 ### Measured baselines (headless Chrome, WebGPU, M-series, founding city, High quality)
 
@@ -23,7 +23,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 | Frame rate  | 60 fps active, 30 idle (power mode Balanced)                                                                                         | `bun run perf` / `bun run perf -- --idle`             |
 | Main thread | ≈16% active, ≈14.5% idle                                                                                                             | `bun run perf`                                        |
 | GPU         | ≈1.0–3 ms per frame headless (noisy: compare several runs; +≈2 ms in storm rain)                                                     | `bun run perf -- --path "/?gputime"`                  |
-| Draw calls  | ≈188–214 near, ≈213–247 overview; `?stress=1500` (spread over the island) 222 near / 235 overview (budget 300)                       | perf overlay (F3) or `renderer.info.render.drawCalls` |
+| Draw calls  | ≈199–217 near (217 at the hero quarter), ≈212 overview; `?stress=1500` 250 near / 250 overview (budget 300)                         | perf overlay (F3) or `renderer.info.render.drawCalls` |
 | Sim         | pulse tick ≈0.4 ms; field tick (one pass per pulse, D-029) ≈2.2 ms median / ≈3 ms p95: ecology 2.8, activity 2.4, bloom 2.0 ms worst |
 
 ## How to resume
@@ -42,7 +42,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 | Area            | Where                                                      | Notes                                                                                                                                                                                                       |
 | --------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Sim core        | `src/sim/`                                                 | `City`, `Grid`, `pulse.ts` (1 Hz management pulse), fields, bloom, night life, mobility, Flora-Net soil, coast (terrain edits, sea rise), weaver, crises, finance, upkeep, steward, seasons, scenario, save |
-| Content         | `src/content/buildings/*.ts`, `src/content/scenarios/*.ts` | 18 buildings (2 with Rodin GLBs; the central Wellspring Spire is procedural), founding-city scenario; auto-discovered                                                                                                                                   |
+| Content         | `src/content/buildings/*.ts`, `src/content/scenarios/*.ts` | 22 buildings (2 with Rodin GLBs; the central Wellspring Spire and its four-hero quarter are procedural), founding-city scenario; auto-discovered                                                                                                                                   |
 | Rendering       | `src/render/`, `src/assets/kit/pieces.ts`                  | `ChunkedInstancer` (static buffers, ≥1040 capacity, update ranges), TSL material library with lens/vitality/season support                                                                                  |
 | Feature modules | `src/modules/*`                                            | world, construction (buildings, roads, channels, tools), pulse, overlays, advisor, views, dashboard, settings, crises, bloom, mobility                                                                      |
 | HUD             | `src/ui/`                                                  | vanilla DOM; right column via `services.get('hud').right`                                                                                                                                                   |

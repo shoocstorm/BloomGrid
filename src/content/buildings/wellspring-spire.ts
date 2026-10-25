@@ -50,6 +50,7 @@ export default defineBuilding({
   pollinators: 3,
   cleanEnergy: true,
   variants: 1,
+  landmark: true,
   recipe(b) {
     // Plaza: paving, a square moat, corner gardens and fungus lamps along the edge.
     b.add({ piece: 'slab', p: [0, 0, 0], s: [13.8, 0.16, 13.8], tint: PALETTE.concrete });

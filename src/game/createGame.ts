@@ -1,3 +1,4 @@
+import { openingView } from './opening';
 import { PerspectiveCamera, Scene } from 'three/webgpu';
 import { CommandStack } from '@/core/Commands';
 import { Engine } from '@/core/Engine';
@@ -198,9 +199,10 @@ export async function createGame(
   ctx.tools.setActive('select');
   setQuality(ctx.quality.tier); // may have been changed by the settings module (saved preference)
 
-  // Start looking at a pleasant buildable spot near the map centre.
+  // Start where the opening fly-in ends (the landmark), so warm-up compiles what is seen first.
   await onProgress('Compiling luminous materials', 0.75);
-  ctx.cameraCtl.lookAt(city.grid.w * 0.52, city.grid.h * 0.66, 60, true);
+  const open = openingView(city);
+  ctx.cameraCtl.lookAt(open.x, open.z, open.distance, true);
   ctx.cameraCtl.update(0);
   const tw = performance.now();
   await ctx.instancer.warmup(() => postfx.compile(), camera, pieceIds(), ctx.cameraCtl.target);

@@ -3,6 +3,7 @@ import { forecastCrisis, getCrisis } from '@/sim/crises';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
 import { FAIL_SECONDS } from '@/sim/steward';
 import { foundCity } from '@/game/newCity';
+import { openingView } from '@/game/opening';
 import { h, setText } from '@/ui/dom';
 import { Weather } from './Weather';
 import './crises.css';
@@ -43,7 +44,8 @@ function newCityDialog(ctx: GameContext, onDone?: () => void): void {
               close();
               foundCity(ctx, Number(seedInput.value) || 1, choice);
               ctx.engine.speed = 1;
-              ctx.cameraCtl.intro(ctx.city.size * 0.52, ctx.city.size * 0.66, 60);
+              const v = openingView(ctx.city);
+              ctx.cameraCtl.intro(v.x, v.z, v.distance, 6, v);
               ctx.bus.emit('toast', { text: `A new city is founded (${DIFFICULTIES[choice].label})`, tone: 'ok' });
               onDone?.();
             },

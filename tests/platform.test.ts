@@ -6,6 +6,7 @@ import { buildings } from '@/content';
 import { applyScenario } from '@/sim/scenario';
 import { Building } from '@/ecs/components';
 import { RoadNetworks } from '@/sim/networks';
+import { openingView } from '@/game/opening';
 import { makeSim } from './helpers';
 
 describe('save migrations', () => {
@@ -60,7 +61,7 @@ describe('hero assets', () => {
 });
 
 describe('central landmark', () => {
-  it('the founding city levels a terrace at the island centre for the Wellspring Spire, with road access, and saves it', () => {
+  it('the founding city levels a terrace at the island centre for the Wellspring Spire and its hero quarter, with road access, and saves it', () => {
     const s = makeSim(7);
     applyScenario(s.city, 'founding-city');
     const g = s.city.grid;
@@ -73,6 +74,13 @@ describe('central landmark', () => {
     expect(max - min).toBeLessThan(0.01);
     expect(RoadNetworks.touchesRoad(g, x, z, 14, 14)).toBe(true);
     expect(s.city.terrainEdits.size).toBeGreaterThan(200);
+    // The hero quarter around it, each with highway access.
+    for (const id of ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes']) {
+      const e = s.city.buildingEntities().find((b) => buildings.at(Building.def[b]!).id === id);
+      expect(e, id).toBeDefined();
+      expect(RoadNetworks.touchesRoad(g, Building.x[e!]!, Building.z[e!]!, Building.w[e!]!, Building.d[e!]!), id).toBe(true);
+    }
+    expect(openingView(s.city).x).toBeLessThan(h);
     s.step(10);
     const c2 = new City(new EventBus(), 1);
     deserializeCity(c2, structuredClone(serializeCity(s.city)));

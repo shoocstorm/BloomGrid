@@ -205,3 +205,7 @@ procedural (kit pieces + one new `lumen` material, 3 new pieces) instead of a Ro
 and stays on the instanced path. Its loop road and boulevard are drawn after the utility sweeps so they don't crowd the plaza.
 **Consequences:** About +5 draws near the spire. A Rodin GLB could replace the look later (keep the recipe as the
 `fallback`). Old saves keep their own terrain and city; only new cities get the spire.
+**Follow-up (same day):** four more procedural heroes share one terrace around the spire (one `level()` call, so
+terraces never fight over corners). The Sky Ark carries `transit` (its own pod port): without it its commuters jammed
+the plaza loop and city flow fell from 85% to 42%; with it plus a second road link west, flow is ≈80% (Stable).
+The opening fly-in ends on the largest `landmark` building (`openingView`), falling back to the old downtown view.

@@ -91,13 +91,14 @@ export class CityCamera {
   }
 
   /** Cinematic establishing shot: start high over the island, glide down to the target view. */
-  intro(x: number, z: number, distance: number, duration = 5): void {
+  intro(x: number, z: number, distance: number, duration = 5, end: { pitch?: number; yaw?: number } = {}): void {
+    if (end.yaw !== undefined) this.goalYaw = end.yaw;
     this.goalTarget.set(this.grid.w / 2, 0, this.grid.h / 2);
     this.target.copy(this.goalTarget);
     this.distance = this.goalDistance = this.overviewDistance;
     this.pitch = this.goalPitch = 1.25;
     this.yaw = this.goalYaw - 0.9;
-    this.goalPitch = 0.85;
+    this.goalPitch = end.pitch ?? 0.85;
     this.goalTarget.set(x, 0, z);
     this.goalDistance = distance;
     if (duration <= 0) {

@@ -44,14 +44,26 @@ export default defineScenario({
     b.road(...P(0.24, 0.62), ...P(0.1, 0.66), true); // west: industrial islet
     b.road(...P(0.78, 0.4), ...P(0.84, 0.2), true); // north-east: rustic islet
 
-    // The Wellspring Spire at the island's exact centre, on a terrace levelled where the river
-    // rises. Its roads are drawn last (below) so the utility sweeps don't crowd the plaza.
+    // The hero quarter at the island's exact centre, on one terrace levelled where the river rises:
+    // the Wellspring Spire on its plaza, the Helix Wind Spire behind it, the Hanging Gardens to the
+    // west and the Sky Ark and Cloud Forest Domes flanking the boulevard to downtown. Its roads are
+    // drawn last (below) so the utility sweeps don't crowd the plaza.
     const SP = 14;
     const sx = Math.round(S / 2 - SP / 2);
     const sz = sx;
     const [lx, lz, rx, rz] = [sx - 1, sz - 1, sx + SP, sz + SP];
-    b.level(lx, lz, rx, rz, 5);
+    b.level(lx - 10, lz - 8, rx + 12, rz + 4, 6);
     const spire = b.building('wellspring-spire', sx, sz, 0);
+    if (spire) {
+      // Each hero slides away from its anchor (dx, dz per step) until it fits: the river head moves with the seed.
+      const hero = (id: string, x: number, z: number, dx: number, dz: number) => {
+        for (let i = 0; i < 6 && !b.building(id, x + i * dx, z + i * dz, 0); i++);
+      };
+      hero('helix-spire', S / 2 - 4, lz - 8, 0, -1);
+      hero('hanging-gardens', lx - 10, S / 2 - 5, -1, 0);
+      hero('sky-ark', rx + 1, S / 2 - 7, 1, 0);
+      hero('cloud-domes', rx + 2, S / 2 + 1, 1, 0);
+    }
 
     // The Supertree Grove (8×8) needs open land the district grids would cut up: reserve it first,
     // on the ring road just west of downtown.
@@ -112,6 +124,11 @@ export default defineScenario({
       const bx = dx0 + 5 * Math.round((0.585 * S - dx0) / 5);
       b.road(rx, S / 2, bx, S / 2, true);
       b.road(bx, S / 2, bx, dz0, true);
+      // Second link: from the plaza's south-west corner west to the western town's grid.
+      const [wx0, wz0, wx1] = fit(S, 0.14, 0.5, 0.34, 0.68).map((v) => Math.round(v * S)) as [number, number, number];
+      const wx = wx0 + 6 * Math.floor((wx1 - wx0) / 6);
+      b.road(lx, rz, wx, rz, true);
+      b.road(wx, rz, wx, wz0, true);
     }
   },
 });
