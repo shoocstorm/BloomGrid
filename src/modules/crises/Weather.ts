@@ -2,7 +2,7 @@ import { BoxGeometry, Color, DoubleSide, InstancedMesh, Matrix4, Mesh, MeshBasic
 import { color, float, mod, positionLocal, sin, time, vec3 } from 'three/tsl';
 import { U } from '@/render/uniforms';
 import { envelope, getCrisis } from '@/sim/crises';
-import { seasonAt } from '@/sim/seasons';
+import { seasonAt, showerAt } from '@/sim/seasons';
 import type { GameContext } from '@/game/context';
 
 const RAIN_DROPS = 1800;
@@ -50,21 +50,16 @@ export class Weather {
   update(dt: number): void {
     const { city, cameraCtl } = this.ctx;
     const st = city.steward;
-    let rain = 0;
-    let storm = 0;
     let heat = 0;
     let algae = 0;
     let ringAt: { x: number; z: number; r: number; tint: number } | null = null;
     // Seasonal weather eases in and out over the first and last 6% of the season.
     const { season, progress } = seasonAt(city.tick);
     const edge = Math.max(0, Math.min(1, progress / 0.06, (1 - progress) / 0.06));
-    if (season.id === 'monsoon') {
-      // Showers come and go every few minutes of game time (visual only, from the tick).
-      const t = city.tick / 10;
-      const shower = Math.min(1, Math.max(0, Math.sin(t * 0.021) * 0.6 + Math.sin(t * 0.0537 + 1.3) * 0.5 - 0.1));
-      rain = shower * 0.4 * edge;
-      storm = shower * 0.3 * edge;
-    }
+    // Showers come and go every few minutes of game time (they also water the soil, see Flora-Net).
+    const shower = showerAt(city.tick);
+    let rain = shower * 0.4;
+    let storm = shower * 0.3;
     let haze = season.id === 'haze' ? 0.75 * edge : 0;
     for (const c of st.crises) {
       const lead = getCrisis(c.def).lead * 10;

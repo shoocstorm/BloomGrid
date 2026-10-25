@@ -1,4 +1,5 @@
 import type { PodRoute } from './mobility';
+import type { DroneJob } from './floranet';
 
 /**
  * City Pulse state: everything the management layer tracks beyond raw entities.
@@ -69,6 +70,13 @@ export interface PulseState {
   avgCommute: number;
   /** Sky-lanes flown by commuter pods (for rendering). */
   podRoutes: PodRoute[];
+  /** Flora-Net (derived each pass): share of built zones with healthy soil, dry built zones. */
+  soilHealth: number;
+  dryZones: number;
+  /** Drone sorties, pod mist points and Drone Hive coverage (for rendering and trimming). */
+  drones: DroneJob[];
+  mists: { x: number; z: number }[];
+  hives: { x: number; z: number; r: number }[];
   /** Last season index (emits `season:changed`). */
   season: number;
   /** Pulses since start (drives field recompute cadence). */
@@ -100,6 +108,11 @@ export function createPulseState(): PulseState {
     podRiders: 0,
     avgCommute: 0,
     podRoutes: [],
+    soilHealth: 1,
+    dryZones: 0,
+    drones: [],
+    mists: [],
+    hives: [],
     cleanShare: 1,
     season: -1,
     count: 0,

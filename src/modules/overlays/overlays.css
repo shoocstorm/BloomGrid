@@ -70,6 +70,13 @@
   height: 8px;
   border-radius: 4px;
 }
+/* Ten lenses no longer fit with labels between the side panels: show only the active lens's
+   label (the rest keep icon + tooltip) unless the window is wide. */
+@media (max-width: 1700px) {
+  .lens:not(.on) .l {
+    display: none;
+  }
+}
 @media (max-width: 1200px) {
   .lens .l {
     display: none;

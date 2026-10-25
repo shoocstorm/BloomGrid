@@ -10,6 +10,7 @@ import { RoadNetworks } from './networks';
 import { createPulseState, type PulseState } from './pulseState';
 import { createFields, type Fields } from './fields';
 import { createStewardState, type StewardState } from './stewardState';
+import { createSoil, initSoilLand, soilChecksum, type SoilState } from './floranet';
 import type { DifficultyId } from './difficulty';
 import './events';
 
@@ -61,7 +62,7 @@ export const MAP_SIZE = 384;
 /** Render chunk edge in tiles: 4×4 chunks per map keeps draw calls flat as the map grows. */
 export const chunkSizeFor = (size: number) => Math.ceil(size / 4);
 export const START_CREDITS = 2500;
-export const DAY_LENGTH = 360; // sim seconds per full day
+export { DAY_LENGTH } from './pulseConst';
 
 export const ROAD = 1;
 export const BRIDGE = 2;
@@ -80,6 +81,8 @@ export class City {
   pulse!: PulseState;
   fields!: Fields;
   steward!: StewardState;
+  /** Flora-Net soil zones (saved). */
+  soil!: SoilState;
   /** Channels changed: irrigation must be recomputed on the next pulse. */
   channelsDirty = true;
   /** Number of highway tiles (kept in sync by setRoads). */
@@ -108,6 +111,8 @@ export class City {
     this.rng = new Rng(seed);
     this.networks = new RoadNetworks(this.grid);
     this.fields = createFields(this.grid);
+    this.soil = createSoil(this.size);
+    initSoilLand(this);
     this.steward = createStewardState(difficulty);
     this.roadCount = 0;
     this.channelsDirty = true;
@@ -304,7 +309,7 @@ export class City {
       (r) => `${r.def}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}`,
+      `${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}`,
     );
   }
 }

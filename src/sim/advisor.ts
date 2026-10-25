@@ -5,6 +5,7 @@ import { TIERS, type Tier } from './pulseState';
 import { getCrisis } from './crises';
 import { FAIL_SECONDS } from './steward';
 import { creditLimit } from './finance';
+import { ZONE, zoneOf } from './floranet';
 
 export type Severity = 0 | 1 | 2; // info, warning, critical
 
@@ -359,5 +360,51 @@ registerAdvisorRule((city) => {
     fix: 'Build a Green Pod Dock among crowded homes (pods fly commuters over the jam), add jobs closer to homes, or draw a parallel highway.',
     focus: worst?.focus,
     build: 'pod-dock',
+  };
+});
+
+/** The driest (or most depleted) built soil zone, as a focus point. */
+function worstZone(city: City, field: Float32Array, limit: number): { count: number; focus?: Advisory['focus'] } {
+  const soil = city.soil;
+  const built = new Uint8Array(field.length);
+  for (const eid of query(city.world, [Building])) {
+    const d = city.buildingDef(eid);
+    if (d.stats.water < 0 || d.stats.food > 0) built[zoneOf(soil, Building.x[eid]! + Building.w[eid]! / 2, Building.z[eid]! + Building.d[eid]! / 2)] = 1;
+  }
+  let count = 0;
+  let best = -1;
+  for (let i = 0; i < field.length; i++) {
+    if (!built[i] || field[i]! >= limit) continue;
+    count++;
+    if (best < 0 || field[i]! < field[best]!) best = i;
+  }
+  return { count, focus: best < 0 ? undefined : { x: ((best % soil.zw) + 0.5) * ZONE, z: (Math.floor(best / soil.zw) + 0.5) * ZONE } };
+}
+
+registerAdvisorRule((city) => {
+  const { count, focus } = worstZone(city, city.soil.hydration, 0.35);
+  if (!count) return null;
+  return {
+    id: 'dry-soil',
+    severity: count > 8 ? 2 : 1,
+    title: `${count} garden zone${count > 1 ? 's are' : ' is'} parched`,
+    detail: 'Dry soil starves living walls and roof meadows even when the taps run, and cuts harvests. Haze season and heatwaves dry it fastest.',
+    fix: 'Dispatch a Flora-Net mist (M) over them, dig Filtration Channels (C), or place a Drone Hive (drones mist dry gardens).',
+    focus,
+    build: 'flora-hive',
+  };
+});
+
+registerAdvisorRule((city) => {
+  const { count, focus } = worstZone(city, city.soil.nutrients, 0.3);
+  if (!count) return null;
+  return {
+    id: 'depleted-soil',
+    severity: 1,
+    title: `Soil is depleted in ${count} zone${count > 1 ? 's' : ''}`,
+    detail: 'Farms draw nutrients faster than the land returns them; yields fall by up to a quarter.',
+    fix: 'Build Bloom Parks or a Drone Hive near the farms (drones return harvest compost), and pair Bioreactors with Phyto Gardens (digestate).',
+    focus,
+    build: 'flora-hive',
   };
 });

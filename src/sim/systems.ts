@@ -32,7 +32,8 @@ export const greenerySystem: System<SimCtx> = {
       const v = Greenery.value[eid]!;
       // Filtration channels irrigate nearby gardens even when the network runs dry.
       const irr = irrigation ? irrigation[city.grid.index(Building.x[eid]!, Building.z[eid]!)]! : 0;
-      const w = Math.max(Service.water[eid]!, irr * 0.9);
+      // Parched soil (Flora-Net hydration) starves gardens even when the taps run.
+      const w = Math.max(Service.water[eid]! * (0.4 + 0.6 * Math.min(1, Service.soil[eid]! / 0.6)), irr * 0.9);
       // Bloom (pollination) and retrofits speed growth.
       const rate = Greenery.rate[eid]! * f.tickDt * (0.5 + Service.bloom[eid]!) * (Building.level[eid]! > 0 ? 1.5 : 1);
       if (w >= 0.5) {

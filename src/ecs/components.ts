@@ -51,4 +51,6 @@ export const Service = {
   bloom: new Float32Array(MAX_ENTITIES),
   /** Pod Docks: commuters flown per pulse (see `sim/mobility.ts`). */
   riders: new Float32Array(MAX_ENTITIES),
+  /** Soil hydration of the building's Flora-Net zone (0..1). */
+  soil: new Float32Array(MAX_ENTITIES).fill(0.7),
 };

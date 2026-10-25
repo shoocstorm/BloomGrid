@@ -3,6 +3,7 @@ import { buildings } from '@/content';
 import { NO_ENTITY } from './Grid';
 import type { City } from './City';
 import type { Fields } from './fields';
+import { soilAt } from './floranet';
 
 /**
  * Data lenses: each overlay fills a per-tile value (0..1) and a mask (1 = has data). Pure sim
@@ -136,6 +137,19 @@ registerOverlay({
     }
   },
 });
+/** Flora-Net soil lens: zone values interpolated per tile so gardens read as smooth patches. */
+function soilLens(key: 'hydration' | 'nutrients') {
+  return (city: City, f: Fields, value: Float32Array, mask: Uint8Array) => {
+    const g = city.grid;
+    const field = city.soil[key];
+    for (let i = 0; i < value.length; i++) {
+      value[i] = soilAt(city.soil, field, (i % g.w) + 0.5, ((i / g.w) | 0) + 0.5);
+      mask[i] = f.shore[i] === 0 ? 0 : 1;
+    }
+  };
+}
+registerOverlay({ id: 'hydration', label: 'Soil water', icon: '❖', legend: ['Parched', 'Moist'], smooth: true, compute: soilLens('hydration') });
+registerOverlay({ id: 'nutrients', label: 'Nutrients', icon: '✿', legend: ['Depleted', 'Rich'], smooth: true, compute: soilLens('nutrients') });
 registerOverlay({
   id: 'access',
   label: 'Access',

@@ -1,5 +1,6 @@
 import { buildings } from '@/content';
 import { NO_ENTITY } from '@/sim/Grid';
+import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from '@/sim/floranet';
 import { CHANNEL_COST, RETROFIT_RADIUS, retrofitPlan, roadTileCost } from '@/sim/commands';
 import type { GameContext } from '@/game/context';
 import type { Tool } from '@/game/Tools';
@@ -297,5 +298,33 @@ export function createTools(ghost: Ghost, build: BuildState) {
     },
   };
 
-  return [select, place, road, bulldoze, channel, retrofit];
+  const mist: Tool = {
+    id: 'mist',
+    label: 'Flora-Net Mist',
+    icon: '☂',
+    hotkey: 'KeyM',
+    deactivate: () => ghost.hideAll(),
+    hover(ctx, hit) {
+      if (!hit?.inBounds) {
+        ghost.hideRing();
+        return;
+      }
+      const zones = mistZones(ctx.city, hit.point.x, hit.point.z);
+      const H = ctx.city.soil.hydration;
+      const avg = zones.length ? zones.reduce((a, z) => a + H[z]!, 0) / zones.length : 1;
+      const ok = zones.length > 0 && ctx.city.credits >= MIST_COST;
+      ghost.setValid(ok);
+      ghost.showRing(hit.point.x, hit.point.y, hit.point.z, (MIST_RADIUS + 0.5) * ZONE);
+      ctx.bus.emit('tool:tooltip', {
+        text: `Mist ${zones.length} soil zones (now ${Math.round(avg * 100)}% moist) · ${MIST_COST} ◈${ok ? '' : ' (not enough credits)'}`,
+        tone: ok ? 'ok' : 'bad',
+      });
+    },
+    up(ctx, hit) {
+      if (!hit?.inBounds || ctx.input.dragDistance > 6) return;
+      if (ctx.commands.execute('mist', { x: hit.point.x, z: hit.point.z })) ctx.bus.emit('toast', { text: 'Flora-Net drones mist the gardens', tone: 'ok' });
+    },
+  };
+
+  return [select, place, road, bulldoze, channel, retrofit, mist];
 }

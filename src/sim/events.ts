@@ -22,6 +22,10 @@ declare module '@/core/EventBus' {
     'activity:updated': void;
     /** The mobility pass ran (flow field, congestion, pod routes). */
     'mobility:updated': void;
+    /** The Flora-Net pass ran (soil, drones, pod mists). */
+    'floranet:updated': void;
+    /** Flora-Net misted zones at (x, z) (a steward dispatch). */
+    'floranet:mist': { x: number; z: number; radius: number };
     'channel:changed': { tiles: number[] };
     /** Buildings whose retrofit level changed; `origin` drives the transformation wave. */
     'buildings:level': { eids: number[]; origin?: { x: number; z: number; radius: number } };

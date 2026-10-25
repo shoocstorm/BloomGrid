@@ -4,6 +4,7 @@ import { NO_ENTITY } from './Grid';
 import type { BuildingRecord, City } from './City';
 import { TAX_MAX, TAX_MIN } from './pulseState';
 import { registerFinanceCommands } from './finance';
+import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from './floranet';
 import { Building, Greenery } from '@/ecs/components';
 
 /** Cost of building a highway on a tile (bridges over water cost more). */
@@ -50,6 +51,7 @@ function setOvergrowth(city: City, values: [number, number][]): void {
 /** Registers the core city-building commands. Feature modules register their own. */
 export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerFinanceCommands(stack);
+  registerMist(stack);
   stack.register<BuildPayload, true>('build', {
     apply({ city }, p) {
       const def = buildings.get(p.def);
@@ -196,6 +198,31 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
       if (u.channels.length) city.setChannels(u.channels);
       city.credits += u.cost;
       city.bus.emit('buildings:level', { eids: u.eids.map(([e]) => e) });
+    },
+  });
+}
+
+export interface MistPayload {
+  x: number;
+  z: number;
+}
+
+/** Flora-Net mist dispatch: drones and pods soak the 3×3 soil zones around (x, z). */
+function registerMist(stack: CommandStack<SimCtx>): void {
+  stack.register<MistPayload, { zones: [number, number][] }>('mist', {
+    apply({ city }, p) {
+      const zones = mistZones(city, p.x, p.z);
+      if (!zones.length || city.credits < MIST_COST) return null;
+      const H = city.soil.hydration;
+      const undo = { zones: zones.map((z) => [z, H[z]!] as [number, number]) };
+      for (const z of zones) H[z] = Math.min(1, H[z]! + 0.35);
+      city.credits -= MIST_COST;
+      city.bus.emit('floranet:mist', { x: p.x, z: p.z, radius: (MIST_RADIUS + 0.5) * ZONE });
+      return undo;
+    },
+    revert({ city }, _p, u) {
+      for (const [z, v] of u.zones) city.soil.hydration[z] = v;
+      city.credits += MIST_COST;
     },
   });
 }

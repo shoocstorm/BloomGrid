@@ -3,7 +3,7 @@ import type { BuildingRecord, City } from './City';
 import { createPulseState, type PulseState } from './pulseState';
 import { createStewardState, type StewardState } from './stewardState';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 export interface SaveData {
   version: number;
@@ -22,6 +22,8 @@ export interface SaveData {
   channels: [number, number][];
   pulse: Pick<PulseState, 'taxRate' | 'history'> & { happiness: number };
   steward: Omit<StewardState, 'modifiers' | 'overgrown'>;
+  /** Flora-Net soil per zone (row-major, 3 decimals); empty = defaults. */
+  soil: { hydration: number[]; nutrients: number[] };
   /** Feature modules persist their own state under their module id. */
   modules: Record<string, unknown>;
 }
@@ -54,6 +56,10 @@ export function migrateSave(data: SaveData): SaveData {
     (data.pulse.history as Record<string, number[]>).bloom ??= [];
     data.version = 4;
   }
+  if (data.version === 4) {
+    data.soil = { hydration: [], nutrients: [] };
+    data.version = 5;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -76,6 +82,7 @@ export function serializeCity(city: City): SaveData {
     overgrowth,
     pulse: { taxRate: city.pulse.taxRate, history: structuredClone(city.pulse.history), happiness: city.stats.happiness },
     steward: structuredClone(persistable(city.steward)),
+    soil: { hydration: [...city.soil.hydration].map(round3), nutrients: [...city.soil.nutrients].map(round3) },
     modules: {},
   };
 }
@@ -100,9 +107,15 @@ export function deserializeCity(city: City, input: SaveData): void {
     city.networks.dirty = true;
   }
   if (data.channels.length) city.setChannels(data.channels);
+  if (data.soil.hydration.length === city.soil.hydration.length) {
+    city.soil.hydration.set(data.soil.hydration);
+    city.soil.nutrients.set(data.soil.nutrients);
+  }
   for (const [def, x, z, rot, greenery, occupancy, condition, level] of data.buildings) {
     const rec: BuildingRecord = { def, x, z, rot, greenery, occupancy, condition, level };
     const eid = city.addBuilding(rec);
     Service.occupancy[eid] = occupancy;
   }
 }
+
+const round3 = (v: number) => Math.round(v * 1000) / 1000;

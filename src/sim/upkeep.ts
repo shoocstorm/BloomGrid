@@ -1,5 +1,6 @@
 import { Service } from '@/ecs/components';
 import type { City } from './City';
+import { trimNearHives } from './floranet';
 
 /** Overgrowth value at which a highway is impassable (blocks its utility network). */
 export const OVERGROWN = 255;
@@ -58,5 +59,6 @@ export function updateOvergrowth(city: City): void {
   } else if (st.overgrown > 0) {
     for (let t = 0; t < og.length; t++) if (og[t]) bump(t, og[t]! - 24);
   }
+  trimNearHives(city, bump);
   if (changed.length) city.bus.emit('road:overgrowth', { tiles: changed });
 }

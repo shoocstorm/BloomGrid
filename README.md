@@ -25,8 +25,12 @@ Residents commute along the highways to the nearest workplace with free jobs; bu
 commuter lights, the Traffic lens ⇶, the Mobility health tier). Green Pod Docks fly nearby commuters over the
 traffic along glowing sky-lanes.
 
+Flora-Net watches the soil: gardens dry out in Haze and heatwaves or when the taps run dry, and farms exhaust their
+soil (Soil water ❖ and Nutrients ✿ lenses, "Soil health" in City Pulse). Mist dry zones (M), dig channels, or build a
+Drone Hive whose hummingbird drones pollinate, harvest, trim overgrown highways and mist gardens.
+
 Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · C filtration channel ·
-B Bloom Retrofit · X bulldoze ·
+B Bloom Retrofit · M Flora-Net mist · X bulldoze ·
 4–0 build categories · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·
 Alt+1–4 / Shift+1–4 store / recall views · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
 

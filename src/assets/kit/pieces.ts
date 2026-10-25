@@ -1,5 +1,6 @@
 import {
   BoxGeometry,
+  TorusGeometry,
   CylinderGeometry,
   IcosahedronGeometry,
   OctahedronGeometry,
@@ -135,6 +136,12 @@ export function initPieces(): void {
   registerPiece({ id: 'fungus', geometry: fungusGeometry(), material: 'fungus', castShadow: false, lod: 140 });
   // Commuter pod: a rounded capsule (long axis +X) berthed at Pod Docks.
   registerPiece({ id: 'pod', geometry: new SphereGeometry(0.5, 12, 8).scale(1, 0.42, 0.5).translate(0, 0.21, 0), material: 'pod', lod: 200 });
+  // Living timber (shaped-wood frames of Living Studios).
+  registerPiece({ id: 'timberBox', geometry: box(), material: 'timber' });
+  // Woven willow arch (eco-playgrounds): a half torus standing on the ground, spanning x.
+  registerPiece({ id: 'willowArch', geometry: new TorusGeometry(0.5, 0.07, 5, 14, Math.PI), material: 'bark', lod: 180 });
+  // Hummingbird drone at rest (Drone Hives): a glossy teardrop with glowing wings.
+  registerPiece({ id: 'drone', geometry: base(new OctahedronGeometry(0.5, 0).scale(1, 0.5, 0.45), 0.25), material: 'pod', castShadow: false, lod: 140 });
   // Façade waterfall sheet: unit plane facing +Z with its pivot at the bottom edge.
   registerPiece({ id: 'waterfall', geometry: new PlaneGeometry(1, 1).translate(0, 0.5, 0), material: 'waterfall', castShadow: false, lod: 220 });
 }

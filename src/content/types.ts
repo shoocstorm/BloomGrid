@@ -25,6 +25,9 @@ export type PieceId =
   | 'pool'
   | 'algaeTank'
   | 'pod'
+  | 'timberBox'
+  | 'willowArch'
+  | 'drone'
   | (string & {});
 
 export interface PieceSpec {
@@ -104,6 +107,8 @@ export interface BuildingDef {
   symbiosis?: Symbiosis;
   /** Transit hub (Pod Dock): carries up to `riders` commuters from homes within `radius` tiles by air. */
   transit?: { radius: number; riders: number };
+  /** Flora-Net Drone Hive: hummingbird drones pollinate, harvest, trim and mist within `radius` tiles. */
+  drones?: { radius: number; count: number };
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */
   variants?: number;
   /** Procedural recipe, or a GLB asset path for hero models. */

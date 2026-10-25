@@ -13,6 +13,7 @@ import { LABOUR_SHARE, PULSE_TICKS } from './pulseConst';
 import { bloomLayers, computeBloom, computeIrrigation, computePairing } from './bloom';
 import { computeActivity } from './nightlife';
 import { computeMobility } from './mobility';
+import { computeFloraNet, farmSoilMul } from './floranet';
 import { seasonAt } from './seasons';
 import { MAX_ENTITIES } from '@/ecs/components';
 
@@ -67,6 +68,9 @@ export const pulseSystem: System<SimCtx> = {
     } else if (phase === 2) {
       computeBloom(city, city.fields);
       city.bus.emit('bloom:updated', undefined);
+    } else if (phase === 3) {
+      computeFloraNet(city);
+      city.bus.emit('floranet:updated', undefined);
     } else if (phase === 4) {
       computeActivity(city, city.fields);
       city.bus.emit('activity:updated', undefined);
@@ -122,7 +126,9 @@ export const pulseSystem: System<SimCtx> = {
       // Worn-down buildings work at reduced capacity.
       const activity = (st.population > 0 ? 0.3 + 0.7 * occ : st.jobs > 0 ? 0.4 + 0.6 * occ : 1) * (0.4 + 0.6 * Service.condition[eid]!);
       // Pollinated farms yield more; seasons shift harvests.
-      if (st.food > 0) food += st.food * (st.jobs > 0 ? occ : 1) * Service.power[eid]! * (0.7 + 0.5 * Service.bloom[eid]!) * season.foodMul;
+      // Soil nutrients and hydration (Flora-Net) and drone harvesting shift yields too.
+      if (st.food > 0)
+        food += st.food * (st.jobs > 0 ? occ : 1) * Service.power[eid]! * (0.7 + 0.5 * Service.bloom[eid]!) * season.foodMul * farmSoilMul(city, Building.x[eid]! + Building.w[eid]! / 2, Building.z[eid]! + Building.d[eid]! / 2);
       if (net < 0) continue;
       const retro = Building.level[eid]! > 0;
       const sym = def0.symbiosis && Service.paired[eid] ? def0.symbiosis.outputMul : 1;

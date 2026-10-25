@@ -376,7 +376,8 @@ export class BuildingRenderer {
         for (const h of entry.moss) instancer.setParam(h, 0, g);
       }
       const abandoned = st.population > 0 && occ < 0.2 ? 0.55 : 1;
-      const vitality = (st.water < 0 ? Service.water[eid]! : 1) * abandoned;
+      // Plants wilt with dry taps and with parched soil (Flora-Net hydration below ~0.35).
+      const vitality = (st.water < 0 ? Service.water[eid]! : 1) * abandoned * Math.min(1, 0.35 + Service.soil[eid]! * 1.9);
       if (Math.abs(vitality - entry.vitality) > 0.04) {
         entry.vitality = vitality;
         for (const h of entry.plants) instancer.setParam(h, 3, vitality);

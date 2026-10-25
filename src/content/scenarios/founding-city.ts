@@ -62,6 +62,9 @@ export default defineScenario({
     };
     // Two Pod Docks (downtown and the eastern town) so sky-lanes fly from day one.
     for (const [x0, z0, x1, z1] of [areas[3]!, areas[0]!]) b.fill(x0 * S, z0 * S, x1 * S, z1 * S, { 'pod-dock': 1 }, 1, 1);
+    // A Flora-Net Drone Hive downtown and an Eco-Playground in the western town.
+    b.fill(areas[3]![0] * S, areas[3]![1] * S, areas[3]![2] * S, areas[3]![3] * S, { 'flora-hive': 1 }, 1, 1);
+    b.fill(areas[1]![0] * S, areas[1]![1] * S, areas[1]![2] * S, areas[1]![3] * S, { 'eco-playground': 1 }, 1, 1);
     const t = () => b.totals();
     sweep('greenhouse-hub', () => t().jobs > t().population * 0.65 * 0.85);
     sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06);

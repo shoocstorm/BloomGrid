@@ -123,10 +123,16 @@ The city is a system that can run well or badly.
 - **Accept:** ✅ `tests/mobility.test.ts` (flow field direction and load, more commuters → lower flow, a Pod Dock relieves the highway and opens a sky-lane, founding city flows ≥ 75%, advisory, determinism). Drill: `scripts/scenes/mobility.js` (`window.NIGHT`, `window.LENS`, `window.NEAR`).
 - **Measured:** mobility pass ≈1.2 ms on its own pulse phase; founding city 85% flow (Stable); main thread ≈18% active / 16.5% idle; GPU unchanged within headless noise (1.7–5 ms on and off); draws 186 near / 213 overview (200 / 239 with `?stress=1500`).
 
-## ⬜ Phase 9 — Flora-Net AI & Symbiotic Automation
+## ✅ Phase 9 — Flora-Net AI & Symbiotic Automation
 
-Soil nutrient and hydration per zone; mist dispatch via passing pods; hummingbird drones (instanced boids)
-that pollinate, trim and harvest; living workspaces and eco-playgrounds.
+- [x] Soil zones (`sim/floranet.ts`, 8×8 tiles, pulse phase 3): hydration relaxes toward what the water network, channels and wild groundwater sustain, minus season evaporation and heatwaves; Monsoon showers (shared `showerAt`) and storms add rain; nutrients fall with farm draw and return from parks, paired-bioreactor digestate and drone compost (D-023)
+- [x] Effects: parched soil slows or reverses greenery and wilts plants visibly; farm yields ×(0.75 + 0.4·nutrients)·(hydration) and +10% under drone care; City Pulse "Soil health"; Soil water ❖ and Nutrients ✿ lenses; advisor rules for parched and depleted zones (one-click Drone Hive)
+- [x] Flora-Net responses: pods mist dry zones under their sky-lanes; the steward's Mist tool (M, 120 ◈, 3×3 zones, undoable); mist clouds bloom where it lands
+- [x] Hummingbird drones: Flora-Net Drone Hive (radius 16, 12 drones) pollinates, harvests, trims overgrown highways even under austerity and mists dry gardens; drones fly GPU-animated sorties coloured by task (one draw)
+- [x] Living workspaces and eco-playgrounds: Living Timber Studio (55 jobs, solar-leaf shutters) and Willow Eco-Playground (willow tunnels, moss pads); founding city gains a hive and a playground
+- [x] Save format v5 (soil per zone; v4 migration keeps defaults); soil is part of `City.hash()`
+- **Accept:** ✅ `tests/floranet.test.ts` (drying without water / in Haze heatwaves, recovery; parched soil wilts and advises; mist cost and undo; farm depletion and hive recovery; hive trims overgrowth; founding city soil health; save v5 round-trip, v4 migration, hash). Drill: `scripts/scenes/floranet.js`.
+- **Measured:** Flora-Net pass 1.3 ms on its own pulse phase; main thread 17.2% active / 16.1% idle; GPU 2.3–3.1 ms; draws 188 near / 213 overview (207 / 246 with `?stress=1500`); boot unchanged.
 
 ## ⬜ Phase 10 — Green Weaver & Land Reclamation
 
