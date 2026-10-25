@@ -209,3 +209,7 @@ and stays on the instanced path. Its loop road and boulevard are drawn after the
 terraces never fight over corners). The Sky Ark carries `transit` (its own pod port): without it its commuters jammed
 the plaza loop and city flow fell from 85% to 42%; with it plus a second road link west, flow is ≈80% (Stable).
 The opening fly-in ends on the largest `landmark` building (`openingView`), falling back to the old downtown view.
+**Hero avenue:** `level()` now returns its height and never feathers over earlier edits, so the avenue terrace continues
+the quarter's level without bending it. The avenue adds a Skyport (pod hub) so its 360 new residents and 420 jobs keep
+flow at ≈80%. Draws with `?stress=1500` rise to ≈260–265 (budget 300): the next big content addition should start with
+the far-chunk impostors / GPU culling item in the roadmap's tech debt.

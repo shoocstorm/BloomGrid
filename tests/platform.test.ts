@@ -75,7 +75,9 @@ describe('central landmark', () => {
     expect(RoadNetworks.touchesRoad(g, x, z, 14, 14)).toBe(true);
     expect(s.city.terrainEdits.size).toBeGreaterThan(200);
     // The hero quarter around it, each with highway access.
-    for (const id of ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes']) {
+    const heroes = ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes'];
+    heroes.push('rain-vortex', 'dragonfly-port', 'mycelium-towers', 'algae-lantern', 'vertical-forest');
+    for (const id of heroes) {
       const e = s.city.buildingEntities().find((b) => buildings.at(Building.def[b]!).id === id);
       expect(e, id).toBeDefined();
       expect(RoadNetworks.touchesRoad(g, Building.x[e!]!, Building.z[e!]!, Building.w[e!]!, Building.d[e!]!), id).toBe(true);

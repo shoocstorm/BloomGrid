@@ -157,9 +157,9 @@ export interface ScenarioBuilder {
   isLand(x: number, z: number): boolean;
   /**
    * Levels the tiles x0..x1 × z0..z1 (inclusive) to `height` (default: their mean ground height),
-   * feathering back into the terrain over `margin` tiles. Water is never filled. Saved as terrain edits.
+   * feathering back into the terrain over `margin` tiles (never over earlier edits). Water is never filled. Saved as terrain edits. Returns the height used.
    */
-  level(x0: number, z0: number, x1: number, z1: number, margin?: number, height?: number): void;
+  level(x0: number, z0: number, x1: number, z1: number, margin?: number, height?: number): number;
   /** Running utility totals of everything placed so far (at full occupancy). */
   totals(): { energyProduced: number; energyUsed: number; waterProduced: number; waterUsed: number; food: number; population: number; jobs: number };
 }

@@ -45,7 +45,7 @@ wave), `nightlife.js` (night downtown: glow should follow activity; `window.NEAR
 (mid-Haze; prefix `window.SEASON = 1;` for a Monsoon shower), `mobility.js` (first Pod Dock at rush hour; `window.NIGHT = 1`,
 `window.LENS = 1` for the Traffic lens, `window.NEAR = 14`).
 Field passes share the pulse (`FIELD_PULSES` = 6, D-020): phase 0 pairing + pollution, 1 ecology + desirability, 2 bloom, 3 Flora-Net,
-4 night life, 5 mobility. All six are taken, so a new pass must share a phase or `FIELD_PULSES` must grow. `floranet.js` frames the Drone Hive and dispatches a mist. `weaver.js` weaves bridges, a banyan and reclaims coast. `explore.js` enters an explore mode (`window.MODE`). `landmark.js` frames the Wellspring Spire and its hero quarter at the island centre (`window.NEAR`, `window.PITCH`, `window.YAW`, `window.NIGHT`). Crises: `--path "/?drill=monsoon"`
+4 night life, 5 mobility. All six are taken, so a new pass must share a phase or `FIELD_PULSES` must grow. `floranet.js` frames the Drone Hive and dispatches a mist. `weaver.js` weaves bridges, a banyan and reclaims coast. `explore.js` enters an explore mode (`window.MODE`). `landmark.js` frames the Wellspring Spire and its hero quarter at the island centre (the hero avenue is east along the boulevard, around `window.CX` ≈ 290) (`window.NEAR`, `window.PITCH`, `window.YAW`, `window.NIGHT`). Crises: `--path "/?drill=monsoon"`
 (any crisis id; `&severity=1.2`), or the inspector's Crisis drills.
 
 ## 3. Hard rules

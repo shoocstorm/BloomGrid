@@ -52,17 +52,24 @@ export default defineScenario({
     const sx = Math.round(S / 2 - SP / 2);
     const sz = sx;
     const [lx, lz, rx, rz] = [sx - 1, sz - 1, sx + SP, sz + SP];
-    b.level(lx - 10, lz - 8, rx + 12, rz + 4, 6);
+    const terrace = b.level(lx - 10, lz - 8, rx + 12, rz + 4, 6);
     const spire = b.building('wellspring-spire', sx, sz, 0);
     if (spire) {
       // Each hero slides away from its anchor (dx, dz per step) until it fits: the river head moves with the seed.
-      const hero = (id: string, x: number, z: number, dx: number, dz: number) => {
-        for (let i = 0; i < 6 && !b.building(id, x + i * dx, z + i * dz, 0); i++);
+      const hero = (id: string, x: number, z: number, dx: number, dz: number, rot = 0) => {
+        for (let i = 0; i < 6 && !b.building(id, x + i * dx, z + i * dz, rot); i++);
       };
       hero('helix-spire', S / 2 - 4, lz - 8, 0, -1);
       hero('hanging-gardens', lx - 10, S / 2 - 5, -1, 0);
       hero('sky-ark', rx + 1, S / 2 - 7, 1, 0);
       hero('cloud-domes', rx + 2, S / 2 + 1, 1, 0);
+      // Hero avenue: the boulevard to downtown, on a terrace continuing the quarter's level.
+      b.level(rx + 13, S / 2 - 12, rx + 43, S / 2 + 24, 4, terrace);
+      hero('rain-vortex', rx + 15, S / 2 - 10, 1, 0);
+      hero('dragonfly-port', rx + 27, S / 2 - 8, 1, 0);
+      hero('mycelium-towers', rx + 15, S / 2 + 1, 1, 0);
+      hero('algae-lantern', rx + 37, S / 2 + 6, 0, 1);
+      hero('vertical-forest', rx + 30, S / 2 + 14, 0, 1, 1);
     }
 
     // The Supertree Grove (8×8) needs open land the district grids would cut up: reserve it first,

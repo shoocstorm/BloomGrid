@@ -101,7 +101,7 @@ export function applyScenario(city: City, id: string): { buildings: number; road
             sum += h;
             n++;
           }
-        if (!n) return;
+        if (!n) return NaN;
         target = sum / n;
       }
       const edits: [number, number][] = [];
@@ -111,11 +111,13 @@ export function applyScenario(city: City, id: string): { buildings: number; road
           const h = g.heights[c]!;
           if (h < SEA_LEVEL + 0.05) continue; // rivers and reservoirs stay
           const out = Math.max(x0 - x, x - x1, z0 - z, z - z1, 0);
+          if (out > 0 && city.terrainEdits.has(c)) continue; // a feather never bends an earlier terrace
           let t = 1 - out / (margin + 1);
           t = t * t * (3 - 2 * t);
           edits.push([c, h + (target - h) * t]);
         }
       setCorners(city, edits);
+      return target;
     },
   };
 
