@@ -194,3 +194,14 @@ the four files that carry it, commits, tags `vX.Y.Z` and pushes atomically; `fir
 those tags (and `workflow_dispatch` to re-deploy), gates on `bun run check`, deploys the live channel and creates a
 GitHub Release.
 **Consequences:** No PR previews. The tag must match `package.json` or CI fails. Agents release only on request (AGENTS.md §10).
+
+## D-033 — Central landmark on a scenario-levelled terrace (2026-10-25)
+
+**Context:** The user wanted an iconic, huge hero building at the centre of the map. The exact centre is the river's
+spring on the hill slopes (no 14×14 plot within ≈20 tiles passes the slope check).
+**Decision:** `ScenarioBuilder.level()` flattens a rectangle to its mean height with a smoothstep feather, never
+touching water, through `setCorners` (so the edit is saved and hashed like reclaimed land). The Wellspring Spire is
+procedural (kit pieces + one new `lumen` material, 3 new pieces) instead of a Rodin GLB: no paid credits, works offline,
+and stays on the instanced path. Its loop road and boulevard are drawn after the utility sweeps so they don't crowd the plaza.
+**Consequences:** About +5 draws near the spire. A Rodin GLB could replace the look later (keep the recipe as the
+`fallback`). Old saves keep their own terrain and city; only new cities get the spire.

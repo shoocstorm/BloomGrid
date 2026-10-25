@@ -8,10 +8,10 @@ sections whenever you stop working** (see AGENTS.md §6).
 |             |                                                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Branch      | `main`, remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10)                              |
-| Last commit | Switch to bun; tag-triggered Firebase release workflow + `bun run release`                                                                                      |
+| Last change | Wellspring Spire: central landmark at the map centre (D-033), uncommitted |
 | Phases done | **All roadmap phases 0–12** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
-| Tests       | 62 passing (`bun run test`); `bun run check` clean                                                                                                              |
+| Tests       | 63 passing (`bun run test`); `bun run check` clean                                                                                                              |
 | Save format | v6 (terrain edits, sky-bridges, sea rise; migrations from v1–v5 in `src/sim/save.ts`)                                                                           |
 | Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈1 710 buildings at its original tile size, ≈24k residents, water Strained (≈95%) |
 
@@ -42,7 +42,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 | Area            | Where                                                      | Notes                                                                                                                                                                                                       |
 | --------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Sim core        | `src/sim/`                                                 | `City`, `Grid`, `pulse.ts` (1 Hz management pulse), fields, bloom, night life, mobility, Flora-Net soil, coast (terrain edits, sea rise), weaver, crises, finance, upkeep, steward, seasons, scenario, save |
-| Content         | `src/content/buildings/*.ts`, `src/content/scenarios/*.ts` | 17 buildings (2 with Rodin GLBs), founding-city scenario; auto-discovered                                                                                                                                   |
+| Content         | `src/content/buildings/*.ts`, `src/content/scenarios/*.ts` | 18 buildings (2 with Rodin GLBs; the central Wellspring Spire is procedural), founding-city scenario; auto-discovered                                                                                                                                   |
 | Rendering       | `src/render/`, `src/assets/kit/pieces.ts`                  | `ChunkedInstancer` (static buffers, ≥1040 capacity, update ranges), TSL material library with lens/vitality/season support                                                                                  |
 | Feature modules | `src/modules/*`                                            | world, construction (buildings, roads, channels, tools), pulse, overlays, advisor, views, dashboard, settings, crises, bloom, mobility                                                                      |
 | HUD             | `src/ui/`                                                  | vanilla DOM; right column via `services.get('hud').right`                                                                                                                                                   |

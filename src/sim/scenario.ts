@@ -2,6 +2,8 @@ import { buildings, scenarios } from '@/content';
 import type { ScenarioBuilder } from '@/content/types';
 import { Service } from '@/ecs/components';
 import type { City } from './City';
+import { setCorners } from './coast';
+import { SEA_LEVEL } from './Grid';
 import { RoadNetworks } from './networks';
 import { Rng } from './random';
 
@@ -84,6 +86,37 @@ export function applyScenario(city: City, id: string): { buildings: number; road
       return n;
     },
     totals: () => ({ ...totals }),
+    level(x0, z0, x1, z1, margin = 4, height) {
+      const W = g.w + 1;
+      // Corners of tiles x0..x1 span x0..x1+1.
+      [x0, z0, x1, z1] = [x0, z0, x1 + 1, z1 + 1].map(Math.round) as [number, number, number, number];
+      let target = height;
+      if (target === undefined) {
+        let sum = 0;
+        let n = 0;
+        for (let z = z0; z <= z1; z++)
+          for (let x = x0; x <= x1; x++) {
+            const h = g.heights[z * W + x]!;
+            if (h < SEA_LEVEL + 0.05) continue;
+            sum += h;
+            n++;
+          }
+        if (!n) return;
+        target = sum / n;
+      }
+      const edits: [number, number][] = [];
+      for (let z = Math.max(0, z0 - margin); z <= Math.min(g.h, z1 + margin); z++)
+        for (let x = Math.max(0, x0 - margin); x <= Math.min(g.w, x1 + margin); x++) {
+          const c = z * W + x;
+          const h = g.heights[c]!;
+          if (h < SEA_LEVEL + 0.05) continue; // rivers and reservoirs stay
+          const out = Math.max(x0 - x, x - x1, z0 - z, z - z1, 0);
+          let t = 1 - out / (margin + 1);
+          t = t * t * (3 - 2 * t);
+          edits.push([c, h + (target - h) * t]);
+        }
+      setCorners(city, edits);
+    },
   };
 
   def.build(builder);

@@ -291,6 +291,14 @@ export function initMaterials(): void {
     return m;
   });
 
+  // Landmark light-work: pearl in daylight, glowing aqua at night (instance glow sets the strength).
+  define('lumen', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.3, metalness: 0.15 });
+    m.colorNode = color(0xf2faf7);
+    m.emissiveNode = color(0x8ff8ec).mul(iGlow).mul(U.night.mul(1.6).add(0.12));
+    return m;
+  });
+
   // Commuter pod shell: pearl body with a glowing window band (instance glow brightens it at night).
   define('pod', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.25, metalness: 0.2 });

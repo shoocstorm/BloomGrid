@@ -4,6 +4,8 @@ import { EventBus } from '@/core/EventBus';
 import { SAVE_VERSION, deserializeCity, migrateSave, serializeCity, type SaveData } from '@/sim/save';
 import { buildings } from '@/content';
 import { applyScenario } from '@/sim/scenario';
+import { Building } from '@/ecs/components';
+import { RoadNetworks } from '@/sim/networks';
 import { makeSim } from './helpers';
 
 describe('save migrations', () => {
@@ -54,5 +56,27 @@ describe('hero assets', () => {
       expect(r.glb).toMatch(/^\/assets\/.+\.glb$/);
       expect(typeof r.fallback).toBe('function');
     }
+  });
+});
+
+describe('central landmark', () => {
+  it('the founding city levels a terrace at the island centre for the Wellspring Spire, with road access, and saves it', () => {
+    const s = makeSim(7);
+    applyScenario(s.city, 'founding-city');
+    const g = s.city.grid;
+    const h = s.city.size / 2;
+    const eid = g.occupant[g.index(h, h)]!;
+    expect(eid).toBeGreaterThanOrEqual(0);
+    expect(buildings.at(Building.def[eid]!).id).toBe('wellspring-spire');
+    const [x, z] = [Building.x[eid]!, Building.z[eid]!];
+    const { min, max } = g.rangeOver(x, z, 14, 14);
+    expect(max - min).toBeLessThan(0.01);
+    expect(RoadNetworks.touchesRoad(g, x, z, 14, 14)).toBe(true);
+    expect(s.city.terrainEdits.size).toBeGreaterThan(200);
+    s.step(10);
+    const c2 = new City(new EventBus(), 1);
+    deserializeCity(c2, structuredClone(serializeCity(s.city)));
+    expect(c2.grid.rangeOver(x, z, 14, 14).max).toBeCloseTo(max, 2);
+    expect(c2.hash()).toBe(s.city.hash());
   });
 });

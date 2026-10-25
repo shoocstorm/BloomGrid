@@ -44,6 +44,15 @@ export default defineScenario({
     b.road(...P(0.24, 0.62), ...P(0.1, 0.66), true); // west: industrial islet
     b.road(...P(0.78, 0.4), ...P(0.84, 0.2), true); // north-east: rustic islet
 
+    // The Wellspring Spire at the island's exact centre, on a terrace levelled where the river
+    // rises. Its roads are drawn last (below) so the utility sweeps don't crowd the plaza.
+    const SP = 14;
+    const sx = Math.round(S / 2 - SP / 2);
+    const sz = sx;
+    const [lx, lz, rx, rz] = [sx - 1, sz - 1, sx + SP, sz + SP];
+    b.level(lx, lz, rx, rz, 5);
+    const spire = b.building('wellspring-spire', sx, sz, 0);
+
     // The Supertree Grove (8×8) needs open land the district grids would cut up: reserve it first,
     // on the ring road just west of downtown.
     b.fill(0.36 * S, 0.6 * S, 0.47 * S, 0.72 * S, { 'supertree-grove': 1 }, 1, 1);
@@ -92,5 +101,17 @@ export default defineScenario({
     sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06, island);
     sweep('water-works', () => t().waterProduced > t().waterUsed * 1.02, island);
     sweep('vertical-farm', () => t().food > t().population * 0.55);
+
+    // Spire roads: a plaza loop and a boulevard south-east into the downtown grid (its x = 299 road).
+    if (spire) {
+      b.road(lx, lz, rx, lz);
+      b.road(rx, lz, rx, rz);
+      b.road(rx, rz, lx, rz);
+      b.road(lx, rz, lx, lz);
+      const [dx0, dz0] = fit(S, 0.44, 0.6, 0.66, 0.74).map((v) => Math.round(v * S)) as [number, number];
+      const bx = dx0 + 5 * Math.round((0.585 * S - dx0) / 5);
+      b.road(rx, S / 2, bx, S / 2, true);
+      b.road(bx, S / 2, bx, dz0, true);
+    }
   },
 });

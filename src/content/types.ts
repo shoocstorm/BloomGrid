@@ -153,6 +153,11 @@ export interface ScenarioBuilder {
   /** Fills free road-adjacent land in a rectangle using weighted building picks. Returns count. */
   fill(x0: number, z0: number, x1: number, z1: number, weights: Record<string, number>, density?: number, limit?: number): number;
   isLand(x: number, z: number): boolean;
+  /**
+   * Levels the tiles x0..x1 × z0..z1 (inclusive) to `height` (default: their mean ground height),
+   * feathering back into the terrain over `margin` tiles. Water is never filled. Saved as terrain edits.
+   */
+  level(x0: number, z0: number, x1: number, z1: number, margin?: number, height?: number): void;
   /** Running utility totals of everything placed so far (at full occupancy). */
   totals(): { energyProduced: number; energyUsed: number; waterProduced: number; waterUsed: number; food: number; population: number; jobs: number };
 }
