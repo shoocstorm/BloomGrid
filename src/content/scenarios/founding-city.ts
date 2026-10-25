@@ -31,6 +31,10 @@ export default defineScenario({
     b.road(...P(0.24, 0.62), ...P(0.1, 0.66), true); // west: industrial islet
     b.road(...P(0.78, 0.4), ...P(0.84, 0.2), true); // north-east: rustic islet
 
+    // The Supertree Grove (8×8) needs open land the district grids would cut up: reserve it first,
+    // on the ring road just west of downtown.
+    b.fill(0.36 * S, 0.6 * S, 0.47 * S, 0.72 * S, { 'supertree-grove': 1 }, 1, 1);
+
     const homes = { 'garden-residence': 4, 'canopy-tower': 1, 'pocket-park': 2, 'greenhouse-hub': 3 };
     district(b, 0.44, 0.6, 0.66, 0.74, 5, { 'canopy-tower': 5, 'greenhouse-hub': 4, 'garden-residence': 2, 'pocket-park': 2, 'vertical-farm': 1 });
     district(b, 0.68, 0.42, 0.88, 0.62, 6, homes);
@@ -62,6 +66,8 @@ export default defineScenario({
     };
     // Two Pod Docks (downtown and the eastern town) so sky-lanes fly from day one.
     for (const [x0, z0, x1, z1] of [areas[3]!, areas[0]!]) b.fill(x0 * S, z0 * S, x1 * S, z1 * S, { 'pod-dock': 1 }, 1, 1);
+    // Landmark: the Lotus Arts Pavilion on the bay (the Supertree Grove is placed before the districts).
+    b.fill(0.46 * S, 0.66 * S, 0.66 * S, 0.8 * S, { 'lotus-pavilion': 1 }, 1, 1);
     // A Flora-Net Drone Hive downtown and an Eco-Playground in the western town.
     b.fill(areas[3]![0] * S, areas[3]![1] * S, areas[3]![2] * S, areas[3]![3] * S, { 'flora-hive': 1 }, 1, 1);
     b.fill(areas[1]![0] * S, areas[1]![1] * S, areas[1]![2] * S, areas[1]![3] * S, { 'eco-playground': 1 }, 1, 1);
@@ -69,7 +75,7 @@ export default defineScenario({
     sweep('greenhouse-hub', () => t().jobs > t().population * 0.65 * 0.85);
     sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06);
     sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06, island);
-    sweep('water-works', () => t().waterProduced > t().waterUsed * 1.12, island);
+    sweep('water-works', () => t().waterProduced > t().waterUsed * 1.07, island);
     sweep('vertical-farm', () => t().food > t().population * 0.55);
   },
 });

@@ -2,7 +2,7 @@
 .explore-bar {
   position: fixed;
   right: 16px;
-  bottom: 16px;
+  bottom: 84px; /* above the build toolbar, which now spans most of the bottom edge */
   display: flex;
   gap: 2px;
   padding: 4px;

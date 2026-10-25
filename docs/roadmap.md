@@ -156,10 +156,16 @@ The city is a system that can run well or badly.
 - **Accept:** ✅ `tests/explore.test.ts` (towers block, parks walkable, highways open, off-map blocked, water blocks walkers but not boards, bridge decks carry you). Drill: `scripts/scenes/explore.js` (`window.MODE`, `window.PHOTO`, `window.NIGHT`).
 - **Measured:** city view main thread 16.4% active / 13.4% idle; GPU ≈1.0 ms; draws 193 (212 with `?stress=1500`); walk mode 112 draws at street level.
 
-## ⬜ Phase 12 — Hero Assets & Platform
+## ✅ Phase 12 — Hero Assets & Platform
 
-Hyper3D (Rodin) GLBs for landmarks and vehicles via gltf-transform (meshopt, KTX2); Tauri shell (native saves,
-window settings); save migrations.
+- [x] Asset pipeline `npm run optimize-glb -- raw.glb public/assets/x.glb --footprint N --height N [--ratio] [--yaw] [--tex]` (`scripts/optimize-glb.mjs`): dedup/prune/weld, meshopt simplify, fit to footprint/height with the pivot at the base centre, textures downscaled and JPEG-encoded with macOS `sips` (normal maps PNG at half size), meshopt compression; prints a stats report
+- [x] Three Hyper3D Rodin hero assets (raw files in git-ignored `assets-raw/`): **Supertree Grove** (13.4 MB → 1.5 MB, 17.6k tris; the landmark: a reserved 10×10 plot on the ring road west of downtown, ≈15.6 units tall, about 2.5× the tallest towers, via `--stretch 2`), **Lotus Arts Pavilion** (10 MB → 645 KB, 9k tris), **commuter pod** (9.8 MB → 298 KB, 3.9k tris)
+- [x] Runtime: GLB recipes take a procedural `fallback` (bounds, collision, retrofit overlays; drawn if the file is missing); GLB materials become lens- and night-aware node materials; pods swap in the GLB shape/texture when present; both landmarks in the founding city
+- [x] Tauri v2 desktop shell (`src-tauri/`): saves as JSON files in the app data dir via Rust commands (atomic write-then-rename, safe key names), exports folder, 1600×1000 window with minimum size, fullscreen toggle (⚙ and F11); `npm run tauri:dev` / `tauri:build`; generated app icon (`scripts/make-icon.mjs`); `src/platform` picks Tauri automatically
+- [x] Save migrations: chain test from v1 to v6; unknown future versions are refused
+- [ ] Deferred: KTX2 textures (needs `toktx` and the basis transcoder wired into `GLTFLoader`), Windows/Linux packaging checks, code signing
+- **Accept:** ✅ `tests/platform.test.ts` (v1 → v6 migration loads the same city; future versions refused; GLB landmarks have fallbacks). Visual: Rodin landmarks and pod on WebGPU and WebGL2 (day and night); desktop window renders the full game (`cargo build`, launched against the dev server).
+- **Measured:** main thread 16.3% active / 14.6% idle; GPU 1.9–3.5 ms; draws 195 (229 with `?stress=1500`); boot unchanged (GLBs load asynchronously after boot).
 
 ---
 

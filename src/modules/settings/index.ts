@@ -12,6 +12,22 @@ const QUALITY_LABELS: Record<QualityTier, string> = {
 };
 const STORAGE_KEY = 'bloomgrid.quality';
 
+/** Desktop shell only (Tauri): native fullscreen toggle, also on F11. */
+function desktopSection(setFullscreen: (on: boolean) => Promise<void>): HTMLElement {
+  let on = false;
+  const toggle = () => {
+    on = !on;
+    void setFullscreen(on);
+  };
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'F11') {
+      e.preventDefault();
+      toggle();
+    }
+  });
+  return h('div', {}, h('h4', {}, 'Window'), h('button', { class: 'set-new', onClick: toggle }, '⛶ Toggle fullscreen (F11)'));
+}
+
 /**
  * Settings popover (⚙): graphics quality and power mode. Both are per-viewer conveniences kept in
  * localStorage; `?quality=` in the URL still wins for testing.
@@ -48,6 +64,7 @@ export const settingsModule: GameModule = {
       radio('power', Object.fromEntries(Object.entries(POWER_MODES).map(([k, v]) => [k, v.label])) as Record<PowerMode, string>, render.power.mode, (m) =>
         render.power.setMode(m),
       ),
+      ...(ctx.platform.setFullscreen ? [desktopSection(ctx.platform.setFullscreen.bind(ctx.platform))] : []),
       h('h4', {}, 'Graphics'),
       radio('quality', QUALITY_LABELS, ctx.quality.tier, (q) => {
         render.setQuality(q);

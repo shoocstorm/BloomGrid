@@ -115,8 +115,11 @@ export interface BuildingDef {
   tower?: boolean;
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */
   variants?: number;
-  /** Procedural recipe, or a GLB asset path for hero models. */
-  recipe: ((b: KitBuilder) => void) | { glb: string; scale?: number };
+  /**
+   * Procedural recipe, or a GLB hero model. A GLB recipe's `fallback` provides the building's
+   * volume (bounds, collision, retrofit overlays) and is drawn while the GLB is missing.
+   */
+  recipe: ((b: KitBuilder) => void) | { glb: string; scale?: number; fallback?: (b: KitBuilder) => void };
 }
 
 export interface Symbiosis {

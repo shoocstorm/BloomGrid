@@ -89,7 +89,8 @@ export function buildingTemplate(def: BuildingDef, variant: number): BuildingTem
   };
   const [w, d] = def.footprint;
   const builder: KitBuilder = { w, d, rand: () => rng.next(), range: (a, b) => rng.range(a, b), pick: (arr) => rng.pick(arr), add };
-  if (typeof def.recipe === 'function') def.recipe(builder);
+  const recipe = typeof def.recipe === 'function' ? def.recipe : def.recipe.fallback;
+  recipe?.(builder);
   if (bounds.minX === Infinity) Object.assign(bounds, { minX: -0.4, maxX: 0.4, minZ: -0.4, maxZ: 0.4, top: 0.5 });
   t = { pieces, height, bounds, rng };
   templates.set(key, t);
@@ -321,7 +322,7 @@ export class BuildingRenderer {
       plants: [],
       vitality: 1,
       wild: 0,
-      template: typeof def.recipe === 'function' ? place.template : null,
+      template: typeof def.recipe === 'function' || def.recipe.fallback ? place.template : null,
       retro: [],
       pending: [],
       base: place.base,
@@ -335,25 +336,34 @@ export class BuildingRenderer {
     _params.set([rec.greenery, 0.5, 0, 1]);
     entry.handles.push(instancer.addMatrix('plinth', place.plinth, _c.setHex(0xffffff), _params, animate ? 0 : -1));
 
-    if (typeof def.recipe !== 'function') {
-      const recipe = def.recipe;
-      void assets.loadGlbPieces(recipe.glb).then((parts) => {
-        if (this.entries.get(eid) !== entry) return;
-        const scaled = _m.copy(place.base).scale(_s.setScalar(recipe.scale ?? 1)).clone();
-        for (const part of parts) {
-          _params.set([1, 0, 0, 1]);
-          const world = new Matrix4().multiplyMatrices(scaled, part.matrix);
-          entry.handles.push(instancer.addMatrix(part.piece, world, _c.setHex(0xffffff), _params, animate ? 0 : -1));
-        }
-      });
-      return;
-    }
+    const spawnTemplate = () => {
+      for (const p of place.template.pieces) {
+        if (p.growAt <= rec.greenery) this.spawn(entry, p, rec.greenery, animate ? p.y * 0.35 + Math.random() * 0.08 : -1);
+        else entry.pending.push(p);
+      }
+      entry.pending.sort((a, b) => a.growAt - b.growAt);
+    };
 
-    for (const p of place.template.pieces) {
-      if (p.growAt <= rec.greenery) this.spawn(entry, p, rec.greenery, animate ? p.y * 0.35 + Math.random() * 0.08 : -1);
-      else entry.pending.push(p);
-    }
-    entry.pending.sort((a, b) => a.growAt - b.growAt);
+    if (typeof def.recipe !== 'function') {
+      // Hero model: GLB parts become instanced pieces; the procedural fallback stands in if the
+      // file is missing or fails to load (the game must work without optional assets).
+      const recipe = def.recipe;
+      void assets.loadGlbPieces(recipe.glb).then(
+        (parts) => {
+          if (this.entries.get(eid) !== entry) return;
+          const scaled = _m.copy(place.base).scale(_s.setScalar(recipe.scale ?? 1)).clone();
+          for (const part of parts) {
+            _params.set([1, 0.5, 0.4, 1]);
+            const world = new Matrix4().multiplyMatrices(scaled, part.matrix);
+            entry.handles.push(instancer.addMatrix(part.piece, world, _c.setHex(0xffffff), _params, animate ? 0 : -1, 1.2));
+          }
+          this.ctx.services.tryGet('world')?.atmosphere.invalidateShadows();
+        },
+        () => {
+          if (this.entries.get(eid) === entry && recipe.fallback) spawnTemplate();
+        },
+      );
+    } else spawnTemplate();
     if (Building.level[eid]) this.addRetrofit(entry, animate ? 0.3 : -1, Building.level[eid]!);
   }
 

@@ -9,8 +9,10 @@ import {
   PlaneGeometry,
   SphereGeometry,
   type Node,
+  type BufferGeometry,
+  type Texture,
 } from 'three/webgpu';
-import { abs, attribute, color, cos, float, fract, max, mix, positionGeometry, smoothstep, step, time, uniform, vec2, vec3 } from 'three/tsl';
+import { abs, attribute, color, cos, float, fract, max, mix, positionGeometry, smoothstep, step, texture, time, uniform, uv, vec2, vec3 } from 'three/tsl';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
@@ -91,7 +93,7 @@ export const mobilityModule: GameModule = {
     };
     const podRoute = new InstancedBufferAttribute(new Float32Array(PODS * 4), 4);
     const podInfo = new InstancedBufferAttribute(new Float32Array(PODS * 4), 4);
-    const podGeo = new SphereGeometry(0.5, 12, 8).scale(0.5, 0.22, 0.25);
+    const podGeo: BufferGeometry = new SphereGeometry(0.5, 12, 8).scale(0.5, 0.22, 0.25);
     podGeo.setAttribute('aRoute', podRoute);
     podGeo.setAttribute('aRouteInfo', podInfo);
     const pm = new MeshStandardNodeMaterial({ roughness: 0.25, metalness: 0.2 });
@@ -116,6 +118,25 @@ export const mobilityModule: GameModule = {
     pods.frustumCulled = false;
     pods.castShadow = pods.receiveShadow = false;
     pods.name = 'mobility.pods';
+    // Hero pod model (Phase 12): if the optional GLB is present, swap in its shape and texture.
+    // The pipeline (scripts/optimize-glb.mjs) fits it with its length along +X, like the capsule.
+    ctx.assets.loadGlbGeometry('/assets/commuter-pod.glb').then(
+      ({ geometry, material }) => {
+        geometry.setAttribute('aRoute', podRoute);
+        geometry.setAttribute('aRouteInfo', podInfo);
+        pods.geometry = geometry;
+        const map = (material as { map?: Texture | null } | null)?.map;
+        if (map) {
+          const tex = texture(map, uv());
+          pm.colorNode = tex;
+          pm.emissiveNode = tex.rgb.mul(U.night.mul(0.35).add(0.05)).add(color(0x7ff7e6).mul(U.night).mul(0.15));
+          pm.needsUpdate = true;
+        }
+      },
+      () => {
+        /* optional asset missing: keep the procedural capsule */
+      },
+    );
 
     const laneRoute = new InstancedBufferAttribute(new Float32Array(LANES * 4), 4);
     const laneInfo = new InstancedBufferAttribute(new Float32Array(LANES * 4), 4);

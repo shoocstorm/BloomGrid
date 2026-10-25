@@ -9,6 +9,8 @@ export interface KeyValueStorage {
 export interface Platform {
   name: 'web' | 'tauri';
   storage: KeyValueStorage;
-  /** Offer a file download / native save dialog. */
+  /** Offer a file download (web) or write into the app's exports folder (Tauri). */
   exportFile(name: string, data: string): Promise<void>;
+  /** Native window fullscreen (Tauri only). */
+  setFullscreen?(on: boolean): Promise<void>;
 }

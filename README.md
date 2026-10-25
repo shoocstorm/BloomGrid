@@ -38,6 +38,14 @@ B Bloom Retrofit · M Flora-Net mist · V Green Weaver · T reclaim land · X bu
 4–0 build categories · N explore (walk / hoverboard / drone / ride a pod, Esc back) · J photo mode (P saves PNG) · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·
 Alt+1–4 / Shift+1–4 store / recall views · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
 
+## Desktop app
+
+`npm run tauri:dev` opens BloomGrid in a native window (Tauri v2; needs a Rust toolchain); `npm run tauri:build`
+packages it. Saves live as JSON files in the app data folder; ⚙ → Window toggles fullscreen (F11).
+
+Hero models (Supertree Grove, Lotus Arts Pavilion, commuter pod) were generated with Hyper3D Rodin and optimised with
+`npm run optimize-glb`; the game falls back to procedural versions if they are missing.
+
 ## Docs
 
 - [`AGENTS.md`](AGENTS.md): how to work on this repo (rules, commands, definition of done, doc upkeep)

@@ -21,26 +21,27 @@ main.ts ── createGame()  core runtime: renderer, sim, input, tools, save, sy
 
 ## Simulation model (City Pulse)
 
-| Piece            | Where                                                        | Notes                                                                                                                          |
-| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| Tile grid        | `sim/Grid.ts`                                                | Corner heights, `occupant`, `road` (0 none, 1 highway, 2 bridge), pluggable layers                                             |
-| Entities         | `ecs/components.ts`                                          | `Building`, `Greenery`, `Service` (network, power, water, occupancy, problem bits)                                             |
-| Networks         | `sim/networks.ts`                                            | Highway connected components; buildings join via footprint perimeter                                                           |
-| Pulse            | `sim/pulse.ts`                                               | Once per sim second: utilities per network → service levels → occupancy/staffing → demand → harmony → budget → tiers → history |
-| Pulse state      | `sim/pulseState.ts`                                          | Tax rate, tiers, harmony breakdown, history ring buffers (plain data, saved)                                                   |
-| Scenarios        | `sim/scenario.ts` + `content/scenarios/*`                    | Bulk, deterministic starting content applied before renderers attach                                                           |
-| Fields           | `sim/fields.ts`                                              | Pollution / ecology / desirability / shore layers on the grid, recomputed every `FIELD_PULSES`                                 |
-| Lenses           | `sim/overlays.ts`                                            | Registry of per-tile overlays (value + mask) → `modules/overlays` uploads to `overlayTexture`                                  |
-| Advisor          | `sim/advisor.ts`                                             | Registry of pure advisory rules → `modules/advisor` renders and logs                                                           |
-| Crises           | `sim/crises.ts`                                              | Crisis registry + scheduler → per-pulse `Modifiers` (D-015) → `modules/crises` visuals and HUD                                 |
-| Bloom & seasons  | `sim/bloom.ts`, `sim/seasons.ts`, `sim/blur.ts`              | Pollen / bloom / irrigation fields, symbiotic pairing, season from tick (D-018, D-020)                                         |
-| Night life       | `sim/nightlife.ts`                                           | Derived pedestrian-activity field (pulse phase 4) → `bloomTexture` G → `activityGlow()` in materials (D-021)                   |
-| Flora-Net        | `sim/floranet.ts`                                            | Saved soil zones (hydration, nutrients; pulse phase 3), pod mist, drone sorties, hive trimming → `modules/floranet` (D-023)    |
-| Coast & weaver   | `sim/coast.ts`, `sim/weaver.ts`                              | Terrain edits + derived refresh, sea rise, seawalls; sky-bridges and banyan level → `modules/weaver`, world rebuilds (D-024)   |
-| Explore (render) | `modules/explore/`                                           | Walk / board / drone / pod follow-cam and photo mode over `CityCamera` (disabled while exploring), collider (D-025)            |
-| Mobility         | `sim/mobility.ts`                                            | Commute flow field + congestion + pod routes (pulse phase 1) → `modules/mobility` GPU-animated agents, pods, sky-lanes (D-022) |
-| Finance & upkeep | `sim/finance.ts`, `sim/upkeep.ts`                            | Loans, austerity funding, building condition, highway overgrowth (D-016)                                                       |
-| Stewardship      | `sim/steward.ts`, `sim/difficulty.ts`, `sim/stewardState.ts` | Fail clock, difficulty presets, saved steward state (D-017)                                                                    |
+| Piece             | Where                                                        | Notes                                                                                                                          |
+| ----------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Tile grid         | `sim/Grid.ts`                                                | Corner heights, `occupant`, `road` (0 none, 1 highway, 2 bridge), pluggable layers                                             |
+| Entities          | `ecs/components.ts`                                          | `Building`, `Greenery`, `Service` (network, power, water, occupancy, problem bits)                                             |
+| Networks          | `sim/networks.ts`                                            | Highway connected components; buildings join via footprint perimeter                                                           |
+| Pulse             | `sim/pulse.ts`                                               | Once per sim second: utilities per network → service levels → occupancy/staffing → demand → harmony → budget → tiers → history |
+| Pulse state       | `sim/pulseState.ts`                                          | Tax rate, tiers, harmony breakdown, history ring buffers (plain data, saved)                                                   |
+| Scenarios         | `sim/scenario.ts` + `content/scenarios/*`                    | Bulk, deterministic starting content applied before renderers attach                                                           |
+| Fields            | `sim/fields.ts`                                              | Pollution / ecology / desirability / shore layers on the grid, recomputed every `FIELD_PULSES`                                 |
+| Lenses            | `sim/overlays.ts`                                            | Registry of per-tile overlays (value + mask) → `modules/overlays` uploads to `overlayTexture`                                  |
+| Advisor           | `sim/advisor.ts`                                             | Registry of pure advisory rules → `modules/advisor` renders and logs                                                           |
+| Crises            | `sim/crises.ts`                                              | Crisis registry + scheduler → per-pulse `Modifiers` (D-015) → `modules/crises` visuals and HUD                                 |
+| Bloom & seasons   | `sim/bloom.ts`, `sim/seasons.ts`, `sim/blur.ts`              | Pollen / bloom / irrigation fields, symbiotic pairing, season from tick (D-018, D-020)                                         |
+| Night life        | `sim/nightlife.ts`                                           | Derived pedestrian-activity field (pulse phase 4) → `bloomTexture` G → `activityGlow()` in materials (D-021)                   |
+| Flora-Net         | `sim/floranet.ts`                                            | Saved soil zones (hydration, nutrients; pulse phase 3), pod mist, drone sorties, hive trimming → `modules/floranet` (D-023)    |
+| Coast & weaver    | `sim/coast.ts`, `sim/weaver.ts`                              | Terrain edits + derived refresh, sea rise, seawalls; sky-bridges and banyan level → `modules/weaver`, world rebuilds (D-024)   |
+| Assets & platform | `assets/AssetManager.ts`, `platform/`, `src-tauri/`          | GLB pieces/geometry with node materials and fallbacks; web (IndexedDB) or Tauri (JSON files) storage (D-026)                   |
+| Explore (render)  | `modules/explore/`                                           | Walk / board / drone / pod follow-cam and photo mode over `CityCamera` (disabled while exploring), collider (D-025)            |
+| Mobility          | `sim/mobility.ts`                                            | Commute flow field + congestion + pod routes (pulse phase 1) → `modules/mobility` GPU-animated agents, pods, sky-lanes (D-022) |
+| Finance & upkeep  | `sim/finance.ts`, `sim/upkeep.ts`                            | Loans, austerity funding, building condition, highway overgrowth (D-016)                                                       |
+| Stewardship       | `sim/steward.ts`, `sim/difficulty.ts`, `sim/stewardState.ts` | Fail clock, difficulty presets, saved steward state (D-017)                                                                    |
 
 ## Frame
 
