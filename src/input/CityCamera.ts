@@ -30,6 +30,10 @@ export class CityCamera {
   smoothing = 10;
   /** Set by tools: left-drag pans the camera. */
   dragPan = false;
+  /** False while an explore mode drives the camera (target / distance still describe the focus). */
+  enabled = true;
+  /** Set by explore modes so power pacing treats a moving first-person view as active. */
+  externalMotion = false;
 
   minDistance = 6;
   maxDistance = 320;
@@ -109,6 +113,7 @@ export class CityCamera {
   }
 
   update(dt: number): void {
+    if (!this.enabled) return;
     const inp = this.input;
     const k = inp.keys;
     const panSpeed = this.goalDistance * 0.9 * dt;
@@ -160,6 +165,7 @@ export class CityCamera {
   /** True while the camera is still gliding toward its goal (or a key is held). */
   isMoving(): boolean {
     return (
+      this.externalMotion ||
       this.target.distanceToSquared(this.goalTarget) > 1e-4 ||
       Math.abs(this.goalDistance - this.distance) > 0.01 ||
       Math.abs(this.goalYaw - this.yaw) > 1e-4 ||

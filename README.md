@@ -35,7 +35,7 @@ merges a tower with a banyan (click it twice).
 
 Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · C filtration channel ·
 B Bloom Retrofit · M Flora-Net mist · V Green Weaver · T reclaim land · X bulldoze ·
-4–0 build categories · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·
+4–0 build categories · N explore (walk / hoverboard / drone / ride a pod, Esc back) · J photo mode (P saves PNG) · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·
 Alt+1–4 / Shift+1–4 store / recall views · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
 
 ## Docs

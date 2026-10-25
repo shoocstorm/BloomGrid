@@ -7,6 +7,7 @@ import { createWater, updateWaterDepth } from '@/world/Water';
 import { DAY_LENGTH, chunkSizeFor } from '@/sim/City';
 import { Building } from '@/ecs/components';
 import { buildings } from '@/content';
+import { U } from '@/render/uniforms';
 
 export interface WorldService {
   atmosphere: Atmosphere;
@@ -104,6 +105,7 @@ export const worldModule: GameModule = {
       id: 'world.atmosphere',
       phase: 'sync',
       update(c, f) {
+        U.clock.value += f.dt;
         // Interpolate time of day between ticks for smooth sun motion.
         const t = (c.city.timeOfDay + (f.alpha * c.engine.speed * c.engine.step) / DAY_LENGTH) % 1;
         atmosphere.applyTime(t);

@@ -102,7 +102,8 @@ export const mobilityModule: GameModule = {
       const len = max(d.length(), float(1));
       const dir = d.div(len);
       // Shuttle out and back, easing into each dock.
-      const t = float(0.5).sub(cos(time.mul(float(4).div(len.sqrt())).add(info.w.mul(6.283))).mul(0.5));
+      // U.clock (not `time`) so the explore follow-cam can compute the same position on the CPU.
+      const t = float(0.5).sub(cos(U.clock.mul(float(4).div(len.sqrt())).add(info.w.mul(6.283))).mul(0.5));
       const g = positionGeometry;
       const body = vec3(g.x.mul(dir.x).sub(g.z.mul(dir.y)), g.y, g.x.mul(dir.y).add(g.z.mul(dir.x)));
       pm.positionNode = arc(route, info, t).add(body);

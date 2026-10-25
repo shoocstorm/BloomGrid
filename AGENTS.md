@@ -39,7 +39,7 @@ wave), `nightlife.js` (night downtown: glow should follow activity; `window.NEAR
 (mid-Haze; prefix `window.SEASON = 1;` for a Monsoon shower), `mobility.js` (first Pod Dock at rush hour; `window.NIGHT = 1`,
 `window.LENS = 1` for the Traffic lens, `window.NEAR = 14`).
 Field passes share the pulse: phase 0 fields + pairing, 1 mobility, 2 bloom, 3 Flora-Net, 4 night life (D-020): all five are
-taken, so a new pass must share a phase or `FIELD_PULSES` must grow. `floranet.js` frames the Drone Hive and dispatches a mist. `weaver.js` weaves bridges, a banyan and reclaims coast. Crises: `--path "/?drill=monsoon"`
+taken, so a new pass must share a phase or `FIELD_PULSES` must grow. `floranet.js` frames the Drone Hive and dispatches a mist. `weaver.js` weaves bridges, a banyan and reclaims coast. `explore.js` enters an explore mode (`window.MODE`). Crises: `--path "/?drill=monsoon"`
 (any crisis id; `&severity=1.2`), or the inspector's Crisis drills.
 
 ## 3. Hard rules
@@ -73,31 +73,32 @@ taken, so a new pass must share a phase or `FIELD_PULSES` must grow. `floranet.j
 
 ## 4. Where things go
 
-| Task                               | Location / API                                                                                           |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| New building                       | `src/content/buildings/<id>.ts` → `defineBuilding({...})`; helpers in `src/content/kit.ts`               |
-| New kit piece / material           | `registerPiece` in `src/assets/kit/pieces.ts`; `define` in `src/render/materials/library.ts`             |
-| Sim system                         | `System` with `phase: 'sim'` inside its module (or `src/sim/systems.ts` for core economy and clock)      |
-| Per-tile data                      | `city.grid.addLayer(name, n => new Float32Array(n))`                                                     |
-| Player tool                        | `ctx.tools.register(tool)`; tools get `hover / down / up / key`, plus `grid` and `dragPan` flags         |
-| HUD panel                          | `src/ui/*` with the `h()` helper and the `.panel` glass style; dark theme via `body.night`               |
-| Global shader input                | `U` in `src/render/uniforms.ts`                                                                          |
-| Saved module state                 | `ctx.services.get('save').addHook({ id, save, load })`                                                   |
-| Boot progress stage                | `await onProgress(label, fraction)` in `src/game/createGame.ts`                                          |
-| Hero GLB model                     | building `recipe: { glb: '/assets/x.glb' }`; files in `public/assets/`                                   |
-| Terrain / island shape             | `src/sim/terrain.ts` (pure height function)                                                              |
-| Starting city content              | `src/content/scenarios/<id>.ts` (`defineScenario`); builder in `src/sim/scenario.ts`                     |
-| Management metric / tier           | `src/sim/pulse.ts` + `src/sim/pulseState.ts`; UI in `src/modules/pulse/`                                 |
-| Data lens / advisor rule           | `registerOverlay` in `src/sim/overlays.ts`; `registerAdvisorRule` in `src/sim/advisor.ts`                |
-| Crisis / difficulty                | `registerCrisis` in `src/sim/crises.ts`; presets in `src/sim/difficulty.ts`; UI in `src/modules/crises/` |
-| Bloom, seasons, channels, retrofit | `src/sim/bloom.ts`, `src/sim/seasons.ts`, `src/sim/commands.ts`; visuals in `src/modules/bloom/`         |
-| Night glow / pedestrian activity   | `src/sim/nightlife.ts`; shaders use `activityGlow()` from `render/materials/overlay.ts`                  |
-| Commuting, congestion, pod docks   | `src/sim/mobility.ts` (+ `transit` on a building def); visuals in `src/modules/mobility/`                |
-| Soil, mist, drones (Flora-Net)     | `src/sim/floranet.ts` (+ `drones` on a building def, `mist` command); visuals in `src/modules/floranet/` |
-| Terrain edits, sea rise, seawalls  | `src/sim/coast.ts` (`setCorners` + `terrain:changed`; `defence` on a building def)                       |
-| Sky-bridges, banyan merges         | `src/sim/weaver.ts` (`tower: true` on a building def); visuals in `src/modules/weaver/`, `banyanPieces`  |
-| Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                           |
-| New lit material                   | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)           |
+| Task                               | Location / API                                                                                               |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| New building                       | `src/content/buildings/<id>.ts` → `defineBuilding({...})`; helpers in `src/content/kit.ts`                   |
+| New kit piece / material           | `registerPiece` in `src/assets/kit/pieces.ts`; `define` in `src/render/materials/library.ts`                 |
+| Sim system                         | `System` with `phase: 'sim'` inside its module (or `src/sim/systems.ts` for core economy and clock)          |
+| Per-tile data                      | `city.grid.addLayer(name, n => new Float32Array(n))`                                                         |
+| Player tool                        | `ctx.tools.register(tool)`; tools get `hover / down / up / key`, plus `grid` and `dragPan` flags             |
+| HUD panel                          | `src/ui/*` with the `h()` helper and the `.panel` glass style; dark theme via `body.night`                   |
+| Global shader input                | `U` in `src/render/uniforms.ts`                                                                              |
+| Saved module state                 | `ctx.services.get('save').addHook({ id, save, load })`                                                       |
+| Boot progress stage                | `await onProgress(label, fraction)` in `src/game/createGame.ts`                                              |
+| Hero GLB model                     | building `recipe: { glb: '/assets/x.glb' }`; files in `public/assets/`                                       |
+| Terrain / island shape             | `src/sim/terrain.ts` (pure height function)                                                                  |
+| Starting city content              | `src/content/scenarios/<id>.ts` (`defineScenario`); builder in `src/sim/scenario.ts`                         |
+| Management metric / tier           | `src/sim/pulse.ts` + `src/sim/pulseState.ts`; UI in `src/modules/pulse/`                                     |
+| Data lens / advisor rule           | `registerOverlay` in `src/sim/overlays.ts`; `registerAdvisorRule` in `src/sim/advisor.ts`                    |
+| Crisis / difficulty                | `registerCrisis` in `src/sim/crises.ts`; presets in `src/sim/difficulty.ts`; UI in `src/modules/crises/`     |
+| Bloom, seasons, channels, retrofit | `src/sim/bloom.ts`, `src/sim/seasons.ts`, `src/sim/commands.ts`; visuals in `src/modules/bloom/`             |
+| Night glow / pedestrian activity   | `src/sim/nightlife.ts`; shaders use `activityGlow()` from `render/materials/overlay.ts`                      |
+| Commuting, congestion, pod docks   | `src/sim/mobility.ts` (+ `transit` on a building def); visuals in `src/modules/mobility/`                    |
+| Soil, mist, drones (Flora-Net)     | `src/sim/floranet.ts` (+ `drones` on a building def, `mist` command); visuals in `src/modules/floranet/`     |
+| Terrain edits, sea rise, seawalls  | `src/sim/coast.ts` (`setCorners` + `terrain:changed`; `defence` on a building def)                           |
+| Sky-bridges, banyan merges         | `src/sim/weaver.ts` (`tower: true` on a building def); visuals in `src/modules/weaver/`, `banyanPieces`      |
+| Explore modes, photo mode          | `src/modules/explore/` (collider in `collider.ts`); `ctx.tools.suspended` and `cameraCtl.enabled` gate input |
+| Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                               |
+| New lit material                   | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)               |
 
 The full layer description is in `docs/architecture.md`.
 
@@ -172,6 +173,9 @@ own `requestAnimationFrame` loops.
   constants undefined at load (`DAY_LENGTH` lives in `pulseConst.ts` for this reason).
 - Anything derived from terrain heights must refresh in `City.refreshTerrainDerived()` (sim) or on `terrain:changed`
   (render); edit corners only through `setCorners` so saves and the hash see the change.
+- Shader animation the CPU must match (follow-cams) uses `U.clock`, not TSL `time` (they drift apart). Ambient motion
+  (particles, sway) stays subtle: sway amplitudes are world units, so tiny pieces need tiny amplitudes.
+- Explore modes change `camera.near/far` and the sky dome scale; anything depending on them must restore on exit.
 - Headless `?gputime` swings 1.7–5 ms between identical runs; compare several runs on and off before blaming a change.
 
 ## 9. Picking up work

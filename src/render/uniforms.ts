@@ -38,6 +38,8 @@ export const U = {
   pollenOrigin: uniform(new Vector3()),
   /** How strongly night glow follows pedestrian activity (0 = uniform glow, 1 = full). */
   nightlife: uniform(1),
+  /** Seconds of animation clock shared with the CPU (explore follow-cam rides pods on it). */
+  clock: uniform(0),
   /** Map size in world units (for terrain-space lookups such as water depth). */
   mapSize: uniform(256),
 };

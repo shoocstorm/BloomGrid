@@ -9,7 +9,8 @@ import { SEASONS, seasonAt } from '@/sim/seasons';
 import { h, setText } from '@/ui/dom';
 import './bloom.css';
 
-const POLLEN_COUNT = 2400;
+/** Kept sparse on purpose: a few motes catch the light; a blizzard reads as noise (user feedback). */
+const POLLEN_COUNT = 1100;
 const BOX = 90;
 const HEIGHT = 14;
 const tint = new Color();
@@ -47,9 +48,9 @@ export const bloomModule: GameModule = {
     const centre = positionLocal.sub(positionGeometry);
     const t = time.mul(0.35);
     const drift = vec3(
-      sin(t.add(centre.z.mul(0.37))).mul(2.2),
-      mod(centre.y.add(time.mul(0.45)), float(HEIGHT)).sub(centre.y),
-      sin(t.mul(1.3).add(centre.x.mul(0.29))).mul(2.2),
+      sin(t.add(centre.z.mul(0.37))).mul(1.4),
+      mod(centre.y.add(time.mul(0.2)), float(HEIGHT)).sub(centre.y),
+      sin(t.mul(1.3).add(centre.x.mul(0.29))).mul(1.4),
     );
     const at = centre.add(drift);
     const world = at.add(U.pollenOrigin);
@@ -104,7 +105,7 @@ export const bloomModule: GameModule = {
         // Pollen: thick in Bloom, thin in Haze; hidden when zoomed far out; bursts on retrofits.
         burst = Math.max(0, burst - f.dt * 0.35);
         const near = c.cameraCtl.distance < 160 ? 1 : 0;
-        U.pollen.value = near * Math.min(1.6, season.bloom * 0.75 + burst);
+        U.pollen.value = near * Math.min(1.2, season.bloom * 0.55 + burst);
         pollen.visible = U.pollen.value > 0.02;
         const tg = c.cameraCtl.target;
         pollen.position.set(tg.x, tg.y + 0.5, tg.z);

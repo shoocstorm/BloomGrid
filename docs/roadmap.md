@@ -144,10 +144,17 @@ The city is a system that can run well or badly.
 - **Accept:** ✅ `tests/coast.test.ts` (reclaim, refresh and undo; reservoirs and deep water refused; rise reaches the cap; seawall protects; bridges rules, harmony, demolish/undo; banyan merge and undo; save v6 and migration). Drill: `scripts/scenes/weaver.js` (`window.FOCUS = 'coast'`, `window.NORECLAIM`).
 - **Measured:** main thread 18.4% active / 15.9% idle; GPU 1.7–2.5 ms; draws 188 near / 213 overview (214 / 247 with `?stress=1500`); modules boot 375 ms (424 ms with `?stress=1500`).
 
-## ⬜ Phase 11 — Explore Modes
+## ✅ Phase 11 — Explore Modes
 
-Street-level walk / hoverboard / drone-follow modes with Rapier physics and a high-detail LOD near the player;
-photo mode.
+- [x] Explore modes (N cycles, Esc back, buttons bottom-right): first-person **Walk** (run, jump, mouse look via pointer lock or drag), third-person **Hoverboard** (momentum, boost, hop, glides over water), free **Drone** flight, and **Ride a pod** (follow-cam on a commuter pod along its sky-lane; Tab next pod)
+- [x] Collision without a physics engine (D-025): terrain, bridge decks, water and building solid boxes from the cached recipe bounds, so towers are walls and parks/plazas are walkable (`modules/explore/collider.ts`)
+- [x] High detail near the player: the city camera's target and distance follow the player, so shadows (tight frustum), fog, pollen, agents and instancer LOD all focus on them; a street-level near plane with a shorter far plane and a smaller sky dome
+- [x] Pods animate from a shared `U.clock` so the CPU follow-cam rides exactly the pod the shader draws
+- [x] Photo mode (J): HUD hidden, letterbox, sim paused, P saves a PNG
+- [x] Ambient motion calmed (user feedback): pollen motes 2400 → 1100 with slower drift; plant sway amplitudes 5–10× smaller and slower with gusts
+- [ ] Deferred: Rapier physics (rejected for now, D-025), individual citizens to follow, depth-of-field in photo mode
+- **Accept:** ✅ `tests/explore.test.ts` (towers block, parks walkable, highways open, off-map blocked, water blocks walkers but not boards, bridge decks carry you). Drill: `scripts/scenes/explore.js` (`window.MODE`, `window.PHOTO`, `window.NIGHT`).
+- **Measured:** city view main thread 16.4% active / 13.4% idle; GPU ≈1.0 ms; draws 193 (212 with `?stress=1500`); walk mode 112 draws at street level.
 
 ## ⬜ Phase 12 — Hero Assets & Platform
 

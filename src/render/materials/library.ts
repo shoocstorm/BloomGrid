@@ -51,11 +51,16 @@ const iGlow = iParams.z;
 /** Night-only bioluminescence factor with a gentle breathing pulse. */
 const bioPulse = (seed = iSeed) => U.night.mul(sin(time.mul(1.4).add(seed.mul(40))).mul(0.15).add(0.85));
 
-/** Vertex wind sway, stronger toward the top of a unit piece. */
+/**
+ * Vertex wind sway, stronger toward the top of a unit piece. `amp` is in world units, so it must
+ * stay small next to tiny pieces (a 0.1-unit flower): a gentle lean, not a wave. A slow second
+ * term keeps neighbouring plants from moving in lock-step.
+ */
 const swayed = (amp: number) => {
   const h = abs(positionGeometry.y);
-  const phase = positionLocal.x.mul(0.7).add(positionLocal.z.mul(0.5)).add(time.mul(1.6));
-  const s = sin(phase).mul(amp).mul(h).mul(U.wind);
+  const phase = positionLocal.x.mul(0.7).add(positionLocal.z.mul(0.5)).add(time.mul(0.9));
+  const gust = sin(time.mul(0.23).add(positionLocal.x.mul(0.05))).mul(0.35).add(0.65);
+  const s = sin(phase).mul(amp).mul(h).mul(U.wind).mul(gust);
   return positionLocal.add(vec3(s, 0, s.mul(0.6)));
 };
 
@@ -187,10 +192,10 @@ export function initMaterials(): void {
     m.emissiveNode = mix(instanceColor, color(0x7ff7e6), 0.6).mul(iGlow.mul(0.5).add(rim)).mul(bioPulse()).mul(glow);
     return m;
   };
-  define('canopy', foliage(0.05), { vitality: true });
-  define('bush', foliage(0.05), { vitality: true });
-  define('grass', foliage(0.25, true), { vitality: true });
-  define('ivy', foliage(0.12, true), { vitality: true });
+  define('canopy', foliage(0.015), { vitality: true });
+  define('bush', foliage(0.015), { vitality: true });
+  define('grass', foliage(0.03, true), { vitality: true });
+  define('ivy', foliage(0.025, true), { vitality: true });
 
   define('bark', () => new MeshStandardNodeMaterial({ roughness: 1, flatShading: true }));
 
@@ -199,7 +204,7 @@ export function initMaterials(): void {
   // colour (shifted toward the season's tint) and glow. Divide out the instance tint for the bud.
   define('flower', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.6, flatShading: true });
-    m.positionNode = swayed(0.3);
+    m.positionNode = swayed(0.02);
     const open = smoothstep(0.12, 0.55, bloomAt(positionWorld.x, positionWorld.z));
     const tinted = mix(vec3(1), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
     m.colorNode = mix(vec3(0.44, 0.6, 0.29).div(max(instanceColor, vec3(0.08))), tinted, open);

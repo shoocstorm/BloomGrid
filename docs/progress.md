@@ -8,10 +8,10 @@ sections whenever you stop working** (see AGENTS.md §6).
 |             |                                                                                                                                                                     |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Branch      | `feature/island-city-pulse` (not yet merged to `main`)                                                                                                              |
-| Last commit | Phase 10: Green Weaver & Land Reclamation                                                                                                                           |
-| Phases done | 0–10 (8 = core; greenways, hyperloop and ferries deferred), plus 2.5, 2.6 and the power/heat interlude: see [`roadmap.md`](roadmap.md)                              |
-| Next phase  | **Phase 11 — Explore Modes** (walk / hoverboard / drone-follow with Rapier) or the deferred Phase 8 items: see "Open decisions"                                     |
-| Tests       | 56 passing (`npm test`); `npm run check` clean                                                                                                                      |
+| Last commit | Phase 11: Explore Modes                                                                                                                                             |
+| Phases done | 0–11 (8 = core; greenways, hyperloop and ferries deferred), plus 2.5, 2.6 and the power/heat interlude: see [`roadmap.md`](roadmap.md)                              |
+| Next phase  | **Phase 12 — Hero Assets & Platform** (Rodin GLBs via gltf-transform, Tauri shell) or the deferred Phase 8 items: see "Open decisions"                              |
+| Tests       | 58 passing (`npm test`); `npm run check` clean                                                                                                                      |
 | Save format | v6 (terrain edits, sky-bridges, sea rise; migrations from v1–v5 in `src/sim/save.ts`)                                                                               |
 | Map         | 384×384 tiles, Singapore-like island; founding city ≈1 680 buildings (2 Pod Docks, a Drone Hive, an Eco-Playground), ≈6 800 highway tiles, ≈25k residents, 85% flow |
 
@@ -21,18 +21,18 @@ sections whenever you stop working** (see AGENTS.md §6).
 | ----------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | Boot        | ≈2.0 s (scenario ≈0.25 s, modules ≈0.38 s / 0.42 s with `?stress=1500`, shader warm-up ≈1.1 s)                    | `[boot] ms` log via `npm run snap`                    |
 | Frame rate  | 60 fps active, 30 idle (power mode Balanced)                                                                      | `npm run perf` / `npm run perf -- --idle`             |
-| Main thread | ≈18% active, ≈16% idle                                                                                            | `npm run perf`                                        |
-| GPU         | ≈1.7–5 ms per frame headless (noisy: compare several runs; +≈2 ms in storm rain)                                  | `npm run perf -- --path "/?gputime"`                  |
+| Main thread | ≈16% active, ≈13% idle                                                                                            | `npm run perf`                                        |
+| GPU         | ≈1.0–3 ms per frame headless (noisy: compare several runs; +≈2 ms in storm rain)                                  | `npm run perf -- --path "/?gputime"`                  |
 | Draw calls  | ≈188–214 near, ≈213–247 overview incl. `?stress=1500` (budget 300)                                                | perf overlay (F3) or `renderer.info.render.drawCalls` |
 | Sim         | pulse ≈2.4 ms; per phase: fields 4.1 (0), mobility 1.2 (1), bloom 1.8 (2), Flora-Net 1.3 (3), activity 1.7 (4) ms | see the bench pattern in D-020                        |
 
 ## How to resume
 
 1. Read [`../AGENTS.md`](../AGENTS.md) (rules, commands, definition of done, gotchas), then [`roadmap.md`](roadmap.md),
-   [`decisions.md`](decisions.md) (D-001…D-024) and [`architecture.md`](architecture.md).
+   [`decisions.md`](decisions.md) (D-001…D-025) and [`architecture.md`](architecture.md).
 2. `npm install && npm run check` (it clears the Vitest cache first: see the gotcha in AGENTS.md).
 3. `npm run dev`, then `npm run snap -- --path "/?perf" --out shots/now.png` to see the current state.
-   Useful drills: `--eval @scripts/scenes/retrofit.js`, `weaver.js`, `floranet.js`, `mobility.js`, `nightlife.js`, `season.js`, `blackout.js`, `drought.js`, `demo-city.js`, or
+   Useful drills: `--eval @scripts/scenes/retrofit.js`, `explore.js`, `weaver.js`, `floranet.js`, `mobility.js`, `nightlife.js`, `season.js`, `blackout.js`, `drought.js`, `demo-city.js`, or
    `--path "/?drill=monsoon"` (any crisis id).
 4. Pick the ⏳ phase in the roadmap, implement it in verified steps, and update roadmap, decisions, architecture,
    AGENTS and this file in the same change.
@@ -50,12 +50,17 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 ## Next up
 
-### Phase 11 — Explore Modes (proposed scope, see roadmap)
+### Phase 12 — Hero Assets & Platform (proposed scope, see roadmap)
 
-- Street-level walk / hoverboard / drone-follow cameras with Rapier physics (new dependency: record a decision);
-  colliders from building footprints and terrain corners (`terrain:changed` must update them).
-- High-detail LOD near the player; photo mode (hide HUD, depth of field in `RenderPipeline`).
-- Follow-cam for commuters/pods/drones needs individual agents: today they are GPU impressions (D-022).
+- Hero GLBs (landmarks, pods, hummingbird drones) from Hyper3D Rodin (MCP available in this environment) optimised with
+  gltf-transform (meshopt, KTX2); buildings already accept `recipe: { glb }`. Watch draw calls (one batch per GLB part).
+- Tauri shell via `src/platform` (native saves, window settings); save migrations already chain v1 → v6.
+- Ask the user before generating paid Rodin assets.
+
+### Phase 11 follow-ups (deferred)
+
+- Rapier (only if dynamic bodies are needed), individual citizens to follow, depth of field in photo mode.
+- Walk-mode collision uses solid boxes; domes and trees are passable.
 
 ### Phase 10 follow-ups (deferred)
 
