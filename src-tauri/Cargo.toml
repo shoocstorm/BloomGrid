@@ -1,6 +1,6 @@
 [package]
 name = "bloomgrid"
-version = "0.1.1"
+version = "0.1.2"
 description = "BloomGrid: solarpunk island city builder (desktop shell)"
 edition = "2021"
 rust-version = "1.80"
