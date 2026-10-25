@@ -59,8 +59,20 @@ class DirtySlots {
 
   flush(attr: InstancedBufferAttribute, size: number): void {
     if (this.max < 0) return;
-    attr.clearUpdateRanges();
-    if (this.span) attr.addUpdateRange(this.min * size, (this.max - this.min + 1) * size);
+    // Never clear pending ranges here: the backend clears them once it uploads, which only happens
+    // when the batch is drawn. A batch hidden by LOD can flush many times before that, and clearing
+    // dropped earlier writes (wild flora rendered black). Collapse a long backlog into one span.
+    const pending = attr.updateRanges;
+    if (pending.length > 24) {
+      let lo = this.min * size;
+      let hi = (this.max + 1) * size;
+      for (const r of pending) {
+        lo = Math.min(lo, r.start);
+        hi = Math.max(hi, r.start + r.count);
+      }
+      attr.clearUpdateRanges();
+      attr.addUpdateRange(lo, hi - lo);
+    } else if (this.span) attr.addUpdateRange(this.min * size, (this.max - this.min + 1) * size);
     else {
       this.slots.sort((a, b) => a - b);
       let start = this.slots[0]!;
