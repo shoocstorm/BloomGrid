@@ -54,7 +54,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 1. ✅ First-frame shader stall removed (D-030).
 2. ✅ Field passes moved off the pulse tick (D-029).
-3. KTX2 textures for hero GLBs (`supertree-grove.glb` 1.4 MB).
+3. ⏸ KTX2 textures (≈1.6 MB across three hero GLBs; skipped for now). Needs an encoder: Khronos KTX-Software `.pkg` (sudo; no Homebrew formula) or npm `ktx2-encoder` (third-party WASM). Revisit when more hero assets land.
 4. ✗ Cheaper shadow pass: measured, no gain (D-031).
 5. ✗ `BatchedMesh`: measured, ≈10% fewer draws for a large refactor (D-031).
 6. Far-chunk impostors or GPU-driven culling (only if content roughly doubles).
