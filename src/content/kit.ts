@@ -1,5 +1,5 @@
 /** Reusable, renderer-agnostic recipe helpers shared by building definitions. */
-import type { KitBuilder } from './types';
+import type { KitBuilder, PieceId, PieceSpec, Vec3 } from './types';
 
 export const PALETTE = {
   blossoms: [0xffb7d5, 0xffe08a, 0xc9b6ff, 0xfff4f0, 0xff9aa2, 0x9ee6ff, 0xffc58a] as const,
@@ -95,4 +95,15 @@ export function ivyEdge(b: KitBuilder, x: number, y: number, z: number, len: num
       growAt: b.range(0.2, 0.9),
     });
   }
+}
+
+/** Stretches a unit piece (pivot at base, +y up: cylinders, boxes, trunks) from `a` to `c`. */
+export function beam(b: KitBuilder, piece: PieceId, a: Vec3, c: Vec3, thick: number, extra: Partial<PieceSpec> = {}): void {
+  const dx = c[0] - a[0];
+  const dy = c[1] - a[1];
+  const dz = c[2] - a[2];
+  const len = Math.hypot(dx, dy, dz) || 1e-3;
+  // Rz tilts +y toward -x, then the yaw swings that lean round to (dx, dz).
+  const tilt = Math.acos(Math.max(-1, Math.min(1, dy / len)));
+  b.add({ piece, p: a, s: [thick, len, thick], r: Math.atan2(dz, -dx), rz: tilt, ...extra });
 }

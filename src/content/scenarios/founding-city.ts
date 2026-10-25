@@ -70,6 +70,19 @@ export default defineScenario({
       hero('mycelium-towers', rx + 15, S / 2 + 1, 1, 0);
       hero('algae-lantern', rx + 37, S / 2 + 6, 0, 1);
       hero('vertical-forest', rx + 30, S / 2 + 14, 0, 1, 1);
+      hero('fog-harp', rx + 37, S / 2 + 15, 0, 1);
+      // Hero promenade: both sides of the west road (z = rz) out toward the western town.
+      b.level(lx - 62, rz - 9, lx - 11, rz - 1, 4, terrace);
+      b.level(lx - 62, rz + 1, lx - 1, rz + 11, 4, terrace);
+      hero('nautilus-library', lx - 20, rz - 9, -1, 0);
+      hero('quartz-spire', lx - 32, rz - 9, -1, 0);
+      hero('bamboo-cathedral', lx - 47, rz - 8, -1, 0);
+      hero('starlight-observatory', lx - 59, rz - 8, -1, 0);
+      hero('elder-banyan', lx - 11, rz + 1, -1, 0);
+      hero('levitating-gardens', lx - 23, rz + 1, -1, 0);
+      hero('solar-sail-bazaar', lx - 35, rz + 1, -1, 0);
+      hero('habitat-cascade', lx - 48, rz + 1, -1, 0);
+      hero('aeolian-reeds', lx - 60, rz + 1, -1, 0);
     }
 
     // The Supertree Grove (8×8) needs open land the district grids would cut up: reserve it first,
@@ -118,7 +131,7 @@ export default defineScenario({
     sweep('greenhouse-hub', () => t().jobs > t().population * 0.65 * 0.85);
     sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06);
     sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06, island);
-    sweep('water-works', () => t().waterProduced > t().waterUsed * 1.02, island);
+    sweep('water-works', () => t().waterProduced > t().waterUsed, island);
     sweep('vertical-farm', () => t().food > t().population * 0.55);
 
     // Spire roads: a plaza loop and a boulevard south-east into the downtown grid (its x = 299 road).

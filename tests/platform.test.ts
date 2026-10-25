@@ -77,6 +77,8 @@ describe('central landmark', () => {
     // The hero quarter around it, each with highway access.
     const heroes = ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes'];
     heroes.push('rain-vortex', 'dragonfly-port', 'mycelium-towers', 'algae-lantern', 'vertical-forest');
+    heroes.push('fog-harp', 'nautilus-library', 'quartz-spire', 'bamboo-cathedral', 'starlight-observatory');
+    heroes.push('elder-banyan', 'levitating-gardens', 'solar-sail-bazaar', 'habitat-cascade', 'aeolian-reeds');
     for (const id of heroes) {
       const e = s.city.buildingEntities().find((b) => buildings.at(Building.def[b]!).id === id);
       expect(e, id).toBeDefined();

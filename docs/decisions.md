@@ -213,3 +213,10 @@ The opening fly-in ends on the largest `landmark` building (`openingView`), fall
 the quarter's level without bending it. The avenue adds a Skyport (pod hub) so its 360 new residents and 420 jobs keep
 flow at ≈80%. Draws with `?stress=1500` rise to ≈260–265 (budget 300): the next big content addition should start with
 the far-chunk impostors / GPU culling item in the roadmap's tech debt.
+**Hero promenade (ten more):** built only from existing pieces and kept in the central render chunks, so they add
+instances, not batches: ≈234 draws at the promenade, 275 with `?stress=1500` (budget 300). That is the practical
+ceiling for hand-placed heroes; more content needs impostors or GPU culling first. The Habitat Cascade carries
+`transit` (it otherwise jammed the one-lane promenade). The new water producers lifted the founding city to
+Stable water, so the water sweep targets 100% of demand instead of 102%, which keeps the intended opening shortage
+(the advisor test relies on it). Food on the default seed opens between ≈0.92 and 0.97 depending on the moment;
+the scenario is deliberately short on food and water.
