@@ -57,7 +57,7 @@ The city is a system that can run well or badly.
 - [x] City Pulse panel (P): health, demand, budget + tax slider, harmony factors, sparklines; inspector shows power, water, occupancy and problems
 - [x] World readability: windows go dark with power; floating markers for no highway / no power / no water / understaffed
 - [ ] Loans → moved to Phase 5 (debt mechanics)
-- **Accept:** ✅ `tests/pulse.test.ts`: a blackout drives energy to Collapse and residents leave over tens of seconds (not instantly); reconnecting a producer restores power. Visual drill: `npm run snap -- --eval @scripts/scenes/blackout.js`.
+- **Accept:** ✅ `tests/pulse.test.ts`: a blackout drives energy to Collapse and residents leave over tens of seconds (not instantly); reconnecting a producer restores power. Visual drill: `bun run snap -- --eval @scripts/scenes/blackout.js`.
 
 ## ✅ Phase 4 — Monitoring & Management UX
 
@@ -98,7 +98,7 @@ The city is a system that can run well or badly.
 - [x] Symbiotic pairing: a Bioreactor with a Phyto Garden within 7 tiles emits 25% of its pollution and produces 15% more; inspector shows paired / unpaired; advisor flags unpaired polluters
 - [x] District transformation wave: Bloom Retrofit (B) radius brush (40% of building cost) upgrades buildings (eco ×1.5, −20% power, −15% water, −30% pollution, faster growth) and makes channels lush; an expanding ring and pollen burst while flowering façades, ivy fringes and golden sunflower crowns pop in by distance from the click
 - [x] Visuals: bloom texture drives flower open/closed state and glow; pollen motes in one draw call (density follows bloom); two new buildings (Phyto Garden, Pollinator Sanctuary); save v4
-- **Accept:** ✅ `tests/bloom.test.ts` (seasons, pollinators vs pollution, channels irrigate and scrub, symbiosis cuts pollution, retrofit with undo, save v4). Drill: `npm run snap -- --eval @scripts/scenes/retrofit.js`.
+- **Accept:** ✅ `tests/bloom.test.ts` (seasons, pollinators vs pollution, channels irrigate and scrub, symbiosis cuts pollution, retrofit with undo, save v4). Drill: `bun run snap -- --eval @scripts/scenes/retrofit.js`.
 - **Measured:** field passes optimised (point deposits + sliding box blur, staggered across pulses): fields 11 → 4.1 ms, bloom 1.8 ms, average pulse 2.4 ms; power budget unchanged (≈17% active / 15% idle main thread).
 
 ## ✅ Phase 7 — Bioluminescence & Atmosphere
@@ -158,10 +158,10 @@ The city is a system that can run well or badly.
 
 ## ✅ Phase 12 — Hero Assets & Platform
 
-- [x] Asset pipeline `npm run optimize-glb -- raw.glb public/assets/x.glb --footprint N --height N [--ratio] [--yaw] [--tex]` (`scripts/optimize-glb.mjs`): dedup/prune/weld, meshopt simplify, fit to footprint/height with the pivot at the base centre, textures downscaled and JPEG-encoded with macOS `sips` (normal maps PNG at half size), meshopt compression; prints a stats report
+- [x] Asset pipeline `bun run optimize-glb -- raw.glb public/assets/x.glb --footprint N --height N [--ratio] [--yaw] [--tex]` (`scripts/optimize-glb.mjs`): dedup/prune/weld, meshopt simplify, fit to footprint/height with the pivot at the base centre, textures downscaled and JPEG-encoded with macOS `sips` (normal maps PNG at half size), meshopt compression; prints a stats report
 - [x] Three Hyper3D Rodin hero assets (raw files in git-ignored `assets-raw/`): **Supertree Grove** (13.4 MB → 1.5 MB, 17.6k tris; the landmark: a reserved 10×10 plot on the ring road west of downtown, ≈15.6 units tall, about 2.5× the tallest towers, via `--stretch 2`), **Lotus Arts Pavilion** (10 MB → 645 KB, 9k tris), **commuter pod** (9.8 MB → 298 KB, 3.9k tris)
 - [x] Runtime: GLB recipes take a procedural `fallback` (bounds, collision, retrofit overlays; drawn if the file is missing); GLB materials become lens- and night-aware node materials; pods swap in the GLB shape/texture when present; both landmarks in the founding city
-- [x] Tauri v2 desktop shell (`src-tauri/`): saves as JSON files in the app data dir via Rust commands (atomic write-then-rename, safe key names), exports folder, 1600×1000 window with minimum size, fullscreen toggle (⚙ and F11); `npm run tauri:dev` / `tauri:build`; generated app icon (`scripts/make-icon.mjs`); `src/platform` picks Tauri automatically
+- [x] Tauri v2 desktop shell (`src-tauri/`): saves as JSON files in the app data dir via Rust commands (atomic write-then-rename, safe key names), exports folder, 1600×1000 window with minimum size, fullscreen toggle (⚙ and F11); `bun run tauri:dev` / `tauri:build`; generated app icon (`scripts/make-icon.mjs`); `src/platform` picks Tauri automatically
 - [x] Save migrations: chain test from v1 to v6; unknown future versions are refused
 - [ ] Deferred: KTX2 textures (needs `toktx` and the basis transcoder wired into `GLTFLoader`), Windows/Linux packaging checks, code signing
 - **Accept:** ✅ `tests/platform.test.ts` (v1 → v6 migration loads the same city; future versions refused; GLB landmarks have fallbacks). Visual: Rodin landmarks and pod on WebGPU and WebGL2 (day and night); desktop window renders the full game (`cargo build`, launched against the dev server).

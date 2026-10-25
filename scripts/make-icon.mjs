@@ -2,7 +2,7 @@
 /**
  * Generates the 1024² BloomGrid app icon (src-tauri/icons/app-icon.png) without image libraries:
  * a rounded tile with a sunrise gradient and a four-petal bloom, encoded as PNG with zlib.
- * Then run `npx tauri icon src-tauri/icons/app-icon.png` to derive every platform size.
+ * Then run `bunx tauri icon src-tauri/icons/app-icon.png` to derive every platform size.
  */
 import { writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';

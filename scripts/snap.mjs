@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
  * Headless visual check for BloomGrid (used by humans and AI agents).
- * Requires the dev server (`npm run dev`) and a local Chrome.
+ * Requires the dev server (`bun run dev`) and a local Chrome.
  *
- *   npm run snap -- --path "/?perf" --out shots/day.png
- *   npm run snap -- --path "/?renderer=webgl" --eval @scripts/scenes/demo-city.js --after 4000
- *   npm run snap -- --times 300,1500,3000,6000 --out shots/boot.png   # timed frames: boot-300.png …
+ *   bun run snap -- --path "/?perf" --out shots/day.png
+ *   bun run snap -- --path "/?renderer=webgl" --eval @scripts/scenes/demo-city.js --after 4000
+ *   bun run snap -- --times 300,1500,3000,6000 --out shots/boot.png   # timed frames: boot-300.png …
  *
  * Prints page console warnings/errors; exits 1 on uncaught page errors.
  */

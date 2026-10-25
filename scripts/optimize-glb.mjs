@@ -98,7 +98,7 @@ if (sips) {
 let ktx = 'install toktx (KTX-Software) to enable KTX2 textures';
 try {
   execSync('toktx --version', { stdio: 'ignore' });
-  ktx = `npx @gltf-transform/cli etc1s ${output} ${output} --quality 128`;
+  ktx = `bunx @gltf-transform/cli etc1s ${output} ${output} --quality 128`;
 } catch {
   /* no toktx: keep source textures */
 }

@@ -23,17 +23,21 @@ build and modify it, and keep it running well. Neglect can make the city decline
 ## 2. Commands
 
 ```bash
-npm install
-npm run dev            # http://localhost:5173  (?perf ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty ?difficulty=sandbox|relaxed|steward|hard ?drill=<crisis> ?nodynres)
-npm run check          # typecheck + lint + tests + production build (must pass before you finish)
-npm test               # vitest only
-npm run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500]
-npm run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--profile 15]   # power/perf probe (see §8)
-npm run optimize-glb -- raw.glb public/assets/x.glb --footprint 3 --height 4 [--ratio 0.5] [--yaw 90] [--tex 1024]
-npm run tauri:dev      # desktop shell (Tauri v2) against the dev server; tauri:build packages it (needs Rust)
+bun install
+bun run dev            # http://localhost:5173  (?perf ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty ?difficulty=sandbox|relaxed|steward|hard ?drill=<crisis> ?nodynres)
+bun run check          # typecheck + lint + tests + production build (must pass before you finish)
+bun run test           # vitest only (NOT `bun test`: that is bun's own runner and skips the Vitest setup)
+bun run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500]
+bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--profile 15]   # power/perf probe (see §8)
+bun run optimize-glb -- raw.glb public/assets/x.glb --footprint 3 --height 4 [--ratio 0.5] [--yaw 90] [--tex 1024]
+bun run tauri:dev      # desktop shell (Tauri v2) against the dev server; tauri:build packages it (needs Rust)
+bun run release [patch|minor|major|X.Y.Z] [--dry-run] [--yes]   # tag + deploy to Firebase (see §10; ask first)
 ```
 
-`npm run snap` drives headless Chrome against the running dev server, saves screenshots and prints console
+The package manager is **bun** (`bun.lock`; no `package-lock.json`). Use `bun install` / `bun add [-d]` / `bunx`, never
+`npm` or `npx`.
+
+`bun run snap` drives headless Chrome against the running dev server, saves screenshots and prints console
 warnings and errors plus the app's tagged logs such as `[boot] ms {…}` (it exits 1 on page errors). Use it to _look_ at
 your change (`[boot] modules {…}` breaks module init down per module). `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js` (small district), `blackout.js` (night power-failure
 drill), `drought.js` (water-failure drill; buildings should visibly wilt), `retrofit.js` (channel + Bloom Retrofit
@@ -107,10 +111,10 @@ The full layer description is in `docs/architecture.md`.
 
 ## 5. Definition of done (every change)
 
-- [ ] `npm run check` passes.
+- [ ] `bun run check` passes.
 - [ ] New sim logic has Vitest coverage in `tests/` (determinism, undo/redo or save round-trip, as relevant).
-- [ ] Visual change verified with `npm run snap` on WebGPU and `?renderer=webgl`; no new console errors.
-- [ ] `npm run perf` and `npm run perf -- --idle` still within the §7½ power budget.
+- [ ] Visual change verified with `bun run snap` on WebGPU and `?renderer=webgl`; no new console errors.
+- [ ] `bun run perf` and `bun run perf -- --idle` still within the §7½ power budget.
 - [ ] Perf still within budget with the founding city (default boot) **and** `?stress=1500`: fps and
       `renderer.info.render.drawCalls` at near and full-island zoom, plus the `[boot] ms` log.
 - [ ] **Docs updated in the same change** (see §6).
@@ -139,7 +143,7 @@ code no longer has.
 
 ## 7½. Power budget (laptops must stay cool)
 
-`npm run perf` reports main-thread busy %, fps, CPU ms per frame and (with `?gputime`) GPU ms per frame; `--profile`
+`bun run perf` reports main-thread busy %, fps, CPU ms per frame and (with `?gputime`) GPU ms per frame; `--profile`
 lists the hottest functions. Reference (headless, 60 Hz, founding city, High): **main thread ≈ 16% active / 14% idle,
 GPU ≈ 3.5 ms per frame, GPU uploads < 1 MB/s.** If a change raises these noticeably, fix it or record why in
 `docs/decisions.md`. Rules: never set `DynamicDrawUsage` on instance attributes; keep instanced batches ≥ 1040
@@ -168,10 +172,10 @@ own `requestAnimationFrame` loops.
 - Tweakpane v4 typings need `@tweakpane/core` (already a dev dependency).
 - CSS `background-clip: text` doesn't paint through transformed child spans (bitten us in the boot title).
 - **Vitest 5 caches transformed modules in `node_modules/.vitest-cache` and does not invalidate `import.meta.glob`
-  when files are added** (new content files go missing in tests). `npm test` clears it first; do the same if you run
+  when files are added** (new content files go missing in tests). `bun run test` clears it first; do the same if you run
   `vitest` directly.
 - Headless screenshots can time out while the main thread is busy generating the world; re-run, or capture later.
-- `npm run snap` ignores `--eval` when `--times` is given; use `--after <ms>` with `--eval`. An eval may return a
+- `bun run snap` ignores `--eval` when `--times` is given; use `--after <ms>` with `--eval`. An eval may return a
   Promise (e.g. to sample `renderer.info.render.drawCalls` over a second; it reads 0 between frames).
 - Sim modules that `City.ts` imports must not import `City.ts` values back (only `import type`): a cycle leaves
   constants undefined at load (`DAY_LENGTH` lives in `pulseConst.ts` for this reason).
@@ -181,13 +185,37 @@ own `requestAnimationFrame` loops.
   (particles, sway) stays subtle: sway amplitudes are world units, so tiny pieces need tiny amplitudes.
 - Explore modes change `camera.near/far` and the sky dome scale; anything depending on them must restore on exit.
 - Missing files under `/assets/` get Vite's SPA fallback (HTML), so `GLTFLoader` rejects: always give GLB recipes a
-  `fallback`. rtk may rewrite `npx tauri …`; call `./node_modules/.bin/tauri` directly if it does.
+  `fallback`. rtk may rewrite `bunx tauri …`; call `./node_modules/.bin/tauri` directly if it does.
 - Headless `?gputime` swings 1.7–5 ms between identical runs; compare several runs on and off before blaming a change.
 
 ## 9. Picking up work
 
 1. Read `docs/progress.md` (snapshot and next up), then `docs/roadmap.md`, and find the first ⏳ or 🚧 phase.
 2. Skim `docs/decisions.md` for constraints.
-3. Run `npm run check` and `npm run dev` + `npm run snap` to see the current state.
+3. Run `bun run check` and `bun run dev` + `bun run snap` to see the current state.
 4. Implement in small, verified steps; update the roadmap checkboxes as you go.
 5. Finish with the §5 checklist and a summary of what changed, what you verified, and anything you deferred.
+
+## 10. Releasing and deploying (Firebase Hosting)
+
+A release is a `vX.Y.Z` tag on `main`. Pushing the tag runs `.github/workflows/firebase-hosting-release.yml`: it
+checks the tag matches `package.json`, runs `bun run check`, deploys `dist/` to the **live** site (project
+`bloomgrid-7ae90`) and creates a GitHub Release with generated notes. There is no PR-preview workflow.
+
+**Deploying is outward-facing: only release when the user asks, and confirm the version with them first.**
+
+| Step                                  | Command                                                                                                                |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 1. Preview the plan (changes nothing) | `bun run release --dry-run` (or `minor` / `major` / `1.2.0`)                                                           |
+| 2. Cut it, after the user confirms    | `bun run release patch --yes`                                                                                          |
+| 3. Watch the deploy                   | `gh run watch $(gh run list --workflow=firebase-hosting-release.yml --limit 1 --json databaseId -q '.[0].databaseId')` |
+| 4. Report                             | `gh release view vX.Y.Z --web` link, plus the run result                                                               |
+| Re-deploy an existing tag             | `gh workflow run firebase-hosting-release.yml -f tag=vX.Y.Z`                                                           |
+
+- `release` refuses unless on `main`, tracked tree clean, not behind `origin/main`, tag unused. It runs `bun run check`
+  (`--skip-check` skips it; CI still runs it), bumps the version in `package.json`, `src-tauri/tauri.conf.json`,
+  `src-tauri/Cargo.toml` and `Cargo.lock`, commits `Release vX.Y.Z`, tags, and pushes `main` + tag atomically, so
+  unpushed commits on `main` ship too.
+- Interactive prompt by default; agents pass `--yes` only after the user said go. Pick `patch` unless the user says otherwise.
+- A failed run deploys nothing: fix on `main` and release the next patch (don't move or delete published tags).
+- CI needs the repo secret `FIREBASE_SERVICE_ACCOUNT_BLOOMGRID_7AE90` (set up by `firebase init hosting:github`).

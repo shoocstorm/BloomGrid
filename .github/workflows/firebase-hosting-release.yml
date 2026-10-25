@@ -1,0 +1,55 @@
+# Release pipeline: pushing a version tag (vX.Y.Z) checks, builds and deploys BloomGrid to the
+# live Firebase Hosting channel, then publishes a GitHub Release with generated notes.
+# Cut releases with `bun run release` (scripts/release.mjs); see AGENTS.md §10.
+
+name: Release to Firebase Hosting
+on:
+  push:
+    tags: ['v*.*.*']
+  # Re-deploy an existing tag (e.g. after a Firebase outage) from the Actions tab or
+  # `gh workflow run firebase-hosting-release.yml -f tag=v0.2.0`.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to deploy (vX.Y.Z)
+        required: true
+permissions:
+  contents: write # create the GitHub Release
+concurrency:
+  group: firebase-live
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Validate tag
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::'$TAG' is not a vX.Y.Z tag"; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.TAG }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      # Vite, Vitest and ESLint run on Node through `bun run`.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - name: Tag matches package.json version
+        run: |
+          VERSION="v$(jq -r .version package.json)"
+          [ "$VERSION" = "$TAG" ] || { echo "::error::tag $TAG but package.json is $VERSION"; exit 1; }
+      - run: bun run check
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BLOOMGRID_7AE90 }}
+          projectId: bloomgrid-7ae90
+          channelId: live
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --generate-notes --title "BloomGrid $TAG"

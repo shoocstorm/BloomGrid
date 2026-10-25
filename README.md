@@ -4,13 +4,17 @@ A solarpunk **island city builder and manager** in three.js. You steward a Singa
 high-tech architecture and living nature grow together: build it, monitor it, and keep it from going wrong.
 
 ```bash
-npm install
-npm run dev        # http://localhost:5173
-npm test           # sim determinism, undo/redo, save/load
-npm run check      # typecheck + lint + tests + build
-npm run snap -- --out shots/x.png   # headless screenshot (dev server must be running)
-npm run perf                        # power/perf probe: main-thread %, fps, CPU/GPU ms per frame
+bun install
+bun run dev        # http://localhost:5173
+bun run test       # sim determinism, undo/redo, save/load (Vitest; not `bun test`)
+bun run check      # typecheck + lint + tests + build
+bun run snap -- --out shots/x.png   # headless screenshot (dev server must be running)
+bun run perf                        # power/perf probe: main-thread %, fps, CPU/GPU ms per frame
+bun run release    # bump version, tag vX.Y.Z and push: GitHub Actions deploys to Firebase Hosting
 ```
+
+Releases: `bun run release [patch|minor|major|X.Y.Z]` (add `--dry-run` to preview). The tag push runs the
+`firebase-hosting-release` workflow, which checks, builds and deploys to the live Firebase site.
 
 URL flags: `?renderer=webgl` (force the WebGL2 fallback), `?quality=low|medium|high|ultra`, `?perf` (perf overlay),
 `?stress=2000` (add a stress city), `?scenario=empty` (blank island instead of the founding city), `?difficulty=sandbox|relaxed|steward|hard`,
@@ -40,11 +44,11 @@ Alt+1–4 / Shift+1–4 store / recall views · Space pause · 1/2/3 speed · �
 
 ## Desktop app
 
-`npm run tauri:dev` opens BloomGrid in a native window (Tauri v2; needs a Rust toolchain); `npm run tauri:build`
+`bun run tauri:dev` opens BloomGrid in a native window (Tauri v2; needs a Rust toolchain); `bun run tauri:build`
 packages it. Saves live as JSON files in the app data folder; ⚙ → Window toggles fullscreen (F11).
 
 Hero models (Supertree Grove, Lotus Arts Pavilion, commuter pod) were generated with Hyper3D Rodin and optimised with
-`npm run optimize-glb`; the game falls back to procedural versions if they are missing.
+`bun run optimize-glb`; the game falls back to procedural versions if they are missing.
 
 ## Docs
 

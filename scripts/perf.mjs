@@ -4,7 +4,7 @@
  * main thread is (CDP task time), how many frames were rendered, CPU ms per frame, and GPU ms
  * per frame (needs ?gputime). Use it to compare settings before/after power optimisations.
  *
- *   npm run perf -- --path "/?gputime" --seconds 10 [--idle]
+ *   bun run perf -- --path "/?gputime" --seconds 10 [--idle]
  */
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';

@@ -7,11 +7,11 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 |             |                                                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Branch      | `main` (`feature/island-city-pulse` merged after Phase 12; no remote configured)                                                                                |
-| Last commit | Boot: faster outer terrain ring, per-module boot timing (then: lazy inspector chunk, island-wide stress spawner)                                                |
+| Branch      | `main`, remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10)                              |
+| Last commit | Switch to bun; tag-triggered Firebase release workflow + `bun run release`                                                                                      |
 | Phases done | **All roadmap phases 0–12** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
-| Tests       | 62 passing (`npm test`); `npm run check` clean                                                                                                                  |
+| Tests       | 62 passing (`bun run test`); `bun run check` clean                                                                                                              |
 | Save format | v6 (terrain edits, sky-bridges, sea rise; migrations from v1–v5 in `src/sim/save.ts`)                                                                           |
 | Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈1 710 buildings at its original tile size, ≈24k residents, water Strained (≈95%) |
 
@@ -20,9 +20,9 @@ sections whenever you stop working** (see AGENTS.md §6).
 | Metric      | Value                                                                                                                                | How to measure                                        |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
 | Boot        | ≈2.1 s to interactive WebGPU, ≈2.5–3.0 s WebGL2, no post-boot stall (scenario ≈0.25 s, modules ≈0.25–0.29 s, warm-up ≈1.3 s, D-030)  |
-| Frame rate  | 60 fps active, 30 idle (power mode Balanced)                                                                                         | `npm run perf` / `npm run perf -- --idle`             |
-| Main thread | ≈16% active, ≈14.5% idle                                                                                                             | `npm run perf`                                        |
-| GPU         | ≈1.0–3 ms per frame headless (noisy: compare several runs; +≈2 ms in storm rain)                                                     | `npm run perf -- --path "/?gputime"`                  |
+| Frame rate  | 60 fps active, 30 idle (power mode Balanced)                                                                                         | `bun run perf` / `bun run perf -- --idle`             |
+| Main thread | ≈16% active, ≈14.5% idle                                                                                                             | `bun run perf`                                        |
+| GPU         | ≈1.0–3 ms per frame headless (noisy: compare several runs; +≈2 ms in storm rain)                                                     | `bun run perf -- --path "/?gputime"`                  |
 | Draw calls  | ≈188–214 near, ≈213–247 overview; `?stress=1500` (spread over the island) 222 near / 235 overview (budget 300)                       | perf overlay (F3) or `renderer.info.render.drawCalls` |
 | Sim         | pulse tick ≈0.4 ms; field tick (one pass per pulse, D-029) ≈2.2 ms median / ≈3 ms p95: ecology 2.8, activity 2.4, bloom 2.0 ms worst |
 
@@ -30,8 +30,8 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 1. Read [`../AGENTS.md`](../AGENTS.md) (rules, commands, definition of done, gotchas), then [`roadmap.md`](roadmap.md),
    [`decisions.md`](decisions.md) (D-001…D-026) and [`architecture.md`](architecture.md).
-2. `npm install && npm run check` (it clears the Vitest cache first: see the gotcha in AGENTS.md).
-3. `npm run dev`, then `npm run snap -- --path "/?perf" --out shots/now.png` to see the current state.
+2. `bun install && bun run check` (it clears the Vitest cache first: see the gotcha in AGENTS.md).
+3. `bun run dev`, then `bun run snap -- --path "/?perf" --out shots/now.png` to see the current state.
    Useful drills: `--eval @scripts/scenes/retrofit.js`, `explore.js`, `weaver.js`, `floranet.js`, `mobility.js`, `nightlife.js`, `season.js`, `blackout.js`, `drought.js`, `demo-city.js`, or
    `--path "/?drill=monsoon"` (any crisis id).
 4. Pick the ⏳ phase in the roadmap, implement it in verified steps, and update roadmap, decisions, architecture,
@@ -109,9 +109,9 @@ Tracked in [`roadmap.md` → Tech debt](roadmap.md#tech-debt--open-issues). Most
 ## Environment notes
 
 - The user develops on a **MacBook Pro (120 Hz ProMotion)** and cares about heat: keep within the power budget
-  (AGENTS.md §7½) and check `npm run perf` after any render change.
+  (AGENTS.md §7½) and check `bun run perf` after any render change.
 - The user may run their own dev server (e.g. on :5174); agents typically run another on :5173. Both hot-reload.
 - `rtk` (a token-saving CLI proxy) is installed in the user's shell; use `rtk proxy <cmd>` to see raw output when
-  its filtering hides results (e.g. `rtk proxy npx vitest run`).
+  its filtering hides results (e.g. `rtk proxy bunx vitest run`).
 - Commits end with the Co-Authored-By line given by the harness; commit only when the user asks (they have asked
   for a commit per phase so far).
