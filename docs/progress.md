@@ -55,8 +55,8 @@ sections whenever you stop working** (see AGENTS.md §6).
 1. ✅ First-frame shader stall removed (D-030).
 2. ✅ Field passes moved off the pulse tick (D-029).
 3. KTX2 textures for hero GLBs (`supertree-grove.glb` 1.4 MB).
-4. Cheaper shadow pass at overview zoom (fewer casters / lower resolution).
-5. `BatchedMesh` per chunk (biggest CPU/heat lever; `aParams` → data texture).
+4. ✗ Cheaper shadow pass: measured, no gain (D-031).
+5. ✗ `BatchedMesh`: measured, ≈10% fewer draws for a large refactor (D-031).
 6. Far-chunk impostors or GPU-driven culling (only if content roughly doubles).
 
 ### Deferred work (pick next with the user)
@@ -102,7 +102,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 Tracked in [`roadmap.md` → Tech debt](roadmap.md#tech-debt--open-issues). Most relevant next:
 
 - Headless boot timings swing a lot between identical runs (warm-up 1.3–3.5 s on WebGL2); compare several runs.
-- Remaining CPU is three's per-draw overhead (~200–230 draws incl. shadows); next lever is `BatchedMesh` or GPU culling.
+- Remaining CPU is three's per-draw overhead (≈100 visible batches); `BatchedMesh` rejected (D-031), GPU culling if content grows.
 - Overgrown highways are hard to see from far away (the Access lens and advisor are the current way to find them).
 - Season is derived from `city.tick`: changing `SEASON_SECONDS` shifts the season of existing saves.
 

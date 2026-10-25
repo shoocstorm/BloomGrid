@@ -173,7 +173,7 @@ The city is a system that can run well or badly.
 
 Keep this list current; remove items when fixed.
 
-- [ ] Remaining CPU is three's per-draw overhead (~230 draws incl. shadow pass). Next lever: merge piece types per chunk with `BatchedMesh` (needs per-instance params via a data texture), or GPU-driven culling.
+- [ ] Remaining CPU is three's per-draw overhead (≈100 visible instanced batches). `BatchedMesh` and shadow cuts were measured and rejected (D-031); next lever if content grows is GPU-driven culling with indirect draws.
 - [ ] Draw calls are ~200–225 with ~1700 buildings; ~2× more content would approach the budget. Next steps if content grows: merge far chunks into static impostor meshes, or GPU-driven culling with indirect draws.
 - [ ] JS bundle is about 1.25 MB (three.js dominates); the Tweakpane inspector is already a lazy 150 KB chunk. Lazy-load future modules too.
 - [ ] Main thread blocks during world generation (terrain + flora, about 0.2 s now); move to a worker when the sim moves.
