@@ -176,8 +176,7 @@ Keep this list current; remove items when fixed.
 - [ ] **WebGL2 shader warm-up is ~2–10 s in headless Chrome** (grew with the overlay/vitality nodes; WebGPU stays ~1.1 s). Options: reveal the city while compiling far pieces in the background, split overlay into a material variant only compiled on first lens use, `KHR_parallel_shader_compile`.
 - [ ] Remaining CPU is three's per-draw overhead (~230 draws incl. shadow pass). Next lever: merge piece types per chunk with `BatchedMesh` (needs per-instance params via a data texture), or GPU-driven culling.
 - [ ] Draw calls are ~200–225 with ~1700 buildings; ~2× more content would approach the budget. Next steps if content grows: merge far chunks into static impostor meshes, or GPU-driven culling with indirect draws.
-- [ ] JS bundle is about 1.2 MB (single chunk): code-split debug (Tweakpane) and future modules.
+- [ ] JS bundle is about 1.25 MB (three.js dominates); the Tweakpane inspector is already a lazy 150 KB chunk. Lazy-load future modules too.
 - [ ] Main thread blocks during world generation (terrain + flora, about 0.2 s now); move to a worker when the sim moves.
-- [ ] Stress spawner fills the map row-major; make it spread across the island.
 - [ ] Utility networks are global per highway component (no per-district capacity limits).
-- [ ] Field recompute (~every 5 s) runs on the main thread in one go; spread over ticks or move to a worker if maps grow further.
+- [ ] Field passes run on the main thread, one per pulse (6-pulse cycle). The heaviest is ecology + desirability (≈2.8 ms, ≈4 ms pulse tick, ~1 ms over the sim budget once every 6 s); about 1.2 ms of each pass is the box blur, which is already memory-bound (loop splitting gave no gain). Next lever: time-slice blur passes across the 10 ticks between pulses (double-buffered), or a worker.

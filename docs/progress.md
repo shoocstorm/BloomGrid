@@ -8,7 +8,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 |             |                                                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Branch      | `main` (`feature/island-city-pulse` merged after Phase 12; no remote configured)                                                                                |
-| Last commit | Phase 12: Hero Assets & Platform                                                                                                                                |
+| Last commit | Boot: faster outer terrain ring, per-module boot timing (then: lazy inspector chunk, island-wide stress spawner)                                                |
 | Phases done | **All roadmap phases 0–12** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
 | Tests       | 61 passing (`npm test`); `npm run check` clean                                                                                                                  |
@@ -17,14 +17,14 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 ### Measured baselines (headless Chrome, WebGPU, M-series, founding city, High quality)
 
-| Metric      | Value                                                                                                             | How to measure                                        |
-| ----------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Boot        | ≈2.0 s (scenario ≈0.25 s, modules ≈0.38 s / 0.42 s with `?stress=1500`, shader warm-up ≈1.1 s)                    | `[boot] ms` log via `npm run snap`                    |
-| Frame rate  | 60 fps active, 30 idle (power mode Balanced)                                                                      | `npm run perf` / `npm run perf -- --idle`             |
-| Main thread | ≈16% active, ≈14.5% idle                                                                                          | `npm run perf`                                        |
-| GPU         | ≈1.0–3 ms per frame headless (noisy: compare several runs; +≈2 ms in storm rain)                                  | `npm run perf -- --path "/?gputime"`                  |
-| Draw calls  | ≈188–214 near, ≈213–247 overview incl. `?stress=1500` (budget 300)                                                | perf overlay (F3) or `renderer.info.render.drawCalls` |
-| Sim         | pulse ≈2.4 ms; per phase: fields 4.1 (0), mobility 1.2 (1), bloom 1.8 (2), Flora-Net 1.3 (3), activity 1.7 (4) ms | see the bench pattern in D-020                        |
+| Metric      | Value                                                                                                                                         | How to measure                                        |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Boot        | ≈1.8–2.0 s (scenario ≈0.25 s, modules ≈0.29–0.38 s incl. `?stress=1500`, shader warm-up ≈1.0 s)                                               | `[boot] ms` log via `npm run snap`                    |
+| Frame rate  | 60 fps active, 30 idle (power mode Balanced)                                                                                                  | `npm run perf` / `npm run perf -- --idle`             |
+| Main thread | ≈16% active, ≈14.5% idle                                                                                                                      | `npm run perf`                                        |
+| GPU         | ≈1.0–3 ms per frame headless (noisy: compare several runs; +≈2 ms in storm rain)                                                              | `npm run perf -- --path "/?gputime"`                  |
+| Draw calls  | ≈188–214 near, ≈213–247 overview; `?stress=1500` (spread over the island) 222 near / 235 overview (budget 300)                                | perf overlay (F3) or `renderer.info.render.drawCalls` |
+| Sim         | pulse ≈1.2 ms + one pass: pairing+pollution 1.6 (0), ecology 2.8 (1), bloom 2.0 (2), Flora-Net 1.3 (3), activity 2.4 (4), mobility 1.1 (5) ms | see the bench pattern in D-020                        |
 
 ## How to resume
 
@@ -50,6 +50,15 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 ## Next up
 
+### Optimization backlog (ranked; quick wins done 2026-10-25)
+
+1. WebGL2 shader warm-up (2–10 s): reveal before far pieces compile, lazy lens variant, `KHR_parallel_shader_compile`.
+2. Ecology pulse tick ≈4 ms: time-slice blur passes between pulses, or move world gen + fields to a worker.
+3. KTX2 textures for hero GLBs (`supertree-grove.glb` 1.4 MB).
+4. Cheaper shadow pass at overview zoom (fewer casters / lower resolution).
+5. `BatchedMesh` per chunk (biggest CPU/heat lever; `aParams` → data texture).
+6. Far-chunk impostors or GPU-driven culling (only if content roughly doubles).
+
 ### Deferred work (pick next with the user)
 
 - Phase 8 leftovers: canopy greenways, hyperloop, ferries, player-drawn sky-lanes.
@@ -68,7 +77,6 @@ sections whenever you stop working** (see AGENTS.md §6).
 - Reclaimed land is a flat fill at 1.0 with blocky edges; no terraform-down, no coastline smoothing.
 - Highways can't be drawn onto water as land later; bridges over reclaimed tiles aren't converted.
 - Sky-bridges have no mobility effect (commuters still use highways).
-- Module boot with `?stress=1500` is ≈424 ms (guideline 400).
 
 ### Phase 9 follow-ups (deferred)
 
