@@ -36,7 +36,9 @@ warnings and errors plus the app's tagged logs such as `[boot] ms {…}` (it exi
 your change. `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js` (small district), `blackout.js` (night power-failure
 drill), `drought.js` (water-failure drill; buildings should visibly wilt), `retrofit.js` (channel + Bloom Retrofit
 wave), `nightlife.js` (night downtown: glow should follow activity; `window.NEAR = 12` for a close-up) and `season.js`
-(mid-Haze; prefix `window.SEASON = 1;` for a Monsoon shower). Crises: `--path "/?drill=monsoon"`
+(mid-Haze; prefix `window.SEASON = 1;` for a Monsoon shower), `mobility.js` (first Pod Dock at rush hour; `window.NIGHT = 1`,
+`window.LENS = 1` for the Traffic lens, `window.NEAR = 14`).
+Field passes share the pulse: phase 0 fields + pairing, 1 mobility, 2 bloom, 4 night life (D-020); 3 is free. Crises: `--path "/?drill=monsoon"`
 (any crisis id; `&severity=1.2`), or the inspector's Crisis drills.
 
 ## 3. Hard rules
@@ -89,6 +91,7 @@ wave), `nightlife.js` (night downtown: glow should follow activity; `window.NEAR
 | Crisis / difficulty                | `registerCrisis` in `src/sim/crises.ts`; presets in `src/sim/difficulty.ts`; UI in `src/modules/crises/` |
 | Bloom, seasons, channels, retrofit | `src/sim/bloom.ts`, `src/sim/seasons.ts`, `src/sim/commands.ts`; visuals in `src/modules/bloom/`         |
 | Night glow / pedestrian activity   | `src/sim/nightlife.ts`; shaders use `activityGlow()` from `render/materials/overlay.ts`                  |
+| Commuting, congestion, pod docks   | `src/sim/mobility.ts` (+ `transit` on a building def); visuals in `src/modules/mobility/`                |
 | Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                           |
 | New lit material                   | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)           |
 
@@ -161,6 +164,7 @@ own `requestAnimationFrame` loops.
 - Headless screenshots can time out while the main thread is busy generating the world; re-run, or capture later.
 - `npm run snap` ignores `--eval` when `--times` is given; use `--after <ms>` with `--eval`. An eval may return a
   Promise (e.g. to sample `renderer.info.render.drawCalls` over a second; it reads 0 between frames).
+- Headless `?gputime` swings 1.7–5 ms between identical runs; compare several runs on and off before blaming a change.
 
 ## 9. Picking up work
 

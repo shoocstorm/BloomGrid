@@ -345,3 +345,19 @@ registerAdvisorRule((city) => {
     fix: 'Choose Bloom Retrofit (B) and click the heart of a busy district.',
   };
 });
+
+registerAdvisorRule((city) => {
+  const t = city.pulse.tiers.mobility;
+  if (t < 2) return null;
+  const traffic = city.grid.layer<Float32Array>('traffic');
+  const worst = traffic ? hotspot(city, traffic) : undefined;
+  return {
+    id: 'traffic',
+    severity: severityOf(t),
+    title: `Highways are jammed (${pct(city.pulse.flow)} flow)`,
+    detail: `Commutes take ${Math.round((1 / Math.max(0.05, city.pulse.flow) - 1) * 100)}% longer than on empty highways, which wears residents down.`,
+    fix: 'Build a Green Pod Dock among crowded homes (pods fly commuters over the jam), add jobs closer to homes, or draw a parallel highway.',
+    focus: worst?.focus,
+    build: 'pod-dock',
+  };
+});

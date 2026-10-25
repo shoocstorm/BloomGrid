@@ -118,6 +118,25 @@ registerOverlay({
   },
 });
 registerOverlay({
+  id: 'traffic',
+  label: 'Traffic',
+  icon: '⇶',
+  legend: ['Free-flowing', 'Gridlock'],
+  invert: true,
+  smooth: false,
+  compute(city, _f, value, mask) {
+    const g = city.grid;
+    const t = g.layer<Float32Array>('traffic');
+    mask.fill(0);
+    if (!t) return;
+    for (let i = 0; i < g.road.length; i++) {
+      if (!g.road[i]) continue;
+      value[i] = Math.min(1, t[i]! / 1.5);
+      mask[i] = 1;
+    }
+  },
+});
+registerOverlay({
   id: 'access',
   label: 'Access',
   icon: '≋',

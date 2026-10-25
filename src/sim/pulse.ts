@@ -9,16 +9,16 @@ import { blightLoss, updateCrises } from './crises';
 import { updateFinance } from './finance';
 import { updateCondition, updateOvergrowth } from './upkeep';
 import { updateStewardship } from './steward';
-import { PULSE_TICKS } from './pulseConst';
+import { LABOUR_SHARE, PULSE_TICKS } from './pulseConst';
 import { bloomLayers, computeBloom, computeIrrigation, computePairing } from './bloom';
 import { computeActivity } from './nightlife';
+import { computeMobility } from './mobility';
 import { seasonAt } from './seasons';
 import { MAX_ENTITIES } from '@/ecs/components';
 
 export { PULSE_TICKS };
 
 const HISTORY_EVERY = 10; // pulses
-const LABOUR_SHARE = 0.65;
 /** Credits per taxed resident-second; tuned so a mature city nets a modest surplus at 12% tax. */
 export const INCOME_SCALE = 0.06;
 
@@ -61,6 +61,9 @@ export const pulseSystem: System<SimCtx> = {
     if (phase === 0) {
       computePairing(city);
       computeFields(city, city.fields);
+    } else if (phase === 1) {
+      computeMobility(city);
+      city.bus.emit('mobility:updated', undefined);
     } else if (phase === 2) {
       computeBloom(city, city.fields);
       city.bus.emit('bloom:updated', undefined);
@@ -236,7 +239,9 @@ export const pulseSystem: System<SimCtx> = {
     h.amenities = clamp((amenity / per) * 2, -10, 15) * (condSum / per);
     h.crises = mod.harmony;
     h.bloom = clamp((pulse.bloomIndex - 0.4) * 16, -4, 6);
-    const target = clamp(h.base + h.ecology + h.services + h.jobs + h.food + h.taxes + h.amenities + h.crises + h.bloom, 0, 100);
+    // Jammed commutes wear residents down (flow 0.9+ is free; 0.5 means trips take twice as long).
+    h.traffic = -clamp((0.9 - pulse.flow) * 25, 0, 12);
+    const target = clamp(h.base + h.ecology + h.services + h.jobs + h.food + h.taxes + h.amenities + h.crises + h.bloom + h.traffic, 0, 100);
     pulse.avgGreenery = greenSum / per;
     s.happiness += (target - s.happiness) * 0.06;
 
@@ -255,6 +260,7 @@ export const pulseSystem: System<SimCtx> = {
       jobs: tierFromRatio(1 - unemployment, [0.65, 0.8, 0.9, 0.95]),
       ecology: tierFromRatio(s.eco / per, [-4, -1, 1, 4]),
       harmony: tierFromRatio(s.happiness, [25, 40, 55, 75]),
+      mobility: pulse.commuters > 50 ? tierFromRatio(pulse.flow, [0.45, 0.6, 0.75, 0.9]) : 1,
       budget: city.credits < -5000 ? 4 : city.credits < 0 ? 3 : net < 0 ? 2 : net > s.upkeep * 0.25 ? 0 : 1,
     };
     for (const k of SYSTEMS) {

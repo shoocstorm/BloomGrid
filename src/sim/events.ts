@@ -20,6 +20,8 @@ declare module '@/core/EventBus' {
     'bloom:updated': void;
     /** The pedestrian-activity field was recomputed. */
     'activity:updated': void;
+    /** The mobility pass ran (flow field, congestion, pod routes). */
+    'mobility:updated': void;
     'channel:changed': { tiles: number[] };
     /** Buildings whose retrofit level changed; `origin` drives the transformation wave. */
     'buildings:level': { eids: number[]; origin?: { x: number; z: number; radius: number } };

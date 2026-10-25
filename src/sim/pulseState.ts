@@ -1,3 +1,5 @@
+import type { PodRoute } from './mobility';
+
 /**
  * City Pulse state: everything the management layer tracks beyond raw entities.
  * Plain data so it serializes directly into saves.
@@ -5,7 +7,7 @@
 export const TIERS = ['Thriving', 'Stable', 'Strained', 'Critical', 'Collapse'] as const;
 export type Tier = 0 | 1 | 2 | 3 | 4;
 
-export const SYSTEMS = ['energy', 'water', 'food', 'jobs', 'ecology', 'harmony', 'budget'] as const;
+export const SYSTEMS = ['energy', 'water', 'food', 'jobs', 'mobility', 'ecology', 'harmony', 'budget'] as const;
 export type SystemKey = (typeof SYSTEMS)[number];
 
 export const HISTORY_METRICS = ['population', 'credits', 'happiness', 'energyBalance', 'waterBalance', 'eco', 'net', 'bloom'] as const;
@@ -24,6 +26,8 @@ export interface HarmonyBreakdown {
   crises: number;
   /** City-wide bloom (pollinated, flowering districts delight residents). */
   bloom: number;
+  /** Congested commutes (see `sim/mobility.ts`). */
+  traffic: number;
 }
 
 /** Per highway-network utility totals from the last pulse (index = network id). Not saved. */
@@ -57,6 +61,14 @@ export interface PulseState {
   cleanShare: number;
   /** Mean pedestrian activity over the built city (0..1), see `sim/nightlife.ts`. */
   nightlife: number;
+  /** Mobility (derived on the mobility pulse phase): flow quality 0..1 (1 = free-flowing). */
+  flow: number;
+  /** Commuters per pulse, how many ride pods, and mean highway trip length in tiles. */
+  commuters: number;
+  podRiders: number;
+  avgCommute: number;
+  /** Sky-lanes flown by commuter pods (for rendering). */
+  podRoutes: PodRoute[];
   /** Last season index (emits `season:changed`). */
   season: number;
   /** Pulses since start (drives field recompute cadence). */
@@ -70,10 +82,10 @@ export const TAX_DEFAULT = 0.12;
 export function createPulseState(): PulseState {
   return {
     taxRate: TAX_DEFAULT,
-    tiers: { energy: 1, water: 1, food: 1, jobs: 1, ecology: 1, harmony: 1, budget: 1 },
+    tiers: { energy: 1, water: 1, food: 1, jobs: 1, mobility: 1, ecology: 1, harmony: 1, budget: 1 },
     primed: false,
     history: Object.fromEntries(HISTORY_METRICS.map((m) => [m, []])) as unknown as Record<HistoryMetric, number[]>,
-    harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0, crises: 0, bloom: 0 },
+    harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0, crises: 0, bloom: 0, traffic: 0 },
     energyRatio: 1,
     waterRatio: 1,
     foodRatio: 1,
@@ -83,6 +95,11 @@ export function createPulseState(): PulseState {
     coastalPollution: 0,
     bloomIndex: 0.4,
     nightlife: 0,
+    flow: 1,
+    commuters: 0,
+    podRiders: 0,
+    avgCommute: 0,
+    podRoutes: [],
     cleanShare: 1,
     season: -1,
     count: 0,

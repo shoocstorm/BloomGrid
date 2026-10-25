@@ -21,6 +21,10 @@ Settings (⚙ in the top bar): power mode (Battery 30 fps / Balanced 60 fps, idl
 Seasons bring weather (drizzle in Monsoon, haze in Haze). At night the island glows where people are: busy streets light
 their flowers, fungi paths and canopies brighter (see the Night life lens ✨ and the City Pulse "Night life" index).
 
+Residents commute along the highways to the nearest workplace with free jobs; busy lanes jam (amber and coral
+commuter lights, the Traffic lens ⇶, the Mobility health tier). Green Pod Docks fly nearby commuters over the
+traffic along glowing sky-lanes.
+
 Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · C filtration channel ·
 B Bloom Retrofit · X bulldoze ·
 4–0 build categories · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·

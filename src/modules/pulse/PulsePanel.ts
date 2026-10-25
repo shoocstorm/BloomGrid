@@ -8,6 +8,7 @@ export const SYSTEM_LABELS: Record<SystemKey, string> = {
   water: 'Water supply',
   food: 'Food',
   jobs: 'Employment',
+  mobility: 'Mobility',
   ecology: 'Ecology',
   harmony: 'Harmony',
   budget: 'Budget',
@@ -149,6 +150,7 @@ export class PulsePanel {
       ['amenities', 'Amenities'],
       ['crises', 'Crises'],
       ['bloom', 'Bloom'],
+      ['traffic', 'Traffic'],
     ]) {
       const v = h('b');
       this.harmony.set(id!, v);
@@ -200,6 +202,7 @@ export class PulsePanel {
       water: s.waterUsed ? pct(p.waterRatio) : '—',
       food: s.population > 1 ? pct(p.foodRatio) : '—',
       jobs: `${pct(p.unemployment)} idle`,
+      mobility: p.commuters > 50 ? `${pct(p.flow)} flow` : '—',
       ecology: fmt(s.eco),
       harmony: `${Math.round(s.happiness)}`,
       budget: `${fmt(city.credits)}`,

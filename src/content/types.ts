@@ -24,6 +24,7 @@ export type PieceId =
   | 'dome'
   | 'pool'
   | 'algaeTank'
+  | 'pod'
   | (string & {});
 
 export interface PieceSpec {
@@ -101,6 +102,8 @@ export interface BuildingDef {
   cleanEnergy?: boolean;
   /** Symbiotic pairing: with a partner nearby, pollution is purified and output rises. */
   symbiosis?: Symbiosis;
+  /** Transit hub (Pod Dock): carries up to `riders` commuters from homes within `radius` tiles by air. */
+  transit?: { radius: number; riders: number };
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */
   variants?: number;
   /** Procedural recipe, or a GLB asset path for hero models. */

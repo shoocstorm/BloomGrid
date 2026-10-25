@@ -112,10 +112,16 @@ The city is a system that can run well or badly.
 - **Accept:** ✅ `tests/nightlife.test.ts` (built city ≥3× brighter than wild land, new parks light their street, a blackout dims it, pulse recompute, determinism). Drills: `scripts/scenes/nightlife.js` (night downtown + retrofit), `scripts/scenes/season.js` (`window.SEASON = 1` for Monsoon drizzle, default Haze).
 - **Measured:** activity pass 1.7 ms on its own pulse phase; 16% / 15.5% main thread active / idle; GPU 1.5 ms; draws 178 near / 208 overview (191 / 234 with `?stress=1500`).
 
-## ⬜ Phase 8 — Mobility Layer
+## ✅ Phase 8 — Mobility Layer (core)
 
-Citizen and pod agents on flow fields; sky-lanes with light ribbons; pod docks; canopy greenways; hyperloop
-under the central hills and across to the islets; ferries and bridges; congestion overlay.
+- [x] Commuting on flow fields (`sim/mobility.ts`, pulse phase 1): capacity-aware rounds of multi-source BFS from workplaces with free jobs; homes fill the nearest, overflow commutes further; walked tiles accumulate load (D-022)
+- [x] Congestion: load / `TILE_CAPACITY` per highway tile; jammed tiles slow trips → flow quality; new **Mobility** health tier, "Traffic" harmony factor (up to −12), Traffic lens (⇶), advisor rule with a one-click Pod Dock
+- [x] Green Pod Dock (`content/buildings/pod-dock.ts`): flies up to 420 commuters from homes within 12 tiles off the highways; inspector shows riders; two in the founding city
+- [x] Sky-lanes: pods shuttle on arcs from each dock to the busiest job hub it serves, marked by flowing light ribbons
+- [x] Hover-commuter agents: up to 8192 instances on straight runs of the flow field, GPU-animated from static data rebuilt every ~5 s; denser and slower and warm white → amber → coral as lanes jam; morning flows to work, evening home, fewer at night
+- [ ] Deferred to a later phase: canopy greenways, hyperloop under the hills and to the islets, ferries, player-drawn sky-lanes, vehicle follow-cam
+- **Accept:** ✅ `tests/mobility.test.ts` (flow field direction and load, more commuters → lower flow, a Pod Dock relieves the highway and opens a sky-lane, founding city flows ≥ 75%, advisory, determinism). Drill: `scripts/scenes/mobility.js` (`window.NIGHT`, `window.LENS`, `window.NEAR`).
+- **Measured:** mobility pass ≈1.2 ms on its own pulse phase; founding city 85% flow (Stable); main thread ≈18% active / 16.5% idle; GPU unchanged within headless noise (1.7–5 ms on and off); draws 186 near / 213 overview (200 / 239 with `?stress=1500`).
 
 ## ⬜ Phase 9 — Flora-Net AI & Symbiotic Automation
 

@@ -49,4 +49,6 @@ export const Service = {
   paired: new Uint8Array(MAX_ENTITIES),
   /** Bloom field at the building (0..1), sampled each pulse. */
   bloom: new Float32Array(MAX_ENTITIES),
+  /** Pod Docks: commuters flown per pulse (see `sim/mobility.ts`). */
+  riders: new Float32Array(MAX_ENTITIES),
 };

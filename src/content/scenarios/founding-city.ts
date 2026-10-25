@@ -60,6 +60,8 @@ export default defineScenario({
         if (!placed) break;
       }
     };
+    // Two Pod Docks (downtown and the eastern town) so sky-lanes fly from day one.
+    for (const [x0, z0, x1, z1] of [areas[3]!, areas[0]!]) b.fill(x0 * S, z0 * S, x1 * S, z1 * S, { 'pod-dock': 1 }, 1, 1);
     const t = () => b.totals();
     sweep('greenhouse-hub', () => t().jobs > t().population * 0.65 * 0.85);
     sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06);

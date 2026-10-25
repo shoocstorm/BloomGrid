@@ -286,6 +286,15 @@ export function initMaterials(): void {
     return m;
   });
 
+  // Commuter pod shell: pearl body with a glowing window band (instance glow brightens it at night).
+  define('pod', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.25, metalness: 0.2 });
+    const band = smoothstep(0.03, 0.0, abs(positionGeometry.y.sub(0.25)));
+    m.colorNode = mix(color(0xf6f8f4), color(0x2f6f78), band);
+    m.emissiveNode = color(0x7ff7e6).mul(band).mul(iGlow.mul(U.night).mul(1.4).add(0.15));
+    return m;
+  });
+
   // Façade waterfall (retrofit courtyards): white-water streaks sliding down a teal sheet,
   // foam where it lands, and a soft cyan glow at night that follows street activity.
   define('waterfall', () => {
