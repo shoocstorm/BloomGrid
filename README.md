@@ -39,7 +39,8 @@ harvests, and every rooftop is a garden.</td>
 <td><b>Landmarks worth visiting.</b> The Wellspring Spire rises at the island's heart where the river is born, ringed by a wind helix, a
 hanging-gardens ziggurat, a sky-ark and cloud-forest domes, with a hero avenue of mushroom labs, a rain vortex, a
 dragonfly skyport, an algae lantern and a vertical forest leading downtown, and a promenade west past a giant
-banyan treehouse hotel, levitating gardens, a bamboo cathedral, a crystal data spire and a starlight observatory. Walk,
+banyan treehouse hotel, levitating gardens, a bamboo cathedral, a crystal data spire and a starlight observatory. Further
+south, an airship port, a flower clock, a coral arcology, thermal baths and a moonflower concert hall. Walk,
 hoverboard or fly a drone through your streets, ride a commuter pod along its sky-lane, or frame the moment in photo mode.</td>
 <td><b>A whole island to steward.</b> A 512 × 512 tile island with hills, lakes, a river and islets to bridge,
 reclaim or defend.</td>

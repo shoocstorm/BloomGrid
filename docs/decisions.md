@@ -220,3 +220,8 @@ ceiling for hand-placed heroes; more content needs impostors or GPU culling firs
 Stable water, so the water sweep targets 100% of demand instead of 102%, which keeps the intended opening shortage
 (the advisor test relies on it). Food on the default seed opens between ≈0.92 and 0.97 depending on the moment;
 the scenario is deliberately short on food and water.
+**South Avenue and Garden Lane (ten more, 30 heroes in all):** placed only in the two 64-tile render chunks that
+already held the hero pieces, so they add ≈2 draws. The worst view (over the South Avenue toward downtown) measured
+302 draws with `?stress=1500` *before* this batch; `haloRing` stopped casting shadows and it is now 297 (255 without
+stress). **The hero district is at the draw-call ceiling: the next content must start with far-chunk impostors or
+GPU-driven culling.** Seed 4242 opens with food ≈0.56 and water ≈0.7 with or without the heroes (a small-island seed).

@@ -53,6 +53,11 @@ export default defineScenario({
     const sz = sx;
     const [lx, lz, rx, rz] = [sx - 1, sz - 1, sx + SP, sz + SP];
     const terrace = b.level(lx - 10, lz - 8, rx + 12, rz + 4, 6);
+    // The avenue to downtown runs down x = bx (a downtown grid road) to the grid's top row dz0; the ring road
+    // passes along z = ringZ west of x = ringX.
+    const [dx0, dz0] = fit(S, 0.44, 0.6, 0.66, 0.74).map((v) => Math.round(v * S)) as [number, number];
+    const bx = dx0 + 5 * Math.round((0.585 * S - dx0) / 5);
+    const [ringX, ringZ] = P(0.47, 0.6);
     const spire = b.building('wellspring-spire', sx, sz, 0);
     if (spire) {
       // Each hero slides away from its anchor (dx, dz per step) until it fits: the river head moves with the seed.
@@ -83,6 +88,20 @@ export default defineScenario({
       hero('solar-sail-bazaar', lx - 35, rz + 1, -1, 0);
       hero('habitat-cascade', lx - 48, rz + 1, -1, 0);
       hero('aeolian-reeds', lx - 60, rz + 1, -1, 0);
+      // South avenue: both sides of x = bx from the avenue down to downtown.
+      b.level(bx - 13, rz + 18, bx + 12, dz0 - 2, 4, terrace);
+      hero('harmony-gate', bx - 8, rz + 18, 0, 1, 1);
+      hero('seedpod-labs', bx - 9, rz + 32, 0, 1);
+      hero('bloom-clock', bx - 8, rz + 43, 0, 1);
+      hero('zephyr-airport', bx + 1, rz + 18, 0, 1);
+      hero('heliostat-array', bx + 1, rz + 30, 0, 1);
+      hero('corkscrew-orchard', bx + 1, rz + 42, 0, 1);
+      // Garden lane: from the plaza's south-west corner down x = lx to the ring road.
+      b.level(lx - 24, rz + 12, lx + 1, ringZ - 1, 4, terrace);
+      hero('canopy-skywalk', lx - 10, rz + 13, -1, 0);
+      hero('coral-arcology', lx - 9, rz + 24, -1, 0);
+      hero('travertine-baths', lx - 10, ringZ - 10, -1, 0);
+      hero('moonflower-hall', lx - 22, ringZ - 10, -1, 0);
     }
 
     // The Supertree Grove (8×8) needs open land the district grids would cut up: reserve it first,
@@ -140,8 +159,6 @@ export default defineScenario({
       b.road(rx, lz, rx, rz);
       b.road(rx, rz, lx, rz);
       b.road(lx, rz, lx, lz);
-      const [dx0, dz0] = fit(S, 0.44, 0.6, 0.66, 0.74).map((v) => Math.round(v * S)) as [number, number];
-      const bx = dx0 + 5 * Math.round((0.585 * S - dx0) / 5);
       b.road(rx, S / 2, bx, S / 2, true);
       b.road(bx, S / 2, bx, dz0, true);
       // Second link: from the plaza's south-west corner west to the western town's grid.
@@ -149,6 +166,9 @@ export default defineScenario({
       const wx = wx0 + 6 * Math.floor((wx1 - wx0) / 6);
       b.road(lx, rz, wx, rz, true);
       b.road(wx, rz, wx, wz0, true);
+      // Garden lane down to the ring road: a third way out of the hero district.
+      b.road(lx, rz, lx, ringZ, true);
+      b.road(lx, ringZ, ringX, ringZ, true);
     }
   },
 });

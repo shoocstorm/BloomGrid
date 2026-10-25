@@ -79,6 +79,8 @@ describe('central landmark', () => {
     heroes.push('rain-vortex', 'dragonfly-port', 'mycelium-towers', 'algae-lantern', 'vertical-forest');
     heroes.push('fog-harp', 'nautilus-library', 'quartz-spire', 'bamboo-cathedral', 'starlight-observatory');
     heroes.push('elder-banyan', 'levitating-gardens', 'solar-sail-bazaar', 'habitat-cascade', 'aeolian-reeds');
+    heroes.push('harmony-gate', 'seedpod-labs', 'bloom-clock', 'zephyr-airport', 'heliostat-array');
+    heroes.push('corkscrew-orchard', 'canopy-skywalk', 'coral-arcology', 'travertine-baths', 'moonflower-hall');
     for (const id of heroes) {
       const e = s.city.buildingEntities().find((b) => buildings.at(Building.def[b]!).id === id);
       expect(e, id).toBeDefined();
