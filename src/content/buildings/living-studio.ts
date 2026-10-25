@@ -9,6 +9,7 @@ export default defineBuilding({
   category: 'commercial',
   footprint: [3, 2],
   stats: { cost: 300, energy: -7, eco: 5, happiness: 4, population: 0, jobs: 55, pollution: 0, water: -4 },
+  tower: true,
   growthTime: 80,
   recipe(b) {
     const floors = 3 + Math.floor(b.rand() * 2);

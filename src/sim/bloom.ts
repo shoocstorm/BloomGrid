@@ -86,7 +86,7 @@ export function computeBloom(city: City, f: Fields): void {
   for (const eid of query(city.world, [Building])) {
     const d = buildings.at(Building.def[eid]!);
     const lush = Greenery.value[eid]! > 0.7 ? 0.15 : 0;
-    const p = (d.pollinators ?? 0) + lush + (Building.level[eid]! > 0 ? 0.35 : 0);
+    const p = (d.pollinators ?? 0) + lush + (Building.level[eid]! === 2 ? 0.6 : Building.level[eid]! > 0 ? 0.35 : 0);
     // Point deposit at the centre; the blur below spreads it (~9 tiles).
     if (p > 0) pollen[g.index(Building.x[eid]! + (Building.w[eid]! >> 1), Building.z[eid]! + (Building.d[eid]! >> 1))] += p * 0.18 * POLLEN_SCALE;
     if (d.stats.energy > 0) {

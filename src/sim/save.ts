@@ -3,7 +3,7 @@ import type { BuildingRecord, City } from './City';
 import { createPulseState, type PulseState } from './pulseState';
 import { createStewardState, type StewardState } from './stewardState';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 export interface SaveData {
   version: number;
@@ -24,6 +24,10 @@ export interface SaveData {
   steward: Omit<StewardState, 'modifiers' | 'overgrown'>;
   /** Flora-Net soil per zone (row-major, 3 decimals); empty = defaults. */
   soil: { hydration: number[]; nutrients: number[] };
+  /** Sparse [corner, height] terrain edits on top of the generated terrain (land reclamation). */
+  terrain: [number, number][];
+  /** Green Weaver sky-bridges as [ax, az, bx, bz] tower anchors. */
+  bridges: [number, number, number, number][];
   /** Feature modules persist their own state under their module id. */
   modules: Record<string, unknown>;
 }
@@ -60,6 +64,12 @@ export function migrateSave(data: SaveData): SaveData {
     data.soil = { hydration: [], nutrients: [] };
     data.version = 5;
   }
+  if (data.version === 5) {
+    data.terrain = [];
+    data.bridges = [];
+    data.steward.seaRise ??= 0;
+    data.version = 6;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -82,6 +92,8 @@ export function serializeCity(city: City): SaveData {
     overgrowth,
     pulse: { taxRate: city.pulse.taxRate, history: structuredClone(city.pulse.history), happiness: city.stats.happiness },
     steward: structuredClone(persistable(city.steward)),
+    bridges: city.weaver.bridges.map((b) => [b.ax, b.az, b.bx, b.bz]),
+    terrain: [...city.terrainEdits].map(([c, h]) => [c, round3(h)]),
     soil: { hydration: [...city.soil.hydration].map(round3), nutrients: [...city.soil.nutrients].map(round3) },
     modules: {},
   };
@@ -99,6 +111,16 @@ export function deserializeCity(city: City, input: SaveData): void {
   city.pulse.history = structuredClone(data.pulse.history);
   city.stats.happiness = data.pulse.happiness;
   Object.assign(city.steward, structuredClone(data.steward));
+  // Terrain first: highways, channels and buildings sit on the edited ground.
+  if (data.terrain.length) {
+    for (const [c, h] of data.terrain) {
+      city.grid.heights[c] = h;
+      city.terrainEdits.set(c, h);
+    }
+    city.refreshTerrainDerived();
+    city.bus.emit('terrain:changed', { x0: 0, z0: 0, x1: city.grid.w, z1: city.grid.h });
+  }
+  city.weaver.bridges = data.bridges.map(([ax, az, bx, bz]) => ({ ax, az, bx, bz }));
   if (data.roads.length) city.setRoads(data.roads, true);
   if (data.overgrowth.length) {
     const og = city.grid.addLayer('overgrowth', (n) => new Uint8Array(n));

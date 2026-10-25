@@ -109,6 +109,10 @@ export interface BuildingDef {
   transit?: { radius: number; riders: number };
   /** Flora-Net Drone Hive: hummingbird drones pollinate, harvest, trim and mist within `radius` tiles. */
   drones?: { radius: number; count: number };
+  /** Coastal defence (Mangrove Seawall): keeps flood water up to `height` out within `radius` tiles. */
+  defence?: { radius: number; height: number };
+  /** A tower the Green Weaver can bridge to other towers or merge with a banyan. */
+  tower?: boolean;
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */
   variants?: number;
   /** Procedural recipe, or a GLB asset path for hero models. */

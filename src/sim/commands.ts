@@ -5,6 +5,8 @@ import type { BuildingRecord, City } from './City';
 import { TAX_MAX, TAX_MIN } from './pulseState';
 import { registerFinanceCommands } from './finance';
 import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from './floranet';
+import { RECLAIM_HEIGHT, cornersOf, reclaimPlan, setCorners } from './coast';
+import { BANYAN_LEVEL, banyanPlan, bridgePlan, towerAt } from './weaver';
 import { Building, Greenery } from '@/ecs/components';
 
 /** Cost of building a highway on a tile (bridges over water cost more). */
@@ -52,6 +54,8 @@ function setOvergrowth(city: City, values: [number, number][]): void {
 export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerFinanceCommands(stack);
   registerMist(stack);
+  registerReclaim(stack);
+  registerWeaver(stack);
   stack.register<BuildPayload, true>('build', {
     apply({ city }, p) {
       const def = buildings.get(p.def);
@@ -223,6 +227,80 @@ function registerMist(stack: CommandStack<SimCtx>): void {
     revert({ city }, _p, u) {
       for (const [z, v] of u.zones) city.soil.hydration[z] = v;
       city.credits += MIST_COST;
+    },
+  });
+}
+
+export interface ReclaimPayload {
+  x0: number;
+  z0: number;
+  x1: number;
+  z1: number;
+}
+
+/** Land reclamation: shallow sea in the rectangle becomes flat land at RECLAIM_HEIGHT. */
+function registerReclaim(stack: CommandStack<SimCtx>): void {
+  stack.register<ReclaimPayload, { corners: [number, number][]; edits: [number, number | undefined][]; cost: number }>('reclaim', {
+    apply({ city }, p) {
+      const plan = reclaimPlan(city, p.x0, p.z0, p.x1, p.z1);
+      if (!plan.tiles.length || city.credits < plan.cost) return null;
+      const corners = cornersOf(city, plan.tiles);
+      const h = city.grid.heights;
+      const undo = { corners: corners.map((c) => [c, h[c]!] as [number, number]), edits: corners.map((c) => [c, city.terrainEdits.get(c)] as [number, number | undefined]), cost: plan.cost };
+      // Raised corners keep any existing higher ground (the shoreline blends into the fill).
+      setCorners(city, corners.map((c) => [c, Math.max(h[c]!, RECLAIM_HEIGHT)]));
+      city.credits -= plan.cost;
+      return undo;
+    },
+    revert({ city }, _p, u) {
+      setCorners(city, u.corners);
+      for (const [c, e] of u.edits) if (e === undefined) city.terrainEdits.delete(c);
+      else city.terrainEdits.set(c, e);
+      city.credits += u.cost;
+    },
+  });
+}
+
+export interface WeavePayload {
+  /** Footprint anchors (building record x, z) of the two towers. */
+  a: [number, number];
+  b: [number, number];
+}
+
+/** Green Weaver: sky-bridges between towers and tower–banyan merges. */
+function registerWeaver(stack: CommandStack<SimCtx>): void {
+  stack.register<WeavePayload, { cost: number }>('weave', {
+    apply({ city }, p) {
+      const plan = bridgePlan(city, towerAt(city, p.a[0], p.a[1]), towerAt(city, p.b[0], p.b[1]));
+      if (!plan.ok) return null;
+      city.weaver.bridges.push({ ax: p.a[0], az: p.a[1], bx: p.b[0], bz: p.b[1] });
+      city.credits -= plan.cost;
+      city.bus.emit('weaver:changed', undefined);
+      return { cost: plan.cost };
+    },
+    revert({ city }, _p, u) {
+      city.weaver.bridges.pop();
+      city.credits += u.cost;
+      city.bus.emit('weaver:changed', undefined);
+    },
+  });
+  stack.register<{ x: number; z: number }, { eid: number; level: number; greenery: number; cost: number }>('banyan', {
+    apply({ city }, p) {
+      const eid = towerAt(city, p.x, p.z);
+      const plan = banyanPlan(city, eid);
+      if (!plan.ok) return null;
+      const undo = { eid, level: Building.level[eid]!, greenery: Greenery.value[eid]!, cost: plan.cost };
+      Building.level[eid] = BANYAN_LEVEL;
+      Greenery.value[eid] = 1;
+      city.credits -= plan.cost;
+      city.bus.emit('buildings:level', { eids: [eid] });
+      return undo;
+    },
+    revert({ city }, _p, u) {
+      Building.level[u.eid] = u.level;
+      Greenery.value[u.eid] = u.greenery;
+      city.credits += u.cost;
+      city.bus.emit('buildings:level', { eids: [u.eid] });
     },
   });
 }

@@ -196,7 +196,7 @@ class Hud {
       this.toolBtns.set(id, b);
       toolbar.append(b);
     };
-    for (const id of ['select', 'road', 'channel', 'bulldoze', 'retrofit', 'mist']) {
+    for (const id of ['select', 'road', 'channel', 'bulldoze', 'retrofit', 'mist', 'weave', 'reclaim']) {
       const t = ctx.tools.get(id);
       if (!t) continue;
       toolBtn(id, t.icon, t.label, t.hotkey?.replace('Key', '').replace('Escape', 'Esc'), () => {

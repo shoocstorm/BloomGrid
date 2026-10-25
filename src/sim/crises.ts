@@ -105,6 +105,8 @@ export function updateCrises(city: City): Modifiers {
       }
     }
   }
+  // Tides and floods stack on top of the risen sea.
+  m.floodLevel += st.seaRise;
   st.modifiers = m;
   return m;
 }

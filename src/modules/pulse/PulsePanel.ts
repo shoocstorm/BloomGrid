@@ -66,6 +66,7 @@ export class PulsePanel {
   private cleanEl!: HTMLElement;
   private nightEl!: HTMLElement;
   private soilEl!: HTMLElement;
+  private seaEl!: HTMLElement;
   private owed!: HTMLElement;
   private funding!: HTMLElement;
   private loanBtns: [number, HTMLButtonElement][] = [];
@@ -85,6 +86,7 @@ export class PulsePanel {
     this.cleanEl = h('b');
     this.nightEl = h('b');
     this.soilEl = h('b');
+    this.seaEl = h('b');
     const bloomSec = h(
       'div',
       { class: 'pulse-sec' },
@@ -93,6 +95,7 @@ export class PulsePanel {
       h('div', { class: 'kv' }, h('span', {}, 'Clean energy'), this.cleanEl),
       h('div', { class: 'kv', title: 'Pedestrian activity across the built city; night glow follows it' }, h('span', {}, 'Night life'), this.nightEl),
       h('div', { class: 'kv', title: 'Flora-Net: built zones with moist, nourished soil (Soil water / Nutrients lenses)' }, h('span', {}, 'Soil health'), this.soilEl),
+      h('div', { class: 'kv', title: 'Sea-level rise so far (Flood risk lens); Mangrove Seawalls protect the coast' }, h('span', {}, 'Sea level'), this.seaEl),
     );
     const health = h('div', { class: 'pulse-sec' }, h('div', { class: 'pulse-title' }, 'System health'));
     for (const k of SYSTEMS) {
@@ -230,6 +233,7 @@ export class PulsePanel {
     setText(this.bloomEl, `${Math.round(p.bloomIndex * 100)}%`);
     setText(this.cleanEl, `${Math.round(p.cleanShare * 100)}%`);
     setText(this.nightEl, `${Math.round(p.nightlife * 100)}%`);
+    setText(this.seaEl, city.steward.seaRise > 0.005 ? `+${city.steward.seaRise.toFixed(2)} m` : 'steady');
     setText(this.soilEl, `${Math.round(p.soilHealth * 100)}%${p.dryZones ? ` · ${p.dryZones} dry` : ''}`);
     const net = s.income - s.upkeep - s.debtService;
     setText(this.budget.get('debt')!, s.debtService > 0 ? `−${s.debtService.toFixed(1)}` : '0');

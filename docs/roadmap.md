@@ -134,10 +134,15 @@ The city is a system that can run well or badly.
 - **Accept:** ✅ `tests/floranet.test.ts` (drying without water / in Haze heatwaves, recovery; parched soil wilts and advises; mist cost and undo; farm depletion and hive recovery; hive trims overgrowth; founding city soil health; save v5 round-trip, v4 migration, hash). Drill: `scripts/scenes/floranet.js`.
 - **Measured:** Flora-Net pass 1.3 ms on its own pulse phase; main thread 17.2% active / 16.1% idle; GPU 2.3–3.1 ms; draws 188 near / 213 overview (207 / 246 with `?stress=1500`); boot unchanged.
 
-## ⬜ Phase 10 — Green Weaver & Land Reclamation
+## ✅ Phase 10 — Green Weaver & Land Reclamation
 
-Trace-to-grow branches and sky-bridges; tower–banyan merges; **land reclamation and terraforming** of the
-coastline; coastal defences against sea-level rise.
+- [x] Land reclamation (T, `sim/coast.ts`): drag over the shallow shelf (seabed above −4.5) next to the coast; the connected sea tiles become flat land at 1.0; costs by depth; undoable; reservoirs, the river, highways and channels are never filled. Terrain chunks, the water depth texture, wild flora, shore distance, soil zones and networks refresh (`terrain:changed`)
+- [x] Sea-level rise: after day 3 the sea rises over ~12 sim days to a difficulty cap (Sandbox 0.15 → Hard 0.5 m); king tides and monsoon floods stack on top; low unprotected buildings are evacuated and decay; toasts every 0.1 m; City Pulse "Sea level"; Flood risk lens 🌊; advisor rule
+- [x] Coastal defences: Mangrove Seawall (oyster reef, mangroves, berm) keeps water up to 1.4 m out within 9 tiles
+- [x] Green Weaver (V): click a tower then another to weave a flowering sky-bridge (3–18 tiles, ≤3 per tower; harmony and ecology bonus at both ends), or the same tower twice to merge it with a banyan (level 2: ecology ×2, more harmony and pollen; aerial roots, buttresses and a canopy crown). Bridges grow from both towers; demolished ends deactivate a bridge, undo revives it
+- [x] Save format v6 (sparse terrain edits, bridges, sea rise; v5 migration)
+- **Accept:** ✅ `tests/coast.test.ts` (reclaim, refresh and undo; reservoirs and deep water refused; rise reaches the cap; seawall protects; bridges rules, harmony, demolish/undo; banyan merge and undo; save v6 and migration). Drill: `scripts/scenes/weaver.js` (`window.FOCUS = 'coast'`, `window.NORECLAIM`).
+- **Measured:** main thread 18.4% active / 15.9% idle; GPU 1.7–2.5 ms; draws 188 near / 213 overview (214 / 247 with `?stress=1500`); modules boot 375 ms (424 ms with `?stress=1500`).
 
 ## ⬜ Phase 11 — Explore Modes
 

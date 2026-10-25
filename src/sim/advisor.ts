@@ -6,6 +6,7 @@ import { getCrisis } from './crises';
 import { FAIL_SECONDS } from './steward';
 import { creditLimit } from './finance';
 import { ZONE, zoneOf } from './floranet';
+import { atRisk } from './coast';
 
 export type Severity = 0 | 1 | 2; // info, warning, critical
 
@@ -406,5 +407,23 @@ registerAdvisorRule((city) => {
     fix: 'Build Bloom Parks or a Drone Hive near the farms (drones return harvest compost), and pair Bioreactors with Phyto Gardens (digestate).',
     focus,
     build: 'flora-hive',
+  };
+});
+
+registerAdvisorRule((city) => {
+  const rise = city.steward.seaRise;
+  if (rise <= 0.02) return null;
+  // Buildings a king tide on today's sea would flood.
+  const { count, focus } = atRisk(city, rise + 0.35);
+  if (!count) return null;
+  const drowned = atRisk(city, rise).count;
+  return {
+    id: 'sea-rise',
+    severity: drowned ? 2 : count > 10 ? 1 : 0,
+    title: drowned ? `The risen sea is flooding ${drowned} building${drowned > 1 ? 's' : ''}` : `${count} coastal building${count > 1 ? 's' : ''} at risk from the rising sea`,
+    detail: `Sea level is up ${rise.toFixed(2)} m and still rising; king tides add about 0.35 m on top.`,
+    fix: 'Build Mangrove Seawalls on the shore in front of them (each protects 9 tiles up to 1.4 m), or reclaim higher land (T) further out.',
+    focus,
+    build: 'mangrove-seawall',
   };
 });

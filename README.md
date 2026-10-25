@@ -29,8 +29,12 @@ Flora-Net watches the soil: gardens dry out in Haze and heatwaves or when the ta
 soil (Soil water ❖ and Nutrients ✿ lenses, "Soil health" in City Pulse). Mist dry zones (M), dig channels, or build a
 Drone Hive whose hummingbird drones pollinate, harvest, trim overgrown highways and mist gardens.
 
+From day 3 the sea slowly rises (Flood risk lens 🌊, "Sea level" in City Pulse): defend the coast with Mangrove
+Seawalls or reclaim the shallows as new land (T). The Green Weaver (V) grows flowering sky-bridges between towers, or
+merges a tower with a banyan (click it twice).
+
 Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · C filtration channel ·
-B Bloom Retrofit · M Flora-Net mist · X bulldoze ·
+B Bloom Retrofit · M Flora-Net mist · V Green Weaver · T reclaim land · X bulldoze ·
 4–0 build categories · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·
 Alt+1–4 / Shift+1–4 store / recall views · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
 

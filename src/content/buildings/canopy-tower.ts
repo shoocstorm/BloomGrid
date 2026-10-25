@@ -8,6 +8,7 @@ export default defineBuilding({
   category: 'residential',
   footprint: [3, 3],
   stats: { cost: 480, energy: -14, eco: 6, happiness: 6, population: 110, jobs: 6, pollution: 1, water: -14 },
+  tower: true,
   growthTime: 180,
   recipe(b) {
     const segments = 3 + Math.floor(b.rand() * 2);

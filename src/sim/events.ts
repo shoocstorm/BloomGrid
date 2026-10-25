@@ -26,6 +26,12 @@ declare module '@/core/EventBus' {
     'floranet:updated': void;
     /** Flora-Net misted zones at (x, z) (a steward dispatch). */
     'floranet:mist': { x: number; z: number; radius: number };
+    /** Corner heights changed inside this tile rectangle (land reclamation). */
+    'terrain:changed': { x0: number; z0: number; x1: number; z1: number };
+    /** Sea level crossed another 0.1 world units of rise. */
+    'sea:rise': { level: number };
+    /** Green Weaver sky-bridges were added or removed. */
+    'weaver:changed': void;
     'channel:changed': { tiles: number[] };
     /** Buildings whose retrofit level changed; `origin` drives the transformation wave. */
     'buildings:level': { eids: number[]; origin?: { x: number; z: number; radius: number } };

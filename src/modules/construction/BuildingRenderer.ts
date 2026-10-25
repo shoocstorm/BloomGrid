@@ -28,6 +28,8 @@ export interface BuildingTemplate {
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number; top: number };
   /** Bloom Retrofit overlay (flower walls, ivy curtains, sunflower roof), built on demand. */
   retrofit?: TemplatePiece[];
+  /** Banyan merge overlay (aerial roots, buttresses, crown), built on demand. */
+  banyan?: TemplatePiece[];
   rng: Rng;
 }
 
@@ -166,6 +168,47 @@ export function retrofitPieces(t: BuildingTemplate): TemplatePiece[] {
   return out;
 }
 
+/**
+ * Green Weaver banyan merge: aerial roots curtain the façades down to the ground, buttress roots
+ * grip the base and a vast canopy crowns the roof. Generated once per template and cached.
+ */
+export function banyanPieces(t: BuildingTemplate): TemplatePiece[] {
+  if (t.banyan) return t.banyan;
+  const out: TemplatePiece[] = [];
+  const { minX, maxX, minZ, maxZ, top } = t.bounds;
+  const rng = t.rng;
+  const push = (piece: string, p: [number, number, number], s: [number, number, number], r: number, tint: number, glow: number, rx = 0, rz = 0) => {
+    _q.setFromEuler(_e.set(rx, r, rz, 'YXZ'));
+    out.push({ piece, local: new Matrix4().compose(_v.set(...p), _q, _s.set(...s)), tint, glow, growAt: 0, seed: rng.next(), y: p[1] });
+  };
+  const cx = (minX + maxX) / 2;
+  const cz = (minZ + maxZ) / 2;
+  const hx = (maxX - minX) / 2 + 0.08;
+  const hz = (maxZ - minZ) / 2 + 0.08;
+  // Aerial roots around the perimeter, from the crown down to the ground.
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2 + rng.next() * 0.2;
+    const x = cx + Math.max(-hx, Math.min(hx, Math.cos(a) * hx * 1.4));
+    const z = cz + Math.max(-hz, Math.min(hz, Math.sin(a) * hz * 1.4));
+    const w = 0.03 + rng.next() * 0.035;
+    push('trunk', [x, 0, z], [w, top + 0.15, w], 0, PALETTE.bark, 0, (rng.next() - 0.5) * 0.06, (rng.next() - 0.5) * 0.06);
+  }
+  // Buttress roots flaring out at the base.
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    push('trunk', [cx + Math.cos(a) * hx, 0, cz + Math.sin(a) * hz], [0.08, 0.55, 0.08], -a, PALETTE.bark, 0, 0, 0.7);
+  }
+  // A great crown over the roof.
+  for (let i = 0; i < 9; i++) {
+    const a = rng.next() * Math.PI * 2;
+    const d = Math.sqrt(rng.next());
+    const s = 0.75 + rng.next() * 0.6;
+    push('canopy', [cx + Math.cos(a) * d * hx, top + 0.15 + rng.next() * 0.35, cz + Math.sin(a) * d * hz], [s * 1.2, s * 0.8, s * 1.2], rng.next() * 6, rng.pick(PALETTE.leaves), rng.next() < 0.35 ? 0.6 : 0);
+  }
+  t.banyan = out;
+  return out;
+}
+
 export function variantFor(def: BuildingDef, x: number, z: number): number {
   return Math.floor(hash2(x, z, buildings.indexOf(def.id) + 1) * (def.variants ?? 3));
 }
@@ -252,7 +295,9 @@ export class BuildingRenderer {
         if (Building.level[eid]) {
           const e = entry.base.elements;
           const dist = origin ? Math.hypot(e[12]! - origin.x, e[14]! - origin.z) : 0;
-          this.addRetrofit(entry, ctx.loading ? -1 : dist * 0.09);
+          // Re-grow the overlay so a banyan merge (level 2) adds its roots and crown.
+          this.removeRetrofit(entry);
+          this.addRetrofit(entry, ctx.loading ? -1 : dist * 0.09, Building.level[eid]!);
         } else this.removeRetrofit(entry);
       }
     });
@@ -309,13 +354,14 @@ export class BuildingRenderer {
       else entry.pending.push(p);
     }
     entry.pending.sort((a, b) => a.growAt - b.growAt);
-    if (Building.level[eid]) this.addRetrofit(entry, animate ? 0.3 : -1);
+    if (Building.level[eid]) this.addRetrofit(entry, animate ? 0.3 : -1, Building.level[eid]!);
   }
 
-  /** Adds the retrofit overlay; `delay` < 0 = instant, else pop-in staggered bottom-up. */
-  private addRetrofit(entry: Entry, delay: number): void {
+  /** Adds the retrofit (and, at level 2, banyan) overlay; `delay` < 0 = instant, else pop-in bottom-up. */
+  private addRetrofit(entry: Entry, delay: number, level = 1): void {
     if (!entry.template || entry.retro.length) return;
-    for (const p of retrofitPieces(entry.template)) {
+    const pieces = level >= 2 ? [...retrofitPieces(entry.template), ...banyanPieces(entry.template)] : retrofitPieces(entry.template);
+    for (const p of pieces) {
       _params.set([1, p.seed, p.glow, 1]);
       const world = _m.multiplyMatrices(entry.base, p.local);
       const d = delay < 0 ? -1 : delay + p.y * 0.25 + Math.random() * 0.25;

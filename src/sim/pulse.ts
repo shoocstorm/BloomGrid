@@ -14,6 +14,8 @@ import { bloomLayers, computeBloom, computeIrrigation, computePairing } from './
 import { computeActivity } from './nightlife';
 import { computeMobility } from './mobility';
 import { computeFloraNet, farmSoilMul } from './floranet';
+import { defenceList, isProtected, updateSeaRise } from './coast';
+import { BANYAN_LEVEL, bridgeEnds } from './weaver';
 import { seasonAt } from './seasons';
 import { MAX_ENTITIES } from '@/ecs/components';
 
@@ -83,7 +85,10 @@ export const pulseSystem: System<SimCtx> = {
       for (const eid of ents)
         Service.network[eid] = networks.networkFor(Building.x[eid]!, Building.z[eid]!, Building.w[eid]!, Building.d[eid]!);
     }
+    updateSeaRise(city);
     const mod = updateCrises(city);
+    const defences = mod.floodLevel > 0 ? defenceList(city) : [];
+    const bridges = city.weaver.bridges.length ? bridgeEnds(city) : null;
     const n = networks.count;
     if (prodE.length < n) {
       const size = Math.max(n, prodE.length * 2);
@@ -116,9 +121,16 @@ export const pulseSystem: System<SimCtx> = {
       jobsTotal += st.jobs;
       staffedJobs += st.jobs * occ;
       upkeep += st.upkeep;
-      amenity += st.happiness + (Building.level[eid]! > 0 ? 2 : 0);
+      // Retrofits, banyan merges and woven sky-bridges delight residents.
+      const lvl = Building.level[eid]!;
+      amenity += st.happiness + (lvl === BANYAN_LEVEL ? 4 : lvl > 0 ? 2 : 0) + (bridges?.get(eid) ?? 0) * 3;
       // Flooded buildings are evacuated: they neither produce nor consume. Offline plants trip.
-      const fl = mod.floodLevel > 0 && !buildings.at(Building.def[eid]!).floodproof && city.grid.rangeOver(Building.x[eid]!, Building.z[eid]!, Building.w[eid]!, Building.d[eid]!).min < mod.floodLevel;
+      // Seawalls keep water out of what they protect (up to their height).
+      const fl =
+        mod.floodLevel > 0 &&
+        !def0.floodproof &&
+        city.grid.rangeOver(Building.x[eid]!, Building.z[eid]!, Building.w[eid]!, Building.d[eid]!).min < mod.floodLevel &&
+        !isProtected(defences, Building.x[eid]! + Building.w[eid]! / 2, Building.z[eid]! + Building.d[eid]! / 2, mod.floodLevel);
       flooded[eid] = fl ? 1 : 0;
       const centre = city.grid.index(Building.x[eid]! + (Building.w[eid]! >> 1), Building.z[eid]! + (Building.d[eid]! >> 1));
       Service.bloom[eid] = bloomField[centre]!;
@@ -210,7 +222,7 @@ export const pulseSystem: System<SimCtx> = {
       greenSum += g;
       condSum += cond;
       const retro = Building.level[eid]! > 0;
-      s.eco += st.eco * (0.3 + 0.7 * g) * (retro ? 1.5 : 1);
+      s.eco += st.eco * (0.3 + 0.7 * g) * (Building.level[eid] === BANYAN_LEVEL ? 2 : retro ? 1.5 : 1) + (bridges?.get(eid) ?? 0) * 2;
       const pairMul = def.symbiosis && Service.paired[eid] ? def.symbiosis.pollutionMul : 1;
       s.pollution += Math.max(0, st.pollution * (1 - 0.4 * g) * pairMul * (retro ? 0.7 : 1));
       built++;

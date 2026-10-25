@@ -3,7 +3,7 @@ import type { GameModule, GameContext } from '@/game/context';
 import { Atmosphere } from '@/world/Atmosphere';
 import { Flora } from '@/world/Flora';
 import { Terrain } from '@/world/Terrain';
-import { createWater } from '@/world/Water';
+import { createWater, updateWaterDepth } from '@/world/Water';
 import { DAY_LENGTH, chunkSizeFor } from '@/sim/City';
 import { Building } from '@/ecs/components';
 import { buildings } from '@/content';
@@ -82,6 +82,20 @@ export const worldModule: GameModule = {
         if (ctx.city.grid.road[t]) flora.hideTile(t);
         else flora.showTile(t);
       }
+    });
+
+    // Land reclamation: rebuild the touched terrain chunks, the water depth and the wild flora.
+    ctx.bus.on('terrain:changed', ({ x0, z0, x1, z1 }) => {
+      const g = ctx.city.grid;
+      terrain.rebuildRegion(x0, z0, x1, z1);
+      if (water) updateWaterDepth(water, g, x0, z0, x1, z1);
+      for (let z = Math.max(0, z0 - 1); z < Math.min(g.h, z1 + 1); z++)
+        for (let x = Math.max(0, x0 - 1); x < Math.min(g.w, x1 + 1); x++) {
+          const i = g.index(x, z);
+          flora.hideTile(i);
+          flora.showTile(i, !ctx.loading);
+        }
+      atmosphere.invalidateShadows();
     });
 
     ctx.services.provide('world', service);

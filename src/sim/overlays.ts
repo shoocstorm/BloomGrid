@@ -4,6 +4,7 @@ import { NO_ENTITY } from './Grid';
 import type { City } from './City';
 import type { Fields } from './fields';
 import { soilAt } from './floranet';
+import { defenceList, isProtected } from './coast';
 
 /**
  * Data lenses: each overlay fills a per-tile value (0..1) and a mask (1 = has data). Pure sim
@@ -150,6 +151,27 @@ function soilLens(key: 'hydration' | 'nutrients') {
 }
 registerOverlay({ id: 'hydration', label: 'Soil water', icon: '❖', legend: ['Parched', 'Moist'], smooth: true, compute: soilLens('hydration') });
 registerOverlay({ id: 'nutrients', label: 'Nutrients', icon: '✿', legend: ['Depleted', 'Rich'], smooth: true, compute: soilLens('nutrients') });
+registerOverlay({
+  id: 'flood',
+  label: 'Flood risk',
+  icon: '🌊',
+  legend: ['Floods at a king tide', 'Safe'],
+  smooth: true,
+  compute(city, f, value, mask) {
+    // Height above a king tide on today's sea; seawalls make what they protect safe.
+    const g = city.grid;
+    const tide = city.steward.seaRise + 0.35;
+    const defences = defenceList(city);
+    for (let i = 0; i < value.length; i++) {
+      mask[i] = f.shore[i] === 0 ? 0 : 1;
+      if (!mask[i]) continue;
+      const x = (i % g.w) + 0.5;
+      const z = ((i / g.w) | 0) + 0.5;
+      const h = g.rangeOver(i % g.w, (i / g.w) | 0, 1, 1).min;
+      value[i] = h >= tide + 1 || isProtected(defences, x, z, tide) ? 1 : Math.max(0, h - tide);
+    }
+  },
+});
 registerOverlay({
   id: 'access',
   label: 'Access',

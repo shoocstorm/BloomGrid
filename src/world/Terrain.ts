@@ -48,6 +48,7 @@ function material(): MeshStandardNodeMaterial {
 export class Terrain {
   readonly group = new Group();
   readonly material = material();
+  private chunks = new Map<string, Mesh>();
 
   constructor(
     private grid: Grid,
@@ -61,9 +62,30 @@ export class Terrain {
   private build(): void {
     const g = this.grid;
     for (let cz = 0; cz < g.h; cz += this.chunk)
-      for (let cx = 0; cx < g.w; cx += this.chunk) this.group.add(this.chunkMesh(cx, cz));
+      for (let cx = 0; cx < g.w; cx += this.chunk) {
+        const m = this.chunkMesh(cx, cz);
+        this.chunks.set(`${cx},${cz}`, m);
+        this.group.add(m);
+      }
     this.group.add(this.outerRing());
     this.group.add(this.skirt());
+  }
+
+  /** Rebuilds the chunk meshes touching a corner rectangle (after land reclamation). */
+  rebuildRegion(x0: number, z0: number, x1: number, z1: number): void {
+    const c = this.chunk;
+    for (let cz = Math.floor(Math.max(0, z0 - 1) / c) * c; cz <= Math.min(this.grid.h - 1, z1 + 1); cz += c)
+      for (let cx = Math.floor(Math.max(0, x0 - 1) / c) * c; cx <= Math.min(this.grid.w - 1, x1 + 1); cx += c) {
+        const key = `${cx},${cz}`;
+        const old = this.chunks.get(key);
+        if (old) {
+          this.group.remove(old);
+          old.geometry.dispose();
+        }
+        const m = this.chunkMesh(cx, cz);
+        this.chunks.set(key, m);
+        this.group.add(m);
+      }
   }
 
   /** Vertical walls around the map edge hide cracks between the fine map and coarse ring. */

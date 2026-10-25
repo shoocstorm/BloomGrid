@@ -70,6 +70,8 @@ export interface StewardState {
   failClock: number;
   failed: boolean;
   peakPopulation: number;
+  /** Current sea-level rise in world units (climate; see `sim/coast.ts`). */
+  seaRise: number;
   /** Number of road tiles with any overgrowth (skip work when 0). */
   overgrown: number;
   modifiers: Modifiers;
@@ -88,6 +90,7 @@ export function createStewardState(difficulty: DifficultyId = 'steward'): Stewar
     failClock: 0,
     failed: false,
     peakPopulation: 0,
+    seaRise: 0,
     overgrown: 0,
     modifiers: neutralModifiers(),
   };

@@ -8,6 +8,7 @@ export default defineBuilding({
   category: 'food',
   footprint: [2, 2],
   stats: { cost: 180, energy: -8, eco: 4, happiness: 2, population: 0, jobs: 12, pollution: 0, water: -8, food: 400 },
+  tower: true,
   growthTime: 100,
   recipe(b) {
     const floors = 4 + Math.floor(b.rand() * 3);

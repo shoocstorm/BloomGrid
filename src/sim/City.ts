@@ -8,9 +8,10 @@ import { generateTerrain } from './terrain';
 import { Rng, fnv1a } from './random';
 import { RoadNetworks } from './networks';
 import { createPulseState, type PulseState } from './pulseState';
-import { createFields, type Fields } from './fields';
+import { computeShore, createFields, type Fields } from './fields';
 import { createStewardState, type StewardState } from './stewardState';
 import { createSoil, initSoilLand, soilChecksum, type SoilState } from './floranet';
+import type { SkyBridge } from './weaver';
 import type { DifficultyId } from './difficulty';
 import './events';
 
@@ -83,6 +84,10 @@ export class City {
   steward!: StewardState;
   /** Flora-Net soil zones (saved). */
   soil!: SoilState;
+  /** Corner heights changed from the generated terrain (land reclamation), saved sparsely. */
+  terrainEdits = new Map<number, number>();
+  /** Green Weaver sky-bridges (saved). */
+  weaver: { bridges: SkyBridge[] } = { bridges: [] };
   /** Channels changed: irrigation must be recomputed on the next pulse. */
   channelsDirty = true;
   /** Number of highway tiles (kept in sync by setRoads). */
@@ -113,6 +118,8 @@ export class City {
     this.fields = createFields(this.grid);
     this.soil = createSoil(this.size);
     initSoilLand(this);
+    this.terrainEdits = new Map();
+    this.weaver = { bridges: [] };
     this.steward = createStewardState(difficulty);
     this.roadCount = 0;
     this.channelsDirty = true;
@@ -123,6 +130,14 @@ export class City {
     this.credits = START_CREDITS;
     this.stats = emptyStats();
     this.bus.emit('city:reset', { seed });
+  }
+
+  /** After terrain edits: shore distance, soil land zones, networks and irrigation are stale. */
+  refreshTerrainDerived(): void {
+    computeShore(this.grid, this.fields.shore);
+    initSoilLand(this);
+    this.networks.dirty = true;
+    this.channelsDirty = true;
   }
 
   footprint(def: BuildingDef, rot: number): [number, number] {
@@ -309,7 +324,7 @@ export class City {
       (r) => `${r.def}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}`,
+      `${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}`,
     );
   }
 }

@@ -7,16 +7,24 @@ import { U } from '@/render/uniforms';
  * Stylised water: depth-tinted from a baked terrain-height texture (so the surface can rise for
  * floods: depth = water level − ground), animated ripples, shore foam and an algal-bloom tint.
  */
-export function createWater(grid: Grid): Mesh {
+/** Re-bakes the ground-height texel rectangle the water shader reads (after terrain edits). */
+export function updateWaterDepth(water: Mesh, grid: Grid, x0 = 0, z0 = 0, x1 = grid.w, z1 = grid.h): void {
+  const tex = water.userData.depth as DataTexture;
+  const data = tex.image.data as Uint8Array;
   const W = grid.w + 1;
-  const data = new Uint8Array(W * W * 4);
-  for (let z = 0; z < W; z++)
-    for (let x = 0; x < W; x++) {
-      const h = grid.corner(Math.min(x, grid.w), Math.min(z, grid.h));
+  for (let z = Math.max(0, z0); z <= Math.min(grid.h, z1); z++)
+    for (let x = Math.max(0, x0); x <= Math.min(grid.w, x1); x++) {
+      const h = grid.corner(x, z);
       // Encoded ground height: (h + 4) / 8 covers -4..4 world units.
       data[(z * W + x) * 4] = Math.round(Math.max(0, Math.min(1, (h + 4) / 8)) * 255);
       data[(z * W + x) * 4 + 3] = 255;
     }
+  tex.needsUpdate = true;
+}
+
+export function createWater(grid: Grid): Mesh {
+  const W = grid.w + 1;
+  const data = new Uint8Array(W * W * 4);
   const tex = new DataTexture(data, W, W, RGBAFormat);
   tex.magFilter = tex.minFilter = LinearFilter;
   tex.wrapS = tex.wrapT = ClampToEdgeWrapping;
@@ -44,6 +52,8 @@ export function createWater(grid: Grid): Mesh {
   mesh.position.set(grid.w / 2, 0, grid.h / 2); // y follows U.waterLevel (floods)
   mesh.receiveShadow = true;
   mesh.name = 'water';
+  mesh.userData.depth = tex;
+  updateWaterDepth(mesh, grid);
   mesh.renderOrder = 1;
   return mesh;
 }

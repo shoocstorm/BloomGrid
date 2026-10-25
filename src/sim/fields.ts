@@ -29,6 +29,14 @@ export function createFields(grid: Grid): Fields {
     desirability: grid.addLayer('desirability', () => new Float32Array(n).fill(0.5)),
     shore: grid.addLayer('shore', () => new Uint8Array(n).fill(SHORE_RANGE)),
   };
+  computeShore(grid, f.shore);
+  return f;
+}
+
+/** Shore distance by BFS from water tiles (recomputed when the coast changes, e.g. reclamation). */
+export function computeShore(grid: Grid, shore: Uint8Array): void {
+  const n = grid.w * grid.h;
+  shore.fill(SHORE_RANGE);
   const q = new Int32Array(n);
   let head = 0;
   let tail = 0;
@@ -36,12 +44,12 @@ export function createFields(grid: Grid): Fields {
     for (let x = 0; x < grid.w; x++)
       if (grid.rangeOver(x, z, 1, 1).min < SEA_LEVEL + 0.05) {
         const i = grid.index(x, z);
-        f.shore[i] = 0;
+        shore[i] = 0;
         q[tail++] = i;
       }
   while (head < tail) {
     const t = q[head++]!;
-    const d = f.shore[t]! + 1;
+    const d = shore[t]! + 1;
     if (d >= SHORE_RANGE) continue;
     const x = t % grid.w;
     const z = (t / grid.w) | 0;
@@ -53,13 +61,12 @@ export function createFields(grid: Grid): Fields {
     ] as const) {
       if (nx < 0 || nz < 0 || nx >= grid.w || nz >= grid.h) continue;
       const i = nz * grid.w + nx;
-      if (f.shore[i]! > d) {
-        f.shore[i] = d;
+      if (shore[i]! > d) {
+        shore[i] = d;
         q[tail++] = i;
       }
     }
   }
-  return f;
 }
 
 // Deposits are scaled so a single source peaks at about the same value as the old radial splats.

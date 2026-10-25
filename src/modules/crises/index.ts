@@ -147,6 +147,7 @@ export const crisesModule: GameModule = {
 
     ctx.bus.on('crisis:forecast', ({ crisis }) => ctx.bus.emit('toast', { text: `${getCrisis(crisis.def).icon} ${getCrisis(crisis.def).name} forecast`, tone: 'info' }));
     ctx.bus.on('crisis:start', ({ crisis }) => ctx.bus.emit('toast', { text: `${getCrisis(crisis.def).icon} ${getCrisis(crisis.def).name} has begun`, tone: 'bad' }));
+    ctx.bus.on('sea:rise', ({ level }) => ctx.bus.emit('toast', { text: `🌊 The sea has risen ${level.toFixed(1)} m: check the Flood risk lens`, tone: 'bad' }));
     ctx.bus.on('crisis:end', ({ crisis }) => ctx.bus.emit('toast', { text: `${getCrisis(crisis.def).name} has passed`, tone: 'ok' }));
     ctx.bus.on('city:reset', () => {
       banner.replaceChildren();
