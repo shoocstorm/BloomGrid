@@ -52,8 +52,6 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 ### Deferred work (pick next with the user)
 
-- Module boot ≈550 ms on the 512 map (guideline 400): profile per module (terrain, roads, buildings).
-
 - Phase 8 leftovers: canopy greenways, hyperloop, ferries, player-drawn sky-lanes.
 - KTX2 textures (install `toktx`, wire `KTX2Loader` + basis transcoder), Windows/Linux packaging and code signing.
 - Individual citizens (follow-cam targets), depth of field in photo mode, more Rodin hero assets (ask before generating:

@@ -191,8 +191,9 @@ export async function createGame(
 
   await onProgress('Seeding forests, meadows & mangroves', 0.4);
   const tm = performance.now();
-  await loadModules(ctx, modules);
+  const moduleMs = await loadModules(ctx, modules, () => performance.now());
   lap('modules', tm);
+  console.info('[boot] modules', JSON.stringify(moduleMs));
   ctx.tools.attach();
   ctx.tools.setActive('select');
   setQuality(ctx.quality.tier); // may have been changed by the settings module (saved preference)

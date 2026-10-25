@@ -35,7 +35,7 @@ npm run tauri:dev      # desktop shell (Tauri v2) against the dev server; tauri:
 
 `npm run snap` drives headless Chrome against the running dev server, saves screenshots and prints console
 warnings and errors plus the app's tagged logs such as `[boot] ms {…}` (it exits 1 on page errors). Use it to _look_ at
-your change. `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js` (small district), `blackout.js` (night power-failure
+your change (`[boot] modules {…}` breaks module init down per module). `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js` (small district), `blackout.js` (night power-failure
 drill), `drought.js` (water-failure drill; buildings should visibly wilt), `retrofit.js` (channel + Bloom Retrofit
 wave), `nightlife.js` (night downtown: glow should follow activity; `window.NEAR = 12` for a close-up) and `season.js`
 (mid-Haze; prefix `window.SEASON = 1;` for a Monsoon shower), `mobility.js` (first Pod Dock at rush hour; `window.NIGHT = 1`,

@@ -31,8 +31,16 @@ export function sortModules<Ctx>(modules: GameModule<Ctx>[]): GameModule<Ctx>[] 
   return out;
 }
 
-export async function loadModules<Ctx>(ctx: Ctx, modules: GameModule<Ctx>[]): Promise<GameModule<Ctx>[]> {
-  const ordered = sortModules(modules);
-  for (const m of ordered) await m.init(ctx);
-  return ordered;
+/**
+ * Initialises modules in dependency order. Pass a clock (e.g. `performance.now`) to get each
+ * module's init time in ms; the core itself stays clock-free.
+ */
+export async function loadModules<Ctx>(ctx: Ctx, modules: GameModule<Ctx>[], now?: () => number): Promise<Record<string, number>> {
+  const times: Record<string, number> = {};
+  for (const m of sortModules(modules)) {
+    const t = now?.() ?? 0;
+    await m.init(ctx);
+    if (now) times[m.id] = Math.round(now() - t);
+  }
+  return times;
 }

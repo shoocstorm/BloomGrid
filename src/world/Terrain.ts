@@ -179,15 +179,23 @@ export class Terrain {
     const n = Math.round((max - min) / step) + 1;
     const pos = new Float32Array(n * n * 3);
     const col = new Float32Array(n * n * 3);
+    // One height sample per vertex (the noise-heavy height function dominated boot when it was
+    // sampled three times per vertex for slope); slope comes from neighbouring samples instead.
+    const hs = new Float32Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) hs[j * n + i] = terrainHeight(min + i * step, min + j * step, this.seed, g.w);
+    const at = (i: number, j: number) => hs[Math.min(n - 1, Math.max(0, j)) * n + Math.min(n - 1, Math.max(0, i))]!;
     for (let j = 0; j < n; j++)
       for (let i = 0; i < n; i++) {
         const x = min + i * step;
         const z = min + j * step;
-        const h = terrainHeight(x, z, this.seed, g.w);
-        const sx = terrainHeight(x + 1, z, this.seed, g.w) - terrainHeight(x - 1, z, this.seed, g.w);
-        const sz = terrainHeight(x, z + 1, this.seed, g.w) - terrainHeight(x, z - 1, this.seed, g.w);
+        const h = hs[j * n + i]!;
+        // Per-unit slope matching the old ±1 sampling: difference across 2·step, scaled to 2 units.
+        const sx = (at(i + 1, j) - at(i - 1, j)) / step;
+        const sz = (at(i, j + 1) - at(i, j - 1)) / step;
         const k = (j * n + i) * 3;
-        pos.set([x, h, z], k);
+        pos[k] = x;
+        pos[k + 1] = h;
+        pos[k + 2] = z;
         shade(tmp2, h, Math.hypot(sx, sz) / 2, x, z, this.seed).toArray(col, k);
       }
     // Index, skipping quads fully inside the playable map.
