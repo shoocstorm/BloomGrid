@@ -225,3 +225,15 @@ already held the hero pieces, so they add ≈2 draws. The worst view (over the S
 302 draws with `?stress=1500` *before* this batch; `haloRing` stopped casting shadows and it is now 297 (255 without
 stress). **The hero district is at the draw-call ceiling: the next content must start with far-chunk impostors or
 GPU-driven culling.** Seed 4242 opens with food ≈0.56 and water ≈0.7 with or without the heroes (a small-island seed).
+
+## D-034 — Coarse instancer chunks for large buildings: rejected (2026-10-25)
+
+**Context:** To make room for more heroes, large buildings' pieces were put in 256-tile "coarse" batches (offset so the
+island centre falls in one), hoping one draw per piece type would replace one per 64-tile chunk.
+**Result:** draws rose by ≈70 in every hero view (e.g. 234 → 308 at the promenade). Common pieces (glass, slab, moss,
+trees) still had fine batches for ordinary buildings, so coarse batches were *extra*; and a coarse box nearly always
+contains the shadow focus, so they always cast shadows. Reverted.
+**Decision:** keep one chunk size. Add hero content inside chunks that already hold its piece types (≈0–2 draws per
+building), avoid introducing piece types to new chunks, and drop shadows on thin decorative pieces (`haloRing`,
+`spireCone`). The North Terrace was placed this way and normal views went *down* ≈6 draws (South Avenue 255 → 249;
+`?stress=1500` worst 298).

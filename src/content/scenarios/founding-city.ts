@@ -102,6 +102,20 @@ export default defineScenario({
       hero('coral-arcology', lx - 9, rz + 24, -1, 0);
       hero('travertine-baths', lx - 10, ringZ - 10, -1, 0);
       hero('moonflower-hall', lx - 22, ringZ - 10, -1, 0);
+      // North terrace: cut into the hill north of the boulevard, along a street (x = nx) climbing from the
+      // boulevard between the Rain Vortex and the Skyport, and a cross street (z = nz).
+      const [nx, nz] = [rx + 25, S / 2 - 34];
+      b.level(nx - 12, nz - 24, nx + 26, nz + 21, 4);
+      hero('bloom-eye', nx - 10, nz + 16, 0, -1);
+      hero('glass-pine', nx - 10, nz + 1, 0, -1);
+      hero('lotus-pagoda', nx - 8, nz - 8, 0, -1);
+      hero('rice-terraces', nx - 11, nz - 22, 0, -1);
+      hero('honeycomb-apiary', nx + 1, nz + 14, 0, -1);
+      hero('moss-monolith', nx + 1, nz + 1, 0, -1);
+      hero('sunset-amphitheatre', nx + 1, nz - 10, 0, -1);
+      hero('kite-meadow', nx + 1, nz - 22, 0, -1);
+      hero('wavecrest-gallery', nx + 14, nz - 8, 1, 0);
+      hero('great-noria', nx + 14, nz + 1, 1, 0);
     }
 
     // The Supertree Grove (8×8) needs open land the district grids would cut up: reserve it first,
@@ -169,6 +183,9 @@ export default defineScenario({
       // Garden lane down to the ring road: a third way out of the hero district.
       b.road(lx, rz, lx, ringZ, true);
       b.road(lx, ringZ, ringX, ringZ, true);
+      // North terrace streets.
+      b.road(rx + 25, S / 2, rx + 25, S / 2 - 57, true);
+      b.road(rx + 14, S / 2 - 34, rx + 49, S / 2 - 34, true);
     }
   },
 });
