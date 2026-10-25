@@ -11,20 +11,20 @@ sections whenever you stop working** (see AGENTS.md §6).
 | Last commit | Boot: faster outer terrain ring, per-module boot timing (then: lazy inspector chunk, island-wide stress spawner)                                                |
 | Phases done | **All roadmap phases 0–12** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
-| Tests       | 61 passing (`npm test`); `npm run check` clean                                                                                                                  |
+| Tests       | 62 passing (`npm test`); `npm run check` clean                                                                                                                  |
 | Save format | v6 (terrain edits, sky-bridges, sea rise; migrations from v1–v5 in `src/sim/save.ts`)                                                                           |
 | Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈1 710 buildings at its original tile size, ≈24k residents, water Strained (≈95%) |
 
 ### Measured baselines (headless Chrome, WebGPU, M-series, founding city, High quality)
 
-| Metric      | Value                                                                                                                                         | How to measure                                        |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Boot        | ≈1.8–2.0 s (scenario ≈0.25 s, modules ≈0.29–0.38 s incl. `?stress=1500`, shader warm-up ≈1.0 s)                                               | `[boot] ms` log via `npm run snap`                    |
-| Frame rate  | 60 fps active, 30 idle (power mode Balanced)                                                                                                  | `npm run perf` / `npm run perf -- --idle`             |
-| Main thread | ≈16% active, ≈14.5% idle                                                                                                                      | `npm run perf`                                        |
-| GPU         | ≈1.0–3 ms per frame headless (noisy: compare several runs; +≈2 ms in storm rain)                                                              | `npm run perf -- --path "/?gputime"`                  |
-| Draw calls  | ≈188–214 near, ≈213–247 overview; `?stress=1500` (spread over the island) 222 near / 235 overview (budget 300)                                | perf overlay (F3) or `renderer.info.render.drawCalls` |
-| Sim         | pulse ≈1.2 ms + one pass: pairing+pollution 1.6 (0), ecology 2.8 (1), bloom 2.0 (2), Flora-Net 1.3 (3), activity 2.4 (4), mobility 1.1 (5) ms | see the bench pattern in D-020                        |
+| Metric      | Value                                                                                                                                | How to measure                                        |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| Boot        | ≈2.1 s to interactive WebGPU, ≈2.5–3.0 s WebGL2, no post-boot stall (scenario ≈0.25 s, modules ≈0.25–0.29 s, warm-up ≈1.3 s, D-030)  |
+| Frame rate  | 60 fps active, 30 idle (power mode Balanced)                                                                                         | `npm run perf` / `npm run perf -- --idle`             |
+| Main thread | ≈16% active, ≈14.5% idle                                                                                                             | `npm run perf`                                        |
+| GPU         | ≈1.0–3 ms per frame headless (noisy: compare several runs; +≈2 ms in storm rain)                                                     | `npm run perf -- --path "/?gputime"`                  |
+| Draw calls  | ≈188–214 near, ≈213–247 overview; `?stress=1500` (spread over the island) 222 near / 235 overview (budget 300)                       | perf overlay (F3) or `renderer.info.render.drawCalls` |
+| Sim         | pulse tick ≈0.4 ms; field tick (one pass per pulse, D-029) ≈2.2 ms median / ≈3 ms p95: ecology 2.8, activity 2.4, bloom 2.0 ms worst |
 
 ## How to resume
 
@@ -52,8 +52,8 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 ### Optimization backlog (ranked; quick wins done 2026-10-25)
 
-1. WebGL2 shader warm-up (2–10 s): reveal before far pieces compile, lazy lens variant, `KHR_parallel_shader_compile`.
-2. Ecology pulse tick ≈4 ms: time-slice blur passes between pulses, or move world gen + fields to a worker.
+1. ✅ First-frame shader stall removed (D-030).
+2. ✅ Field passes moved off the pulse tick (D-029).
 3. KTX2 textures for hero GLBs (`supertree-grove.glb` 1.4 MB).
 4. Cheaper shadow pass at overview zoom (fewer casters / lower resolution).
 5. `BatchedMesh` per chunk (biggest CPU/heat lever; `aParams` → data texture).
@@ -101,7 +101,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 Tracked in [`roadmap.md` → Tech debt](roadmap.md#tech-debt--open-issues). Most relevant next:
 
-- WebGL2 shader warm-up 2–10 s in headless Chrome (WebGPU ≈1.1 s).
+- Headless boot timings swing a lot between identical runs (warm-up 1.3–3.5 s on WebGL2); compare several runs.
 - Remaining CPU is three's per-draw overhead (~200–230 draws incl. shadows); next lever is `BatchedMesh` or GPU culling.
 - Overgrown highways are hard to see from far away (the Access lens and advisor are the current way to find them).
 - Season is derived from `city.tick`: changing `SEASON_SECONDS` shifts the season of existing saves.

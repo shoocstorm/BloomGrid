@@ -31,6 +31,17 @@ export class PostFX {
     this.pipeline = pipeline;
   }
 
+  /**
+   * Builds every pipeline for the path `render()` actually takes. three keys render contexts by
+   * call depth, and the bloom scene pass renders nested inside the pipeline, so `compileAsync`
+   * (depth 0) builds variants frames never use. With bloom, render one real frame instead (behind
+   * the boot screen); the direct path matches `compileAsync`, which also compiles in parallel.
+   */
+  async compile(): Promise<void> {
+    if (this.pipeline) this.pipeline.render();
+    else await this.renderer.compileAsync(this.scene, this.camera);
+  }
+
   render(): void {
     if (this.pipeline) this.pipeline.render();
     else this.renderer.render(this.scene, this.camera);

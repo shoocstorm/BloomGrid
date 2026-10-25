@@ -161,8 +161,9 @@ own `requestAnimationFrame` loops.
 - `InstancedMesh` with ≤ 1024 instances stores matrices in a UBO (re-uploaded every frame, capacity baked into the
   shader). `ChunkedInstancer` keeps capacity ≥ 1040 to avoid this.
 - Never dispose a geometry whose attributes are shared (WebGPU frees the GPU buffers). Batches clone piece geometry.
-- WebGL2 compiles pipelines lazily; `ChunkedInstancer.warmup` precompiles every piece at boot. Re-check it when
-  adding pieces or materials.
+- three builds node graphs per render context (keyed by call depth: the bloom pass renders nested, so `compileAsync`
+  misses it) and per `InstancedMesh` uuid. `ChunkedInstancer.warmup` adds one instance of every piece and builds every
+  batch through `PostFX.compile()` (D-030). Re-check it when adding pieces, materials or render passes.
 - bitecs 0.4 API: `addComponent(world, eid, Component)`, `query(world, [A, B])`.
 - Tweakpane v4 typings need `@tweakpane/core` (already a dev dependency).
 - CSS `background-clip: text` doesn't paint through transformed child spans (bitten us in the boot title).

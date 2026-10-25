@@ -8,8 +8,6 @@ import {
   Vector3,
   type Camera,
   type Object3D,
-  type Scene,
-  type WebGPURenderer,
 } from 'three/webgpu';
 import { getPiece, type PieceType } from '@/assets/kit/pieces';
 import { getMaterial } from './materials/library';
@@ -335,16 +333,26 @@ export class ChunkedInstancer {
   /**
    * Compiles every piece pipeline up front (one temporary instance each at `at`), so the first
    * placement of a building type never stalls on shader compilation — notably on WebGL2.
+   * `compile` must build for the render path frames use (see `PostFX.compile`).
    */
-  async warmup(renderer: WebGPURenderer, scene: Scene, camera: Camera, pieceIds: string[], at: Vector3): Promise<void> {
+  async warmup(compile: () => Promise<void>, camera: Camera, pieceIds: string[], at: Vector3): Promise<void> {
     const params = [0, 0, 0, 0];
     const white = new Color(1, 1, 1);
     const q = new Quaternion();
     const s = new Vector3(1, 1, 1);
     const handles = pieceIds.map((id) => this.add(id, at, q, s, white, params));
     this.update(0, camera);
-    await renderer.compileAsync(scene, camera);
+    // three keys node builds by InstancedMesh uuid, so every (piece, chunk) batch builds its own
+    // graph. Build them all here, not just those in view: the boot camera starts over the whole
+    // island, and the first frame otherwise built ~250 graphs synchronously (≈1 s stall).
+    for (const b of this.batches.values()) {
+      b.mesh.visible = b.count > 0;
+      b.mesh.frustumCulled = false;
+    }
+    await compile();
+    for (const b of this.batches.values()) b.mesh.frustumCulled = true;
     handles.forEach((h) => this.remove(h));
+    this.update(0, camera);
   }
 
   setParam(handle: InstanceHandle, component: number, value: number): void {

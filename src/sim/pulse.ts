@@ -33,6 +33,36 @@ let demW = new Float64Array(64);
 /** Per-entity flood flag for the current pulse (pass 1 → pass 2). */
 const flooded = new Uint8Array(MAX_ENTITIES);
 
+/**
+ * Tick (within each pulse window) that runs the field pass. Field work is staggered across
+ * pulses so each carries at most one O(tiles) pass (D-020), and it runs half a window after the
+ * pulse so neither tick carries both: pulse ≈0.4 ms, field tick ≤ ≈3 ms (sim budget 4 ms, D-029).
+ */
+const FIELD_TICK = PULSE_TICKS >> 1;
+
+/** One staggered field pass, chosen by the pulse that just ran. */
+function runFieldPass(city: SimCtx['city']): void {
+  const phase = Math.max(0, city.pulse.count - 1) % FIELD_PULSES;
+  if (phase === 0) {
+    computePairing(city);
+    computePollution(city, city.fields);
+  } else if (phase === 1) {
+    computeEcology(city, city.fields);
+  } else if (phase === 2) {
+    computeBloom(city, city.fields);
+    city.bus.emit('bloom:updated', undefined);
+  } else if (phase === 3) {
+    computeFloraNet(city);
+    city.bus.emit('floranet:updated', undefined);
+  } else if (phase === 4) {
+    computeActivity(city, city.fields);
+    city.bus.emit('activity:updated', undefined);
+  } else if (phase === 5) {
+    computeMobility(city);
+    city.bus.emit('mobility:updated', undefined);
+  }
+}
+
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const approach = (v: number, target: number, up: number, down: number) =>
   v < target ? Math.min(target, v + up) : Math.max(target, v - down);
@@ -47,7 +77,9 @@ export const pulseSystem: System<SimCtx> = {
   phase: 'sim',
   order: 10,
   update({ city }) {
-    if (city.tick % PULSE_TICKS !== 0) return;
+    const offset = city.tick % PULSE_TICKS;
+    if (offset === FIELD_TICK) return runFieldPass(city);
+    if (offset !== 0) return;
     const { networks, pulse, stats: s } = city;
     const ents = query(city.world, [Building]);
     const { season, index: seasonIdx } = seasonAt(city.tick);
@@ -59,26 +91,7 @@ export const pulseSystem: System<SimCtx> = {
       computeIrrigation(city);
       city.channelsDirty = false;
     }
-    // Field work is staggered across pulses so no pulse carries more than one O(tiles) pass (D-020).
-    const phase = pulse.count++ % FIELD_PULSES;
-    if (phase === 0) {
-      computePairing(city);
-      computePollution(city, city.fields);
-    } else if (phase === 1) {
-      computeEcology(city, city.fields);
-    } else if (phase === 5) {
-      computeMobility(city);
-      city.bus.emit('mobility:updated', undefined);
-    } else if (phase === 2) {
-      computeBloom(city, city.fields);
-      city.bus.emit('bloom:updated', undefined);
-    } else if (phase === 3) {
-      computeFloraNet(city);
-      city.bus.emit('floranet:updated', undefined);
-    } else if (phase === 4) {
-      computeActivity(city, city.fields);
-      city.bus.emit('activity:updated', undefined);
-    }
+    pulse.count++;
     const desirability = city.fields.desirability;
     const bloomField = bloomLayers(city).bloom;
 

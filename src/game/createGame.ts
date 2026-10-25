@@ -203,7 +203,7 @@ export async function createGame(
   ctx.cameraCtl.lookAt(city.grid.w * 0.52, city.grid.h * 0.66, 60, true);
   ctx.cameraCtl.update(0);
   const tw = performance.now();
-  await ctx.instancer.warmup(renderer, scene, camera, pieceIds(), ctx.cameraCtl.target);
+  await ctx.instancer.warmup(() => postfx.compile(), camera, pieceIds(), ctx.cameraCtl.target);
   lap('shaderWarmup', tw);
 
   // Autosave every 2 minutes.

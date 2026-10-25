@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Problem, Service } from '@/ecs/components';
 import { applyScenario } from '@/sim/scenario';
+import { PULSE_TICKS } from '@/sim/pulse';
 import { deserializeCity, serializeCity, type SaveData } from '@/sim/save';
 import { City } from '@/sim/City';
 import { EventBus } from '@/core/EventBus';
@@ -14,6 +15,16 @@ function strip(s: ReturnType<typeof makeSim>, z: number, x0: number, len: number
 }
 
 describe('city pulse', () => {
+  it('runs field passes half a window after the pulse, never on the pulse tick', () => {
+    const s = makeSim(42);
+    applyScenario(s.city, 'founding-city');
+    const fieldTicks = new Set<number>();
+    for (const ev of ['bloom:updated', 'floranet:updated', 'activity:updated', 'mobility:updated'] as const)
+      s.bus.on(ev, () => fieldTicks.add(s.city.tick % PULSE_TICKS));
+    s.step(PULSE_TICKS * 12);
+    expect([...fieldTicks]).toEqual([PULSE_TICKS >> 1]);
+  });
+
   it('cuts power to homes without a producer, and restores it when one is connected', () => {
     const s = makeSim(42);
     s.city.credits = 1e6;
