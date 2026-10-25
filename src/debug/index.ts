@@ -4,6 +4,7 @@ import { QUALITY_TIERS, type QualityTier } from '@/render/Quality';
 import { U } from '@/render/uniforms';
 import { h } from '@/ui/dom';
 import { spawnStressCity } from './stress';
+import { allCrises, forecastCrisis } from '@/sim/crises';
 
 /** Perf overlay (F3) and Tweakpane inspector (`). */
 export const debugModule: GameModule = {
@@ -55,6 +56,9 @@ export const debugModule: GameModule = {
     pane.addBinding(state, 'bloom', { min: 0, max: 3 }).on('change', (e) => (ctx.services.get('render').postfx.strength.value = e.value));
     pane.addBinding(state, 'profile', { label: 'profile systems' }).on('change', (e) => (ctx.systems.profile = e.value));
     pane.addButton({ title: 'Spawn stress city' }).on('click', () => spawnStressCity(ctx, 2000));
+    const drills = pane.addFolder({ title: 'Crisis drills', expanded: false });
+    for (const c of allCrises()) drills.addButton({ title: `${c.icon} ${c.name}` }).on('click', () => forecastCrisis(ctx.city, c.id, 1.2, 5));
+    drills.addButton({ title: 'Bankrupt the city' }).on('click', () => (ctx.city.credits = -8000));
     pane.addButton({ title: 'Skip to night' }).on('click', () => (ctx.city.timeOfDay = 0.85));
     pane.addButton({ title: 'Skip to morning' }).on('click', () => (ctx.city.timeOfDay = 0.3));
     pane.addButton({ title: 'New seed' }).on('click', () => {

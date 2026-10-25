@@ -1,10 +1,10 @@
 import {
   Color,
-  DynamicDrawUsage,
   InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
   Quaternion,
+  Sphere,
   Vector3,
   type Camera,
   type Object3D,
@@ -19,7 +19,76 @@ export interface InstanceHandle {
   slot: number;
 }
 
-const INITIAL_CAPACITY = 64;
+/**
+ * Minimum batch capacity. three puts instance matrices that fit in a uniform buffer (≤ 64 KiB,
+ * i.e. ≤ 1024 matrices) into a UBO that is re-uploaded every frame, with the array length baked
+ * into the shader (one shader variant per capacity). Staying above that size forces the vertex
+ * attribute path: one shader for all batches and uploads only of changed ranges.
+ */
+const INITIAL_CAPACITY = 1040;
+
+/**
+ * Tracks which instance slots changed since the last upload. A few scattered slots become
+ * individual GPU update ranges; many become one span. Kept per attribute, so a matrix-only
+ * tween never re-uploads colours or params.
+ */
+class DirtySlots {
+  private slots: number[] = [];
+  private min = Infinity;
+  private max = -1;
+  private span = false;
+
+  /**
+   * Each range is one `writeBuffer` call with fixed IPC overhead, so keep ranges few: beyond
+   * `limit` scattered slots, upload one span instead.
+   */
+  constructor(private limit = 8) {}
+
+  mark(slot: number): void {
+    if (slot < this.min) this.min = slot;
+    if (slot > this.max) this.max = slot;
+    if (!this.span) {
+      if (this.slots.length < this.limit) this.slots.push(slot);
+      else this.span = true;
+    }
+  }
+
+  markAll(count: number): void {
+    this.min = 0;
+    this.max = Math.max(this.max, count - 1);
+    this.span = true;
+  }
+
+  flush(attr: InstancedBufferAttribute, size: number): void {
+    if (this.max < 0) return;
+    attr.clearUpdateRanges();
+    if (this.span) attr.addUpdateRange(this.min * size, (this.max - this.min + 1) * size);
+    else {
+      this.slots.sort((a, b) => a - b);
+      let start = this.slots[0]!;
+      let prev = start;
+      for (let i = 1; i <= this.slots.length; i++) {
+        const s = this.slots[i];
+        // Merge nearby slots: re-uploading a short clean gap is cheaper than another call.
+        if (s !== undefined && s <= prev + 16) {
+          prev = s;
+          continue;
+        }
+        attr.addUpdateRange(start * size, (prev - start + 1) * size);
+        if (s !== undefined) start = prev = s;
+      }
+    }
+    attr.needsUpdate = true;
+    this.slots.length = 0;
+    this.min = Infinity;
+    this.max = -1;
+    this.span = false;
+  }
+}
+
+/** Conservative vertical extent for chunk bounds (terrain + tallest towers). */
+const CHUNK_Y_MIN = -12;
+const CHUNK_Y_MAX = 40;
 
 /** One InstancedMesh for a (piece, chunk) pair. Swap-remove keeps instances densely packed. */
 class InstanceBatch {
@@ -27,14 +96,25 @@ class InstanceBatch {
   params: InstancedBufferAttribute;
   handles: InstanceHandle[] = [];
   capacity = INITIAL_CAPACITY;
-  boundsDirty = false;
+  private dMatrix = new DirtySlots();
+  private dColor = new DirtySlots();
+  private dParams = new DirtySlots();
+  private bounds: Sphere;
 
   constructor(
     readonly piece: PieceType,
     readonly cx: number,
     readonly cz: number,
+    chunkSize: number,
     private parent: Object3D,
   ) {
+    // Fixed chunk-sized bounds: frustum culling stays per chunk and never needs an O(n) recompute.
+    const half = chunkSize / 2;
+    const hy = (CHUNK_Y_MAX - CHUNK_Y_MIN) / 2;
+    this.bounds = new Sphere(
+      new Vector3(cx * chunkSize + half, CHUNK_Y_MIN + hy, cz * chunkSize + half),
+      Math.hypot(half, half, hy) + 4,
+    );
     const { mesh, params } = this.create(this.capacity);
     this.mesh = mesh;
     this.params = params;
@@ -49,16 +129,16 @@ class InstanceBatch {
     // disposed safely (shared GPU buffers would be freed by dispose()).
     const geometry = this.piece.geometry.clone();
     const params = new InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
-    params.setUsage(DynamicDrawUsage);
     geometry.setAttribute('aParams', params);
     const mesh = new InstancedMesh(geometry, getMaterial(this.piece.material), capacity);
-    mesh.instanceMatrix.setUsage(DynamicDrawUsage);
+    // Static usage on purpose: three re-uploads DynamicDrawUsage attributes in full on *every*
+    // frame and pass. Static + version bumps + update ranges uploads only what changed.
     mesh.instanceColor = new InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
-    mesh.instanceColor.setUsage(DynamicDrawUsage);
     mesh.count = 0;
     mesh.castShadow = this.piece.castShadow;
     mesh.receiveShadow = this.piece.receiveShadow;
     mesh.frustumCulled = true;
+    mesh.boundingSphere = this.bounds;
     mesh.name = `${this.piece.id}@${this.cx},${this.cz}`;
     this.parent.add(mesh);
     return { mesh, params };
@@ -79,8 +159,6 @@ class InstanceBatch {
     old.dispose();
     this.mesh = mesh;
     this.params = params;
-    this.dMin = 0;
-    this.dMax = this.capacity - 1;
   }
 
   add(handle: InstanceHandle, m: Matrix4, color: Color, p: ArrayLike<number>): void {
@@ -93,34 +171,28 @@ class InstanceBatch {
     this.writeSlot(slot, m, color, p);
   }
 
-  /** Dirty slot range, flushed as a single GPU upload range per attribute each frame. */
-  private dMin = Infinity;
-  private dMax = -1;
-
-  private touch(slot: number): void {
-    if (slot < this.dMin) this.dMin = slot;
-    if (slot > this.dMax) this.dMax = slot;
-  }
-
   writeSlot(slot: number, m: Matrix4 | null, color: Color | null, p: ArrayLike<number> | null): void {
     if (m) {
       m.toArray(this.mesh.instanceMatrix.array as Float32Array, slot * 16);
-      this.boundsDirty = true;
+      this.dMatrix.mark(slot);
     }
-    if (color) color.toArray(this.mesh.instanceColor!.array as Float32Array, slot * 3);
+    if (color) {
+      color.toArray(this.mesh.instanceColor!.array as Float32Array, slot * 3);
+      this.dColor.mark(slot);
+    }
     if (p) {
       const a = this.params.array as Float32Array;
       a[slot * 4] = p[0]!;
       a[slot * 4 + 1] = p[1]!;
       a[slot * 4 + 2] = p[2]!;
       a[slot * 4 + 3] = p[3]!;
+      this.dParams.mark(slot);
     }
-    this.touch(slot);
   }
 
   setParam(slot: number, component: number, value: number): void {
     (this.params.array as Float32Array)[slot * 4 + component] = value;
-    this.touch(slot);
+    this.dParams.mark(slot);
   }
 
   remove(handle: InstanceHandle): void {
@@ -137,30 +209,20 @@ class InstanceBatch {
       const moved = this.handles[last]!;
       moved.slot = slot;
       this.handles[slot] = moved;
-      this.touch(slot);
+      this.dMatrix.mark(slot);
+      this.dColor.mark(slot);
+      this.dParams.mark(slot);
     }
     this.handles.pop();
     this.mesh.count = this.handles.length;
     handle.batch = null;
     handle.slot = -1;
-    this.boundsDirty = true;
   }
 
   flush(): void {
-    if (this.dMax < 0) return;
-    const n = this.dMax - this.dMin + 1;
-    const attrs: [InstancedBufferAttribute, number][] = [
-      [this.mesh.instanceMatrix, 16],
-      [this.mesh.instanceColor!, 3],
-      [this.params, 4],
-    ];
-    for (const [a, size] of attrs) {
-      a.clearUpdateRanges();
-      a.addUpdateRange(this.dMin * size, n * size);
-      a.needsUpdate = true;
-    }
-    this.dMin = Infinity;
-    this.dMax = -1;
+    this.dMatrix.flush(this.mesh.instanceMatrix, 16);
+    this.dColor.flush(this.mesh.instanceColor!, 3);
+    this.dParams.flush(this.params, 4);
   }
 
   dispose(): void {
@@ -172,14 +234,14 @@ class InstanceBatch {
 
 interface Tween {
   handle: InstanceHandle;
-  pos: Vector3;
-  quat: Quaternion;
-  scale: Vector3;
+  /** Final transform; the tween scales it about the piece pivot (M · S(e)). */
+  matrix: Matrix4;
   start: number;
   duration: number;
 }
 
 const _m = new Matrix4();
+const _m2 = new Matrix4();
 const _s = new Vector3();
 const _v = new Vector3();
 
@@ -199,6 +261,9 @@ export class ChunkedInstancer {
   private tweens: Tween[] = [];
   lodScale = 1;
   time = 0;
+  /** Batches farther than this from `shadowFocus` (xz) stop casting shadows. */
+  shadowRadius = Infinity;
+  readonly shadowFocus = new Vector3();
 
   constructor(
     private parent: Object3D,
@@ -211,6 +276,11 @@ export class ChunkedInstancer {
     return n;
   }
 
+  /** True while growth tweens are playing (shadows should refresh). */
+  get animating(): boolean {
+    return this.tweens.length > 0;
+  }
+
   get batchCount(): number {
     return this.batches.size;
   }
@@ -221,16 +291,30 @@ export class ChunkedInstancer {
     const key = `${pieceId}|${cx}|${cz}`;
     let b = this.batches.get(key);
     if (!b) {
-      b = new InstanceBatch(getPiece(pieceId), cx, cz, this.parent);
+      b = new InstanceBatch(getPiece(pieceId), cx, cz, this.chunkSize, this.parent);
       this.batches.set(key, b);
     }
     return b;
   }
 
   /**
-   * Adds an instance. With `growDelay >= 0` it pops in with an elastic scale tween after
-   * that many seconds; otherwise it appears immediately.
+   * Adds an instance from a world matrix. With `growDelay >= 0` it pops in with an elastic
+   * scale tween (about the piece pivot) after that many seconds; otherwise it appears at once.
    */
+  addMatrix(pieceId: string, matrix: Matrix4, color: Color, params: ArrayLike<number>, growDelay = -1, growDuration = 0.6): InstanceHandle {
+    const handle: InstanceHandle = { batch: null, slot: -1 };
+    const e = matrix.elements;
+    const batch = this.batchFor(pieceId, e[12]!, e[14]!);
+    if (growDelay >= 0) {
+      batch.add(handle, _m.copy(matrix).scale(_s.setScalar(1e-4)), color, params);
+      this.tweens.push({ handle, matrix: matrix.clone(), start: this.time + growDelay, duration: growDuration });
+    } else {
+      batch.add(handle, matrix, color, params);
+    }
+    return handle;
+  }
+
+  /** Convenience wrapper over `addMatrix` for position / rotation / scale. */
   add(
     pieceId: string,
     pos: Vector3,
@@ -241,17 +325,7 @@ export class ChunkedInstancer {
     growDelay = -1,
     growDuration = 0.6,
   ): InstanceHandle {
-    const handle: InstanceHandle = { batch: null, slot: -1 };
-    const batch = this.batchFor(pieceId, pos.x, pos.z);
-    if (growDelay >= 0) {
-      _m.compose(pos, quat, _s.copy(scale).multiplyScalar(1e-4));
-      batch.add(handle, _m, color, params);
-      this.tweens.push({ handle, pos: pos.clone(), quat: quat.clone(), scale: scale.clone(), start: this.time + growDelay, duration: growDuration });
-    } else {
-      _m.compose(pos, quat, scale);
-      batch.add(handle, _m, color, params);
-    }
-    return handle;
+    return this.addMatrix(pieceId, _m2.compose(pos, quat, scale), color, params, growDelay, growDuration);
   }
 
   remove(handle: InstanceHandle): void {
@@ -297,7 +371,7 @@ export class ChunkedInstancer {
       if (k <= 0) continue;
       const done = k >= 1;
       const e = done ? 1 : Math.max(1e-4, easeOutBack(k));
-      _m.compose(t.pos, t.quat, _s.copy(t.scale).multiplyScalar(e));
+      _m.copy(t.matrix).scale(_s.setScalar(e));
       t.handle.batch.writeSlot(t.handle.slot, _m, null, null);
       if (done) {
         this.tweens[i] = this.tweens[this.tweens.length - 1]!;
@@ -305,14 +379,16 @@ export class ChunkedInstancer {
       }
     }
 
-    // Bounds + distance LOD per batch.
+    // Bounds, distance LOD and shadow LOD per batch.
     const cam = camera.position;
     const half = this.chunkSize / 2;
+    const sf = this.shadowFocus;
     for (const b of this.batches.values()) {
       b.flush();
-      if (b.boundsDirty) {
-        b.mesh.computeBoundingSphere();
-        b.boundsDirty = false;
+      if (b.piece.castShadow) {
+        const sx = Math.max(0, Math.abs(sf.x - (b.cx * this.chunkSize + half)) - half);
+        const sz = Math.max(0, Math.abs(sf.z - (b.cz * this.chunkSize + half)) - half);
+        b.mesh.castShadow = Math.hypot(sx, sz) < this.shadowRadius;
       }
       if (b.piece.lod !== Infinity) {
         _v.set(b.cx * this.chunkSize + half, 0, b.cz * this.chunkSize + half);

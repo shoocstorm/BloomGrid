@@ -8,10 +8,13 @@ import { SystemRegistry } from '@/core/Systems';
 import { City } from '@/sim/City';
 import { registerSimCommands } from '@/sim/commands';
 import { simSystems } from '@/sim/systems';
+import { foundCity, preferredDifficulty } from './newCity';
+import { chunkSizeFor } from '@/sim/City';
 import { createRenderer } from '@/render/Renderer';
 import { ChunkedInstancer } from '@/render/Instancer';
-import { DynamicResolution, QUALITY_TIERS, type QualityTier } from '@/render/Quality';
+import { DynamicResolution, QUALITY_TIERS, type QualitySettings, type QualityTier } from '@/render/Quality';
 import { PostFX } from '@/render/PostFX';
+import { PowerManager } from '@/render/Power';
 import { initMaterials } from '@/render/materials/library';
 import { initPieces, pieceIds } from '@/assets/kit/pieces';
 import { AssetManager } from '@/assets/AssetManager';
@@ -24,6 +27,7 @@ import { SaveManager } from './SaveManager';
 import { U } from '@/render/uniforms';
 
 export interface RenderService {
+  power: PowerManager;
   postfx: PostFX;
   dynamicResolution: DynamicResolution;
   setQuality(tier: QualityTier): void;
@@ -40,14 +44,39 @@ declare module '@/core/Services' {
  * Builds the core runtime (sim, renderer, input, tools, persistence) and then loads feature
  * modules in dependency order. Everything feature-specific lives in modules.
  */
-export async function createGame(canvas: HTMLCanvasElement, hud: HTMLElement, modules: GameModule[]): Promise<GameContext> {
+/** URL overrides for measuring GPU cost: ?pr=1 ?msaa=0 ?shadows=0 ?bloom=0 ?shadowmap=1024. */
+function withOverrides(base: QualitySettings, params: URLSearchParams): QualitySettings {
+  const q = { ...base };
+  if (params.has('pr')) q.maxPixelRatio = Number(params.get('pr'));
+  if (params.has('msaa')) q.msaa = Number(params.get('msaa'));
+  if (params.has('shadows')) q.shadows = params.get('shadows') !== '0';
+  if (params.has('bloom')) q.bloom = params.get('bloom') !== '0';
+  if (params.has('shadowmap')) q.shadowMapSize = Number(params.get('shadowmap'));
+  return q;
+}
+
+export type ProgressFn = (label: string, progress: number) => Promise<void> | void;
+
+export async function createGame(
+  canvas: HTMLCanvasElement,
+  hud: HTMLElement,
+  modules: GameModule[],
+  onProgress: ProgressFn = () => {},
+): Promise<GameContext> {
   const params = new URLSearchParams(location.search);
-  const { renderer, isWebGPU } = await createRenderer(canvas, params.get('renderer') === 'webgl');
+  const t0 = performance.now();
+  const timings: Record<string, number> = {};
+  const lap = (k: string, since: number) => (timings[k] = Math.round(performance.now() - since));
+  await onProgress('Negotiating GPU link', 0.05);
+  const gpuTiming = params.has('gputime');
+  const { renderer, isWebGPU } = await createRenderer(canvas, params.get('renderer') === 'webgl', gpuTiming);
   const tier = (params.get('quality') as QualityTier) || (isWebGPU ? 'high' : 'medium');
+  await onProgress(`${isWebGPU ? 'WebGPU' : 'WebGL2'} core · calibrating bio-shaders`, 0.15);
 
   initMaterials();
   initPieces();
 
+  await onProgress('Raising the island from the sea', 0.25);
   const bus = new EventBus();
   const seed = Number(params.get('seed')) || 20261024;
   const city = new City(bus, seed);
@@ -65,9 +94,9 @@ export async function createGame(canvas: HTMLCanvasElement, hud: HTMLElement, mo
     isWebGPU,
     scene,
     camera,
-    instancer: new ChunkedInstancer(scene),
+    instancer: new ChunkedInstancer(scene, chunkSizeFor(city.size)),
     assets: new AssetManager(),
-    quality: { tier, settings: QUALITY_TIERS[tier] },
+    quality: { tier, settings: withOverrides(QUALITY_TIERS[tier], params) },
     input,
     cameraCtl: new CityCamera(camera, input, city.grid),
     platform: createPlatform(),
@@ -82,9 +111,21 @@ export async function createGame(canvas: HTMLCanvasElement, hud: HTMLElement, mo
   simSystems.forEach((s) => systems.add(s));
   U.mapSize.value = city.grid.w;
 
+  // Founding content is generated in bulk before any renderer exists; renderers sync on init.
+  const scenarioId = params.get('scenario') ?? 'founding-city';
+  await onProgress('Founding the city: districts, highways & bridges', 0.3);
+  const ts = performance.now();
+  const r = foundCity(ctx, seed, preferredDifficulty(params), scenarioId);
+  lap('scenario', ts);
+  console.info(`[scenario] ${scenarioId}: ${r.buildings} buildings, ${r.roads} highway tiles (${city.steward.difficulty})`);
+
   // Rendering services.
   const postfx = new PostFX(renderer, scene, camera);
+  const gpuMs = { value: 0, lastFrame: 0, pending: false };
+  (globalThis as unknown as { __gpuMs: typeof gpuMs }).__gpuMs = gpuMs;
   const dynRes = new DynamicResolution();
+  const power = new PowerManager(ctx.input, ctx.cameraCtl);
+  ctx.engine.targetFps = () => power.targetFps();
   dynRes.enabled = !params.has('nodynres');
   const applySize = () => {
     const pr = Math.min(window.devicePixelRatio, ctx.quality.settings.maxPixelRatio) * dynRes.scale;
@@ -94,7 +135,7 @@ export async function createGame(canvas: HTMLCanvasElement, hud: HTMLElement, mo
     camera.updateProjectionMatrix();
   };
   const setQuality = (t: QualityTier) => {
-    ctx.quality = { tier: t, settings: QUALITY_TIERS[t] };
+    ctx.quality = { tier: t, settings: withOverrides(QUALITY_TIERS[t], params) };
     const q = ctx.quality.settings;
     renderer.shadowMap.enabled = q.shadows;
     ctx.instancer.lodScale = q.lodScale;
@@ -103,7 +144,7 @@ export async function createGame(canvas: HTMLCanvasElement, hud: HTMLElement, mo
     dynRes.scale = 1;
     applySize();
   };
-  ctx.services.provide('render', { postfx, dynamicResolution: dynRes, setQuality });
+  ctx.services.provide('render', { postfx, dynamicResolution: dynRes, setQuality, power });
   ctx.services.provide('save', new SaveManager(ctx));
   window.addEventListener('resize', applySize);
 
@@ -115,9 +156,20 @@ export async function createGame(canvas: HTMLCanvasElement, hud: HTMLElement, mo
     id: 'core.render',
     phase: 'render',
     update(c, f) {
-      if (dynRes.update(f.dt)) applySize();
+      if (dynRes.update(f.dt, power.targetFps())) applySize();
       postfx.render();
       c.input.endFrame();
+      // Optional GPU timing (?gputime). three reports the *total* GPU time of all frames since
+      // the previous resolve, so divide by the number of frames in that window.
+      if (gpuTiming && !gpuMs.pending && c.engine.frames - gpuMs.lastFrame >= 10) {
+        const start = c.engine.frames;
+        gpuMs.pending = true;
+        void renderer.resolveTimestampsAsync('render').then((total) => {
+          gpuMs.value = (total ?? 0) / Math.max(1, start - gpuMs.lastFrame);
+          gpuMs.lastFrame = start;
+          gpuMs.pending = false;
+        });
+      }
     },
   });
 
@@ -129,7 +181,7 @@ export async function createGame(canvas: HTMLCanvasElement, hud: HTMLElement, mo
     if (mod && e.code === 'KeyY') return ctx.commands.redo(), true;
     if (mod && e.code === 'KeyS') return void save.save(), true;
     if (mod && e.code === 'KeyL') return void save.load(), true;
-    if (mod) return false;
+    if (mod || e.shiftKey || e.altKey) return false;
     if (e.code === 'Space') return (ctx.engine.speed = ctx.engine.speed ? 0 : 1), true;
     if (e.code === 'Digit1') return (ctx.engine.speed = 1), true;
     if (e.code === 'Digit2') return (ctx.engine.speed = 3), true;
@@ -137,17 +189,26 @@ export async function createGame(canvas: HTMLCanvasElement, hud: HTMLElement, mo
     return false;
   });
 
+  await onProgress('Seeding forests, meadows & mangroves', 0.4);
+  const tm = performance.now();
   await loadModules(ctx, modules);
+  lap('modules', tm);
   ctx.tools.attach();
   ctx.tools.setActive('select');
-  setQuality(tier);
+  setQuality(ctx.quality.tier); // may have been changed by the settings module (saved preference)
 
   // Start looking at a pleasant buildable spot near the map centre.
-  ctx.cameraCtl.lookAt(city.grid.w * 0.42, city.grid.h * 0.62, 60, true);
+  await onProgress('Compiling luminous materials', 0.75);
+  ctx.cameraCtl.lookAt(city.grid.w * 0.52, city.grid.h * 0.66, 60, true);
   ctx.cameraCtl.update(0);
+  const tw = performance.now();
   await ctx.instancer.warmup(renderer, scene, camera, pieceIds(), ctx.cameraCtl.target);
+  lap('shaderWarmup', tw);
 
   // Autosave every 2 minutes.
   setInterval(() => void save.save('autosave'), 120_000);
+  lap('total', t0);
+  console.info('[boot] ms', JSON.stringify(timings));
+  await onProgress('Synchronising city pulse', 0.95);
   return ctx;
 }

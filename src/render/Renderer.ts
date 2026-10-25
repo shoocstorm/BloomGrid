@@ -10,8 +10,8 @@ export interface RendererInfo {
  * Creates the renderer. WebGPU is preferred; three.js falls back to WebGL2 automatically when
  * WebGPU is unavailable. `?renderer=webgl` forces the fallback for testing.
  */
-export async function createRenderer(canvas: HTMLCanvasElement, forceWebGL: boolean): Promise<RendererInfo> {
-  const renderer = new WebGPURenderer({ canvas, antialias: false, forceWebGL, powerPreference: 'high-performance' });
+export async function createRenderer(canvas: HTMLCanvasElement, forceWebGL: boolean, trackTimestamp = false): Promise<RendererInfo> {
+  const renderer = new WebGPURenderer({ canvas, antialias: false, forceWebGL, powerPreference: 'high-performance', trackTimestamp });
   await renderer.init();
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;

@@ -1,8 +1,13 @@
-import { Color, Group, InstancedMesh, Matrix4, Mesh, PlaneGeometry, type Scene } from 'three/webgpu';
+import { Color, Group, InstancedMesh, Matrix4, Mesh, PlaneGeometry, RingGeometry, type Scene } from 'three/webgpu';
 import { getPiece } from '@/assets/kit/pieces';
 import { getMaterial } from '@/render/materials/library';
 import { U } from '@/render/uniforms';
-import type { PlacedPiece } from './BuildingRenderer';
+import type { Matrix4 as M4 } from 'three/webgpu';
+
+export interface GhostPiece {
+  piece: string;
+  matrix: M4;
+}
 
 const VALID = new Color(0x7ff7e6);
 const INVALID = new Color(0xff7a7a);
@@ -20,7 +25,7 @@ export class Ghost {
     this.cursor = new Mesh(new PlaneGeometry(1, 1).rotateX(-Math.PI / 2), getMaterial('cursor'));
     this.cursor.renderOrder = 10;
     this.cursor.visible = false;
-    this.tiles = new InstancedMesh(new PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2), getMaterial('cursor'), 1024);
+    this.tiles = new InstancedMesh(new PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2), getMaterial('cursor'), 1100); // > UBO limit: see Instancer INITIAL_CAPACITY
     this.tiles.count = 0;
     this.tiles.frustumCulled = false;
     this.tiles.renderOrder = 10;
@@ -32,7 +37,7 @@ export class Ghost {
   }
 
   /** Shows a building preview from world-space placed pieces. Meshes are pooled per piece type. */
-  showPieces(pieces: PlacedPiece[]): void {
+  showPieces(pieces: GhostPiece[]): void {
     const counts = new Map<string, number>();
     for (const p of pieces) counts.set(p.piece, (counts.get(p.piece) ?? 0) + 1);
     for (const [id, mesh] of this.pool) if (!counts.has(id)) mesh.count = 0;
@@ -45,14 +50,14 @@ export class Ghost {
           this.group.remove(mesh);
           mesh.dispose();
         }
-        mesh = new InstancedMesh(getPiece(p.piece).geometry, getMaterial('ghost'), Math.max(need, 32));
+        mesh = new InstancedMesh(getPiece(p.piece).geometry, getMaterial('ghost'), Math.max(need, 1040)); // > UBO limit: see Instancer INITIAL_CAPACITY
         mesh.frustumCulled = false;
         this.pool.set(p.piece, mesh);
         this.group.add(mesh);
       }
       const i = fill.get(p.piece) ?? 0;
       fill.set(p.piece, i + 1);
-      mesh.setMatrixAt(i, _m.compose(p.pos, p.quat, p.scale));
+      mesh.setMatrixAt(i, p.matrix);
       mesh.count = need;
       mesh.instanceMatrix.needsUpdate = true;
     }
@@ -88,7 +93,26 @@ export class Ghost {
     this.tiles.instanceMatrix.needsUpdate = true;
   }
 
+  private ring: Mesh | null = null;
+
+  /** Radius brush outline (Bloom Retrofit). */
+  showRing(x: number, y: number, z: number, r: number): void {
+    if (!this.ring) {
+      this.ring = new Mesh(new RingGeometry(0.97, 1, 96, 1).rotateX(-Math.PI / 2), getMaterial('cursor'));
+      this.ring.renderOrder = 10;
+      this.group.parent?.add(this.ring);
+    }
+    this.ring.visible = true;
+    this.ring.position.set(x, y + 0.5, z);
+    this.ring.scale.setScalar(r);
+  }
+
+  hideRing(): void {
+    if (this.ring) this.ring.visible = false;
+  }
+
   hideAll(): void {
+    this.hideRing();
     this.clearPieces();
     this.hideCursor();
     this.tiles.count = 0;

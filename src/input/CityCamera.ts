@@ -7,6 +7,14 @@ import type { Input } from './Input';
  * Controls: WASD / arrows pan, Q/E rotate, wheel zoom, right-drag orbit, middle-drag pan.
  * Left-drag panning is enabled by tools that request it (`dragPan`).
  */
+export interface CameraView {
+  x: number;
+  z: number;
+  yaw: number;
+  pitch: number;
+  distance: number;
+}
+
 export class CityCamera {
   readonly target = new Vector3();
   yaw = Math.PI * 0.25;
@@ -18,20 +26,33 @@ export class CityCamera {
   private goalPitch = this.pitch;
   private goalDistance = this.distance;
   private tmp = new Vector3();
+  /** Damping rate; lower = slower, more cinematic glides. */
+  smoothing = 10;
   /** Set by tools: left-drag pans the camera. */
   dragPan = false;
+  /** False while an explore mode drives the camera (target / distance still describe the focus). */
+  enabled = true;
+  /** Set by explore modes so power pacing treats a moving first-person view as active. */
+  externalMotion = false;
 
   minDistance = 6;
   maxDistance = 320;
+  /** Distance that frames the whole island (overview). */
+  get overviewDistance(): number {
+    return this.grid.w * 1.1;
+  }
 
   constructor(
     private camera: PerspectiveCamera,
     private input: Input,
     private grid: Grid,
-  ) {}
+  ) {
+    this.maxDistance = grid.w * 1.2;
+  }
 
   setGrid(grid: Grid): void {
     this.grid = grid;
+    this.maxDistance = grid.w * 1.2;
   }
 
   lookAt(x: number, z: number, distance?: number, instant = false): void {
@@ -43,7 +64,56 @@ export class CityCamera {
     }
   }
 
+  private smoothTimer = 0;
+
+  /** Smooth, slower glide to a point (advisor "show me", bookmarks, overview). */
+  flyTo(x: number, z: number, distance?: number, pitch?: number): void {
+    this.goalTarget.set(x, 0, z);
+    if (distance !== undefined) this.goalDistance = Math.min(this.maxDistance, distance);
+    if (pitch !== undefined) this.goalPitch = pitch;
+    this.smoothing = 3.5;
+    clearTimeout(this.smoothTimer);
+    this.smoothTimer = window.setTimeout(() => (this.smoothing = 10), 1600);
+  }
+
+  /** Frames the whole island from high above. */
+  overview(): void {
+    this.flyTo(this.grid.w / 2, this.grid.h * 0.52, this.overviewDistance, 1.1);
+  }
+
+  getView(): CameraView {
+    return { x: this.goalTarget.x, z: this.goalTarget.z, yaw: this.goalYaw, pitch: this.goalPitch, distance: this.goalDistance };
+  }
+
+  setView(v: CameraView): void {
+    this.goalYaw = v.yaw;
+    this.flyTo(v.x, v.z, v.distance, v.pitch);
+  }
+
+  /** Cinematic establishing shot: start high over the island, glide down to the target view. */
+  intro(x: number, z: number, distance: number, duration = 5): void {
+    this.goalTarget.set(this.grid.w / 2, 0, this.grid.h / 2);
+    this.target.copy(this.goalTarget);
+    this.distance = this.goalDistance = this.overviewDistance;
+    this.pitch = this.goalPitch = 1.25;
+    this.yaw = this.goalYaw - 0.9;
+    this.goalPitch = 0.85;
+    this.goalTarget.set(x, 0, z);
+    this.goalDistance = distance;
+    if (duration <= 0) {
+      // Hold the establishing shot.
+      this.goalTarget.copy(this.target);
+      this.goalDistance = this.distance;
+      this.goalPitch = this.pitch;
+      this.goalYaw = this.yaw;
+      return;
+    }
+    this.smoothing = 0.9;
+    setTimeout(() => (this.smoothing = 10), duration * 1000);
+  }
+
   update(dt: number): void {
+    if (!this.enabled) return;
     const inp = this.input;
     const k = inp.keys;
     const panSpeed = this.goalDistance * 0.9 * dt;
@@ -78,7 +148,7 @@ export class CityCamera {
     this.goalTarget.y = Math.max(0, g.heightAt(this.goalTarget.x, this.goalTarget.z));
 
     // Exponential smoothing (frame-rate independent).
-    const a = 1 - Math.exp(-dt * 10);
+    const a = 1 - Math.exp(-dt * this.smoothing);
     this.target.lerp(this.goalTarget, a);
     this.yaw += (this.goalYaw - this.yaw) * a;
     this.pitch += (this.goalPitch - this.pitch) * a;
@@ -90,6 +160,18 @@ export class CityCamera {
     const ground = Math.max(0, g.heightAt(cam.x, cam.z)) + 1.5;
     if (cam.y < ground) cam.y = ground;
     this.camera.lookAt(this.target);
+  }
+
+  /** True while the camera is still gliding toward its goal (or a key is held). */
+  isMoving(): boolean {
+    return (
+      this.externalMotion ||
+      this.target.distanceToSquared(this.goalTarget) > 1e-4 ||
+      Math.abs(this.goalDistance - this.distance) > 0.01 ||
+      Math.abs(this.goalYaw - this.yaw) > 1e-4 ||
+      Math.abs(this.goalPitch - this.pitch) > 1e-4 ||
+      this.input.keys.size > 0
+    );
   }
 
   /** Pan in camera-relative ground space. */

@@ -1,0 +1,21 @@
+.season {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.season-bar {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+.season-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff9fc4, #8ef07a);
+  transform-origin: 0 50%;
+}

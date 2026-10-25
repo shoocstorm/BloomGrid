@@ -1,7 +1,7 @@
 import { query } from 'bitecs';
 import type { System } from '@/core/Systems';
-import { Building, Greenery } from '@/ecs/components';
-import { buildings } from '@/content';
+import { Building, Greenery, Service } from '@/ecs/components';
+import { pulseSystem } from './pulse';
 import { DAY_LENGTH, type City } from './City';
 
 export interface SimCtx {
@@ -26,46 +26,21 @@ export const greenerySystem: System<SimCtx> = {
   id: 'sim.greenery',
   phase: 'sim',
   update({ city }, f) {
+    const irrigation = city.grid.layer<Float32Array>('irrigation');
     for (const eid of query(city.world, [Greenery])) {
+      // Greenery grows when watered and dies back during water shortages.
       const v = Greenery.value[eid]!;
-      if (v < 1) Greenery.value[eid] = Math.min(1, v + Greenery.rate[eid]! * f.tickDt);
+      // Filtration channels irrigate nearby gardens even when the network runs dry.
+      const irr = irrigation ? irrigation[city.grid.index(Building.x[eid]!, Building.z[eid]!)]! : 0;
+      // Parched soil (Flora-Net hydration) starves gardens even when the taps run.
+      const w = Math.max(Service.water[eid]! * (0.4 + 0.6 * Math.min(1, Service.soil[eid]! / 0.6)), irr * 0.9);
+      // Bloom (pollination) and retrofits speed growth.
+      const rate = Greenery.rate[eid]! * f.tickDt * (0.5 + Service.bloom[eid]!) * (Building.level[eid]! > 0 ? 1.5 : 1);
+      if (w >= 0.5) {
+        if (v < 1) Greenery.value[eid] = Math.min(1, v + rate * w);
+      } else if (v > 0) Greenery.value[eid] = Math.max(0, v - rate * 0.5 * (1 - w));
     }
   },
 };
 
-const STATS_INTERVAL = 10; // ticks
-
-export const economySystem: System<SimCtx> = {
-  id: 'sim.economy',
-  phase: 'sim',
-  order: 10,
-  update({ city }, f) {
-    if (city.tick % STATS_INTERVAL !== 0) return;
-    const s = city.stats;
-    s.population = s.jobs = s.energyProduced = s.energyUsed = s.eco = s.pollution = s.buildings = 0;
-    let happy = 0;
-    for (const eid of query(city.world, [Building])) {
-      const st = buildings.at(Building.def[eid]!).stats;
-      const g = Greenery.value[eid]!;
-      s.buildings++;
-      s.population += st.population;
-      s.jobs += st.jobs;
-      if (st.energy > 0) s.energyProduced += st.energy;
-      else s.energyUsed -= st.energy;
-      // Greenery amplifies ecological value and dampens pollution.
-      s.eco += st.eco * (0.3 + 0.7 * g);
-      s.pollution += Math.max(0, st.pollution * (1 - 0.4 * g));
-      happy += st.happiness;
-    }
-    s.eco -= s.pollution;
-    const n = Math.max(1, s.buildings);
-    const energyPenalty = s.energyUsed > s.energyProduced ? 15 : 0;
-    s.happiness = Math.max(0, Math.min(100, 55 + ((happy + s.eco) / n) * 4 - energyPenalty));
-    const employed = Math.min(s.population, s.jobs);
-    s.income = (s.population * 0.04 + employed * 0.06) * (0.5 + s.happiness / 100);
-    city.credits += s.income * STATS_INTERVAL * f.tickDt;
-    city.bus.emit('stats:updated', undefined);
-  },
-};
-
-export const simSystems: System<SimCtx>[] = [clockSystem, greenerySystem, economySystem];
+export const simSystems: System<SimCtx>[] = [clockSystem, greenerySystem, pulseSystem];

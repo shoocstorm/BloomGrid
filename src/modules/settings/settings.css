@@ -1,0 +1,57 @@
+.settings {
+  position: absolute;
+  right: 12px;
+  top: 70px;
+  width: 300px;
+  padding: 12px 14px;
+  z-index: 30;
+  font-size: 12.5px;
+  background: #f8fbf3;
+}
+.night .settings {
+  background: rgba(14, 32, 32, 0.97);
+}
+.settings.hidden {
+  display: none;
+}
+.settings h4 {
+  margin: 4px 0 2px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.set-hint {
+  margin: 0 0 6px;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+.set-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+.set-opt {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.set-opt:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.set-opt input {
+  accent-color: #3ccf8e;
+}
+
+.set-new {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}

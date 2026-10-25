@@ -37,6 +37,8 @@ export class ToolManager {
   hit: GroundHit | null = null;
   private hitStore: GroundHit = { point: new Vector3(), tx: 0, tz: 0, inBounds: false };
   defaultTool = 'select';
+  /** While true (explore and photo modes) tools get no pointer, hover or hotkey input. */
+  suspended = false;
 
   constructor(private ctx: GameContext) {}
 
@@ -68,12 +70,13 @@ export class ToolManager {
   attach(): void {
     const { input } = this.ctx;
     input.onPointerDown((e) => {
-      if (e.button === 0) this.active?.down?.(this.ctx, this.pick(), e);
+      if (e.button === 0 && !this.suspended) this.active?.down?.(this.ctx, this.pick(), e);
     });
     input.onPointerUp((e) => {
-      if (e.button === 0) this.active?.up?.(this.ctx, this.pick(), e);
+      if (e.button === 0 && !this.suspended) this.active?.up?.(this.ctx, this.pick(), e);
     });
     input.onKey((e) => {
+      if (this.suspended) return false;
       if (this.active?.key?.(this.ctx, e)) return true;
       if (e.code === 'Escape' && this.active?.id !== this.defaultTool) {
         this.setActive(this.defaultTool);
@@ -101,6 +104,6 @@ export class ToolManager {
     // Fade the build grid overlay in/out for tools that want it.
     const target = this.active?.grid ? 1 : 0;
     U.grid.value += (target - U.grid.value) * Math.min(1, dt * 8);
-    this.active?.hover?.(this.ctx, this.pick());
+    if (!this.suspended) this.active?.hover?.(this.ctx, this.pick());
   }
 }

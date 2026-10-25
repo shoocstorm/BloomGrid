@@ -1,15 +1,19 @@
 import { buildings } from '@/content';
 import { NO_ENTITY } from '@/sim/Grid';
-import { ROAD_COST } from '@/sim/commands';
+import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from '@/sim/floranet';
+import { reclaimPlan, seaMask } from '@/sim/coast';
+import { banyanPlan, bridgePlan } from '@/sim/weaver';
+import { CHANNEL_COST, RETROFIT_RADIUS, retrofitPlan, roadTileCost } from '@/sim/commands';
 import type { GameContext } from '@/game/context';
 import type { Tool } from '@/game/Tools';
 import type { GroundHit } from '@/world/Picking';
-import { assembleBuilding } from './BuildingRenderer';
+import { placeBuilding, placementMatrices } from './BuildingRenderer';
 import type { Ghost } from './Ghost';
 
 declare module '@/core/EventBus' {
   interface GameEvents {
-    'selection:changed': { eid: number | null };
+    /** A building (eid) or, with `road`, the highway network containing that tile. */
+    'selection:changed': { eid: number | null; road?: number };
     toast: { text: string; tone?: 'ok' | 'bad' | 'info' };
   }
 }
@@ -50,7 +54,9 @@ export function createTools(ghost: Ghost, build: BuildState) {
       if (ctx.input.dragDistance > 6) return;
       const eid = hit?.inBounds ? ctx.city.buildingAt(hit.tx, hit.tz) : NO_ENTITY;
       selected = eid === NO_ENTITY ? null : eid;
-      ctx.bus.emit('selection:changed', { eid: selected });
+      const tile = hit?.inBounds ? ctx.city.grid.index(hit.tx, hit.tz) : -1;
+      if (selected === null && tile >= 0 && ctx.city.grid.road[tile]) ctx.bus.emit('selection:changed', { eid: null, road: tile });
+      else ctx.bus.emit('selection:changed', { eid: selected });
     },
   };
 
@@ -84,12 +90,14 @@ export function createTools(ghost: Ghost, build: BuildState) {
       ghost.setValid(res.ok);
       const inside = x >= 0 && z >= 0 && x + w <= ctx.city.grid.w && z + d <= ctx.city.grid.h;
       if (inside) {
-        ghost.showPieces(assembleBuilding(ctx.city.grid, def, x, z, build.rot));
+        ghost.showPieces(placementMatrices(placeBuilding(ctx.city.grid, def, x, z, build.rot)));
         ghost.showCursor(x, ctx.city.grid.rangeOver(x, z, w, d).max, z, w, d);
       } else ghost.hideAll();
       ctx.bus.emit('tool:tooltip', {
-        text: res.ok ? `${def.name} · ${fmt(def.stats.cost)} ◈ · R to rotate` : `${def.name} — ${res.reason}`,
-        tone: res.ok ? 'ok' : 'bad',
+        text: res.ok
+          ? `${def.name} · ${fmt(def.stats.cost)} ◈ · R to rotate${res.warning ? ` · ⚠ ${res.warning}` : ''}`
+          : `${def.name} — ${res.reason}`,
+        tone: res.ok && !res.warning ? 'ok' : 'bad',
       });
     },
     up(ctx, hit) {
@@ -156,11 +164,15 @@ export function createTools(ghost: Ghost, build: BuildState) {
       if (!hit?.inBounds) return ghost.hideAll();
       const cur = { x: hit.tx, z: hit.tz };
       const tiles = pathTiles(ctx, dragStart ?? cur, cur);
-      const valid = tiles.filter((t) => ctx.city.canRoad(t));
+      const valid = tiles.filter((t) => ctx.city.canRoad(t, true));
+      const cost = valid.reduce((a, t) => a + roadTileCost(ctx.city, t), 0);
+      const bridges = valid.filter((t) => ctx.city.isWaterTile(t % ctx.city.grid.w, (t / ctx.city.grid.w) | 0)).length;
       ghost.setValid(valid.length > 0);
       ghost.showTiles(tileList(ctx, tiles));
       ctx.bus.emit('tool:tooltip', {
-        text: dragStart ? `${valid.length} tiles · ${fmt(valid.length * ROAD_COST)} ◈` : 'Drag to grow a moss highway',
+        text: dragStart
+          ? `${valid.length} tiles${bridges ? ` (${bridges} bridge)` : ''} · ${fmt(cost)} ◈`
+          : 'Drag to grow a moss highway · crosses water as a bridge',
         tone: valid.length ? 'ok' : 'bad',
       });
     },
@@ -168,7 +180,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
       if (hit?.inBounds) dragStart = { x: hit.tx, z: hit.tz };
     },
     up(ctx, hit) {
-      if (dragStart && hit?.inBounds) ctx.commands.execute('road', { tiles: pathTiles(ctx, dragStart, { x: hit.tx, z: hit.tz }) });
+      if (dragStart && hit?.inBounds) ctx.commands.execute('road', { tiles: pathTiles(ctx, dragStart, { x: hit.tx, z: hit.tz }), bridges: true });
       dragStart = null;
     },
   };
@@ -221,9 +233,211 @@ export function createTools(ghost: Ghost, build: BuildState) {
         ctx.commands.execute('demolish', { x: hit.tx, z: hit.tz });
         return;
       }
-      ctx.commands.execute('unroad', { tiles: rectTiles(ctx, start, { x: hit.tx, z: hit.tz }) });
+      const tiles = rectTiles(ctx, start, { x: hit.tx, z: hit.tz });
+      ctx.commands.execute('unroad', { tiles });
+      ctx.commands.execute('unchannel', { tiles });
     },
   };
 
-  return [select, place, road, bulldoze];
+  let chStart: { x: number; z: number } | null = null;
+  const channel: Tool = {
+    id: 'channel',
+    label: 'Filtration Channel',
+    icon: '≈',
+    hotkey: 'KeyC',
+    grid: true,
+    activate: () => (chStart = null),
+    deactivate: () => ghost.hideAll(),
+    hover(ctx, hit) {
+      if (!hit?.inBounds) return ghost.hideAll();
+      const cur = { x: hit.tx, z: hit.tz };
+      const tiles = pathTiles(ctx, chStart ?? cur, cur);
+      const valid = tiles.filter((t) => ctx.city.canChannel(t));
+      ghost.setValid(valid.length > 0);
+      ghost.showTiles(tileList(ctx, tiles));
+      ctx.bus.emit('tool:tooltip', {
+        text: chStart
+          ? `${valid.length} tiles · ${fmt(valid.length * CHANNEL_COST)} ◈`
+          : 'Drag a bioswale: cleans nearby pollution and irrigates gardens (bloom +)',
+        tone: valid.length ? 'ok' : 'bad',
+      });
+    },
+    down(_ctx, hit) {
+      if (hit?.inBounds) chStart = { x: hit.tx, z: hit.tz };
+    },
+    up(ctx, hit) {
+      if (chStart && hit?.inBounds) ctx.commands.execute('channel', { tiles: pathTiles(ctx, chStart, { x: hit.tx, z: hit.tz }) });
+      chStart = null;
+    },
+  };
+
+  const retrofit: Tool = {
+    id: 'retrofit',
+    label: 'Bloom Retrofit',
+    icon: '✾',
+    hotkey: 'KeyB',
+    deactivate: () => ghost.hideAll(),
+    hover(ctx, hit) {
+      if (!hit?.inBounds) {
+        ghost.hideRing();
+        return;
+      }
+      const plan = retrofitPlan(ctx.city, hit.point.x, hit.point.z, RETROFIT_RADIUS);
+      const ok = plan.eids.length > 0 && ctx.city.credits >= plan.cost;
+      ghost.setValid(ok);
+      ghost.showRing(hit.point.x, hit.point.y, hit.point.z, RETROFIT_RADIUS);
+      ctx.bus.emit('tool:tooltip', {
+        text: plan.eids.length
+          ? `Transform ${plan.eids.length} buildings${plan.channels.length ? ` + ${plan.channels.length} channel tiles` : ''} · ${fmt(plan.cost)} ◈${ok ? '' : ' (not enough credits)'}`
+          : 'No buildings left to retrofit here',
+        tone: ok ? 'ok' : 'bad',
+      });
+    },
+    up(ctx, hit) {
+      if (!hit?.inBounds || ctx.input.dragDistance > 6) return;
+      if (ctx.commands.execute('retrofit', { x: hit.point.x, z: hit.point.z, radius: RETROFIT_RADIUS }))
+        ctx.bus.emit('toast', { text: 'The district bursts into bloom', tone: 'ok' });
+    },
+  };
+
+  const mist: Tool = {
+    id: 'mist',
+    label: 'Flora-Net Mist',
+    icon: '☂',
+    hotkey: 'KeyM',
+    deactivate: () => ghost.hideAll(),
+    hover(ctx, hit) {
+      if (!hit?.inBounds) {
+        ghost.hideRing();
+        return;
+      }
+      const zones = mistZones(ctx.city, hit.point.x, hit.point.z);
+      const H = ctx.city.soil.hydration;
+      const avg = zones.length ? zones.reduce((a, z) => a + H[z]!, 0) / zones.length : 1;
+      const ok = zones.length > 0 && ctx.city.credits >= MIST_COST;
+      ghost.setValid(ok);
+      ghost.showRing(hit.point.x, hit.point.y, hit.point.z, (MIST_RADIUS + 0.5) * ZONE);
+      ctx.bus.emit('tool:tooltip', {
+        text: `Mist ${zones.length} soil zones (now ${Math.round(avg * 100)}% moist) · ${MIST_COST} ◈${ok ? '' : ' (not enough credits)'}`,
+        tone: ok ? 'ok' : 'bad',
+      });
+    },
+    up(ctx, hit) {
+      if (!hit?.inBounds || ctx.input.dragDistance > 6) return;
+      if (ctx.commands.execute('mist', { x: hit.point.x, z: hit.point.z })) ctx.bus.emit('toast', { text: 'Flora-Net drones mist the gardens', tone: 'ok' });
+    },
+  };
+
+  // Land reclamation: drag a rectangle over the shallow shelf next to the coast.
+  let rcStart: { x: number; z: number } | null = null;
+  let sea: Uint8Array | null = null;
+  const reclaim: Tool = {
+    id: 'reclaim',
+    label: 'Reclaim Land',
+    icon: '⛰',
+    hotkey: 'KeyT',
+    grid: true,
+    activate: () => (sea = null),
+    deactivate: () => ghost.hideAll(),
+    hover(ctx, hit) {
+      if (!hit?.inBounds) return ghost.hideAll();
+      sea ??= seaMask(ctx.city);
+      const a = rcStart ?? { x: hit.tx, z: hit.tz };
+      const plan = reclaimPlan(ctx.city, a.x, a.z, hit.tx, hit.tz, sea);
+      const ok = plan.tiles.length > 0 && ctx.city.credits >= plan.cost;
+      ghost.setValid(ok);
+      ghost.hideCursor();
+      ghost.showTiles(plan.tiles.map((t) => [t % ctx.city.grid.w, 0.06, (t / ctx.city.grid.w) | 0] as [number, number, number]));
+      ctx.bus.emit('tool:tooltip', {
+        text: plan.tiles.length
+          ? `Reclaim ${plan.tiles.length} tiles of shallow sea · ${fmt(plan.cost)} ◈${ok ? '' : ' (not enough credits)'}`
+          : rcStart
+            ? (plan.reason ?? 'Nothing to reclaim')
+            : 'Drag over shallow sea next to the coast to raise new land',
+        tone: ok ? 'ok' : 'bad',
+      });
+    },
+    down(_ctx, hit) {
+      if (hit?.inBounds) rcStart = { x: hit.tx, z: hit.tz };
+    },
+    up(ctx, hit) {
+      const start = rcStart;
+      rcStart = null;
+      ghost.showTiles([]);
+      if (!start || !hit?.inBounds) return;
+      if (ctx.commands.execute('reclaim', { x0: start.x, z0: start.z, x1: hit.tx, z1: hit.tz })) {
+        sea = null;
+        ctx.bus.emit('toast', { text: 'New land rises from the shallows', tone: 'ok' });
+      }
+    },
+  };
+
+  // Green Weaver: click a tower, then another to weave a sky-bridge, or the same one again to
+  // merge it with a banyan.
+  let weaveFrom: number | null = null;
+  const weave: Tool = {
+    id: 'weave',
+    label: 'Green Weaver',
+    icon: '❦',
+    hotkey: 'KeyV',
+    activate: () => (weaveFrom = null),
+    deactivate: () => {
+      weaveFrom = null;
+      ghost.hideAll();
+    },
+    key(_ctx, e) {
+      if (e.code !== 'Escape' || weaveFrom === null) return false;
+      weaveFrom = null;
+      return true;
+    },
+    hover(ctx, hit) {
+      const { city } = ctx;
+      const eid = hit?.inBounds ? city.buildingAt(hit.tx, hit.tz) : NO_ENTITY;
+      if (eid !== NO_ENTITY) footprintCursor(ctx, eid);
+      else ghost.hideCursor();
+      const from = weaveFrom !== null && city.buildingEntities().includes(weaveFrom) ? weaveFrom : null;
+      if (from !== null) {
+        const r = city.buildingRecord(from);
+        const [w, d] = city.footprint(city.buildingDef(from), r.rot);
+        ghost.showRing(r.x + w / 2, city.grid.rangeOver(r.x, r.z, w, d).max, r.z + d / 2, 1.6);
+      } else ghost.hideRing();
+      let text = 'Click a tower to start weaving';
+      let ok = false;
+      if (from === null && eid !== NO_ENTITY) {
+        ok = !!city.buildingDef(eid).tower;
+        text = ok ? `${city.buildingDef(eid).name}: click again to merge with a banyan, or pick a second tower` : 'Only towers can be woven';
+      } else if (from !== null && eid === from) {
+        const plan = banyanPlan(city, eid);
+        ok = plan.ok;
+        text = ok ? `Merge with a banyan · ${fmt(plan.cost)} ◈ (ecology ×2, harmony +)` : plan.reason!;
+      } else if (from !== null && eid !== NO_ENTITY) {
+        const plan = bridgePlan(city, from, eid);
+        ok = plan.ok;
+        text = ok ? `Weave a ${Math.round(plan.length)}-tile sky-bridge · ${fmt(plan.cost)} ◈` : plan.reason!;
+      } else if (from !== null) text = 'Pick a second tower (Esc to cancel)';
+      ghost.setValid(ok);
+      ctx.bus.emit('tool:tooltip', { text, tone: ok ? 'ok' : 'bad' });
+    },
+    up(ctx, hit) {
+      if (!hit?.inBounds || ctx.input.dragDistance > 6) return;
+      const { city } = ctx;
+      const eid = city.buildingAt(hit.tx, hit.tz);
+      if (eid === NO_ENTITY || !city.buildingDef(eid).tower) {
+        weaveFrom = null;
+        return;
+      }
+      if (weaveFrom === null || !city.buildingEntities().includes(weaveFrom)) {
+        weaveFrom = eid;
+        return;
+      }
+      const a = city.buildingRecord(weaveFrom);
+      const b = city.buildingRecord(eid);
+      if (eid === weaveFrom) {
+        if (ctx.commands.execute('banyan', { x: a.x, z: a.z })) ctx.bus.emit('toast', { text: 'A banyan embraces the tower', tone: 'ok' });
+      } else if (ctx.commands.execute('weave', { a: [a.x, a.z], b: [b.x, b.z] })) ctx.bus.emit('toast', { text: 'A flowering sky-bridge grows between the towers', tone: 'ok' });
+      weaveFrom = null;
+    },
+  };
+
+  return [select, place, road, bulldoze, channel, retrofit, mist, reclaim, weave];
 }

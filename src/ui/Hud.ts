@@ -1,4 +1,4 @@
-import { Greenery } from '@/ecs/components';
+import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import { CATEGORY_ICONS, CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
 import { NO_ENTITY } from '@/sim/Grid';
@@ -33,6 +33,8 @@ function tags(def: BuildingDef): HTMLElement {
 
 class Hud {
   private root: HTMLElement;
+  /** Right-hand panel column (info, advisor, help…), stacked without overlap. */
+  right!: HTMLElement;
   private statEls = new Map<string, { el: HTMLElement; v: HTMLElement }>();
   private timeEl!: HTMLElement;
   private speedBtns: HTMLButtonElement[] = [];
@@ -89,7 +91,9 @@ class Hud {
       ' · Hide this ',
       h('kbd', {}, 'H'),
     );
-    this.root.append(this.tooltip, this.toasts, this.help);
+    this.right = h('div', { class: 'rightcol' });
+    this.root.append(this.tooltip, this.toasts, this.right);
+    this.right.append(this.info, this.help);
     setTimeout(() => this.help.classList.add('hidden'), 25_000);
 
     const { bus } = ctx;
@@ -102,7 +106,7 @@ class Hud {
       }
     });
     bus.on('toast', ({ text, tone }) => this.toast(text, tone));
-    bus.on('selection:changed', ({ eid }) => this.select(eid));
+    bus.on('selection:changed', ({ eid, road }) => (road !== undefined ? this.selectNetwork(road) : this.select(eid)));
     bus.on('building:removed', ({ eid }) => eid === this.selected && this.select(null));
     bus.on('save:done', () => this.toast('City saved', 'ok'));
     bus.on('load:done', () => this.toast('City restored', 'ok'));
@@ -142,13 +146,17 @@ class Hud {
     const stats = h('div', { class: 'stats panel' });
     const stat = (id: string, key: string, extra?: HTMLElement) => {
       const v = h('span', { class: 'v' });
-      const el = h('div', { class: 'stat' }, h('span', { class: 'k' }, key), v, extra ?? null);
+      // "◈ Credits" → icon + label; the label collapses on narrow screens, the icon and tooltip stay.
+      const [icon, ...rest] = key.split(' ');
+      const label = rest.join(' ');
+      const el = h('div', { class: 'stat', title: label }, h('span', { class: 'ki' }, icon!), h('span', { class: 'k' }, label), v, extra ?? null);
       this.statEls.set(id, { el, v });
       stats.append(el);
     };
     stat('credits', '◈ Credits');
-    stat('pop', 'Residents');
+    stat('pop', '👥 Residents');
     stat('energy', '⚡ Energy');
+    stat('water', '💧 Water');
     stat('eco', '🌿 Eco');
     this.happyMeter = h('i');
     stat('happy', '☺ Harmony', h('div', { class: 'meter' }, this.happyMeter));
@@ -161,6 +169,8 @@ class Hud {
       { class: 'actions panel' },
       this.undoBtn,
       this.redoBtn,
+      h('button', { class: 'icon-btn', title: 'City dashboard (K)', onClick: () => ctx.services.get('dashboard').toggle() }, '▤'),
+      h('button', { class: 'icon-btn', title: 'Overview (O) · bookmarks: Alt+1–4 store, Shift+1–4 recall', onClick: () => ctx.cameraCtl.overview() }, '⌖'),
       h('button', { class: 'icon-btn', title: 'Save (⌘S)', onClick: () => void save.save() }, 'Save'),
       h('button', { class: 'icon-btn', title: 'Load (⌘L)', onClick: () => void save.load().then((ok) => ok || this.toast('No save yet', 'bad')) }, 'Load'),
     );
@@ -186,7 +196,7 @@ class Hud {
       this.toolBtns.set(id, b);
       toolbar.append(b);
     };
-    for (const id of ['select', 'road', 'bulldoze']) {
+    for (const id of ['select', 'road', 'channel', 'bulldoze', 'retrofit', 'mist', 'weave', 'reclaim']) {
       const t = ctx.tools.get(id);
       if (!t) continue;
       toolBtn(id, t.icon, t.label, t.hotkey?.replace('Key', '').replace('Escape', 'Esc'), () => {
@@ -277,7 +287,28 @@ class Hud {
       h('button', { class: 'icon-btn', style: 'float:right;margin:-8px -8px 0 0', onClick: () => this.select(null) }, '✕'),
       this.infoBody,
     );
-    this.root.append(this.info);
+  }
+
+  /** Highway network ("district") inspector. */
+  private selectNetwork(road: number): void {
+    const { city } = this.ctx;
+    this.selected = null;
+    const id = city.networks.comp[road]!;
+    const n = city.pulse.networks[id];
+    this.info.classList.toggle('hidden', !n);
+    if (!n) return;
+    let tiles = 0;
+    for (let i = 0; i < city.networks.comp.length; i++) if (city.networks.comp[i] === id) tiles++;
+    const ratio = (p: number, u: number) => (u > 0 ? `${Math.round((p / u) * 100)}%` : '—');
+    const row = (k: string, v: string | number) => h('div', { class: 'row' }, h('span', {}, k), h('b', {}, String(v)));
+    this.infoBody.replaceChildren(
+      h('h3', {}, `Highway network #${id + 1}`),
+      h('p', {}, 'Power and water flow along connected Living Highways. Everything touching this network shares its supply.'),
+      row('Highway tiles', fmt(tiles)),
+      row('Connected buildings', fmt(n.buildings)),
+      row('Energy', `${fmt(n.energyProduced)} / ${fmt(n.energyUsed)} (${ratio(n.energyProduced, n.energyUsed)})`),
+      row('Water', `${fmt(n.waterProduced)} / ${fmt(n.waterUsed)} (${ratio(n.waterProduced, n.waterUsed)})`),
+    );
   }
 
   private select(eid: number | null): void {
@@ -291,6 +322,7 @@ class Hud {
       h('h3', {}, def.name),
       h('p', {}, def.description),
       h('div', { class: 'grow' }, h('div', { class: 'row' }, h('span', {}, 'Greenery'), h('b', { 'data-g': '1' }, '')), h('div', { class: 'meter' }, h('i', { 'data-gm': '1' }))),
+      h('div', { class: 'svc', 'data-svc': '1' }),
       row('Energy', `${s.energy > 0 ? '+' : ''}${s.energy}`),
       row('Ecology', s.eco),
       row('Residents', s.population),
@@ -308,14 +340,42 @@ class Hud {
     const meter = this.infoBody.querySelector<HTMLElement>('[data-gm]');
     if (label) setText(label, `${Math.round(g * 100)}%`);
     if (meter) meter.style.width = `${g * 100}%`;
+    const svc = this.infoBody.querySelector<HTMLElement>('[data-svc]');
+    if (svc) {
+      const eid = this.selected;
+      const st = this.ctx.city.buildingDef(eid).stats;
+      const p = Service.problems[eid]!;
+      const issues = [
+        p & Problem.NO_ROAD && 'No highway access: connect it to a Living Highway',
+        p & Problem.NO_POWER && 'Brownout: the grid lacks power',
+        p & Problem.NO_WATER && 'Dry taps: the network lacks water',
+        p & Problem.UNSTAFFED && 'Understaffed: not enough workers',
+      ].filter(Boolean) as string[];
+      const occLabel = st.population > 0 ? 'Occupancy' : st.jobs > 0 ? 'Staffing' : '';
+      const def = this.ctx.city.buildingDef(eid);
+      const sym = def.symbiosis;
+      const extra = [
+        Building.level[eid] ? '✾ Bloom Retrofit: flowering façade, sunflower crown (eco ×1.5, uses less power and water)' : '',
+        def.transit ? `⇶ Pod Dock: flying ${Math.round(Service.riders[eid]!)} of up to ${def.transit.riders} commuters from homes within ${def.transit.radius} tiles` : '',
+        sym ? (Service.paired[eid] ? `✓ Symbiosis: ${sym.label}` : `✗ Unpaired: place a ${sym.partners.map((p) => buildings.get(p).name).join(' or ')} within ${sym.radius} tiles`) : '',
+        `Bloom ${Math.round(Service.bloom[eid]! * 100)}% · Condition ${Math.round(Service.condition[eid]! * 100)}%`,
+      ].filter(Boolean);
+      const lines = [
+        st.energy < 0 ? `Power ${Math.round(Service.power[eid]! * 100)}%` : '',
+        st.water < 0 ? `Water ${Math.round(Service.water[eid]! * 100)}%` : '',
+        occLabel ? `${occLabel} ${Math.round(Service.occupancy[eid]! * 100)}%` : '',
+      ].filter(Boolean);
+      setText(svc, [lines.join(' · '), ...extra, ...issues.map((i) => `⚠ ${i}`)].filter(Boolean).join('\n'));
+      svc.classList.toggle('bad', issues.length > 0);
+    }
   }
 
   /** Per frame (cheap) + throttled stat refresh. */
   update(dt: number): void {
     const { ctx } = this;
     const p = ctx.input.pointer;
-    this.tooltip.style.left = `${p.x}px`;
-    this.tooltip.style.top = `${p.y}px`;
+    // transform (not left/top) so moving the tooltip never triggers layout.
+    if (!this.tooltip.classList.contains('hidden')) this.tooltip.style.transform = `translate(${p.x + 16}px, ${p.y + 16}px)`;
     this.timer += dt;
     if (this.timer < 0.2) return;
     this.timer = 0;
@@ -329,9 +389,11 @@ class Hud {
       setText(e.v, text);
       e.el.classList.toggle('bad', bad);
     };
-    set('credits', `${fmt(city.credits)}  +${s.income.toFixed(1)}/s`);
-    set('pop', fmt(s.population));
+    const net = s.income - s.upkeep;
+    set('credits', `${fmt(city.credits)}  ${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(1)}/s`, city.credits < 0 || net < 0);
+    set('pop', `${fmt(s.population)} / ${fmt(s.capacity)}`);
     set('energy', `${fmt(s.energyProduced - s.energyUsed)}`, s.energyUsed > s.energyProduced);
+    set('water', `${fmt(s.waterProduced - s.waterUsed)}`, s.waterUsed > s.waterProduced);
     set('eco', fmt(s.eco), s.eco < 0);
     set('happy', `${Math.round(s.happiness)}`);
     this.happyMeter.style.width = `${s.happiness}%`;
@@ -341,11 +403,22 @@ class Hud {
   }
 }
 
+export interface HudService {
+  right: HTMLElement;
+}
+
+declare module '@/core/Services' {
+  interface GameServices {
+    hud: HudService;
+  }
+}
+
 export const hudModule: GameModule = {
   id: 'hud',
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
+    ctx.services.provide('hud', { right: hud.right });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

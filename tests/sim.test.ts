@@ -35,7 +35,8 @@ describe('simulation', () => {
     const s = scripted(3);
     const snap = s.city.snapshotBuildings();
     expect(snap.length).toBe(2);
-    expect(snap.every((b) => b.greenery > 0)).toBe(true);
+    // The spire needs no water, so it greens up; the unconnected residence has no water and stays bare.
+    expect(snap.find((b) => b.def === 'solar-spire')!.greenery).toBeGreaterThan(0);
     expect(s.city.stats.population).toBeGreaterThan(0);
   });
 

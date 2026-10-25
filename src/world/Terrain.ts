@@ -4,6 +4,7 @@ import type { Grid } from '@/sim/Grid';
 import { terrainHeight } from '@/sim/terrain';
 import { fbm } from '@/sim/noise';
 import { U } from '@/render/uniforms';
+import { withOverlay } from '@/render/materials/overlay';
 
 const C = {
   deep: new Color(0x5b7f6a),
@@ -33,12 +34,12 @@ function shade(out: Color, h: number, slope: number, x: number, z: number, seed:
 function material(): MeshStandardNodeMaterial {
   const m = new MeshStandardNodeMaterial({ roughness: 0.95, metalness: 0 });
   const detail = mx_noise_float(positionWorld.mul(0.9)).mul(0.035).add(mx_noise_float(positionWorld.mul(7)).mul(0.02));
-  const base = vertexColor().add(detail);
+  const base = vertexColor().xyz.add(detail);
   // Build-mode tile grid overlay.
   const gx = abs(fract(positionWorld.x).sub(0.5));
   const gz = abs(fract(positionWorld.z).sub(0.5));
   const line = smoothstep(0.46, 0.5, max(gx, gz)).mul(U.grid);
-  m.colorNode = mix(base, color(0xeafff6), line.mul(0.5));
+  m.colorNode = withOverlay(mix(base, color(0xeafff6), line.mul(0.5)), false);
   m.emissiveNode = color(0x7ff7e6).mul(line).mul(U.night).mul(0.25).add(float(0));
   return m;
 }
@@ -47,11 +48,12 @@ function material(): MeshStandardNodeMaterial {
 export class Terrain {
   readonly group = new Group();
   readonly material = material();
+  private chunks = new Map<string, Mesh>();
 
   constructor(
     private grid: Grid,
     private seed: number,
-    private chunk = 32,
+    private chunk = 64,
   ) {
     this.group.name = 'terrain';
     this.build();
@@ -60,9 +62,30 @@ export class Terrain {
   private build(): void {
     const g = this.grid;
     for (let cz = 0; cz < g.h; cz += this.chunk)
-      for (let cx = 0; cx < g.w; cx += this.chunk) this.group.add(this.chunkMesh(cx, cz));
+      for (let cx = 0; cx < g.w; cx += this.chunk) {
+        const m = this.chunkMesh(cx, cz);
+        this.chunks.set(`${cx},${cz}`, m);
+        this.group.add(m);
+      }
     this.group.add(this.outerRing());
     this.group.add(this.skirt());
+  }
+
+  /** Rebuilds the chunk meshes touching a corner rectangle (after land reclamation). */
+  rebuildRegion(x0: number, z0: number, x1: number, z1: number): void {
+    const c = this.chunk;
+    for (let cz = Math.floor(Math.max(0, z0 - 1) / c) * c; cz <= Math.min(this.grid.h - 1, z1 + 1); cz += c)
+      for (let cx = Math.floor(Math.max(0, x0 - 1) / c) * c; cx <= Math.min(this.grid.w - 1, x1 + 1); cx += c) {
+        const key = `${cx},${cz}`;
+        const old = this.chunks.get(key);
+        if (old) {
+          this.group.remove(old);
+          old.geometry.dispose();
+        }
+        const m = this.chunkMesh(cx, cz);
+        this.chunks.set(key, m);
+        this.group.add(m);
+      }
   }
 
   /** Vertical walls around the map edge hide cracks between the fine map and coarse ring. */

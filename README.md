@@ -1,44 +1,56 @@
 # BloomGrid
 
-A cozy solarpunk city builder in three.js, where high-tech architecture and living nature grow together.
-See `BloomGrid_Implementation_Requirements-v2.md` for the creative brief.
+A solarpunk **island city builder and manager** in three.js. You steward a Singapore-inspired island where
+high-tech architecture and living nature grow together: build it, monitor it, and keep it from going wrong.
 
 ```bash
 npm install
 npm run dev        # http://localhost:5173
 npm test           # sim determinism, undo/redo, save/load
-npm run typecheck && npm run lint && npm run build
+npm run check      # typecheck + lint + tests + build
+npm run snap -- --out shots/x.png   # headless screenshot (dev server must be running)
+npm run perf                        # power/perf probe: main-thread %, fps, CPU/GPU ms per frame
 ```
 
 URL flags: `?renderer=webgl` (force the WebGL2 fallback), `?quality=low|medium|high|ultra`, `?perf` (perf overlay),
-`?stress=2000` (spawn a stress city), `?seed=123`, `?nodynres`.
+`?stress=2000` (add a stress city), `?scenario=empty` (blank island instead of the founding city), `?difficulty=sandbox|relaxed|steward|hard`,
+`?drill=monsoon|king-tide|heatwave|algal-bloom|grid-failure|blight` (start a crisis), `?seed=123`, `?nodynres`, `?gputime` (GPU timing), `?pr=1 ?msaa=0 ?shadows=0 ?bloom=0` (quality overrides).
 
-Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · X bulldoze ·
-4–9 build categories · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
+Settings (⚙ in the top bar): power mode (Battery 30 fps / Balanced 60 fps, idles at 30 / Max) and graphics quality.
 
-## Architecture
+Seasons bring weather (drizzle in Monsoon, haze in Haze). At night the island glows where people are: busy streets light
+their flowers, fungi paths and canopies brighter (see the Night life lens ✨ and the City Pulse "Night life" index).
 
-| Layer | Path | Notes |
-| --- | --- | --- |
-| Core | `src/core` | Engine loop (10 Hz fixed sim + interpolated render), typed `EventBus`, `CommandStack` (undo/redo/replay), `SystemRegistry` (input → sim → sync → render), module loader, `Services`. No three.js. |
-| Simulation | `src/sim`, `src/ecs` | Pure TS, deterministic, serializable (`City`, `Grid` with pluggable layers, bitecs components, systems, commands, save format). Lint-enforced: may not import three/render/ui. Ready to move to a Worker or Rust/Tauri. |
-| Content | `src/content` | Data-driven definitions. **Drop a file into `content/buildings/` and it is auto-registered.** Recipes compose kit pieces through a renderer-agnostic `KitBuilder`, or point at a GLB. |
-| Rendering | `src/render`, `src/assets` | `WebGPURenderer` (auto WebGL2 fallback), ~15 shared TSL materials, `ChunkedInstancer` (64-tile chunks × piece type, swap-remove, single dirty-range uploads, distance LOD, growth tweens), selective emissive bloom, quality tiers + dynamic resolution, shader warm-up. |
-| World | `src/world` | Chunked terrain + scenic ring, depth-baked water, sky & day/night, wild flora, heightfield picking. |
-| Features | `src/modules/*` | `world`, `construction` (buildings, Living Highways, ghost, tools), with `ui/Hud` and `debug` also loaded as modules. |
-| Platform | `src/platform` | `Storage`/`exportFile` interface; IndexedDB web impl (a Tauri impl slots in here). |
+Residents commute along the highways to the nearest workplace with free jobs; busy lanes jam (amber and coral
+commuter lights, the Traffic lens ⇶, the Mobility health tier). Green Pod Docks fly nearby commuters over the
+traffic along glowing sky-lanes.
 
-### Extending
+Flora-Net watches the soil: gardens dry out in Haze and heatwaves or when the taps run dry, and farms exhaust their
+soil (Soil water ❖ and Nutrients ✿ lenses, "Soil health" in City Pulse). Mist dry zones (M), dig channels, or build a
+Drone Hive whose hummingbird drones pollinate, harvest, trim overgrown highways and mist gardens.
 
-- **New building:** add `src/content/buildings/my-thing.ts` exporting `defineBuilding({...})`.
-- **New kit piece / material:** `registerPiece` in `assets/kit/pieces.ts`, `define` in `render/materials/library.ts`.
-- **New gameplay system:** create a `GameModule` in `src/modules/<feature>/` that registers systems, commands, tools,
-  services and events (via declaration merging on `GameEvents` / `GameServices`), then add it to `MODULES` in `src/main.ts`.
-- **New per-tile sim data:** `city.grid.addLayer('water', (n) => new Float32Array(n))`.
-- **Persist module state:** `services.get('save').addHook({ id, save, load })`.
+From day 3 the sea slowly rises (Flood risk lens 🌊, "Sea level" in City Pulse): defend the coast with Mangrove
+Seawalls or reclaim the shallows as new land (T). The Green Weaver (V) grows flowering sky-bridges between towers, or
+merges a tower with a banyan (click it twice).
 
-## Roadmap
+Controls: WASD/arrows pan · right-drag or Q/E orbit · wheel zoom · R rotate building · G highway · C filtration channel ·
+B Bloom Retrofit · M Flora-Net mist · V Green Weaver · T reclaim land · X bulldoze ·
+4–0 build categories · N explore (walk / hoverboard / drone / ride a pod, Esc back) · J photo mode (P saves PNG) · P City Pulse · L data lenses · F Flora-Net advisor · K dashboard · O overview ·
+Alt+1–4 / Shift+1–4 store / recall views · Space pause · 1/2/3 speed · ⌘Z/⇧⌘Z undo/redo · ⌘S/⌘L save/load · F3 perf · `` ` `` inspector.
 
-0 ✅ Foundation · 1 ✅ World & city camera · 2 ✅ Build mode & biophilic architecture ·
-3 Grid balance + Seasonal Bloom Engine · 4 Bioluminescence & atmosphere · 5 Mobility (sky-lanes, greenways, hyperloops) ·
-6 Flora-Net AI & drones · 7 Green Weaver tool · 8 Walk/hoverboard mode · 9 Hyper3D hero assets & Tauri.
+## Desktop app
+
+`npm run tauri:dev` opens BloomGrid in a native window (Tauri v2; needs a Rust toolchain); `npm run tauri:build`
+packages it. Saves live as JSON files in the app data folder; ⚙ → Window toggles fullscreen (F11).
+
+Hero models (Supertree Grove, Lotus Arts Pavilion, commuter pod) were generated with Hyper3D Rodin and optimised with
+`npm run optimize-glb`; the game falls back to procedural versions if they are missing.
+
+## Docs
+
+- [`AGENTS.md`](AGENTS.md): how to work on this repo (rules, commands, definition of done, doc upkeep)
+- [`BloomGrid_Implementation_Requirements-v3.md`](BloomGrid_Implementation_Requirements-v3.md): canonical requirements
+- [`docs/progress.md`](docs/progress.md): handoff snapshot (where things stand, what's next)
+- [`docs/roadmap.md`](docs/roadmap.md): phases and status
+- [`docs/architecture.md`](docs/architecture.md): layers and extension points
+- [`docs/decisions.md`](docs/decisions.md): decision log

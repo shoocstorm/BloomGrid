@@ -1,6 +1,9 @@
+import { Service } from '@/ecs/components';
 import type { BuildingRecord, City } from './City';
+import { createPulseState, type PulseState } from './pulseState';
+import { createStewardState, type StewardState } from './stewardState';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 6;
 
 export interface SaveData {
   version: number;
@@ -10,13 +13,71 @@ export interface SaveData {
   day: number;
   credits: number;
   rngState: number;
-  buildings: [string, number, number, number, number][];
+  /** [def, x, z, rot, greenery, occupancy, condition, level] */
+  buildings: [string, number, number, number, number, number, number, number][];
   roads: number[];
+  /** Sparse [tile, value] pairs of highway overgrowth. */
+  overgrowth: [number, number][];
+  /** Sparse [tile, value] filtration channels (1 channel, 2 lush). */
+  channels: [number, number][];
+  pulse: Pick<PulseState, 'taxRate' | 'history'> & { happiness: number };
+  steward: Omit<StewardState, 'modifiers' | 'overgrown'>;
+  /** Flora-Net soil per zone (row-major, 3 decimals); empty = defaults. */
+  soil: { hydration: number[]; nutrients: number[] };
+  /** Sparse [corner, height] terrain edits on top of the generated terrain (land reclamation). */
+  terrain: [number, number][];
+  /** Green Weaver sky-bridges as [ax, az, bx, bz] tower anchors. */
+  bridges: [number, number, number, number][];
   /** Feature modules persist their own state under their module id. */
   modules: Record<string, unknown>;
 }
 
+/** Steward state minus derived fields (recomputed every pulse / on load). */
+function persistable(st: StewardState): SaveData['steward'] {
+  const { modifiers, overgrown, ...rest } = st;
+  void modifiers;
+  void overgrown;
+  return rest;
+}
+
+/** Upgrades older saves in place. Add a step here whenever SAVE_VERSION is bumped. */
+export function migrateSave(data: SaveData): SaveData {
+  if (data.version === 1) {
+    data.buildings = data.buildings.map((b) => [b[0], b[1], b[2], b[3], b[4], b[5] ?? 0.6, 1, 0]);
+    const p = createPulseState();
+    data.pulse = { taxRate: p.taxRate, history: p.history, happiness: 60 };
+    data.version = 2;
+  }
+  if (data.version === 2) {
+    data.buildings = data.buildings.map((b) => [b[0], b[1], b[2], b[3], b[4], b[5], b[6] ?? 1, 0]);
+    data.overgrowth = [];
+    data.steward = persistable(createStewardState('steward'));
+    data.version = 3;
+  }
+  if (data.version === 3) {
+    data.buildings = data.buildings.map((b) => [b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7] ?? 0]);
+    data.channels = [];
+    (data.pulse.history as Record<string, number[]>).bloom ??= [];
+    data.version = 4;
+  }
+  if (data.version === 4) {
+    data.soil = { hydration: [], nutrients: [] };
+    data.version = 5;
+  }
+  if (data.version === 5) {
+    data.terrain = [];
+    data.bridges = [];
+    data.steward.seaRise ??= 0;
+    data.version = 6;
+  }
+  if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
+  return data;
+}
+
 export function serializeCity(city: City): SaveData {
+  const og = city.grid.layer<Uint8Array>('overgrowth');
+  const overgrowth: [number, number][] = [];
+  if (og) for (let i = 0; i < og.length; i++) if (og[i]) overgrowth.push([i, og[i]!]);
   return {
     version: SAVE_VERSION,
     seed: city.seed,
@@ -25,23 +86,58 @@ export function serializeCity(city: City): SaveData {
     day: city.day,
     credits: city.credits,
     rngState: city.rng.state,
-    buildings: city.snapshotBuildings().map((b) => [b.def, b.x, b.z, b.rot, b.greenery]),
+    buildings: city.snapshotBuildings().map((b) => [b.def, b.x, b.z, b.rot, b.greenery, b.occupancy ?? 0, b.condition ?? 1, b.level ?? 0]),
+    channels: city.channelTiles(),
     roads: city.roadTiles(),
+    overgrowth,
+    pulse: { taxRate: city.pulse.taxRate, history: structuredClone(city.pulse.history), happiness: city.stats.happiness },
+    steward: structuredClone(persistable(city.steward)),
+    bridges: city.weaver.bridges.map((b) => [b.ax, b.az, b.bx, b.bz]),
+    terrain: [...city.terrainEdits].map(([c, h]) => [c, round3(h)]),
+    soil: { hydration: [...city.soil.hydration].map(round3), nutrients: [...city.soil.nutrients].map(round3) },
     modules: {},
   };
 }
 
-export function deserializeCity(city: City, data: SaveData): void {
-  if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
-  city.reset(data.seed);
+export function deserializeCity(city: City, input: SaveData): void {
+  const data = migrateSave(input);
+  city.reset(data.seed, data.steward.difficulty);
   city.tick = data.tick;
   city.timeOfDay = data.timeOfDay;
   city.day = data.day;
   city.credits = data.credits;
   city.rng.state = data.rngState;
+  city.pulse.taxRate = data.pulse.taxRate;
+  city.pulse.history = structuredClone(data.pulse.history);
+  city.stats.happiness = data.pulse.happiness;
+  Object.assign(city.steward, structuredClone(data.steward));
+  // Terrain first: highways, channels and buildings sit on the edited ground.
+  if (data.terrain.length) {
+    for (const [c, h] of data.terrain) {
+      city.grid.heights[c] = h;
+      city.terrainEdits.set(c, h);
+    }
+    city.refreshTerrainDerived();
+    city.bus.emit('terrain:changed', { x0: 0, z0: 0, x1: city.grid.w, z1: city.grid.h });
+  }
+  city.weaver.bridges = data.bridges.map(([ax, az, bx, bz]) => ({ ax, az, bx, bz }));
   if (data.roads.length) city.setRoads(data.roads, true);
-  for (const [def, x, z, rot, greenery] of data.buildings) {
-    const rec: BuildingRecord = { def, x, z, rot, greenery };
-    city.addBuilding(rec);
+  if (data.overgrowth.length) {
+    const og = city.grid.addLayer('overgrowth', (n) => new Uint8Array(n));
+    for (const [t, v] of data.overgrowth) og[t] = v;
+    city.steward.overgrown = data.overgrowth.length;
+    city.networks.dirty = true;
+  }
+  if (data.channels.length) city.setChannels(data.channels);
+  if (data.soil.hydration.length === city.soil.hydration.length) {
+    city.soil.hydration.set(data.soil.hydration);
+    city.soil.nutrients.set(data.soil.nutrients);
+  }
+  for (const [def, x, z, rot, greenery, occupancy, condition, level] of data.buildings) {
+    const rec: BuildingRecord = { def, x, z, rot, greenery, occupancy, condition, level };
+    const eid = city.addBuilding(rec);
+    Service.occupancy[eid] = occupancy;
   }
 }
+
+const round3 = (v: number) => Math.round(v * 1000) / 1000;

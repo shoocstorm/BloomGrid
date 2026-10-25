@@ -3,15 +3,17 @@ import type { GameModule, GameContext } from '@/game/context';
 import { Atmosphere } from '@/world/Atmosphere';
 import { Flora } from '@/world/Flora';
 import { Terrain } from '@/world/Terrain';
-import { createWater } from '@/world/Water';
-import { DAY_LENGTH } from '@/sim/City';
+import { createWater, updateWaterDepth } from '@/world/Water';
+import { DAY_LENGTH, chunkSizeFor } from '@/sim/City';
 import { Building } from '@/ecs/components';
 import { buildings } from '@/content';
+import { U } from '@/render/uniforms';
 
 export interface WorldService {
   atmosphere: Atmosphere;
   flora: Flora;
   terrain: Terrain;
+  water: Mesh;
 }
 
 declare module '@/core/Services' {
@@ -47,7 +49,7 @@ export const worldModule: GameModule = {
           ctx.scene.remove(water);
           water.geometry.dispose();
         }
-        terrain = new Terrain(city.grid, city.seed);
+        terrain = new Terrain(city.grid, city.seed, chunkSizeFor(city.size));
         water = createWater(city.grid);
         ctx.scene.add(terrain.group, water);
       }
@@ -58,6 +60,7 @@ export const worldModule: GameModule = {
       ctx.cameraCtl.setGrid(city.grid);
       service.terrain = terrain;
       service.flora = flora;
+      service.water = water!;
     };
     build();
     ctx.bus.on('city:reset', build);
@@ -74,11 +77,26 @@ export const worldModule: GameModule = {
       const [w, d] = ctx.city.footprint(buildings.get(record.def), record.rot);
       for (let z = record.z; z < record.z + d; z++) for (let x = record.x; x < record.x + w; x++) flora.showTile(g.index(x, z));
     });
+    for (const ev of ['building:added', 'building:removed', 'city:reset'] as const) ctx.bus.on(ev, () => atmosphere.invalidateShadows());
     ctx.bus.on('road:changed', ({ tiles }) => {
       for (const t of tiles) {
         if (ctx.city.grid.road[t]) flora.hideTile(t);
         else flora.showTile(t);
       }
+    });
+
+    // Land reclamation: rebuild the touched terrain chunks, the water depth and the wild flora.
+    ctx.bus.on('terrain:changed', ({ x0, z0, x1, z1 }) => {
+      const g = ctx.city.grid;
+      terrain.rebuildRegion(x0, z0, x1, z1);
+      if (water) updateWaterDepth(water, g, x0, z0, x1, z1);
+      for (let z = Math.max(0, z0 - 1); z < Math.min(g.h, z1 + 1); z++)
+        for (let x = Math.max(0, x0 - 1); x < Math.min(g.w, x1 + 1); x++) {
+          const i = g.index(x, z);
+          flora.hideTile(i);
+          flora.showTile(i, !ctx.loading);
+        }
+      atmosphere.invalidateShadows();
     });
 
     ctx.services.provide('world', service);
@@ -87,10 +105,15 @@ export const worldModule: GameModule = {
       id: 'world.atmosphere',
       phase: 'sync',
       update(c, f) {
+        U.clock.value += f.dt;
         // Interpolate time of day between ticks for smooth sun motion.
         const t = (c.city.timeOfDay + (f.alpha * c.engine.speed * c.engine.step) / DAY_LENGTH) % 1;
         atmosphere.applyTime(t);
-        atmosphere.follow(c.camera.position, c.cameraCtl.target, c.cameraCtl.distance);
+        if (c.instancer.animating) atmosphere.invalidateShadows();
+        atmosphere.follow(c.camera.position, c.cameraCtl.target, c.cameraCtl.distance, f.dt);
+        c.instancer.shadowFocus.copy(c.cameraCtl.target);
+        // Zoomed far out, distant shadows are sub-pixel: only the area around the focus casts them.
+        c.instancer.shadowRadius = atmosphere.shadowExtent * (c.cameraCtl.distance > 180 ? 0.45 : 1.1);
       },
     });
   },

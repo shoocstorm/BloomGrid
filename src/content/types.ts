@@ -24,6 +24,10 @@ export type PieceId =
   | 'dome'
   | 'pool'
   | 'algaeTank'
+  | 'pod'
+  | 'timberBox'
+  | 'willowArch'
+  | 'drone'
   | (string & {});
 
 export interface PieceSpec {
@@ -55,7 +59,7 @@ export interface KitBuilder {
   add(spec: PieceSpec): void;
 }
 
-export type BuildingCategory = 'residential' | 'energy' | 'tech' | 'commercial' | 'nature' | 'food';
+export type BuildingCategory = 'residential' | 'energy' | 'utility' | 'tech' | 'commercial' | 'nature' | 'food';
 
 export interface BuildingStats {
   cost: number;
@@ -67,6 +71,20 @@ export interface BuildingStats {
   population: number;
   jobs: number;
   pollution: number;
+  /** Positive = supplies water, negative = consumes (units/s at full occupancy). */
+  water: number;
+  /** Residents fed by this building's produce. */
+  food: number;
+  /** Credits per sim second. */
+  upkeep: number;
+}
+
+/** Stats as authored: utility values default to 0, upkeep to 0.03% of cost per second. */
+export type BuildingStatsInput = Omit<BuildingStats, 'water' | 'food' | 'upkeep'> & Partial<Pick<BuildingStats, 'water' | 'food' | 'upkeep'>>;
+
+export interface PlacementRules {
+  /** Footprint must touch sea, river or reservoir water (intakes, harbours). */
+  nearWater?: boolean;
 }
 
 export interface BuildingDef {
@@ -78,15 +96,81 @@ export interface BuildingDef {
   stats: BuildingStats;
   /** Sim seconds to reach full greenery. */
   growthTime: number;
-  /** Procedural recipe, or a GLB asset path for hero models. */
-  recipe: ((b: KitBuilder) => void) | { glb: string; scale?: number };
+  placement?: PlacementRules;
+  /** Built for the waterfront (raised intakes): ignores floods. */
+  floodproof?: boolean;
+  /** Pollen output (pollinator habitat) feeding the bloom field. Lush buildings add a little anyway. */
+  pollinators?: number;
+  /** Clean generation (counts toward the clean-energy share that boosts bloom). */
+  cleanEnergy?: boolean;
+  /** Symbiotic pairing: with a partner nearby, pollution is purified and output rises. */
+  symbiosis?: Symbiosis;
+  /** Transit hub (Pod Dock): carries up to `riders` commuters from homes within `radius` tiles by air. */
+  transit?: { radius: number; riders: number };
+  /** Flora-Net Drone Hive: hummingbird drones pollinate, harvest, trim and mist within `radius` tiles. */
+  drones?: { radius: number; count: number };
+  /** Coastal defence (Mangrove Seawall): keeps flood water up to `height` out within `radius` tiles. */
+  defence?: { radius: number; height: number };
+  /** A tower the Green Weaver can bridge to other towers or merge with a banyan. */
+  tower?: boolean;
+  /** Number of procedural variants (recipe runs cached per variant). Default 3. */
+  variants?: number;
+  /**
+   * Procedural recipe, or a GLB hero model. A GLB recipe's `fallback` provides the building's
+   * volume (bounds, collision, retrofit overlays) and is drawn while the GLB is missing.
+   */
+  recipe: ((b: KitBuilder) => void) | { glb: string; scale?: number; fallback?: (b: KitBuilder) => void };
 }
 
-export const defineBuilding = (def: BuildingDef): BuildingDef => def;
+export interface Symbiosis {
+  /** Partner building ids (any one within `radius` tiles counts). */
+  partners: string[];
+  radius: number;
+  pollutionMul: number;
+  outputMul: number;
+  /** Short phrase for the inspector, e.g. "reed beds purify its effluent". */
+  label: string;
+}
+
+export type BuildingDefInput = Omit<BuildingDef, 'stats'> & { stats: BuildingStatsInput };
+
+export const defineBuilding = (def: BuildingDefInput): BuildingDef => ({
+  ...def,
+  stats: { water: 0, food: 0, upkeep: def.stats.cost * 0.0003, ...def.stats },
+});
+
+/**
+ * Scenarios describe a starting city. They run once at new-game time through a sim-implemented
+ * builder (deterministic), so the bulk content exists before any renderer attaches.
+ */
+export interface ScenarioBuilder {
+  readonly size: number;
+  rand(): number;
+  /** Living Highway along an L-path; water tiles on the path become bridges when `bridges` is true. */
+  road(x0: number, z0: number, x1: number, z1: number, bridges?: boolean): void;
+  /** Tries to place a building; returns false if invalid. */
+  building(def: string, x: number, z: number, rot?: number): boolean;
+  /** Fills free road-adjacent land in a rectangle using weighted building picks. Returns count. */
+  fill(x0: number, z0: number, x1: number, z1: number, weights: Record<string, number>, density?: number, limit?: number): number;
+  isLand(x: number, z: number): boolean;
+  /** Running utility totals of everything placed so far (at full occupancy). */
+  totals(): { energyProduced: number; energyUsed: number; waterProduced: number; waterUsed: number; food: number; population: number; jobs: number };
+}
+
+export interface ScenarioDef {
+  id: string;
+  name: string;
+  description: string;
+  credits: number;
+  build(b: ScenarioBuilder): void;
+}
+
+export const defineScenario = (def: ScenarioDef): ScenarioDef => def;
 
 export const CATEGORY_ICONS: Record<BuildingCategory, string> = {
   residential: '⌂',
   energy: '☀',
+  utility: '◍',
   tech: '⚗',
   commercial: '❖',
   nature: '❀',
@@ -96,6 +180,7 @@ export const CATEGORY_ICONS: Record<BuildingCategory, string> = {
 export const CATEGORY_LABELS: Record<BuildingCategory, string> = {
   residential: 'Living',
   energy: 'Energy',
+  utility: 'Water',
   tech: 'Tech',
   commercial: 'Work',
   nature: 'Nature',

@@ -27,12 +27,17 @@ export class Input {
   dragDY = 0;
   /** Total pointer travel since the current button went down (px). */
   dragDistance = 0;
+  /** performance.now() of the last player input (drives idle frame-rate throttling). */
+  lastActivity = performance.now();
 
   private downListeners: PointerListener[] = [];
   private upListeners: PointerListener[] = [];
   private keyListeners: KeyListener[] = [];
 
   constructor(private el: HTMLElement) {
+    const touch = () => (this.lastActivity = performance.now());
+    for (const ev of ['pointerdown', 'pointermove', 'wheel']) el.addEventListener(ev, touch, { passive: true });
+    window.addEventListener('keydown', touch);
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     el.addEventListener('pointerdown', (e) => {
       el.setPointerCapture(e.pointerId);

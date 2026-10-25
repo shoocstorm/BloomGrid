@@ -7,8 +7,9 @@ export default defineBuilding({
   description: 'Living workspaces grown from shaped timber and mycelium beneath a solar-glass dome.',
   category: 'commercial',
   footprint: [3, 3],
-  stats: { cost: 260, energy: -10, eco: 4, happiness: 3, population: 0, jobs: 40, pollution: 1 },
+  stats: { cost: 260, energy: -10, eco: 4, happiness: 3, population: 0, jobs: 40, pollution: 1, water: -5, food: 60 },
   growthTime: 120,
+  pollinators: 0.4,
   recipe(b) {
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [2.8, 0.1, 2.8] });
     grassTufts(b, 0, 0.1, 0, 2.6, 2.6, 30);
