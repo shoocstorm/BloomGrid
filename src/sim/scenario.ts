@@ -19,6 +19,8 @@ export function applyScenario(city: City, id: string): { buildings: number; road
   city.credits = 1e12; // placement checks must not fail on cost
   const roadTiles: number[] = [];
   let placed = 0;
+  /** Terrain edits from `level`, written to the heights at once but committed (saved, announced) in one go. */
+  const leveled = new Map<number, number>();
   const totals = { energyProduced: 0, energyUsed: 0, waterProduced: 0, waterUsed: 0, food: 0, population: 0, jobs: 0 };
 
   const setRoad = (x: number, z: number, bridges: boolean) => {
@@ -33,6 +35,8 @@ export function applyScenario(city: City, id: string): { buildings: number; road
     size: city.size,
     rand: () => rng.next(),
     isLand: (x, z) => g.inBounds(x, z) && !city.isWaterTile(x, z),
+    height: (x, z) => g.heights[z * (g.w + 1) + x]!,
+    footprint: (id, rot = 0) => city.footprint(buildings.get(id), rot),
     road(x0, z0, x1, z1, bridges = false) {
       [x0, z0, x1, z1] = [x0, z0, x1, z1].map(Math.round) as [number, number, number, number];
       const sx = Math.sign(x1 - x0);
@@ -104,24 +108,24 @@ export function applyScenario(city: City, id: string): { buildings: number; road
         if (!n) return NaN;
         target = sum / n;
       }
-      const edits: [number, number][] = [];
       for (let z = Math.max(0, z0 - margin); z <= Math.min(g.h, z1 + margin); z++)
         for (let x = Math.max(0, x0 - margin); x <= Math.min(g.w, x1 + margin); x++) {
           const c = z * W + x;
           const h = g.heights[c]!;
           if (h < SEA_LEVEL + 0.05) continue; // rivers and reservoirs stay
           const out = Math.max(x0 - x, x - x1, z0 - z, z - z1, 0);
-          if (out > 0 && city.terrainEdits.has(c)) continue; // a feather never bends an earlier terrace
+          if (out > 0 && (city.terrainEdits.has(c) || leveled.has(c))) continue; // a feather never bends an earlier terrace
           let t = 1 - out / (margin + 1);
           t = t * t * (3 - 2 * t);
-          edits.push([c, h + (target - h) * t]);
+          g.heights[c] = h + (target - h) * t;
+          leveled.set(c, g.heights[c]!);
         }
-      setCorners(city, edits);
       return target;
     },
   };
 
   def.build(builder);
+  setCorners(city, [...leveled]); // one shore/soil refresh for every terrace
   city.credits = def.credits;
   city.networks.dirty = true;
   city.roadCount += roadTiles.length;

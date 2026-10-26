@@ -237,3 +237,22 @@ contains the shadow focus, so they always cast shadows. Reverted.
 building), avoid introducing piece types to new chunks, and drop shadows on thin decorative pieces (`haloRing`,
 `spireCone`). The North Terrace was placed this way and normal views went *down* ≈6 draws (South Avenue 255 → 249;
 `?stress=1500` worst 298).
+
+## D-035 — The hero district is one street grid with spare lots (2026-10-26)
+
+**Context:** five batches of heroes had been added along separate roads (avenue, promenade, lanes, a terrace), each on
+its own levelled strip, so the centre read as scattered buildings in woodland rather than a city, with no room left.
+**Decision:** a 9 × 8 grid of 14-tile blocks (streets every 15 tiles) centred on the spire's block. Every block is
+levelled to its mean ground pulled into a 0.8-per-block Lipschitz surface (streets refuse tiles steeper than 0.9, so
+neighbouring terraces must stay within that). Heroes are listed per quarter in `QUARTERS`; each takes the free block
+nearest the spire in its quarter, flush with the street facing the spire, long side along it. Leftover blocks are
+graded, road-served empty lots for future heroes. Streets skip water (the lake and river become parks); the north
+avenues and two river streets are bridged.
+**Draw calls:** quarters match the 128-tile render chunks, and heroes with rare pieces share one (timber → garden
+quarter, algae tanks → exchange): batches 91 → 92 total, normal views ≈9 *fewer* draws (worst 244, overview 211),
+`?stress=1500` worst 298 as before once `willowArch` stopped casting shadows.
+**Commuting:** a home sends all its road commuters to the nearest workplace in one stream, so every tile of that trip
+jams; Vertical Forest (182 road commuters) 16 tiles from Glass Pine dropped flow to 0.66. `[workplace, home]` pairs put
+both entrances on the same street tile. Flow over six seeds averages 0.86 (was 0.83); the default seed is 0.80.
+**Also:** `ScenarioBuilder.level` writes heights at once but commits all edits with one `setCorners` (one shore/soil
+refresh), keeping the scenario at ≈0.25 s despite ≈70 terraces; the builder gained `height()` and `footprint()`.

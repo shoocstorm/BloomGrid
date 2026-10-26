@@ -36,12 +36,12 @@ harvests, and every rooftop is a garden.</td>
 <td><img src="docs/images/island.jpg" alt="The whole island from above, with districts, lakes, a river and bridged islets"></td>
 </tr>
 <tr>
-<td><b>Landmarks worth visiting.</b> The Wellspring Spire rises at the island's heart where the river is born, ringed by a wind helix, a
-hanging-gardens ziggurat, a sky-ark and cloud-forest domes, with a hero avenue of mushroom labs, a rain vortex, a
-dragonfly skyport, an algae lantern and a vertical forest leading downtown, and a promenade west past a giant
-banyan treehouse hotel, levitating gardens, a bamboo cathedral, a crystal data spire and a starlight observatory. Further
-south, an airship port, a flower clock, a coral arcology, thermal baths and a moonflower concert hall; up the hill to
-the north, an observation wheel, a glass pine, a pagoda, rice terraces, solar kites and a great water wheel. Walk,
+<td><b>Landmarks worth visiting.</b> The Wellspring Spire rises at the island's heart where the river is born, at the
+centre of a planned street grid: a civic ring (wind helix, hanging-gardens ziggurat, sky-ark, cloud-forest domes, a
+crystal data spire, a nautilus library and the Harmony Gate), a skyline hill of towers, a skyport, a glass pine and an
+observation wheel, an exchange of airship port, labs, observatory and amphitheatre toward downtown, a garden quarter of
+a banyan treehouse hotel, a bamboo cathedral and a moonflower concert hall, and working hills by the lake with rice
+terraces, solar kites and a great water wheel, with empty graded lots left for the city to grow into. Walk,
 hoverboard or fly a drone through your streets, ride a commuter pod along its sky-lane, or frame the moment in photo mode.</td>
 <td><b>A whole island to steward.</b> A 512 × 512 tile island with hills, lakes, a river and islets to bridge,
 reclaim or defend.</td>

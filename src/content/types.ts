@@ -155,6 +155,10 @@ export interface ScenarioBuilder {
   /** Fills free road-adjacent land in a rectangle using weighted building picks. Returns count. */
   fill(x0: number, z0: number, x1: number, z1: number, weights: Record<string, number>, density?: number, limit?: number): number;
   isLand(x: number, z: number): boolean;
+  /** Ground height at tile corner (x, z). */
+  height(x: number, z: number): number;
+  /** A building's footprint [w, d] in tiles at rotation `rot`. */
+  footprint(def: string, rot?: number): [number, number];
   /**
    * Levels the tiles x0..x1 × z0..z1 (inclusive) to `height` (default: their mean ground height),
    * feathering back into the terrain over `margin` tiles (never over earlier edits). Water is never filled. Saved as terrain edits. Returns the height used.

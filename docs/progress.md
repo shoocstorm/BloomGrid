@@ -3,17 +3,17 @@
 A snapshot for picking up BloomGrid in a new session or with another agent. **Update the "Snapshot" and "Next up"
 sections whenever you stop working** (see AGENTS.md §6).
 
-## Snapshot (2026-10-25)
+## Snapshot (2026-10-26)
 
 |             |                                                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Branch      | `main`, remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10)                              |
-| Last change | North Terrace (10 more heroes, D-033/D-034), uncommitted on `main` |
+| Last change | Hero district rearranged into one street grid with spare lots (D-035), uncommitted on `main` |
 | Phases done | **All roadmap phases 0–12** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
 | Tests       | 63 passing (`bun run test`); `bun run check` clean                                                                                                              |
 | Save format | v6 (terrain edits, sky-bridges, sea rise; migrations from v1–v5 in `src/sim/save.ts`)                                                                           |
-| Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈1 720 buildings at its original tile size, ≈24k residents, water Strained (≈95%) |
+| Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈1 770 buildings at its original tile size, ≈24k residents, water Strained (≈95%) |
 
 ### Measured baselines (headless Chrome, WebGPU, M-series, founding city, High quality)
 
@@ -21,9 +21,9 @@ sections whenever you stop working** (see AGENTS.md §6).
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
 | Boot        | ≈2.1 s to interactive WebGPU, ≈2.5–3.0 s WebGL2, no post-boot stall (scenario ≈0.25 s, modules ≈0.25–0.29 s, warm-up ≈1.3 s, D-030)  |
 | Frame rate  | 60 fps active, 30 idle (power mode Balanced)                                                                                         | `bun run perf` / `bun run perf -- --idle`             |
-| Main thread | ≈16% active, ≈14.5% idle                                                                                                             | `bun run perf`                                        |
+| Main thread | ≈16.8% active, ≈15% idle                                                                                                            | `bun run perf`                                        |
 | GPU         | ≈1.0–3 ms per frame headless (noisy: compare several runs; +≈2 ms in storm rain)                                                     | `bun run perf -- --path "/?gputime"`                  |
-| Draw calls  | ≈206–249 near (249 over the South Avenue toward downtown), ≈215 overview; `?stress=1500` 298 worst / 264 overview (budget 300: add heroes only inside hero chunks, D-034) | perf overlay (F3) or `renderer.info.render.drawCalls` |
+| Draw calls  | ≈186–244 near (244 over the exchange toward downtown), ≈211 overview; `?stress=1500` 298 worst / 261 overview (budget 300: keep hero pieces in their quarter's chunk, D-034/D-035) | perf overlay (F3) or `renderer.info.render.drawCalls` |
 | Sim         | pulse tick ≈0.4 ms; field tick (one pass per pulse, D-029) ≈2.2 ms median / ≈3 ms p95: ecology 2.8, activity 2.4, bloom 2.0 ms worst |
 
 ## How to resume

@@ -7,6 +7,7 @@ import { applyScenario } from '@/sim/scenario';
 import { Building } from '@/ecs/components';
 import { RoadNetworks } from '@/sim/networks';
 import { openingView } from '@/game/opening';
+import { GRID, GRID_N, GRID_S, GRID_W, HERO_IDS } from '@/content/scenarios/founding-city';
 import { makeSim } from './helpers';
 
 describe('save migrations', () => {
@@ -61,7 +62,7 @@ describe('hero assets', () => {
 });
 
 describe('central landmark', () => {
-  it('the founding city levels a terrace at the island centre for the Wellspring Spire and its hero quarter, with road access, and saves it', () => {
+  it('the founding city grades a street grid at the island centre for the Wellspring Spire and its hero district, with road access, and saves it', () => {
     const s = makeSim(7);
     applyScenario(s.city, 'founding-city');
     const g = s.city.grid;
@@ -74,20 +75,26 @@ describe('central landmark', () => {
     expect(max - min).toBeLessThan(0.01);
     expect(RoadNetworks.touchesRoad(g, x, z, 14, 14)).toBe(true);
     expect(s.city.terrainEdits.size).toBeGreaterThan(200);
-    // The hero quarter around it, each with highway access.
-    const heroes = ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes'];
-    heroes.push('rain-vortex', 'dragonfly-port', 'mycelium-towers', 'algae-lantern', 'vertical-forest');
-    heroes.push('fog-harp', 'nautilus-library', 'quartz-spire', 'bamboo-cathedral', 'starlight-observatory');
-    heroes.push('elder-banyan', 'levitating-gardens', 'solar-sail-bazaar', 'habitat-cascade', 'aeolian-reeds');
-    heroes.push('harmony-gate', 'seedpod-labs', 'bloom-clock', 'zephyr-airport', 'heliostat-array');
-    heroes.push('corkscrew-orchard', 'canopy-skywalk', 'coral-arcology', 'travertine-baths', 'moonflower-hall');
-    heroes.push('bloom-eye', 'glass-pine', 'lotus-pagoda', 'rice-terraces', 'honeycomb-apiary');
-    heroes.push('moss-monolith', 'sunset-amphitheatre', 'kite-meadow', 'wavecrest-gallery', 'great-noria');
-    for (const id of heroes) {
+    // The hero district around it: every hero placed, each with highway access, and empty graded lots left
+    // on the grid for future heroes.
+    expect(HERO_IDS.length).toBe(39);
+    for (const id of HERO_IDS) {
       const e = s.city.buildingEntities().find((b) => buildings.at(Building.def[b]!).id === id);
       expect(e, id).toBeDefined();
       expect(RoadNetworks.touchesRoad(g, Building.x[e!]!, Building.z[e!]!, Building.w[e!]!, Building.d[e!]!), id).toBe(true);
     }
+    let lots = 0;
+    for (let j = -GRID_N; j <= GRID_S; j++)
+      for (let i = -GRID_W; i <= GRID_W; i++) {
+        const [bx, bz] = [x + GRID * i, z + GRID * j];
+        let free = true;
+        for (let k = 0; k < (GRID - 1) ** 2 && free; k++) {
+          const t = g.index(bx + (k % (GRID - 1)), bz + Math.floor(k / (GRID - 1)));
+          free = g.occupant[t] === -1 && !g.road[t] && !s.city.isWaterTile(bx + (k % (GRID - 1)), bz + Math.floor(k / (GRID - 1)));
+        }
+        if (free && g.rangeOver(bx, bz, GRID - 1, GRID - 1).max - g.rangeOver(bx, bz, GRID - 1, GRID - 1).min < 0.01) lots++;
+      }
+    expect(lots).toBeGreaterThanOrEqual(10);
     expect(openingView(s.city).x).toBeLessThan(h);
     s.step(10);
     const c2 = new City(new EventBus(), 1);

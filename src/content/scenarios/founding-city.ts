@@ -21,6 +21,121 @@ function district(b: ScenarioBuilder, x0: number, z0: number, x1: number, z1: nu
   return b.fill(ax, az, bx, bz, weights, density);
 }
 
+/** Street spacing of the hero district's grid: blocks of GRID - 1 tiles, the spire's footprint. */
+export const GRID = 15;
+/** Blocks west/east of the spire's block, north of it and south of it (the south edge stops short of downtown). */
+export const [GRID_W, GRID_N, GRID_S] = [4, 4, 3];
+
+/**
+ * Quarters of the hero district as block rectangles [i0, j0, i1, j1] (block (0, 0) is the spire's, +i east,
+ * +j south), each with its heroes in order of importance. A hero takes the free block nearest the spire in
+ * its quarter (any block if the quarter is full or flooded on this seed); blocks left over stay empty lots,
+ * streets already in place, for future heroes: add an id to a quarter to build one. Quarters follow the render
+ * chunks (the spire sits on their corner), and heroes sharing an unusual piece (timber, algae tanks) share a
+ * quarter, so each piece type stays one batch in as few chunks as possible (D-034). A pair [workplace, home]
+ * puts a big housing hero straight across the street from its workplace: a home sends all its road commuters to
+ * the nearest workplace in one stream, which jams every tile of the trip, so that trip must be short.
+ */
+const QUARTERS: { blocks: [number, number, number, number]; heroes: (string | [string, string])[] }[] = [
+  // Civic ring around the spire plaza.
+  { blocks: [-1, -1, 1, 1], heroes: ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes', 'quartz-spire', 'nautilus-library', 'harmony-gate'] },
+  // Skyline hill (north-east): towers, homes and the skyport.
+  { blocks: [1, -4, 4, 0], heroes: ['dragonfly-port', ['glass-pine', 'vertical-forest'], 'moss-monolith', 'coral-arcology', 'lotus-pagoda', 'rain-vortex', 'bloom-eye', 'fog-harp'] },
+  // The exchange (south-east), toward downtown: trade, science and the algae works.
+  { blocks: [1, 1, 4, 3], heroes: ['zephyr-airport', 'seedpod-labs', 'bloom-clock', 'starlight-observatory', 'algae-lantern', 'wavecrest-gallery', 'sunset-amphitheatre', 'corkscrew-orchard'] },
+  // Garden quarter (south-west): timber halls, gardens and markets.
+  { blocks: [-4, 1, -1, 3], heroes: ['elder-banyan', 'levitating-gardens', 'bamboo-cathedral', 'canopy-skywalk', 'moonflower-hall', 'habitat-cascade', 'mycelium-towers', 'solar-sail-bazaar', 'aeolian-reeds'] },
+  // Working hills (north-west), by the lake: food, water, energy and baths.
+  { blocks: [-4, -4, -1, 0], heroes: ['great-noria', 'rice-terraces', 'heliostat-array', 'kite-meadow', 'honeycomb-apiary', 'travertine-baths'] },
+];
+
+/** All hero ids on the grid, for tests. */
+export const HERO_IDS = QUARTERS.flatMap((q) => q.heroes.flat());
+
+/** Steepest step between neighbouring blocks' terraces: streets refuse tiles that climb more than 0.9. */
+const TERRACE_STEP = 0.8;
+
+/**
+ * Builds the hero district around the spire's block at (sx, sz): grades every block into a terrace (each as
+ * close to its ground as the TERRACE_STEP limit allows, so the streets between them stay drivable and the
+ * empty lots are ready to build on), places the spire, then the heroes of QUARTERS. Each hero sits flush with
+ * the street on its block's side facing the spire, long side along it. Returns false if the spire won't fit.
+ */
+function heroDistrict(b: ScenarioBuilder, sx: number, sz: number): boolean {
+  const n = GRID - 1;
+  const ring = (i: number, j: number) => Math.max(Math.abs(i), Math.abs(j)) * 100 + Math.abs(i) + Math.abs(j);
+  const blocks = (i0: number, j0: number, i1: number, j1: number) => {
+    const out: [number, number][] = [];
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) out.push([i, j]);
+    return out.sort((p, q) => ring(...p) - ring(...q));
+  };
+  const all = blocks(-GRID_W, -GRID_N, GRID_W, GRID_S);
+  // Terrace heights: each block's mean ground, pulled into a TERRACE_STEP-Lipschitz surface (the midpoint of
+  // its lower and upper Lipschitz envelopes) over Chebyshev block distance.
+  const mean = all.map(([i, j]) => {
+    let [sum, k] = [0, 0];
+    for (let z = sz + GRID * j; z <= sz + GRID * j + n; z++)
+      for (let x = sx + GRID * i; x <= sx + GRID * i + n; x++) {
+        const h = b.height(x, z);
+        if (h > 0.05) [sum, k] = [sum + h, k + 1];
+      }
+    return k ? sum / k : NaN;
+  });
+  all.forEach(([i, j], a) => {
+    if (Number.isNaN(mean[a]!)) return;
+    let [lo, hi] = [-Infinity, Infinity];
+    all.forEach(([i2, j2], c) => {
+      const d = TERRACE_STEP * Math.max(Math.abs(i - i2), Math.abs(j - j2));
+      if (Number.isNaN(mean[c]!)) return;
+      lo = Math.max(lo, mean[c]! - d);
+      hi = Math.min(hi, mean[c]! + d);
+    });
+    b.level(sx + GRID * i, sz + GRID * j, sx + GRID * i + n - 1, sz + GRID * j + n - 1, 3, (lo + hi) / 2);
+  });
+  if (!b.building('wellspring-spire', sx, sz, 0)) return false;
+
+  const land = (x: number, z: number, w: number, d: number) => {
+    for (let k = z; k < z + d; k++) for (let m = x; m < x + w; m++) if (!b.isLand(m, k)) return false;
+    return true;
+  };
+  /** Where the hero sits flush with side `side` of block (i, j), long side along that street first. */
+  const spots = (id: string, i: number, j: number, side: string) => {
+    const [x0, z0] = [sx + GRID * i, sz + GRID * j];
+    const [w0, d0] = b.footprint(id, 0);
+    const alongX = side === 'n' || side === 's';
+    return ((alongX ? w0 >= d0 : d0 >= w0) ? [0, 1] : [1, 0]).map((rot) => {
+      const [w, d] = b.footprint(id, rot);
+      const x = side === 'w' ? x0 : side === 'e' ? x0 + n - w : x0 + Math.floor((n - w) / 2);
+      const z = side === 'n' ? z0 : side === 's' ? z0 + n - d : z0 + Math.floor((n - d) / 2);
+      return { x, z, rot, ok: land(x, z, w, d) };
+    });
+  };
+  /** Tries the hero in block (i, j): the side facing the spire first, then the others. */
+  const tryBlock = (id: string, i: number, j: number) => {
+    const sides = Math.abs(i) > Math.abs(j) ? (i > 0 ? 'wnse' : 'enws') : j > 0 ? 'nwes' : 'swen';
+    for (const side of sides) for (const p of spots(id, i, j, side)) if (p.ok && b.building(id, p.x, p.z, p.rot)) return true;
+    return false;
+  };
+  /** Tries a pair: the workplace on the south side of block (i, j), the home on the north side of the block below. */
+  const tryPair = ([work, home]: [string, string], i: number, j: number) => {
+    const p = spots(work, i, j, 's').find((s) => s.ok);
+    const q = spots(home, i, j + 1, 'n').find((s) => s.ok);
+    if (!p || !q || used.has(`${i},${j + 1}`)) return false;
+    return b.building(work, p.x, p.z, p.rot) && b.building(home, q.x, q.z, q.rot);
+  };
+  const used = new Set(['0,0']);
+  for (const q of QUARTERS)
+    for (const hero of q.heroes)
+      for (const [i, j] of [...blocks(...q.blocks), ...all]) {
+        if (used.has(`${i},${j}`)) continue;
+        if (typeof hero === 'string' ? !tryBlock(hero, i, j) : !tryPair(hero, i, j)) continue;
+        used.add(`${i},${j}`);
+        if (typeof hero !== 'string') used.add(`${i},${j + 1}`);
+        break;
+      }
+  return true;
+}
+
 /**
  * The founding city: a bayfront downtown, three housing towns, an industrial islet, bridges to
  * the islets and an arterial ring. Towns keep their 384-map size on larger maps (`fit`), so a
@@ -35,8 +150,16 @@ export default defineScenario({
   build(b) {
     const S = b.size;
     const P = (x: number, z: number): [number, number] => [Math.round(x * S), Math.round(z * S)];
-    // Arterial ring linking the towns (bridges allowed across the river).
-    const ring = [P(0.24, 0.6), P(0.47, 0.67), P(0.78, 0.52), P(0.66, 0.24), P(0.49, 0.22), P(0.3, 0.3), P(0.24, 0.6)];
+    const SP = 14;
+    const sx = Math.round(S / 2 - SP / 2);
+    const sz = sx;
+    const lineX = (i: number) => sx - 1 + GRID * i;
+    const lineZ = (j: number) => sz - 1 + GRID * j;
+    // Arterial ring linking the towns (bridges allowed across the river). Its western leg runs along the hero
+    // district's south street rather than a tile beside it.
+    const west = P(0.24, 0.6);
+    if (Math.abs(west[1] - lineZ(GRID_S + 1)) <= 3) west[1] = lineZ(GRID_S + 1);
+    const ring = [west, P(0.47, 0.67), P(0.78, 0.52), P(0.66, 0.24), P(0.49, 0.22), P(0.3, 0.3), west];
     for (let i = 0; i < ring.length - 1; i++) b.road(ring[i]![0], ring[i]![1], ring[i + 1]![0], ring[i + 1]![1], true);
 
     // Bridges to the islets.
@@ -44,79 +167,10 @@ export default defineScenario({
     b.road(...P(0.24, 0.62), ...P(0.1, 0.66), true); // west: industrial islet
     b.road(...P(0.78, 0.4), ...P(0.84, 0.2), true); // north-east: rustic islet
 
-    // The hero quarter at the island's exact centre, on one terrace levelled where the river rises:
-    // the Wellspring Spire on its plaza, the Helix Wind Spire behind it, the Hanging Gardens to the
-    // west and the Sky Ark and Cloud Forest Domes flanking the boulevard to downtown. Its roads are
-    // drawn last (below) so the utility sweeps don't crowd the plaza.
-    const SP = 14;
-    const sx = Math.round(S / 2 - SP / 2);
-    const sz = sx;
-    const [lx, lz, rx, rz] = [sx - 1, sz - 1, sx + SP, sz + SP];
-    const terrace = b.level(lx - 10, lz - 8, rx + 12, rz + 4, 6);
-    // The avenue to downtown runs down x = bx (a downtown grid road) to the grid's top row dz0; the ring road
-    // passes along z = ringZ west of x = ringX.
-    const [dx0, dz0] = fit(S, 0.44, 0.6, 0.66, 0.74).map((v) => Math.round(v * S)) as [number, number];
-    const bx = dx0 + 5 * Math.round((0.585 * S - dx0) / 5);
-    const [ringX, ringZ] = P(0.47, 0.6);
-    const spire = b.building('wellspring-spire', sx, sz, 0);
-    if (spire) {
-      // Each hero slides away from its anchor (dx, dz per step) until it fits: the river head moves with the seed.
-      const hero = (id: string, x: number, z: number, dx: number, dz: number, rot = 0) => {
-        for (let i = 0; i < 6 && !b.building(id, x + i * dx, z + i * dz, rot); i++);
-      };
-      hero('helix-spire', S / 2 - 4, lz - 8, 0, -1);
-      hero('hanging-gardens', lx - 10, S / 2 - 5, -1, 0);
-      hero('sky-ark', rx + 1, S / 2 - 7, 1, 0);
-      hero('cloud-domes', rx + 2, S / 2 + 1, 1, 0);
-      // Hero avenue: the boulevard to downtown, on a terrace continuing the quarter's level.
-      b.level(rx + 13, S / 2 - 12, rx + 43, S / 2 + 24, 4, terrace);
-      hero('rain-vortex', rx + 15, S / 2 - 10, 1, 0);
-      hero('dragonfly-port', rx + 27, S / 2 - 8, 1, 0);
-      hero('mycelium-towers', rx + 15, S / 2 + 1, 1, 0);
-      hero('algae-lantern', rx + 37, S / 2 + 6, 0, 1);
-      hero('vertical-forest', rx + 30, S / 2 + 14, 0, 1, 1);
-      hero('fog-harp', rx + 37, S / 2 + 15, 0, 1);
-      // Hero promenade: both sides of the west road (z = rz) out toward the western town.
-      b.level(lx - 62, rz - 9, lx - 11, rz - 1, 4, terrace);
-      b.level(lx - 62, rz + 1, lx - 1, rz + 11, 4, terrace);
-      hero('nautilus-library', lx - 20, rz - 9, -1, 0);
-      hero('quartz-spire', lx - 32, rz - 9, -1, 0);
-      hero('bamboo-cathedral', lx - 47, rz - 8, -1, 0);
-      hero('starlight-observatory', lx - 59, rz - 8, -1, 0);
-      hero('elder-banyan', lx - 11, rz + 1, -1, 0);
-      hero('levitating-gardens', lx - 23, rz + 1, -1, 0);
-      hero('solar-sail-bazaar', lx - 35, rz + 1, -1, 0);
-      hero('habitat-cascade', lx - 48, rz + 1, -1, 0);
-      hero('aeolian-reeds', lx - 60, rz + 1, -1, 0);
-      // South avenue: both sides of x = bx from the avenue down to downtown.
-      b.level(bx - 13, rz + 18, bx + 12, dz0 - 2, 4, terrace);
-      hero('harmony-gate', bx - 8, rz + 18, 0, 1, 1);
-      hero('seedpod-labs', bx - 9, rz + 32, 0, 1);
-      hero('bloom-clock', bx - 8, rz + 43, 0, 1);
-      hero('zephyr-airport', bx + 1, rz + 18, 0, 1);
-      hero('heliostat-array', bx + 1, rz + 30, 0, 1);
-      hero('corkscrew-orchard', bx + 1, rz + 42, 0, 1);
-      // Garden lane: from the plaza's south-west corner down x = lx to the ring road.
-      b.level(lx - 24, rz + 12, lx + 1, ringZ - 1, 4, terrace);
-      hero('canopy-skywalk', lx - 10, rz + 13, -1, 0);
-      hero('coral-arcology', lx - 9, rz + 24, -1, 0);
-      hero('travertine-baths', lx - 10, ringZ - 10, -1, 0);
-      hero('moonflower-hall', lx - 22, ringZ - 10, -1, 0);
-      // North terrace: cut into the hill north of the boulevard, along a street (x = nx) climbing from the
-      // boulevard between the Rain Vortex and the Skyport, and a cross street (z = nz).
-      const [nx, nz] = [rx + 25, S / 2 - 34];
-      b.level(nx - 12, nz - 24, nx + 26, nz + 21, 4);
-      hero('bloom-eye', nx - 10, nz + 16, 0, -1);
-      hero('glass-pine', nx - 10, nz + 1, 0, -1);
-      hero('lotus-pagoda', nx - 8, nz - 8, 0, -1);
-      hero('rice-terraces', nx - 11, nz - 22, 0, -1);
-      hero('honeycomb-apiary', nx + 1, nz + 14, 0, -1);
-      hero('moss-monolith', nx + 1, nz + 1, 0, -1);
-      hero('sunset-amphitheatre', nx + 1, nz - 10, 0, -1);
-      hero('kite-meadow', nx + 1, nz - 22, 0, -1);
-      hero('wavecrest-gallery', nx + 14, nz - 8, 1, 0);
-      hero('great-noria', nx + 14, nz + 1, 1, 0);
-    }
+    // The hero district: one street grid of GRID-tile blocks centred on the Wellspring Spire, which fills
+    // block (0, 0) at the island's exact centre where the river rises. Heroes are placed now (so the utility
+    // sweeps count them) but the grid's streets are drawn last, so the sweeps never fill its lots.
+    const spire = heroDistrict(b, sx, sz);
 
     // The Supertree Grove (8×8) needs open land the district grids would cut up: reserve it first,
     // on the ring road just west of downtown.
@@ -167,25 +221,28 @@ export default defineScenario({
     sweep('water-works', () => t().waterProduced > t().waterUsed, island);
     sweep('vertical-farm', () => t().food > t().population * 0.55);
 
-    // Spire roads: a plaza loop and a boulevard south-east into the downtown grid (its x = 299 road).
+    // Streets of the hero district (gaps where they meet the lake or river, bridges on two avenues), then
+    // straight avenues out to the towns so the island reads as one city.
     if (spire) {
-      b.road(lx, lz, rx, lz);
-      b.road(rx, lz, rx, rz);
-      b.road(rx, rz, lx, rz);
-      b.road(lx, rz, lx, lz);
-      b.road(rx, S / 2, bx, S / 2, true);
-      b.road(bx, S / 2, bx, dz0, true);
-      // Second link: from the plaza's south-west corner west to the western town's grid.
+      const [x0, x1, z0, z1] = [lineX(-GRID_W), lineX(GRID_W + 1), lineZ(-GRID_N), lineZ(GRID_S + 1)];
+      for (let i = -GRID_W; i <= GRID_W + 1; i++) b.road(lineX(i), z0, lineX(i), z1);
+      for (let j = -GRID_N; j <= GRID_S + 1; j++) b.road(x0, lineZ(j), x1, lineZ(j), j === 2);
+      // North: two avenues from the plaza up to the northern town's bottom row, bridging the lake.
+      const [, nz0, , nz1] = fit(S, 0.4, 0.16, 0.6, 0.28).map((v) => Math.round(v * S)) as [number, number, number, number];
+      const nb = nz0 + 6 * Math.floor((nz1 - nz0) / 6);
+      for (const i of [-1, 2]) b.road(lineX(i), lineZ(0), lineX(i), nb, true);
+      // East: two boulevards, one along the plaza's south street, to the eastern town's first column.
+      const [ex0] = fit(S, 0.68, 0.42, 0.88, 0.62).map((v) => Math.round(v * S)) as [number];
+      for (const j of [-1, 1]) b.road(x1, lineZ(j), ex0, lineZ(j), true);
+      // West: two avenues to the western town's last column, the northern one jogging down to its top row.
       const [wx0, wz0, wx1] = fit(S, 0.14, 0.5, 0.34, 0.68).map((v) => Math.round(v * S)) as [number, number, number];
       const wx = wx0 + 6 * Math.floor((wx1 - wx0) / 6);
-      b.road(lx, rz, wx, rz, true);
-      b.road(wx, rz, wx, wz0, true);
-      // Garden lane down to the ring road: a third way out of the hero district.
-      b.road(lx, rz, lx, ringZ, true);
-      b.road(lx, ringZ, ringX, ringZ, true);
-      // North terrace streets.
-      b.road(rx + 25, S / 2, rx + 25, S / 2 - 57, true);
-      b.road(rx + 14, S / 2 - 34, rx + 49, S / 2 - 34, true);
+      b.road(x0, lineZ(1), wx, lineZ(1), true);
+      b.road(wx, lineZ(1), wx, wz0, true);
+      b.road(x0, lineZ(3), wx, lineZ(3), true);
+      // South: the grid's east columns run on down to downtown's top row.
+      const [, dz0] = fit(S, 0.44, 0.6, 0.66, 0.74).map((v) => Math.round(v * S)) as [number, number];
+      for (let i = 2; i <= GRID_W + 1; i++) b.road(lineX(i), z1, lineX(i), dz0);
     }
   },
 });

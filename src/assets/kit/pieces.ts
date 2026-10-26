@@ -139,7 +139,7 @@ export function initPieces(): void {
   // Living timber (shaped-wood frames of Living Studios).
   registerPiece({ id: 'timberBox', geometry: box(), material: 'timber' });
   // Woven willow arch (eco-playgrounds): a half torus standing on the ground, spanning x.
-  registerPiece({ id: 'willowArch', geometry: new TorusGeometry(0.5, 0.07, 5, 14, Math.PI), material: 'bark', lod: 180 });
+  registerPiece({ id: 'willowArch', geometry: new TorusGeometry(0.5, 0.07, 5, 14, Math.PI), material: 'bark', castShadow: false, lod: 180 });
   // Hummingbird drone at rest (Drone Hives): a glossy teardrop with glowing wings.
   registerPiece({ id: 'drone', geometry: base(new OctahedronGeometry(0.5, 0).scale(1, 0.5, 0.45), 0.25), material: 'pod', castShadow: false, lod: 140 });
   // Façade waterfall sheet: unit plane facing +Z with its pivot at the bottom edge.
