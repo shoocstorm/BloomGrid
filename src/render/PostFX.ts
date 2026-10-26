@@ -9,7 +9,7 @@ import type { QualitySettings } from './Quality';
  */
 export class PostFX {
   private pipeline: RenderPipeline | null = null;
-  readonly strength = uniform(0.9);
+  readonly strength = uniform(0.6);
 
   constructor(
     private renderer: WebGPURenderer,

@@ -8,6 +8,8 @@ import { uniform } from 'three/tsl';
 export const U = {
   /** 0 = full daylight, 1 = deep night. Drives bioluminescence everywhere. */
   night: uniform(0),
+  /** 0 through the evening, 1 in the small hours (≈01:30–04:30): homes and offices switch their lights off. */
+  lateNight: uniform(0),
   /** Build-mode grid overlay strength 0..1. */
   grid: uniform(0),
   wind: uniform(1),

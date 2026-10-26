@@ -144,9 +144,14 @@ export function initMaterials(): void {
     m.roughnessNode = mix(float(0.12), float(0.7), mullion);
     m.metalnessNode = mix(float(0.45), float(0.0), mullion);
     // aParams.w = power supply: windows go dark during brownouts.
-    const lit = step(0.45, hash(floorIdx.mul(17.0).add(col.mul(3.0)).add(iSeed.mul(91)))).mul(iParams.w);
-    const warm = mix(color(0xffc77a), color(0xfff0d0), hash(col.add(floorIdx)));
-    m.emissiveNode = warm.mul(lit).mul(float(1).sub(mullion)).mul(U.night).mul(0.9).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.4));
+    // About 40% of windows lit in the evening, thinning to ~10% in the small hours; each its own brightness and
+    // tone (mostly amber lamps, a few cool screens), so façades read as rooms rather than glowing panels.
+    const wh = hash(floorIdx.mul(17.0).add(col.mul(3.0)).add(iSeed.mul(91)));
+    const lit = step(U.lateNight.mul(0.3).add(0.6), wh).mul(iParams.w);
+    const tone = hash(col.mul(1.7).add(floorIdx.mul(5.3)).add(iSeed.mul(13)));
+    const warm = mix(mix(color(0xff9f4a), color(0xffd9a0), tone), color(0xcfe4ff), step(0.88, tone));
+    const level = tone.mul(0.6).add(0.25);
+    m.emissiveNode = warm.mul(lit).mul(level).mul(float(1).sub(mullion)).mul(U.night).mul(0.55).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.05));
     return m;
   });
 
@@ -165,7 +170,7 @@ export function initMaterials(): void {
     const petal = mix(color(0xffb7d5), color(0xffe08a), hash(floor(positionWorld.mul(9)).dot(vec3(1, 7, 13))));
     m.colorNode = mix(mix(color(0xe9e4d6), mossCol, cover), petal, blossom);
     const veins = smoothstep(0.08, 0.0, abs(mx_noise_float(positionWorld.mul(1.8)))).mul(cover);
-    m.emissiveNode = color(0x6ff7d8).mul(veins).mul(bioPulse()).mul(0.55).add(petal.mul(blossom).mul(U.night).mul(0.6)).mul(activityGlow());
+    m.emissiveNode = color(0x6ff7d8).mul(veins).mul(bioPulse()).mul(0.3).add(petal.mul(blossom).mul(U.night).mul(0.6)).mul(activityGlow());
     return m;
   }, { vitality: true });
 
@@ -188,8 +193,8 @@ export function initMaterials(): void {
     m.colorNode = mix(color(0xffffff).add(v), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
     // Luminous canopies: busy streets light up even un-flagged foliage with a faint teal rim.
     const glow = activityGlow();
-    const rim = float(1).sub(normalWorld.y.abs()).mul(glow.sub(0.6).max(0)).mul(0.12);
-    m.emissiveNode = mix(instanceColor, color(0x7ff7e6), 0.6).mul(iGlow.mul(0.5).add(rim)).mul(bioPulse()).mul(glow);
+    const rim = float(1).sub(normalWorld.y.abs()).mul(glow.sub(0.6).max(0)).mul(0.06);
+    m.emissiveNode = mix(instanceColor, color(0x7ff7e6), 0.6).mul(iGlow.mul(0.2).add(rim)).mul(bioPulse()).mul(glow);
     return m;
   };
   define('canopy', foliage(0.015), { vitality: true });
@@ -265,9 +270,9 @@ export function initMaterials(): void {
     const bubbles = step(0.82, fract(positionWorld.y.mul(5).sub(time.mul(0.6)).add(hash(floor(positionWorld.x.mul(20))))));
     m.colorNode = color(0x5fd36a);
     m.emissiveNode = color(0x4dff7a)
-      .mul(U.night.mul(0.9).add(0.15))
+      .mul(U.night.mul(0.35).add(0.1))
       .mul(sin(time.add(positionWorld.y.mul(4))).mul(0.15).add(0.85))
-      .add(color(0xd8ffe0).mul(bubbles).mul(0.4));
+      .add(color(0xd8ffe0).mul(bubbles).mul(0.25));
     return m;
   });
 
@@ -295,7 +300,7 @@ export function initMaterials(): void {
   define('lumen', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.3, metalness: 0.15 });
     m.colorNode = color(0xf2faf7);
-    m.emissiveNode = color(0x8ff8ec).mul(iGlow).mul(U.night.mul(1.6).add(0.12));
+    m.emissiveNode = color(0x8ff8ec).mul(iGlow).mul(U.night.mul(0.6).add(0.1));
     return m;
   });
 
@@ -304,7 +309,7 @@ export function initMaterials(): void {
     const m = new MeshStandardNodeMaterial({ roughness: 0.25, metalness: 0.2 });
     const band = smoothstep(0.03, 0.0, abs(positionGeometry.y.sub(0.25)));
     m.colorNode = mix(color(0xf6f8f4), color(0x2f6f78), band);
-    m.emissiveNode = color(0x7ff7e6).mul(band).mul(iGlow.mul(U.night).mul(1.4).add(0.15));
+    m.emissiveNode = color(0x7ff7e6).mul(band).mul(iGlow.mul(U.night).mul(0.8).add(0.12));
     return m;
   });
 

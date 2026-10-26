@@ -110,6 +110,9 @@ export class Atmosphere {
     // Night: light comes from the moon (opposite the sun), soft and blue.
     const night = 1 - smooth(-0.12, 0.12, elev);
     U.night.value = night;
+    // Lights go out from 22:00 to 01:30 and come back before dawn (timeOfDay 0 = midnight).
+    const h = (timeOfDay * 24 + 2) % 24; // hours since 22:00
+    U.lateNight.value = smooth(0, 3.5, h) * (1 - smooth(6.5, 7.75, h));
     this.sun.color.copy(sunCol);
     this.sun.intensity = a.sunI + (b.sunI - a.sunI) * t;
     this.hemi.intensity = a.hemiI + (b.hemiI - a.hemiI) * t;

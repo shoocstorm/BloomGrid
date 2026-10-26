@@ -256,3 +256,20 @@ jams; Vertical Forest (182 road commuters) 16 tiles from Glass Pine dropped flow
 both entrances on the same street tile. Flow over six seeds averages 0.86 (was 0.83); the default seed is 0.80.
 **Also:** `ScenarioBuilder.level` writes heights at once but commits all edits with one `setCorners` (one shore/soil
 refresh), keeping the scenario at ≈0.25 s despite ≈70 terraces; the builder gained `height()` and `footprint()`.
+
+## D-036 — Natural night lighting; Bloomtopia on the south islet (2026-10-26)
+
+**Night lighting:** buildings read as glowing panels at night: 55% of glass windows lit at full strength, a cyan
+glow over every glass surface, lumen trims at 1.6× and bloom on every emissive pixel at 0.9. Now ≈40% of windows are
+lit in the evening and they go out one by one to ≈10% between 22:00 and 01:30, back before dawn (`U.lateNight`, set
+from the time of day in `Atmosphere.applyTime`); each lit window has its own brightness and tone (mostly amber lamps,
+some cool screens). The glass wash is 0.05 (was 0.4), lumen 0.6 (was 1.6), pod bands 0.8, algae 0.35, plant and moss
+glow halved, bloom strength 0.6. Landmarks meant to glow (the Algae Lantern, neon signs, the Ferris wheel) still do,
+just softer.
+**Bloomtopia:** the islet is an ellipse ≈54 × 26 tiles, so the park is 36 × 16 (a 40 × 18 rectangle does not fit),
+nudged a few tiles if a seed's shore cuts a corner. The bridge from downtown is drawn early (as before, so districts
+build round it) and lands at the gate; the forecourt is drawn last so the utility sweeps leave the gate alone. Glass
+pieces were dropped from the fence, pylons and kiosks: the glass material draws lit office windows at night. Jobs are
+40: a workplace's commuters travel in one stream, and over the long single bridge any load above free flow (≈44)
+would jam every tile. Draws: park views ≈245 (≈272 with `?stress=1500`); normal downtown and overview views +≈12.
+

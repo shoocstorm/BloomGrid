@@ -103,3 +103,22 @@ describe('central landmark', () => {
     expect(c2.hash()).toBe(s.city.hash());
   });
 });
+
+describe('amusement park', () => {
+  it('the founding city opens Bloomtopia on the south islet, its gate on the bridge from downtown', () => {
+    for (const seed of [7, 4242]) {
+      const s = makeSim(seed);
+      applyScenario(s.city, 'founding-city');
+      const g = s.city.grid;
+      const e = s.city.buildingEntities().find((b) => buildings.at(Building.def[b]!).id === 'bloomtopia');
+      expect(e, `seed ${seed}`).toBeDefined();
+      const [x, z] = [Building.x[e!]!, Building.z[e!]!];
+      expect(z).toBeGreaterThan(s.city.size * 0.8);
+      // The bridge lands at the gate, mid-way along the north fence.
+      const gate = g.index(x + Building.w[e!]! / 2, z - 1);
+      expect(g.road[gate]).toBeGreaterThan(0);
+      expect(g.road[gate - g.w * 14]).toBe(2); // a bridge tile over the strait
+    }
+  });
+});
+

@@ -137,6 +137,23 @@ function heroDistrict(b: ScenarioBuilder, sx: number, sz: number): boolean {
 }
 
 /**
+ * Levels the islet round (cx, cz) and opens Bloomtopia (36 × 16) on it, gate north toward the bridge, nudging
+ * it a few tiles if the islet's shore cuts a corner on this seed. Returns its north-west tile, or null.
+ */
+function bloomtopia(b: ScenarioBuilder, cx: number, cz: number): [number, number] | null {
+  const [w, d] = b.footprint('bloomtopia');
+  for (const [ox, oz] of [[0, 0], [0, -2], [0, 2], [-2, 0], [2, 0], [-3, -2], [3, -2], [-3, 2], [3, 2]] as const) {
+    const [x, z] = [cx - w / 2 + ox, cz - d / 2 + 1 + oz];
+    let dry = true;
+    for (let k = z; k < z + d && dry; k++) for (let m = x; m < x + w && dry; m++) dry = b.isLand(m, k);
+    if (!dry) continue;
+    b.level(x, z, x + w - 1, z + d - 1, 2);
+    if (b.building('bloomtopia', x, z, 0)) return [x, z];
+  }
+  return null;
+}
+
+/**
  * The founding city: a bayfront downtown, three housing towns, an industrial islet, bridges to
  * the islets and an arterial ring. Towns keep their 384-map size on larger maps (`fit`), so a
  * bigger island means more open land for the steward, not a bigger starting city. Deliberately left a little short on water and food so the
@@ -162,8 +179,10 @@ export default defineScenario({
     const ring = [west, P(0.47, 0.67), P(0.78, 0.52), P(0.66, 0.24), P(0.49, 0.22), P(0.3, 0.3), west];
     for (let i = 0; i < ring.length - 1; i++) b.road(ring[i]![0], ring[i]![1], ring[i + 1]![0], ring[i + 1]![1], true);
 
-    // Bridges to the islets.
-    b.road(...P(0.5, 0.66), ...P(0.5, 0.86), true); // south: resort islet
+    // Bridges to the islets. The south islet is Bloomtopia, the amusement park: fenced, its gate facing the
+    // bridge from downtown (its forecourt is drawn last, so the utility sweeps leave the gate alone).
+    const park = bloomtopia(b, ...P(0.493, 0.862));
+    if (park) b.road(park[0] + 18, P(0.5, 0.66)[1], park[0] + 18, park[1] - 1, true);
     b.road(...P(0.24, 0.62), ...P(0.1, 0.66), true); // west: industrial islet
     b.road(...P(0.78, 0.4), ...P(0.84, 0.2), true); // north-east: rustic islet
 
@@ -183,8 +202,6 @@ export default defineScenario({
     district(b, 0.4, 0.16, 0.6, 0.28, 6, homes, 0.8);
     // Industrial islet: power and work.
     district(b, 0.05, 0.6, 0.15, 0.72, 4, { bioreactor: 3, 'solar-spire': 2, 'greenhouse-hub': 1 }, 0.7);
-    // Resort islet: parks and homes.
-    district(b, 0.44, 0.83, 0.56, 0.89, 4, { 'pocket-park': 3, 'garden-residence': 2 }, 0.8);
 
     // Balance: jobs for most of the labour force, power with a thin margin; water and food left short.
     const areas: [number, number, number, number][] = (
@@ -220,6 +237,8 @@ export default defineScenario({
     sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06, island);
     sweep('water-works', () => t().waterProduced > t().waterUsed, island);
     sweep('vertical-farm', () => t().food > t().population * 0.55);
+
+    if (park) b.road(park[0] + 8, park[1] - 1, park[0] + 28, park[1] - 1, true);
 
     // Streets of the hero district (gaps where they meet the lake or river, bridges on two avenues), then
     // straight avenues out to the towns so the island reads as one city.
