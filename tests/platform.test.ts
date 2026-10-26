@@ -8,6 +8,7 @@ import { Building } from '@/ecs/components';
 import { RoadNetworks } from '@/sim/networks';
 import { openingView } from '@/game/opening';
 import { GRID, GRID_N, GRID_S, GRID_W, HERO_IDS } from '@/content/scenarios/founding-city';
+import { findBridgeSpans } from '@/sim/bridges';
 import { makeSim } from './helpers';
 
 describe('save migrations', () => {
@@ -122,3 +123,15 @@ describe('amusement park', () => {
   });
 });
 
+
+describe('signature bridges', () => {
+  it('finds the founding city’s long straight bridge spans, including the strait to Bloomtopia', () => {
+    const s = makeSim(7);
+    applyScenario(s.city, 'founding-city');
+    const spans = findBridgeSpans(s.city.grid, 8);
+    expect(spans.length).toBeGreaterThanOrEqual(6);
+    expect(spans.some((sp) => !sp.alongX && sp.len >= 45)).toBe(true);
+    for (const sp of spans)
+      for (let k = 0; k < sp.len; k++) expect(s.city.grid.road[s.city.grid.index(sp.x + (sp.alongX ? k : 0), sp.z + (sp.alongX ? 0 : k))]).toBe(2);
+  });
+});

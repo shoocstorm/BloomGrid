@@ -3,6 +3,7 @@ import { buildings } from '@/content';
 import { chunkSizeFor } from '@/sim/City';
 import { BuildingRenderer } from './BuildingRenderer';
 import { RoadRenderer } from './RoadRenderer';
+import { BridgeRenderer } from './BridgeRenderer';
 import { ChannelRenderer } from './ChannelRenderer';
 import { Ghost } from './Ghost';
 import { createTools, type BuildState } from './tools';
@@ -27,6 +28,7 @@ export const constructionModule: GameModule = {
   init(ctx) {
     const renderer = new BuildingRenderer(ctx);
     new RoadRenderer(ctx, chunkSizeFor(ctx.city.size));
+    new BridgeRenderer(ctx);
     new ChannelRenderer(ctx, chunkSizeFor(ctx.city.size));
     const ghost = new Ghost(ctx.scene);
     const state: BuildState = { def: buildings.all()[0]!.id, rot: 0 };

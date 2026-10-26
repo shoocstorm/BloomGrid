@@ -43,7 +43,9 @@ observation wheel, an exchange of airship port, labs, observatory and amphitheat
 a banyan treehouse hotel, a bamboo cathedral and a moonflower concert hall, and working hills by the lake with rice
 terraces, solar kites and a great water wheel, with empty graded lots left for the city to grow into. Across the bridge south of downtown, **Bloomtopia** fills its own
 islet behind a railing fence and a neon gate: the Comet Loop coaster, the Sky Orbit wheel, the Petal Drop tower, a
-dandelion swing ride, the Firefly Carousel, spinning Bloom Cups and a splash lagoon. Walk,
+dandelion swing ride, the Firefly Carousel, spinning Bloom Cups and a splash lagoon. Every long bridge becomes a
+landmark of its own: suspension bridges with lotus or portal towers over the straits, a cable-stayed fan over the
+bay, and Helix or Bloom Arch bridges over the river and lake (bridges you build get them too). Walk,
 hoverboard or fly a drone through your streets, ride a commuter pod along its sky-lane, or frame the moment in photo mode.</td>
 <td><b>A whole island to steward.</b> A 512 × 512 tile island with hills, lakes, a river and islets to bridge,
 reclaim or defend.</td>

@@ -273,3 +273,15 @@ pieces were dropped from the fence, pylons and kiosks: the glass material draws 
 40: a workplace's commuters travel in one stream, and over the long single bridge any load above free flow (≈44)
 would jam every tile. Draws: park views ≈245 (≈272 with `?stress=1500`); normal downtown and overview views +≈12.
 
+## D-037 — Signature bridges are render-only dressing of bridge spans (2026-10-26)
+
+**Context:** bridges were flat deck slabs on piers. Making them landmarks as buildings would need placement on water,
+saves and footprints along roads. **Decision:** `findBridgeSpans` (pure, `sim/bridges.ts`) finds straight runs of
+bridge tiles; `BridgeRenderer` dresses each run ≥ 8 tiles from kit pieces through the instancer, by length:
+suspension ≥ 45 (tower style alternates with the 64-tile column so neighbouring straits differ), cable-stayed 28–44,
+Helix or Bloom Arch (hashed) 14–27, Bloom Arch below. It rebuilds on `road:changed` only when a bridge tile is added or a
+dressed one removed (a full scan ≈1 ms), so saves, undo and player or weaver bridges need nothing new. Crowns use
+`solarLeaf`: `sunPetal` (flower material) stays closed and green where the bloom field is empty, as over water.
+**Cost:** ≈+6 draws per view (normal worst 260 downtown, `?stress=1500` worst 287) and main thread ≈18.5% active (was
+≈16.9%, from the extra batches) / 14.5% idle.
+
