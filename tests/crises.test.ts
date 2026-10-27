@@ -92,11 +92,14 @@ describe('crises', () => {
 
   it('heatwave raises demand; monsoon floods low buildings; grid failure trips the biggest plant', () => {
     const s = founded();
-    const used = s.city.stats.energyUsed;
+    // Against the same city without the heat, early in the wave: occupancy keeps settling, so the start value
+    // is no baseline, and later on the brownout drives residents out and demand down again.
+    const calm = founded();
+    calm.step(200);
     forecastCrisis(s.city, 'heatwave', 1, 0);
-    s.step(400);
-    expect(s.city.stats.energyUsed).toBeGreaterThan(used * 1.1);
-    s.step(600);
+    s.step(200);
+    expect(s.city.stats.energyUsed).toBeGreaterThan(calm.city.stats.energyUsed * 1.1);
+    s.step(800);
 
     forecastCrisis(s.city, 'monsoon', 1.2, 0);
     s.step(400);

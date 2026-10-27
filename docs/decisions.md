@@ -285,3 +285,23 @@ dressed one removed (a full scan ≈1 ms), so saves, undo and player or weaver b
 **Cost:** ≈+6 draws per view (normal worst 260 downtown, `?stress=1500` worst 287) and main thread ≈18.5% active (was
 ≈16.9%, from the extra batches) / 14.5% idle.
 
+## D-038 — The island is one planned grid; buildings have an entrance per street side (2026-10-26)
+
+**Context:** the towns were small, dense 5–6 tile grids at the map's edges, joined by an arterial ring of huge
+L-shaped roads across empty land, with utilities scattered along it. **Decision:** the towns continue the hero
+district's 15-tile grid (`TOWNS` in `founding-city.ts`): Bayfront, Eastgate, Westbrook, Hillcrest. A block has no
+inner streets, so `fill` lines its perimeter and leaves a green courtyard; density and mix fall with ring distance
+from the spire; ≈12% of blocks are parks. Solar goes to the Sunfield (lane rows every 5 tiles), water works to
+outer streets run on to the shore. Islet bridges leave from town corners; the ring is gone.
+**Commuting:** a home sends its road commuters to the nearest workplace in one stream, and with towns beside the
+hero district those streams converged on single entrances (flow fell to 0.55). Two changes: (1) `accessTiles` gives a
+building an entrance on every footprint side touching a highway (its middle-most tile), splitting jobs and commuters
+evenly (more realistic for big buildings, and corner buildings split their queues); (2) heroes now sit flush with the
+side of their block facing *away* from the spire, toward the towns their workers come from; and a Pod Dock stands on
+every town block (a checkerboard left one seed at 0.69). Flow over six seeds 0.77–0.88 (was 0.82–0.97 with far
+towns; trips are about half as long now, so the same jam weighs more in the ratio). Density tweaks were noise: they
+reshuffle which homes feed which streets. Frontage is filled with pocket parks (no commuters) to look lined.
+**Also:** the heatwave test compares against the same city without heat after 200 steps; the start value is no
+baseline (occupancy keeps settling) and after 400 steps the brownout drives residents out. Opening budget ≈ +11–16/s
+(was ≈ +35/s): smaller population (≈25k) and dock upkeep. Seed 4242 no longer opens starved (food 1.04, water 0.92).
+

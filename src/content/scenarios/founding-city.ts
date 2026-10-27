@@ -52,6 +52,48 @@ const QUARTERS: { blocks: [number, number, number, number]; heroes: (string | [s
 /** All hero ids on the grid, for tests. */
 export const HERO_IDS = QUARTERS.flatMap((q) => q.heroes.flat());
 
+type Mix = (ring: number) => [Record<string, number>, number];
+interface Town {
+  /** Sides whose streets run on to the shore ('n', 'e', 's', 'w'): waterfront streets, and sites for water works. */
+  shore?: string;
+  name: string;
+  /** Block rectangle [i0, j0, i1, j1] on the hero district's grid. */
+  blocks: [number, number, number, number];
+  /** Buildings and density by ring (Chebyshev block distance from the spire). */
+  mix: Mix;
+  /** Percentage of blocks kept as parks. */
+  parks: number;
+  /** Grid lines that bridge water: column indices i (x) and row indices j (z). */
+  bridges?: { x?: number[]; z?: number[] };
+  /** Service-lane spacing inside blocks (solar farm rows). */
+  lanes?: number;
+}
+
+const homes: Mix = (ring) =>
+  ring <= 6
+    ? [{ 'canopy-tower': 1, 'garden-residence': 4, 'greenhouse-hub': 2, 'pocket-park': 4 }, 0.7]
+    : [{ 'garden-residence': 4, 'pocket-park': 5, 'greenhouse-hub': 1 }, 0.6];
+
+/**
+ * The towns round the hero district, on its grid. Bayfront (downtown) must stay first, Eastgate second and
+ * Westbrook third: landmarks are placed in them by index.
+ */
+const TOWNS: Town[] = [
+  {
+    name: 'Bayfront',
+    blocks: [-3, 4, 4, 7],
+    mix: () => [{ 'canopy-tower': 3, 'greenhouse-hub': 3, 'garden-residence': 3, 'pocket-park': 2, 'vertical-farm': 1 }, 0.6],
+    parks: 8,
+    bridges: { z: [5, 7] },
+    shore: 's',
+  },
+  { name: 'Eastgate', blocks: [5, -3, 9, 3], mix: homes, parks: 12, shore: 'e' },
+  { name: 'Westbrook', blocks: [-10, -1, -5, 3], mix: homes, parks: 12, shore: 'ws' },
+  { name: 'Hillcrest', blocks: [-3, -8, 3, -5], mix: homes, parks: 14, shore: 'n' },
+];
+/** The Sunfield solar farm, north-west of Westbrook (its south street is Westbrook's north street). */
+const UTILITY: Town[] = [{ name: 'Sunfield', blocks: [-9, -2, -7, -2], mix: () => [{}, 0], parks: 0, lanes: 5 }];
+
 /** Steepest step between neighbouring blocks' terraces: streets refuse tiles that climb more than 0.9. */
 const TERRACE_STEP = 0.8;
 
@@ -59,7 +101,7 @@ const TERRACE_STEP = 0.8;
  * Builds the hero district around the spire's block at (sx, sz): grades every block into a terrace (each as
  * close to its ground as the TERRACE_STEP limit allows, so the streets between them stay drivable and the
  * empty lots are ready to build on), places the spire, then the heroes of QUARTERS. Each hero sits flush with
- * the street on its block's side facing the spire, long side along it. Returns false if the spire won't fit.
+ * the street on its block's side facing away from the spire, long side along it. Returns false if the spire won't fit.
  */
 function heroDistrict(b: ScenarioBuilder, sx: number, sz: number): boolean {
   const n = GRID - 1;
@@ -110,9 +152,9 @@ function heroDistrict(b: ScenarioBuilder, sx: number, sz: number): boolean {
       return { x, z, rot, ok: land(x, z, w, d) };
     });
   };
-  /** Tries the hero in block (i, j): the side facing the spire first, then the others. */
+  /** Tries the hero in block (i, j): the side facing away from the spire first (toward the towns its workers come from), then the others. */
   const tryBlock = (id: string, i: number, j: number) => {
-    const sides = Math.abs(i) > Math.abs(j) ? (i > 0 ? 'wnse' : 'enws') : j > 0 ? 'nwes' : 'swen';
+    const sides = Math.abs(i) > Math.abs(j) ? (i > 0 ? 'ensw' : 'wnse') : j > 0 ? 'swen' : 'nwes';
     for (const side of sides) for (const p of spots(id, i, j, side)) if (p.ok && b.building(id, p.x, p.z, p.rot)) return true;
     return false;
   };
@@ -154,10 +196,11 @@ function bloomtopia(b: ScenarioBuilder, cx: number, cz: number): [number, number
 }
 
 /**
- * The founding city: a bayfront downtown, three housing towns, an industrial islet, bridges to
- * the islets and an arterial ring. Towns keep their 384-map size on larger maps (`fit`), so a
- * bigger island means more open land for the steward, not a bigger starting city. Deliberately left a little short on water and food so the
- * steward has something to fix in the first minutes.
+ * The founding city: one planned grid round the Wellspring Spire, with the hero district at its heart, Bayfront
+ * (downtown) down the river to the bay, Eastgate, Westbrook and Hillcrest round it (TOWNS), the Sunfield solar farm,
+ * an industrial islet and Bloomtopia on bridged islets. Laid out on the 512 map's tile grid (only the industrial islet
+ * still uses `fit`). Deliberately left a little short on water so the steward has something to fix in the first
+ * minutes.
  */
 export default defineScenario({
   id: 'founding-city',
@@ -166,102 +209,114 @@ export default defineScenario({
   credits: 12000,
   build(b) {
     const S = b.size;
-    const P = (x: number, z: number): [number, number] => [Math.round(x * S), Math.round(z * S)];
     const SP = 14;
     const sx = Math.round(S / 2 - SP / 2);
     const sz = sx;
     const lineX = (i: number) => sx - 1 + GRID * i;
     const lineZ = (j: number) => sz - 1 + GRID * j;
-    // Arterial ring linking the towns (bridges allowed across the river). Its western leg runs along the hero
-    // district's south street rather than a tile beside it.
-    const west = P(0.24, 0.6);
-    if (Math.abs(west[1] - lineZ(GRID_S + 1)) <= 3) west[1] = lineZ(GRID_S + 1);
-    const ring = [west, P(0.47, 0.67), P(0.78, 0.52), P(0.66, 0.24), P(0.49, 0.22), P(0.3, 0.3), west];
-    for (let i = 0; i < ring.length - 1; i++) b.road(ring[i]![0], ring[i]![1], ring[i + 1]![0], ring[i + 1]![1], true);
+    const P = (x: number, z: number): [number, number] => [Math.round(x * S), Math.round(z * S)];
+    type Rect = [number, number, number, number];
+    /** Tiles of block rectangle [i0, j0, i1, j1], inside its streets. */
+    const tiles = ([i0, j0, i1, j1]: Rect): Rect => [lineX(i0) + 1, lineZ(j0) + 1, lineX(i1 + 1) - 1, lineZ(j1 + 1) - 1];
+    const fillRect = ([x0, z0, x1, z1]: Rect, weights: Record<string, number>, density = 1, limit = Infinity) => b.fill(x0, z0, x1 + 1, z1 + 1, weights, density, limit);
 
     // Bridges to the islets. The south islet is Bloomtopia, the amusement park: fenced, its gate facing the
-    // bridge from downtown (its forecourt is drawn last, so the utility sweeps leave the gate alone).
+    // bridge from downtown's bay street (its forecourt is drawn last, so the utility sweeps leave the gate alone).
     const park = bloomtopia(b, ...P(0.493, 0.862));
-    if (park) b.road(park[0] + 18, P(0.5, 0.66)[1], park[0] + 18, park[1] - 1, true);
-    b.road(...P(0.24, 0.62), ...P(0.1, 0.66), true); // west: industrial islet
-    b.road(...P(0.78, 0.4), ...P(0.84, 0.2), true); // north-east: rustic islet
+    if (park) b.road(park[0] + 18, lineZ(6), park[0] + 18, park[1] - 1, true);
 
     // The hero district: one street grid of GRID-tile blocks centred on the Wellspring Spire, which fills
     // block (0, 0) at the island's exact centre where the river rises. Heroes are placed now (so the utility
     // sweeps count them) but the grid's streets are drawn last, so the sweeps never fill its lots.
     const spire = heroDistrict(b, sx, sz);
 
-    // The Supertree Grove (8×8) needs open land the district grids would cut up: reserve it first,
-    // on the ring road just west of downtown.
-    b.fill(0.36 * S, 0.6 * S, 0.47 * S, 0.72 * S, { 'supertree-grove': 1 }, 1, 1);
+    // The towns continue the hero district's grid on every side, so the island reads as one planned city: blocks
+    // are lined with buildings round a green courtyard, densest by the centre and the bay, thinning toward the
+    // coast, with a park block here and there. The corners between them stay countryside.
+    const all = [...TOWNS, ...UTILITY];
+    for (const t of all) {
+      const [i0, j0, i1, j1] = t.blocks;
+      for (let i = i0; i <= i1 + 1; i++) b.road(lineX(i), lineZ(j0), lineX(i), lineZ(j1 + 1), t.bridges?.x?.includes(i));
+      for (let j = j0; j <= j1 + 1; j++) b.road(lineX(i0), lineZ(j), lineX(i1 + 1), lineZ(j), t.bridges?.z?.includes(j));
+      // Service lanes inside the solar farm's blocks: rows of panels.
+      if (t.lanes)
+        for (let k = lineX(i0) + t.lanes; k < lineX(i1 + 1); k += t.lanes) {
+          if ((k - lineX(0)) % GRID) b.road(k, lineZ(j0), k, lineZ(j1 + 1));
+        }
+    }
+    // Waterfront streets: the outer streets run on until the shore.
+    const toShore = (x: number, z: number, dx: number, dz: number) => {
+      let n = 0;
+      while (n < 90 && b.isLand(x + dx * (n + 1), z + dz * (n + 1))) n++;
+      if (n > 0) b.road(x, z, x + dx * n, z + dz * n);
+    };
+    for (const t of TOWNS) {
+      const [i0, j0, i1, j1] = t.blocks;
+      for (const side of t.shore ?? '') {
+        if (side === 'n' || side === 's') for (let i = i0; i <= i1 + 1; i++) toShore(lineX(i), lineZ(side === 'n' ? j0 : j1 + 1), 0, side === 'n' ? -1 : 1);
+        else for (let j = j0; j <= j1 + 1; j++) toShore(lineX(side === 'w' ? i0 : i1 + 1), lineZ(j), side === 'w' ? -1 : 1, 0);
+      }
+    }
+    // Islet bridges leave from the towns' corners: west to the industrial islet, north-east to the rustic one.
+    b.road(lineX(-10), lineZ(4), ...P(0.1, 0.66), true);
+    b.road(lineX(10), lineZ(-3), ...P(0.84, 0.2), true);
 
-    const homes = { 'garden-residence': 4, 'canopy-tower': 1, 'pocket-park': 2, 'greenhouse-hub': 3 };
-    district(b, 0.44, 0.6, 0.66, 0.74, 5, { 'canopy-tower': 5, 'greenhouse-hub': 4, 'garden-residence': 2, 'pocket-park': 2, 'vertical-farm': 1 });
-    district(b, 0.68, 0.42, 0.88, 0.62, 6, homes);
-    district(b, 0.14, 0.5, 0.34, 0.68, 6, homes);
-    district(b, 0.4, 0.16, 0.6, 0.28, 6, homes, 0.8);
+    // Landmarks first, while their land is open: the Supertree Grove in downtown's west, the Lotus Arts Pavilion
+    // on the bay, Pod Docks, the Drone Hive downtown and an Eco-Playground in Westbrook.
+    const [down, west] = [TOWNS[0]!, TOWNS[2]!];
+    fillRect(tiles([-3, 4, -2, 5]), { 'supertree-grove': 1 }, 1, 1);
+    b.fill(0.46 * S, 0.66 * S, 0.66 * S, 0.8 * S, { 'lotus-pavilion': 1 }, 1, 1);
+    // A Pod Dock on every block: a home's road commuters travel in one stream to the
+    // nearest workplace, and next to the hero district those streams jam its streets, so most fly instead.
+    for (const t of TOWNS) {
+      const [i0, j0, i1, j1] = t.blocks;
+      for (let j = j0; j <= j1; j++)
+        for (let i = i0; i <= i1; i++) fillRect(tiles([i, j, i, j]), { 'pod-dock': 1 }, 1, 1);
+    }
+    fillRect(tiles(down.blocks), { 'flora-hive': 1 }, 1, 1);
+    fillRect(tiles(west.blocks), { 'eco-playground': 1 }, 1, 1);
+    for (const t of TOWNS) {
+      const [i0, j0, i1, j1] = t.blocks;
+      for (let j = j0; j <= j1; j++)
+        for (let i = i0; i <= i1; i++) {
+          const ring = Math.max(Math.abs(i), Math.abs(j));
+          const parkBlock = ((((i + 31) * 73856093) ^ ((j + 31) * 19349663)) >>> 0) % 100 < t.parks;
+          const [weights, density] = parkBlock ? [{ 'pocket-park': 3, 'garden-residence': 1 }, 0.35] : t.mix(ring);
+          fillRect(tiles([i, j, i, j]), weights, density);
+        }
+    }
     // Industrial islet: power and work.
     district(b, 0.05, 0.6, 0.15, 0.72, 4, { bioreactor: 3, 'solar-spire': 2, 'greenhouse-hub': 1 }, 0.7);
+    const islet = fit(S, 0.05, 0.6, 0.15, 0.72).map((v) => Math.round(v * S)) as Rect;
 
-    // Balance: jobs for most of the labour force, power with a thin margin; water and food left short.
-    const areas: [number, number, number, number][] = (
-      [
-        [0.68, 0.42, 0.88, 0.62],
-        [0.14, 0.5, 0.34, 0.68],
-        [0.4, 0.16, 0.6, 0.28],
-        [0.44, 0.6, 0.66, 0.74],
-      ] as const
-    ).map(([a, b2, c, d]) => fit(S, a, b2, c, d));
-    const island: [number, number, number, number][] = [[0.03, 0.1, 0.97, 0.92]];
+    // Balance: jobs for most of the labour force, power with a thin margin; water and food left short. Utilities go
+    // to their own places: solar panels to the Sunfield, water works to any town or utility shore.
+    const towns = TOWNS.map((t) => tiles(t.blocks));
+    const sun = tiles(UTILITY[0]!.blocks);
     /** Adds one building per area per sweep until `ok()` or nothing more fits. */
-    const sweep = (id: string, ok: () => boolean, where = areas) => {
+    const sweep = (id: string, ok: () => boolean, where: Rect[]) => {
       while (!ok()) {
         let placed = 0;
-        for (const [x0, z0, x1, z1] of where) {
+        for (const r of where) {
           if (ok()) break;
-          placed += b.fill(x0 * S, z0 * S, x1 * S, z1 * S, { [id]: 1 }, 1, 1);
+          placed += fillRect(r, { [id]: 1 }, 1, 1);
         }
         if (!placed) break;
       }
     };
-    // Two Pod Docks (downtown and the eastern town) so sky-lanes fly from day one.
-    for (const [x0, z0, x1, z1] of [areas[3]!, areas[0]!]) b.fill(x0 * S, z0 * S, x1 * S, z1 * S, { 'pod-dock': 1 }, 1, 1);
-    // Landmark: the Lotus Arts Pavilion on the bay (the Supertree Grove is placed before the districts).
-    b.fill(0.46 * S, 0.66 * S, 0.66 * S, 0.8 * S, { 'lotus-pavilion': 1 }, 1, 1);
-    // A Flora-Net Drone Hive downtown and an Eco-Playground in the western town.
-    b.fill(areas[3]![0] * S, areas[3]![1] * S, areas[3]![2] * S, areas[3]![3] * S, { 'flora-hive': 1 }, 1, 1);
-    b.fill(areas[1]![0] * S, areas[1]![1] * S, areas[1]![2] * S, areas[1]![3] * S, { 'eco-playground': 1 }, 1, 1);
     const t = () => b.totals();
-    sweep('greenhouse-hub', () => t().jobs > t().population * 0.65 * 0.85);
-    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06);
-    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06, island);
-    sweep('water-works', () => t().waterProduced > t().waterUsed, island);
-    sweep('vertical-farm', () => t().food > t().population * 0.55);
+    sweep('greenhouse-hub', () => t().jobs > t().population * 0.65 * 0.85, towns);
+    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06, [sun, islet]);
+    sweep('water-works', () => t().waterProduced > t().waterUsed * 0.88, [[0, 0, S - 1, S - 1]]);
+    sweep('vertical-farm', () => t().food > t().population * 0.55, towns);
 
     if (park) b.road(park[0] + 8, park[1] - 1, park[0] + 28, park[1] - 1, true);
 
-    // Streets of the hero district (gaps where they meet the lake or river, bridges on two avenues), then
-    // straight avenues out to the towns so the island reads as one city.
+    // Streets of the hero district (gaps where they meet the lake or river; two avenues bridge the river).
     if (spire) {
       const [x0, x1, z0, z1] = [lineX(-GRID_W), lineX(GRID_W + 1), lineZ(-GRID_N), lineZ(GRID_S + 1)];
       for (let i = -GRID_W; i <= GRID_W + 1; i++) b.road(lineX(i), z0, lineX(i), z1);
-      for (let j = -GRID_N; j <= GRID_S + 1; j++) b.road(x0, lineZ(j), x1, lineZ(j), j === 2);
-      // North: two avenues from the plaza up to the northern town's bottom row, bridging the lake.
-      const [, nz0, , nz1] = fit(S, 0.4, 0.16, 0.6, 0.28).map((v) => Math.round(v * S)) as [number, number, number, number];
-      const nb = nz0 + 6 * Math.floor((nz1 - nz0) / 6);
-      for (const i of [-1, 2]) b.road(lineX(i), lineZ(0), lineX(i), nb, true);
-      // East: two boulevards, one along the plaza's south street, to the eastern town's first column.
-      const [ex0] = fit(S, 0.68, 0.42, 0.88, 0.62).map((v) => Math.round(v * S)) as [number];
-      for (const j of [-1, 1]) b.road(x1, lineZ(j), ex0, lineZ(j), true);
-      // West: two avenues to the western town's last column, the northern one jogging down to its top row.
-      const [wx0, wz0, wx1] = fit(S, 0.14, 0.5, 0.34, 0.68).map((v) => Math.round(v * S)) as [number, number, number];
-      const wx = wx0 + 6 * Math.floor((wx1 - wx0) / 6);
-      b.road(x0, lineZ(1), wx, lineZ(1), true);
-      b.road(wx, lineZ(1), wx, wz0, true);
-      b.road(x0, lineZ(3), wx, lineZ(3), true);
-      // South: the grid's east columns run on down to downtown's top row.
-      const [, dz0] = fit(S, 0.44, 0.6, 0.66, 0.74).map((v) => Math.round(v * S)) as [number, number];
-      for (let i = 2; i <= GRID_W + 1; i++) b.road(lineX(i), z1, lineX(i), dz0);
+      for (let j = -GRID_N; j <= GRID_S + 1; j++) b.road(x0, lineZ(j), x1, lineZ(j), j === 2 || j === GRID_S + 1);
     }
   },
 });

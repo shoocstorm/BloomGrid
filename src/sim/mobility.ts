@@ -39,23 +39,38 @@ export function mobilityLayers(city: City): MobilityLayers {
   };
 }
 
-/** First highway tile on the footprint's perimeter (row-major, deterministic), or -1. */
-export function accessTile(city: City, eid: number): number {
+/**
+ * A building's entrances: on each side of its footprint that touches a highway, the highway tile nearest that
+ * side's middle (sides N, E, S, W; ties to the lower index). Big buildings on a block corner get two or more, so
+ * their arrivals split between streets instead of queueing along one. Written into `out`; returns the count.
+ */
+export function accessTiles(city: City, eid: number, out: number[]): number {
   const g = city.grid;
   const x0 = Building.x[eid]!;
   const z0 = Building.z[eid]!;
   const w = Building.w[eid]!;
   const d = Building.d[eid]!;
-  for (let z = z0 - 1; z <= z0 + d; z++)
-    for (let x = x0 - 1; x <= x0 + w; x++) {
-      const edge = z === z0 - 1 || z === z0 + d || x === x0 - 1 || x === x0 + w;
-      const corner = (z === z0 - 1 || z === z0 + d) && (x === x0 - 1 || x === x0 + w);
-      if (!edge || corner || !g.inBounds(x, z)) continue;
-      const i = g.index(x, z);
-      if (g.road[i]) return i;
+  out.length = 0;
+  const side = (fixed: number, from: number, len: number, alongX: boolean) => {
+    const mid = from + (len - 1) / 2;
+    let best = -1;
+    let bestD = Infinity;
+    for (let k = from; k < from + len; k++) {
+      const [x, z] = alongX ? [k, fixed] : [fixed, k];
+      if (!g.inBounds(x, z) || !g.road[g.index(x, z)]) continue;
+      const dd = Math.abs(k - mid);
+      if (dd < bestD) [best, bestD] = [g.index(x, z), dd];
     }
-  return -1;
+    if (best >= 0) out.push(best);
+  };
+  side(z0 - 1, x0, w, true);
+  side(x0 + w, z0, d, false);
+  side(z0 + d, x0, w, true);
+  side(x0 - 1, z0, d, false);
+  return out.length;
 }
+
+const entrances: number[] = [];
 
 let load = new Float32Array(0);
 let arrive = new Float32Array(0);
@@ -113,10 +128,11 @@ export function computeMobility(city: City): void {
       docks.push({ eid, cap, left: cap, x: Building.x[eid]! + Building.w[eid]! / 2, z: Building.z[eid]! + Building.d[eid]! / 2 });
     }
     if (st.jobs <= 0 || st.population > 0 || Service.occupancy[eid]! <= 0.05) continue;
-    const at = accessTile(city, eid);
-    if (at < 0) continue;
-    if (jobsLeft[at] === 0) hubTiles.push(at);
-    jobsLeft[at] += st.jobs;
+    const k = accessTiles(city, eid, entrances);
+    for (const at of entrances) {
+      if (jobsLeft[at] === 0) hubTiles.push(at);
+      jobsLeft[at] += st.jobs / k;
+    }
   }
 
   // Commuters per home; pods first (within reach of a dock), the rest by highway.
@@ -140,10 +156,12 @@ export function computeMobility(city: City): void {
       c -= take;
       podRiders += take;
     }
-    const at = accessTile(city, eid);
-    if (at < 0 || c <= 0) continue;
-    starts.push(at);
-    left.push(c);
+    const k = accessTiles(city, eid, entrances);
+    if (!k || c <= 0) continue;
+    for (const at of entrances) {
+      starts.push(at);
+      left.push(c / k);
+    }
   }
 
   // Assignment rounds. Trips are recorded as (offset, length, count) into `paths` for timing.

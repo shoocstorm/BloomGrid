@@ -36,8 +36,9 @@ harvests, and every rooftop is a garden.</td>
 <td><img src="docs/images/island.jpg" alt="The whole island from above, with districts, lakes, a river and bridged islets"></td>
 </tr>
 <tr>
-<td><b>Landmarks worth visiting.</b> The Wellspring Spire rises at the island's heart where the river is born, at the
-centre of a planned street grid: a civic ring (wind helix, hanging-gardens ziggurat, sky-ark, cloud-forest domes, a
+<td><b>Landmarks worth visiting.</b> The whole island is one planned city: Bayfront down the river to the bay,
+Eastgate, Westbrook and Hillcrest of green-courtyard blocks, and the Sunfield solar farm. The Wellspring Spire rises at
+its heart where the river is born, at the centre of the hero district: a civic ring (wind helix, hanging-gardens ziggurat, sky-ark, cloud-forest domes, a
 crystal data spire, a nautilus library and the Harmony Gate), a skyline hill of towers, a skyport, a glass pine and an
 observation wheel, an exchange of airship port, labs, observatory and amphitheatre toward downtown, a garden quarter of
 a banyan treehouse hotel, a bamboo cathedral and a moonflower concert hall, and working hills by the lake with rice
