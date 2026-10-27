@@ -19,10 +19,16 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "optimize-glb": "node scripts/optimize-glb.mjs",
-    "release": "bun scripts/release.mjs"
+    "release": "bun scripts/release.mjs",
+    "postinstall": "bun scripts/copy-wllama.mjs",
+    "tauri:build:mac-arm64": "tauri build --config src-tauri/tauri.mlx.conf.json",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml --lib",
+    "ai-probe": "node scripts/ai-probe.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",
+    "@wllama/wllama": "3.6.1",
+    "@wllama/wllama-compat": "3.6.1",
     "bitecs": "0.4.0",
     "three": "0.186.1",
     "tweakpane": "4.0.5"

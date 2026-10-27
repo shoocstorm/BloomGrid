@@ -139,7 +139,8 @@ button {
   min-width: 0;
   overflow: hidden;
   display: flex;
-  justify-content: center;
+  /* safe: when the row is too wide it clips at the end, never the treasury at the start. */
+  justify-content: safe center;
   gap: 4px;
   padding: 6px 8px;
 }
@@ -540,4 +541,7 @@ button {
 }
 .info-id-btn:hover {
   background: var(--bg-hover);
+}
+.info-ask {
+  margin-left: auto;
 }

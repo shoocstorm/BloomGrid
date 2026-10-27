@@ -49,8 +49,9 @@ interface SearchArgs {
 export const inventoryTools: AgentTool<SimCtx, never>[] = [
   {
     name: 'city_overview',
+    option: 'Headline state of the city (treasury, residents, system health, crises)',
     description:
-      'Headline state of the city: day and time, treasury and net income, residents, harmony, system health tiers (Thriving…Collapse), supply ratios, active crises and how many inventory objects are ok / warning / critical. Call this first to orient.',
+      'Headline state of the city: day and time, treasury and net income, residents, harmony, system health tiers (Thriving…Collapse), supply ratios, active crises, how many objects are ok / warning / critical, and the worst few objects with their issues. Call this first to orient.',
     input: { type: 'object', properties: {} },
     effect: 'read',
     run({ city }) {
@@ -84,11 +85,20 @@ export const inventoryTools: AgentTool<SimCtx, never>[] = [
           z: c.z,
         })),
         inventory: summarize(objects).status,
+        // The worst objects, so "what's wrong?" needs no second call.
+        worst: filterObjects(objects, { status: ['critical', 'warning'], kind: ['building', 'network', 'district'], sort: 'status', limit: 6 }).items.map((o) => ({
+          id: o.id,
+          name: o.name,
+          district: o.district,
+          status: o.status,
+          issues: o.issues,
+        })),
       };
     },
   },
   {
     name: 'inventory_catalog',
+    option: 'List the vocabulary: object kinds, issue codes, districts, building types',
     description:
       'Vocabulary for the other inventory tools: object kinds with their id prefixes, issue codes (with severity and what fixes them), statuses, district names and building types. Call once before searching by filters.',
     input: { type: 'object', properties: {} },
@@ -110,6 +120,7 @@ export const inventoryTools: AgentTool<SimCtx, never>[] = [
   },
   {
     name: 'inventory_summary',
+    option: 'Count every object by kind, issue, district and type',
     description:
       'Comprehensive inventory counts: totals by status, kind, group (building category…), type, issue and district, each with warning / critical counts, plus summed metrics such as building.residents and network.tiles. Optionally limited to one kind.',
     input: {
@@ -125,6 +136,8 @@ export const inventoryTools: AgentTool<SimCtx, never>[] = [
   },
   {
     name: 'inventory_search',
+    llmArgs: ['text', 'kind', 'district', 'status', 'issue', 'sort', 'limit'],
+    option: 'Find city objects by name, type, district, status or issue',
     description:
       'Finds city objects (buildings, highway networks, bridges, sky-bridges, channels, districts, landmarks…) by free text and filters; returns a page of records with id, name, type, district, centre (x, z in tiles), status, issue codes and metrics. Use the ids with inventory_inspect. Example: {"kind":"building","status":"critical","sort":"residents","limit":10}.',
     input: {
@@ -187,11 +200,18 @@ export const inventoryTools: AgentTool<SimCtx, never>[] = [
         offset: a.offset,
       };
       const page = filterObjects(listObjects(city, q.kind), q);
-      return { total: page.total, offset: page.offset, items: page.items.map(compact) };
+      const filters = Object.entries(a).filter(([k, v]) => v !== undefined && !['limit', 'offset', 'sort', 'desc'].includes(k)).length;
+      return {
+        total: page.total,
+        offset: page.offset,
+        items: page.items.map(compact),
+        ...(page.total === 0 && filters > 1 && { hint: 'Nothing matches all of these filters together: search again with fewer (often just kind and status).' }),
+      };
     },
   },
   {
     name: 'inventory_inspect',
+    option: 'Full detail of one object by id (issues and how to fix them)',
     description:
       'Full detail for one object by id (e.g. "LIV-0042", "HWY-118.204", "DST-WESTBROOK"): its record, what each issue means and how to fix it, and kind-specific detail (description, stats, network, symbiosis…).',
     input: {

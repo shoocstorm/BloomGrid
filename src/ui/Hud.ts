@@ -36,6 +36,8 @@ class Hud {
   private root: HTMLElement;
   /** Right-hand panel column (info, advisor, help…), stacked without overlap. */
   right!: HTMLElement;
+  /** Top-bar action buttons; modules may append their own (the assistant's launcher). */
+  actions!: HTMLElement;
   private statEls = new Map<string, { el: HTMLElement; v: HTMLElement }>();
   private timeEl!: HTMLElement;
   private speedBtns: HTMLButtonElement[] = [];
@@ -167,7 +169,7 @@ class Hud {
     const save = ctx.services.get('save');
     this.undoBtn = h('button', { class: 'icon-btn', title: 'Undo (⌘Z)', onClick: () => ctx.commands.undo() }, '↶');
     this.redoBtn = h('button', { class: 'icon-btn', title: 'Redo (⇧⌘Z)', onClick: () => ctx.commands.redo() }, '↷');
-    const actions = h(
+    const actions = (this.actions = h(
       'div',
       { class: 'actions panel' },
       this.undoBtn,
@@ -176,7 +178,7 @@ class Hud {
       h('button', { class: 'icon-btn', title: 'Overview (O) · bookmarks: Alt+1–4 store, Shift+1–4 recall', onClick: () => ctx.cameraCtl.overview() }, '⌖'),
       h('button', { class: 'icon-btn', title: 'Save (⌘S)', onClick: () => void save.save() }, 'Save'),
       h('button', { class: 'icon-btn', title: 'Load (⌘L)', onClick: () => void save.load().then((ok) => ok || this.toast('No save yet', 'bad')) }, 'Load'),
-    );
+    ));
     this.root.append(
       h(
         'div',
@@ -315,7 +317,16 @@ class Hud {
       { class: 'info-id' },
       id ? h('button', { class: 'info-id-btn', title: 'Show in the inventory (I)', onClick: () => this.ctx.services.get('dashboard').openInventory(id) }, id) : null,
       h('span', {}, district ?? 'Outskirts'),
+      id && this.ctx.services.tryGet('assistant')
+        ? h('button', { class: 'info-id-btn info-ask', title: 'Ask the city assistant about it (U)', onClick: () => this.askAbout(id) }, '✿ Ask')
+        : null,
     );
+  }
+
+  private askAbout(id: string): void {
+    const assistant = this.ctx.services.get('assistant');
+    assistant.toggle(true);
+    void assistant.ask(`Tell me about ${id}: how is it doing, and what should I do about any problems?`);
   }
 
   /** Highway network ("district") inspector. */
@@ -444,6 +455,8 @@ class Hud {
 
 export interface HudService {
   right: HTMLElement;
+  /** Top-bar action buttons. */
+  actions: HTMLElement;
 }
 
 declare module '@/core/Services' {
@@ -457,7 +470,7 @@ export const hudModule: GameModule = {
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
-    ctx.services.provide('hud', { right: hud.right });
+    ctx.services.provide('hud', { right: hud.right, actions: hud.actions });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

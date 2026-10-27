@@ -1,6 +1,11 @@
 //! BloomGrid desktop shell (Phase 12): hosts the web build in a native window and stores saves as
 //! JSON files in the app data directory, behind the same key-value API the web build gets from
-//! IndexedDB (see `src/platform/tauri.ts`).
+//! IndexedDB (see `src/platform/tauri.ts`). On Apple Silicon it also runs the city assistant's
+//! local LLM natively on MLX (`llm/`, `mlx.rs`, `models/`; ported from Andai).
+
+mod llm;
+mod mlx;
+mod models;
 
 use std::fs;
 use std::path::PathBuf;
@@ -66,7 +71,23 @@ fn export_file(app: AppHandle, name: String, data: String) -> Result<String, Str
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![save_get, save_set, save_delete, save_keys, export_file])
+        .manage(mlx::Mlx::default())
+        .manage(llm::Llm::default())
+        .invoke_handler(tauri::generate_handler![
+            save_get,
+            save_set,
+            save_delete,
+            save_keys,
+            export_file,
+            llm::llm_status,
+            llm::llm_write_chunk,
+            llm::llm_finish,
+            llm::llm_remove,
+            llm::llm_load,
+            llm::llm_unload,
+            llm::llm_generate,
+            llm::llm_cancel
+        ])
         .run(tauri::generate_context!())
         .expect("error while running BloomGrid");
 }

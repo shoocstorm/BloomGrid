@@ -13,7 +13,7 @@ export default tseslint.config(
   },
   {
     // The simulation must stay renderer-agnostic so it can move to a worker / Rust later.
-    files: ['src/sim/**', 'src/content/**', 'src/core/**', 'src/ecs/**'],
+    files: ['src/sim/**', 'src/content/**', 'src/core/**', 'src/ecs/**', 'src/ai/**'],
     rules: {
       'no-restricted-imports': ['error', { patterns: ['three', 'three/*', '@/render/*', '@/ui/*', '@/world/*'] }],
     },

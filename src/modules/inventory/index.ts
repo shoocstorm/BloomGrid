@@ -71,6 +71,7 @@ export const inventoryModule: GameModule = {
     for (const t of inventoryTools) agent.register(t);
     agent.register<{ id?: string; x?: number; z?: number; distance?: number }>({
       name: 'camera_focus',
+      option: 'Point the camera at an object or place',
       description:
         'Flies the player camera to an object id, or to tile coordinates x / z (optionally at a distance in tiles, 20 close … 400 whole island).',
       input: {
@@ -95,6 +96,7 @@ export const inventoryModule: GameModule = {
     });
     agent.register<{ id: string }>({
       name: 'object_select',
+      option: 'Show the steward an object (fly the camera there and open it)',
       description:
         'Selects an object for the player: flies the camera to it and opens it in the HUD inspector.',
       input: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },

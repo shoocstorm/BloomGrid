@@ -7,11 +7,11 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 |             |                                                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Branch      | `main`, remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10)                              |
-| Last change | City inventory and agent tools (D-042): readable ids for every object, named districts, dashboard Inventory tab (I), LLM-ready tool registry |
-| Phases done | **All roadmap phases 0–13** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
+| Branch      | `feat/city-ai` (inventory + assistant; merge to `main` when the user asks), remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10)                              |
+| Last change | Flora, the local-LLM city assistant (D-043): wllama + native MLX engines ported from Andai, agent loop, action tools, assistant panel (U) |
+| Phases done | **All roadmap phases 0–14** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
-| Tests       | 79 passing (`bun run test`); `bun run check` clean                                                                                                              |
+| Tests       | 93 passing (`bun run test`), 31 Rust (`bun run test:rust`); `bun run check` clean                                                                                                              |
 | Save format | v7 (building serials + named districts; migrations from v1–v6 in `src/sim/save.ts`)                                                                           |
 | Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈2 000 buildings on one grid, ≈25k residents, water Strained (≈95%) |
 
@@ -61,7 +61,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 ### Deferred work (pick next with the user)
 
-- In-game LLM steward on the agent tools (Phase 13 deferred): a host loop over `agent.specs()` / `agent.call()`, plus `mutate` tools over commands with player confirmation.
+- Assistant follow-ups (Phase 14 deferred): Laya decisions, multi-action plans, proactive advice; measure with `bun run ai-probe`.
 - Phase 8 leftovers: canopy greenways, hyperloop, ferries, player-drawn sky-lanes.
 - KTX2 textures (install `toktx`, wire `KTX2Loader` + basis transcoder), Windows/Linux packaging and code signing.
 - Individual citizens (follow-cam targets), depth of field in photo mode, more Rodin hero assets (ask before generating:

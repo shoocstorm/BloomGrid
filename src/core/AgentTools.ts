@@ -24,7 +24,14 @@ export interface AgentTool<Ctx, A = Record<string, unknown>> {
   /** Lower snake case, `[a-z0-9_]{1,64}` (valid for every major LLM API). */
   name: string;
   description: string;
+  /** One short line for a menu of choices (small models pick a tool from these); defaults to the description's first sentence. */
+  option?: string;
   input: JsonSchema & { type: 'object' };
+  /**
+   * The arguments a model is asked to write (the rest stay for scripts and slash commands). Small models fill
+   * every optional field they are shown, often with junk, so a tool with many options offers the few that matter.
+   */
+  llmArgs?: readonly string[];
   effect: ToolEffect;
   run(ctx: Ctx, args: A): unknown;
 }

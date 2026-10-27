@@ -15,6 +15,7 @@
 | Player role  | Builder / terraformer          | **City steward: builder _and_ manager.** Monitor the whole 3D city, diagnose problems, act, and keep the city functioning |
 | Failure      | None                           | The city **can decline or spiral out of control**: cascading failures, crises, recovery, and an optional fail state       |
 | Presentation | —                              | Futuristic, cinematic loading experience; city-health readability everywhere                                              |
+| Assistant (2026-10-27) | — | **Flora, a local-LLM city assistant** works beside the steward: answers about the city, watches it, and carries out requested actions (build, demolish, connect, tax…) only with the steward's approval, every action undoable. Runs on the player's machine (wllama in the browser, MLX on Apple Silicon desktop); nothing leaves it. |
 
 ---
 

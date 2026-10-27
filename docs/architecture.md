@@ -25,6 +25,12 @@ main.ts ── createGame()  core runtime: renderer, sim, input, tools, save, sy
 `select`), the dashboard's Inventory tab is its UI, and `core/AgentTools.ts` exposes the same queries as named,
 schema-checked tools (service `agent`: `specs()` for an LLM request, `call(name, args)` to run one).
 
+**City assistant (D-043).** `src/ai/` is a pure layer (no three, render or ui imports): `llm/engine.ts` (one
+`generate` API over wllama in the page or MLX in Rust via `llm/native.ts`), `agent.ts` (the turn loop over any
+`ToolHost`, engine-agnostic, so tests script the model), `grammar.ts`, `brief.ts`. `modules/assistant` hosts
+it: registers the action tools (`sim/actionTools.ts`), owns the engine, the panel, approvals and the monitor.
+Desktop: `src-tauri/src/{llm,models}/`, `mlx.rs` (`llm_*` commands; Apple Silicon only, `cfg(mlx)`).
+
 ## Simulation model (City Pulse)
 
 | Piece             | Where                                                        | Notes                                                                                                                          |
@@ -95,3 +101,4 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Dashboard chart          | `new LineChart({ format, step })` from `modules/dashboard/LineChart.ts` (one series per chart)                    |
 | Inventory object kind    | `registerInventoryKind({ kind, label, icon, prefixes, description, list, get?, details? })` in `sim/inventory.ts` (or a module); issue codes via `registerIssue` |
 | Agent tool (LLM / script)| `ctx.services.get('agent').register({ name, description, input, effect, run })` (`core/AgentTools.ts`); pure-sim tools go in `sim/*Tools.ts` |
+| Agent tool the assistant offers | register with `effect: 'mutate'` for anything that changes the city (asked first, must run a command); `option` (one menu line) and `llmArgs` (the few arguments a model writes) |

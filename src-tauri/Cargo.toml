@@ -16,6 +16,32 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Verifies downloaded model checkpoints (models/store.rs).
+sha2 = "0.10"
+# The native engine's grammar constraint (llm/grammar.rs): a lazy DFA, pure Rust.
+regex-automata = { version = "0.4", default-features = false, features = ["std", "syntax", "hybrid"] }
+
+# The city assistant's native LLM runs on MLX, which exists only for Apple Silicon (ported from
+# Andai; same pins). mlx-rs wraps a specific MLX release (0.32).
+[target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
+mlx-rs = "=0.32.0"
+# The C API under mlx-rs: Qwen3.5's recurrence runs a custom Metal kernel (llm/delta.rs).
+mlx-sys = "=0.6.0"
+# No `http` feature: the Rust side has no HTTP client.
+tokenizers = { version = "=0.23.2", default-features = false, features = ["onig"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+# mlx-sys builds MLX's C++ as CMake "Debug" under debug assertions (Andai measured ~4x slower in
+# `tauri dev`): build MLX and the model path optimized even in dev builds.
+[profile.dev.package.mlx-sys]
+opt-level = 3
+debug-assertions = false
+[profile.dev.package.mlx-rs]
+opt-level = 3
+[profile.dev.package.tokenizers]
+opt-level = 3
 
 [profile.release]
 codegen-units = 1

@@ -192,6 +192,16 @@ The city is a system that can run well or badly.
 - **Accept:** ✅ `tests/inventory.test.ts` (unique ids in the founding city, id stability through undo/redo and save/load, v6 → v7 migration, queries, summary, tools). Visual: `bun run snap -- --eval @scripts/scenes/inventory.js` on WebGPU and `?renderer=webgl`.
 - **Measured:** snapshot of ≈2 250 objects ≈9.5 ms (every 2 s, only while the Inventory tab is open), filter ≈0.5 ms per keystroke; nothing per frame when closed; main thread unchanged (20–21% active on this machine, same as HEAD).
 
+## ✅ Phase 14 — Flora, the local-LLM city assistant (2026-10-27)
+
+- [x] Local LLM engine ported from Andai (D-043): wllama (GGUF in OPFS, pinned commit + sha256 verified, WebGPU, multi-threaded under COOP/COEP) in the browser; native MLX in Rust on Apple Silicon desktop (`src-tauri/src/llm/`, `mlx.rs`, verified checkpoint store `models/`), same `generate` API
+- [x] Agent loop (`src/ai/agent.ts`): letter-choice decision → grammar-held JSON arguments (ids, types and districts narrowed to real values; request-named values pinned) → `checkArgs` → approval for `mutate` → run → observe; plain commands routed without a decision; questions never act; one action per turn
+- [x] Action tools (`src/sim/actionTools.ts`): `build` (finds a valid lot), `demolish`, `connect_highway` (to the main grid), `fix_issue` (standard remedy per issue), `bloom_retrofit`, `set_tax`, `take_loan`, `undo`, `find_sites`; all through undoable commands
+- [x] Assistant panel (**U**, ✿ in the top bar): model download / load / delete with progress, chat with tool chips, approval cards, clickable object ids, quick prompts, "act without asking" toggle, slash commands (`/help`) that work without a model; city monitor notices (tier drops, crises, fail clock); ✿ Ask on the inspector
+- [ ] Deferred: Laya decision model (Andai's 10 ms typed decisions), multi-action plans with one approval, proactive advice (the model reviewing the city on its own), Windows/Linux GPU builds
+- **Accept:** ✅ `tests/assistant.test.ts` (action tools on the founding city, grammars, scripted agent loop: lookup → approved action → answer, decline, retry, routing, question guard); Rust `cargo test --lib` (31: store, grammar incl. every BloomGrid tool grammar, template) and `--ignored llm_qwen3_` (token parity with mlx-lm). Real models: `bun run ai-probe` (Qwen3 0.6B / 1.7B in headless Chrome) and the desktop app (Qwen3 1.7B MLX).
+- **Measured:** browser (WebGPU, M-series): Qwen3 1.7B 35–60 tok/s, a turn 2.5–9 s; desktop MLX: 1.7B loads in 0.4 s, 310–345 tok/s, a turn 0.6–1.5 s. Boot unchanged (assistant init 0 ms; wllama is a lazy 314 KB chunk loaded on first open).
+
 ---
 
 ## Tech debt / open issues

@@ -385,3 +385,28 @@ input, an `effect` of `read` / `view` / `mutate` so a host can gate state change
 returns `{ ok, result | error }` instead of throwing, which is what a model needs to read back. Read tools are pure
 sim (`sim/inventoryTools.ts`), so tests and headless agents run them without a renderer.
 
+## D-043 — The city assistant runs a local LLM, ported from Andai (2026-10-27)
+
+**Engines.** Ported Andai's two-engine design rather than calling a cloud API: the game is local-first and
+the steward's city never leaves the machine. Browser: wllama 3.6.1 (`@wllama/wllama` + `-compat`, pinned and
+kept on the same version), GGUF models from a pinned Hugging Face commit, cached in OPFS and sha256-verified
+before every first load (`ai/llm/integrity.ts`). Multi-threading needs cross-origin isolation, so Vite and
+Firebase Hosting now send COOP `same-origin` / COEP `require-corp` (the Google Fonts stylesheet loads with
+`crossorigin`). Desktop on Apple Silicon: Andai's Rust Qwen3 port on mlx-rs 0.32 (`llm/`, one MLX thread in
+`mlx.rs`), a closed catalog with every file's size and sha256, downloads streamed by the webview in 8 MiB
+chunks and kept only when all hashes match (`models/store.rs`); no HTTP client in Rust. Andai's custom models
+and Laya were left out. Release bundles need `mlx.metallib` (`bun run tauri:build:mac-arm64`, overlay
+`tauri.mlx.conf.json`).
+**Agent.** Small local models can't write free-form tool calls, so (as in Andai) the model picks a letter
+(GBNF choice) and writes only arguments, held to a grammar of the tool's schema. Measured with
+`bun run ai-probe` on the founding city, each of these fixed a failure seen with Qwen3 0.6B/1.7B:
+redundant first options removed (they picked option A); the worst objects and their ids put in the brief;
+`id` arguments narrowed to ids the turn has seen and `near` only to ids it named (otherwise it built "near"
+an id from the brief instead of in the requested district); district and building type pinned when the
+request names them; a short model-facing argument list per tool (`llmArgs`; they filled every optional
+field with junk); plain commands routed straight to their tool (`plainIntent`) and questions never offered
+actions; one successful action ends the turn (they kept "fixing" what they had just built); a `fix_issue`
+macro (they replied with promises instead of choosing the right primitive). Every `mutate` tool asks first
+unless the steward allows it; all actions are ordinary undoable commands.
+**Cost.** Nothing runs per frame; the panel renders on events; wllama and the model listing load on first open.
+

@@ -32,6 +32,9 @@ bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--profile 15]   # 
 bun run optimize-glb -- raw.glb public/assets/x.glb --footprint 3 --height 4 [--ratio 0.5] [--yaw 90] [--tex 1024]
 bun run tauri:dev      # desktop shell (Tauri v2) against the dev server; tauri:build packages it (needs Rust)
 bun run release [patch|minor|major|X.Y.Z] [--dry-run] [--yes]   # tag + deploy to Firebase (see §10; ask first)
+bun run ai-probe -- [--model qwen3-1.7b] [--ask "…"]… [--auto]   # drive the city assistant with a real model in headless Chrome
+bun run test:rust      # Rust unit tests (store, grammars, template); add `-- --ignored llm_qwen3_` for MLX parity (needs the HF cache)
+bun run tauri:build:mac-arm64   # Apple Silicon desktop bundle with mlx.metallib (the assistant's native engine)
 ```
 
 The package manager is **bun** (`bun.lock`; no `package-lock.json`). Use `bun install` / `bun add [-d]` / `bunx`, never
@@ -112,6 +115,7 @@ Lotus Atoll ≈ 230/31, Abyssal Dome ≈ 440/471, Verdant Pillars ≈ 31/123, wh
 | Explore modes, photo mode          | `src/modules/explore/` (collider in `collider.ts`); `ctx.tools.suspended` and `cameraCtl.enabled` gate input                                                               |
 | Object inventory, readable ids     | `registerInventoryKind` in `src/sim/inventory.ts` (buildings, networks, bridges, sky-bridges, channels, districts built in); UI in `src/modules/dashboard/InventoryView.ts`; districts via `nameArea` in a scenario |
 | Agent (LLM) tools                  | `ctx.services.get('agent').register({ name, description, input, effect, run })` (`src/core/AgentTools.ts`); pure-sim read tools in `src/sim/inventoryTools.ts`; try them in the console: `await bloomgrid.services.get('agent').call('inventory_search', { status: 'critical' })` |
+| City assistant (local LLM agent)   | engine `src/ai/llm/` (wllama + native MLX), loop `src/ai/agent.ts`, action tools `src/sim/actionTools.ts`, panel `src/modules/assistant/`; Rust `src-tauri/src/{llm,models}/`, `mlx.rs`. Measure agent changes with `bun run ai-probe`, not by argument |
 | Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                                                                                             |
 | New lit material                   | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)                                                                             |
 
@@ -194,6 +198,15 @@ own `requestAnimationFrame` loops.
   must give each object an id unique among live objects (`tests/inventory.test.ts` checks the founding city).
 - Agent tools return plain JSON (no entity ids, typed arrays or DOM): strip HUD handles (`ref`) as `inventoryTools.ts` does.
   Tools that change the city must run commands and declare `effect: 'mutate'`.
+- The assistant's tools: a tool that changes the city must be `effect: 'mutate'` and run an undoable command.
+  Tool grammars are mirrored in `src-tauri/tests/fixtures/llm/bloomgrid-grammars.json` (the Rust engine compiles
+  each); after changing a tool's input run `UPDATE_GRAMMARS=1 bun run test`, then `bun run test:rust`.
+- wllama needs the page cross-origin isolated (COOP/COEP in `vite.config.ts` and `firebase.json`): any new
+  cross-origin resource needs CORS or `crossorigin`. `bun install` copies its wasm into `public/wllama/`
+  (`scripts/copy-wllama.mjs`); keep `@wllama/wllama` and `-compat` on the same pinned version. Import wllama only
+  dynamically (it must not load at boot).
+- Native MLX: Apple Silicon only (`cfg(mlx)` from `build.rs`); release bundles need `mlx.metallib`
+  (`tauri:build:mac-arm64`). The first `cargo` build compiles MLX's C++ (minutes).
 - Sim modules that `City.ts` imports must not import `City.ts` values back (only `import type`): a cycle leaves
   constants undefined at load (`DAY_LENGTH` lives in `pulseConst.ts` for this reason).
 - Anything derived from terrain heights must refresh in `City.refreshTerrainDerived()` (sim) or on `terrain:changed`
