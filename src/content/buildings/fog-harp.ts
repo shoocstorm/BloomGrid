@@ -18,6 +18,7 @@ export default defineBuilding({
   stats: { cost: 2900, energy: -10, eco: 6, happiness: 10, population: 0, jobs: 16, pollution: 0, water: 50 },
   growthTime: 150,
   variants: 1,
+  style: 'verdigris',
   recipe(b) {
     b.add({ piece: 'concreteCyl', p: [0, 0, 0], s: [7.6, 0.3, 7.6], tint: PALETTE.concrete });
     b.add({ piece: 'mossBox', p: [0, 0.3, 0], s: [5.2, 0.06, 5.2], r: Math.PI / 4 });

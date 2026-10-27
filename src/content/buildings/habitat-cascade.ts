@@ -28,6 +28,7 @@ export default defineBuilding({
   growthTime: 220,
   pollinators: 1,
   variants: 1,
+  style: 'sage',
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [10.8, 0.2, 8.8], tint: PALETTE.concrete });
     grassTufts(b, 0, 0.2, 3.8, 10.4, 1.0, 30);

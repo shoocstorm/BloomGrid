@@ -24,6 +24,7 @@ export default defineBuilding({
   growthTime: 200,
   pollinators: 2,
   variants: 1,
+  style: 'rammed-earth',
   recipe(b) {
     for (let i = 0; i < TIERS; i++) {
       const d = 9.8 - i * 1.3;

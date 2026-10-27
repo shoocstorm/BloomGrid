@@ -57,6 +57,7 @@ export default defineBuilding({
   growthTime: 220,
   transit: { radius: 8, riders: 380 },
   variants: 1,
+  style: 'rose',
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [8.8, 0.2, 8.8], tint: PALETTE.concrete });
     b.add({ piece: 'pool', p: [0, 0.2, 0], s: [8.2, 0.05, 8.2] });

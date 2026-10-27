@@ -26,6 +26,7 @@ export default defineBuilding({
   transit: { radius: 8, riders: 700 },
   pollinators: 1,
   variants: 1,
+  style: 'verdigris',
   recipe(b) {
     // Podium: garden roof with a lit colonnade.
     b.add({ piece: 'slab', p: [0, 0, 0], s: [11.8, 0.9, 6.8], tint: PALETTE.concrete });

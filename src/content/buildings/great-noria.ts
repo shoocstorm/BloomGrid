@@ -15,6 +15,7 @@ export default defineBuilding({
   stats: { cost: 3000, energy: -6, eco: 8, happiness: 14, population: 0, jobs: 20, pollution: 0, water: 40 },
   growthTime: 160,
   variants: 1,
+  style: 'charred-timber',
   recipe(b) {
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [9.8, 0.2, 9.8] });
     grassTufts(b, 0, 0.2, 0, 9.4, 9.4, 80);

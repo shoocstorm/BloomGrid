@@ -15,6 +15,7 @@ export default defineBuilding({
   growthTime: 160,
   transit: { radius: 26, riders: 1400 },
   variants: 1,
+  style: 'verdigris',
   recipe(b) {
     b.add({ piece: 'concreteCyl', p: [0, 0, 0], s: [7.6, 0.3, 7.6], tint: PALETTE.concrete });
     b.add({ piece: 'mossBox', p: [0, 0.3, 0], s: [5.2, 0.08, 5.2], r: Math.PI / 4 });

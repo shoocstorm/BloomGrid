@@ -16,6 +16,7 @@ import {
   fract,
   dot,
   hash,
+  length,
   materialColor,
   instanceColor,
   max,
@@ -33,10 +34,12 @@ import {
   step,
   time,
   uv,
+  vec2,
   vec3,
 } from 'three/tsl';
 import { U } from '../uniforms';
 import { activityGlow, bloomAt, overlayDim, withOverlay } from './overlay';
+import { is, styleData } from './styles';
 
 /**
  * Shared material library. Every instanced piece references one of these, so the whole city
@@ -117,10 +120,65 @@ export function registerMaterial(name: string, material: Material): void {
 export function initMaterials(): void {
   if (lib.size) return;
 
+  // Walls and floor plates, in the building's style (see styles.ts): each pattern is a light/dark and
+  // slight hue modulation around 1, multiplied by the instance tint (the style's wall colour).
   define('concrete', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.82, metalness: 0 });
-    const n = mx_noise_float(positionWorld.mul(6)).mul(0.04);
-    m.colorNode = color(0xffffff).sub(n);
+    const st = styleData(floor(iSeed));
+    const p = st.wallPattern;
+    const P = positionWorld;
+    const u = P.x.add(P.z);
+    const y = P.y;
+    const n1 = mx_noise_float(P.mul(6));
+    const n2 = mx_noise_float(P.mul(1.3));
+    // 1 Tile courses: staggered tiles with grout and a tone per tile.
+    const row = floor(y.div(0.08));
+    const tu = u.div(0.22).add(mod(row, 2).mul(0.5));
+    const grout = max(step(0.86, fract(y.div(0.08))), step(0.93, fract(tu)));
+    const tiles = mix(hash(row.mul(13).add(floor(tu))).mul(0.16).add(0.9), float(0.74), grout);
+    // 2 Rammed earth: wavy strata of warmer and cooler earth.
+    const strata = sin(y.mul(38).add(n2.mul(3))).mul(0.5).add(0.5);
+    const earth = mix(vec3(0.84, 0.8, 0.78), vec3(1.07, 1.02, 0.94), strata).sub(n1.mul(0.05));
+    // 3 Lime plaster: soft mottling.
+    const plaster = float(1).sub(n1.mul(0.06)).sub(n2.mul(0.06));
+    // 4 Standing-seam copper: patina panels with seams and copper-brown weathering.
+    const seam = step(0.94, fract(u.mul(5)));
+    const panel = hash(floor(u.mul(5)).add(floor(y.mul(1.2)).mul(7))).mul(0.1).add(0.95);
+    const patina = mix(vec3(1), vec3(1.45, 0.82, 0.56), smoothstep(0.25, 0.7, n2)).mul(panel);
+    const copper = mix(patina, vec3(0.62), seam);
+    // 5 Glazed mosaic: small tiles, each its own shade and tint.
+    const cell = floor(vec3(u.mul(14), y.mul(14), 0));
+    const hm = vec3(hash(cell.x.add(cell.y.mul(57))), hash(cell.x.mul(3).add(cell.y.mul(11)).add(5)), hash(cell.x.mul(7).add(cell.y.mul(29)).add(9)));
+    const mosaicGrout = max(step(0.86, fract(u.mul(14))), step(0.86, fract(y.mul(14))));
+    const mosaic = mix(hm.sub(0.5).mul(0.3).add(1), vec3(0.86), mosaicGrout);
+    // 6 Charred boards: vertical boards with gaps and a crackled grain.
+    const board = step(0.92, fract(u.div(0.12)));
+    const grain = sin(y.mul(90).add(n1.mul(8))).mul(0.08);
+    const charred = mix(float(1).add(grain).add(step(0.55, n1).mul(0.25)), float(0.55), board);
+    // 7 Ashlar: staggered stone blocks with pale mortar.
+    const course = floor(y.div(0.16));
+    const bu = u.div(0.36).add(mod(course, 2).mul(0.5));
+    const mortar = max(step(0.9, fract(y.div(0.16))), step(0.95, fract(bu)));
+    const ashlar = mix(hash(course.mul(17).add(floor(bu))).mul(0.18).add(0.88).sub(n1.mul(0.04)), float(1.12), mortar);
+    // 8 Woven bamboo: basket weave, strands alternating direction per cell.
+    const checker = mod(floor(u.mul(10)).add(floor(y.mul(10))), 2);
+    const w = mix(fract(u.mul(30)), fract(y.mul(30)), checker);
+    const weave = smoothstep(0, 0.25, w).mul(smoothstep(1, 0.75, w)).mul(0.25).add(0.8);
+    const pick = (k: number, v: Node<'vec3'> | Node<'float'>) => vec3(v as Node<'vec3'>).mul(is(p, k));
+    const smooth = float(1).sub(n1.mul(0.04));
+    const patterned = pick(0, smooth)
+      .add(pick(1, tiles))
+      .add(pick(2, earth))
+      .add(pick(3, plaster))
+      .add(pick(4, copper))
+      .add(pick(5, mosaic))
+      .add(pick(6, charred))
+      .add(pick(7, ashlar))
+      .add(pick(8, weave));
+    // Roofs and floor-plate tops stay plain; patterns read on the walls.
+    m.colorNode = mix(patterned, vec3(smooth), smoothstep(0.6, 0.9, normalWorld.y));
+    m.roughnessNode = st.roughness;
+    m.metalnessNode = st.metalness.mul(float(1).sub(seam));
     return m;
   });
 
@@ -134,13 +192,47 @@ export function initMaterials(): void {
   // Solar-glass composite: reflective tinted panes, mullions, and warm lit windows at night.
   define('glass', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.08, metalness: 0.65 });
-    const floorIdx = floor(positionWorld.y.div(0.32));
-    const fy = fract(positionWorld.y.div(0.32));
-    const col = floor(positionWorld.x.add(positionWorld.z).mul(4));
-    const fx = fract(positionWorld.x.add(positionWorld.z).mul(4));
-    const mullion = max(step(0.88, fy), step(0.92, fx));
-    const pane = mix(color(0x4f8f96), color(0x86c4c0), smoothstep(-0.4, 0.6, mx_noise_float(positionWorld.mul(0.35))));
-    m.colorNode = mix(pane, color(0xf3efe4), mullion);
+    // The building's style (styles.ts) picks the window pattern, frame colour and glazing tint.
+    const si = floor(iSeed);
+    const st = styleData(si);
+    const gp = st.glassPattern;
+    const u = positionWorld.x.add(positionWorld.z);
+    const y = positionWorld.y;
+    // Columns per world unit for each pattern (grid, ribbon, slots, arched, diagrid, louvres).
+    const k = is(gp, 0).mul(4).add(is(gp, 1).mul(2.5)).add(is(gp, 2).mul(3.2)).add(is(gp, 3).mul(2.4)).add(is(gp, 5).mul(3)).add(is(gp, 4).mul(3));
+    const fy = fract(y.div(0.32));
+    const fx = fract(u.mul(k));
+    // Diagrid cells run on the diagonals; everything else on floors × columns.
+    const da = u.mul(3).add(y.mul(3));
+    const db = u.mul(3).sub(y.mul(3));
+    const diag = is(gp, 4);
+    const floorIdx = mix(floor(y.div(0.32)), floor(db), diag);
+    const col = mix(floor(u.mul(k)), floor(da), diag);
+    const grid = max(step(0.88, fy), step(0.92, fx));
+    const ribbon = max(step(0.6, fy), step(0.96, fx));
+    const slots = max(step(0.85, fy), step(0.55, fx));
+    // Arched windows: a rectangle under a semicircle, measured in world units so the arch stays round.
+    const ax = fx.sub(0.5).div(k);
+    const archR = float(0.26).div(k);
+    const arch = max(
+      step(ax.abs(), archR).mul(step(0.1, fy)).mul(step(fy, 0.55)),
+      step(length(vec2(ax, fy.sub(0.55).mul(0.32))), archR).mul(step(0.55, fy)),
+    );
+    const diagrid = max(max(step(0.9, fract(da)), step(0.9, fract(db))), step(0.94, fy));
+    const louvres = max(max(step(0.9, fx), step(0.88, fy)), step(0.55, fract(y.mul(14))).mul(0.75));
+    const mullion = grid
+      .mul(is(gp, 0))
+      .add(ribbon.mul(is(gp, 1)))
+      .add(slots.mul(is(gp, 2)))
+      .add(float(1).sub(arch).mul(is(gp, 3)))
+      .add(diagrid.mul(is(gp, 4)))
+      .add(louvres.mul(is(gp, 5)));
+    const classic = step(si, 0.5);
+    const shimmer = smoothstep(-0.4, 0.6, mx_noise_float(positionWorld.mul(0.35)));
+    // Classic keeps its teal panes; styled glazing is a neutral reflectance times the style's pane tint.
+    const pane = mix(vec3(mix(float(0.62), float(1), shimmer)), mix(color(0x4f8f96), color(0x86c4c0), shimmer), classic);
+    const frame = mix(st.frame.div(max(instanceColor, vec3(0.08))), color(0xf3efe4), classic);
+    m.colorNode = mix(pane, frame, mullion);
     m.roughnessNode = mix(float(0.12), float(0.7), mullion);
     m.metalnessNode = mix(float(0.45), float(0.0), mullion);
     // aParams.w = power supply: windows go dark during brownouts.

@@ -26,6 +26,7 @@ export default defineBuilding({
   growthTime: 180,
   pollinators: 6,
   variants: 1,
+  style: 'bamboo',
   recipe(b) {
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [7.8, 0.15, 7.8] });
     grassTufts(b, 0, 0.15, 0, 7.4, 7.4, 70);

@@ -36,6 +36,7 @@ export default defineBuilding({
   },
   growthTime: 180,
   variants: 1,
+  style: 'sage',
   recipe(b) {
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [8.8, 0.25, 8.8] });
     grassTufts(b, 0, 0.25, 0, 8.4, 8.4, 100);

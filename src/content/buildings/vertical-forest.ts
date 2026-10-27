@@ -52,6 +52,7 @@ export default defineBuilding({
   growthTime: 240,
   pollinators: 2,
   variants: 1,
+  style: 'limestone',
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [9.8, 0.3, 5.8], tint: PALETTE.concrete });
     b.add({ piece: 'mossBox', p: [0, 0.3, 0], s: [9.6, 0.06, 5.6] });

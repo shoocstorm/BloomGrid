@@ -14,6 +14,7 @@ export default defineBuilding({
   stats: { cost: 2900, energy: -8, eco: 10, happiness: 30, population: 0, jobs: 30, pollution: 0, water: -4 },
   growthTime: 170,
   variants: 1,
+  style: 'terracotta',
   recipe(b) {
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [9.8, 0.15, 9.8] });
     // Stage at the back (-z) with a lit apron.

@@ -104,6 +104,7 @@ Lotus Atoll ≈ 230/31, Abyssal Dome ≈ 440/471, Verdant Pillars ≈ 31/123, wh
 | Soil, mist, drones (Flora-Net)     | `src/sim/floranet.ts` (+ `drones` on a building def, `mist` command); visuals in `src/modules/floranet/`                                                                   |
 | Terrain edits, sea rise, seawalls  | `src/sim/coast.ts` (`setCorners` + `terrain:changed`; `defence` on a building def)                                                                                         |
 | Sky-bridges, banyan merges         | `src/sim/weaver.ts` (`tower: true` on a building def); visuals in `src/modules/weaver/`, `banyanPieces`                                                                    |
+| Building finish / style            | `style` on a building def (`StyleId` in `content/types.ts`); looks in `render/materials/styles.ts` (`STYLES`, district `FAMILIES`). Only neutral tints are restyled |
 | Sky and sea scenery                | `src/modules/scenery/`: one merged mesh per piece (`GeoBuilder` in `bake.ts`), shader motion from `U.clock`; wonder sites in `sites.ts` (tested deep sea) |
 | Signature bridges (render)         | `src/modules/construction/BridgeRenderer.ts` dresses straight spans from `findBridgeSpans` (`src/sim/bridges.ts`) by length                     |
 | Explore modes, photo mode          | `src/modules/explore/` (collider in `collider.ts`); `ctx.tools.suspended` and `cameraCtl.enabled` gate input                                                               |
@@ -161,7 +162,8 @@ own `requestAnimationFrame` loops.
 - TSL `material.positionNode` runs **after** instancing, so `positionLocal` is already instance-transformed.
   Scale-from-pivot effects (growth) go through CPU matrix tweens in `ChunkedInstancer`; sway is an additive world
   offset in the shader.
-- Per-instance shader data comes from the `aParams` vec4 attribute (x greenery, y seed, z glow, w = window lighting
+- Per-instance shader data comes from the `aParams` vec4 attribute (x greenery, y seed (its integer part is the
+  building style on slab/glass/timber pieces, D-040), z glow, w = window lighting
   for glass / vitality for plants, see D-013) and `instanceColor`.
 - `DynamicDrawUsage` attributes are re-uploaded in full **every frame and pass** by three's WebGPU backend. Use
   static usage + `needsUpdate` + `addUpdateRange`.

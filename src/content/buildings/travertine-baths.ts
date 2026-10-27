@@ -23,6 +23,7 @@ export default defineBuilding({
   },
   growthTime: 170,
   variants: 1,
+  style: 'limestone',
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [9.8, 0.2, 9.8], tint: STONE });
     // Terraces climb toward -z; each holds a pool that spills over its front lip.

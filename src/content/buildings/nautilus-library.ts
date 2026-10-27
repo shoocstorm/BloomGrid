@@ -23,6 +23,7 @@ export default defineBuilding({
   },
   growthTime: 180,
   variants: 1,
+  style: 'mosaic',
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [8.8, 0.2, 8.8], tint: PALETTE.concrete });
     b.add({ piece: 'mossBox', p: [-3.4, 0.2, 3.4], s: [1.8, 0.1, 1.8] });

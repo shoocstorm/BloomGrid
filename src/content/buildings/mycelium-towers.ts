@@ -66,6 +66,7 @@ export default defineBuilding({
   },
   growthTime: 200,
   variants: 1,
+  style: 'rammed-earth',
   recipe(b) {
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [8.8, 0.2, 8.8] });
     grassTufts(b, 0, 0.2, 0, 8.4, 8.4, 110);

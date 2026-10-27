@@ -50,7 +50,9 @@ bay, and Helix or Bloom Arch bridges over the river and lake (bridges you build 
 the island (parting around wherever you look), lantern balloons and a leaf-sailed airship circle it, seabirds wheel
 over the coast, and the open sea holds its own wonders: the Tidewatch Lighthouse sweeping its beam at night, the Tide
 Gates (three giant pearl rings rising from the waves), the Lotus Atoll of giant floating flowers, the Abyssal Dome
-observatory, the Verdant Pillars (forested sea stacks) and pods of glowing whales that surface now and then. Walk,
+observatory, the Verdant Pillars (forested sea stacks) and pods of glowing whales that surface now and then. Every
+neighbourhood has its own architecture: terracotta with arched windows, whitewash with blue frames, rammed earth,
+verdigris copper, glazed mosaic, charred timber, limestone, woven bamboo and more, and each landmark its own finish. Walk,
 hoverboard or fly a drone through your streets, ride a commuter pod along its sky-lane, or frame the moment in photo mode.</td>
 <td><b>A whole island to steward.</b> A 512 × 512 tile island with hills, lakes, a river and islets to bridge,
 reclaim or defend.</td>

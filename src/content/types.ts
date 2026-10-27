@@ -118,11 +118,33 @@ export interface BuildingDef {
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */
   variants?: number;
   /**
+   * Architectural finish (walls, window pattern, frames, timber). Unset: heroes (`variants: 1`) stay
+   * `classic`; everyday buildings pick one per lot from their district's family of styles.
+   */
+  style?: StyleId;
+  /**
    * Procedural recipe, or a GLB hero model. A GLB recipe's `fallback` provides the building's
    * volume (bounds, collision, retrofit overlays) and is drawn while the GLB is missing.
    */
   recipe: ((b: KitBuilder) => void) | { glb: string; scale?: number; fallback?: (b: KitBuilder) => void };
 }
+
+/** Building finishes; the render side (`render/materials/styles.ts`) defines how each looks. */
+export const STYLE_IDS = [
+  'classic',
+  'terracotta',
+  'whitewash',
+  'rammed-earth',
+  'verdigris',
+  'mosaic',
+  'charred-timber',
+  'limestone',
+  'bamboo',
+  'rose',
+  'sage',
+  'indigo',
+] as const;
+export type StyleId = (typeof STYLE_IDS)[number];
 
 export interface Symbiosis {
   /** Partner building ids (any one within `radius` tiles counts). */

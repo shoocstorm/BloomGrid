@@ -16,6 +16,7 @@ export default defineBuilding({
   stats: { cost: 3000, energy: -12, eco: 6, happiness: 22, population: 0, jobs: 70, pollution: 0, water: -4 },
   growthTime: 170,
   variants: 1,
+  style: 'whitewash',
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [9.8, 0.2, 7.8], tint: PALETTE.concrete });
     b.add({ piece: 'pool', p: [0, 0.2, 3.2], s: [9.0, 0.05, 1.2] });

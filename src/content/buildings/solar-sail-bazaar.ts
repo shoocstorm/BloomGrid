@@ -21,6 +21,7 @@ export default defineBuilding({
   growthTime: 150,
   cleanEnergy: true,
   variants: 1,
+  style: 'whitewash',
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [9.8, 0.15, 9.8], tint: PALETTE.concrete });
     for (const [x, z] of [

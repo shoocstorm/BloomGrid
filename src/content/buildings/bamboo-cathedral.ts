@@ -33,6 +33,7 @@ export default defineBuilding({
   growthTime: 220,
   pollinators: 2,
   variants: 1,
+  style: 'bamboo',
   recipe(b) {
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [11.8, 0.12, 7.8] });
     b.add({ piece: 'timberBox', p: [0, 0.12, 0], s: [11.2, 0.06, 1.6], tint: 0xc8a57c });

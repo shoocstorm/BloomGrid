@@ -322,3 +322,20 @@ in view: downtown 217 → 221, overview ≈253, low horizon 291 → 297; `?stres
 thread unchanged within noise. **Known:** the `?stress=1500` near-horizon dusk view (pitch 0.12) was already over budget
 before this change (312, now 318).
 
+
+## D-040 — Building styles: per-building finishes inside the shared materials (2026-10-27)
+
+Almost every building drew the same cream `concrete` and teal `glass`, so the city read as one material. Twelve
+architectural **styles** (`render/materials/styles.ts`: classic, terracotta, whitewash, rammed earth, verdigris copper,
+glazed mosaic, charred timber, limestone, bamboo, rose, sage, indigo) each set a wall colour and surface pattern (tile
+courses, earth strata, lime plaster, standing seams, mosaic, charred boards, ashlar, basket weave), a window pattern
+(grid, ribbon, tall slots, arches, diagrid, louvres), frame and glazing colours, timber tone, roughness and metalness.
+**Mechanism:** a building's style index rides in the integer part of the instance seed (`aParams.y`) of its slab,
+glass and timber pieces; `concrete` and `glass` split it off (`floor(seed)`) and read per-style data from
+`uniformArray`s, evaluating every pattern and picking with `is()`. Rejected: new pieces or materials per finish,
+since kit batches are per piece per chunk and a dozen finishes would add tens of draws. The CPU recolours only *neutral*
+recipe tints (light concrete, pale glass, plain timber) into the style, so designers' accent colours survive.
+**Choice:** heroes keep `classic` unless their def sets `style` (23 do); everyday buildings take a style per lot from
+their district's family (36-tile cells, 6 families of 4 related styles, 1 in 8 lots picks any style), so streets read
+as places rather than noise. Render-only: no sim state, saves or hash change. Classic is pixel-identical to before.
+**Cost:** draw calls unchanged; GPU and main thread within headless noise (GPU 3.5–5.5 ms vs 4.6–4.8 ms before).

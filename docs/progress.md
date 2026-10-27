@@ -8,7 +8,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 |             |                                                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Branch      | `main`, remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10)                              |
-| Last change | Sky and sea scenery: clouds, balloons, airship, birds, six sea wonders (D-039), uncommitted on `main` |
+| Last change | Building styles: twelve finishes per district and hero (D-040), and sky and sea scenery (D-039); both uncommitted on `main` |
 | Phases done | **All roadmap phases 0–12** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
 | Tests       | 66 passing (`bun run test`); `bun run check` clean                                                                                                              |

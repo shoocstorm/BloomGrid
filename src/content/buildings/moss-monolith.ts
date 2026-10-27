@@ -24,6 +24,7 @@ export default defineBuilding({
   growthTime: 240,
   transit: { radius: 8, riders: 300 },
   variants: 1,
+  style: 'limestone',
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [7.8, 0.2, 7.8], tint: PALETTE.concrete });
     b.add({ piece: 'pool', p: [0, 0.2, 3.5], s: [7.2, 0.05, 0.6] });

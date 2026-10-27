@@ -23,6 +23,7 @@ export default defineBuilding({
   growthTime: 200,
   pollinators: 2,
   variants: 1,
+  style: 'indigo',
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [9.8, 0.2, 9.8], tint: PALETTE.concrete });
     b.add({ piece: 'pool', p: [0, 0.2, 0], s: [9.0, 0.05, 9.0] });

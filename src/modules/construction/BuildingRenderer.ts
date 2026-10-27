@@ -7,6 +7,7 @@ import { PALETTE } from '@/content/kit';
 import type { Grid } from '@/sim/Grid';
 import type { InstanceHandle } from '@/render/Instancer';
 import type { GameContext } from '@/game/context';
+import { STYLES, isStyled, pickStyle, restyle, styleIndex, type BuildingStyle } from '@/render/materials/styles';
 
 /** One piece of a cached recipe run, in building-local space (origin = footprint centre at ground). */
 export interface TemplatePiece {
@@ -256,6 +257,10 @@ interface Entry {
   lastGreenery: number;
   /** Window lighting 0..1 (power × occupancy). */
   power: number;
+  /** Architectural finish, its index (carried in the seed of styled pieces) and a per-lot wall shade. */
+  style: BuildingStyle;
+  styleIndex: number;
+  shade: number;
   problems: number;
   alert: InstanceHandle | null;
 }
@@ -315,6 +320,7 @@ export class BuildingRenderer {
     const rec = city.buildingRecord(eid);
     const def = buildings.get(rec.def);
     const place = placeBuilding(city.grid, def, rec.x, rec.z, rec.rot);
+    const style = pickStyle(def, rec.x, rec.z);
     const entry: Entry = {
       handles: [],
       moss: [],
@@ -329,6 +335,9 @@ export class BuildingRenderer {
       height: place.template.height,
       lastGreenery: rec.greenery,
       power: 1,
+      style: STYLES[style],
+      styleIndex: styleIndex(style),
+      shade: 0.93 + hash2(rec.x, rec.z, 4259) * 0.12,
       problems: 0,
       alert: null,
     };
@@ -386,13 +395,16 @@ export class BuildingRenderer {
 
   private spawn(entry: Entry, p: TemplatePiece, greenery: number, delay: number): void {
     _params[0] = greenery;
-    _params[1] = p.seed;
+    const styled = isStyled(p.piece);
+    // Styled pieces carry the style index in the seed's integer part (the shaders split it off).
+    _params[1] = styled ? entry.styleIndex + p.seed * 0.999 : p.seed;
     _params[2] = p.glow;
     const glass = p.piece === 'glassBox' || p.piece === 'glassCyl';
     const plant = PLANT_PIECES.has(p.piece);
     _params[3] = glass ? entry.power : plant ? entry.vitality : 1;
     const world = _m.multiplyMatrices(entry.base, p.local);
-    const h = this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(p.tint), _params, delay, 0.7);
+    const tint = styled ? restyle(p.piece, p.tint, entry.style, entry.shade) : p.tint;
+    const h = this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(tint), _params, delay, 0.7);
     entry.handles.push(h);
     if (p.piece === 'mossBox') entry.moss.push(h);
     if (glass) entry.glass.push(h);

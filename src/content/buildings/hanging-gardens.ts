@@ -26,6 +26,7 @@ export default defineBuilding({
   growthTime: 200,
   pollinators: 3,
   variants: 1,
+  style: 'terracotta',
   recipe(b) {
     let y = 0;
     for (let i = 0; i < LEVELS; i++) {

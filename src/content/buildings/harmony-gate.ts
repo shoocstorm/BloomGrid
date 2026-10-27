@@ -22,6 +22,7 @@ export default defineBuilding({
   },
   growthTime: 220,
   variants: 1,
+  style: 'terracotta',
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [11.8, 0.2, 7.8], tint: PALETTE.concrete });
     b.add({ piece: 'pool', p: [0, 0.2, 0], s: [4.4, 0.05, 6.4] });
