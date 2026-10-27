@@ -16,6 +16,7 @@ import { mobilityModule } from '@/modules/mobility';
 import { floranetModule } from '@/modules/floranet';
 import { weaverModule } from '@/modules/weaver';
 import { sceneryModule } from '@/modules/scenery';
+import { aerolineModule } from '@/modules/aeroline';
 import { exploreModule } from '@/modules/explore';
 import { createBootScreen } from '@/ui/Boot';
 // The HUD theme loads after every module stylesheet so it can restyle them from one place.
@@ -25,7 +26,7 @@ import '@/ui/theme.css';
  * Feature modules. New gameplay layers (city pulse, overlays, crises, bloom engine, mobility,
  * Flora-Net, Green Weaver, explore modes…) are added here as self-contained modules.
  */
-const MODULES = [worldModule, constructionModule, hudModule, pulseModule, overlaysModule, advisorModule, viewsModule, dashboardModule, settingsModule, crisesModule, bloomModule, mobilityModule, floranetModule, weaverModule, sceneryModule, exploreModule, debugModule];
+const MODULES = [worldModule, constructionModule, hudModule, pulseModule, overlaysModule, advisorModule, viewsModule, dashboardModule, settingsModule, crisesModule, bloomModule, mobilityModule, floranetModule, weaverModule, sceneryModule, aerolineModule, exploreModule, debugModule];
 
 async function boot() {
   const canvas = document.getElementById('game') as HTMLCanvasElement;

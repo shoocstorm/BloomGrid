@@ -52,8 +52,12 @@ over the coast, and the open sea holds its own wonders: the Tidewatch Lighthouse
 Gates (three giant pearl rings rising from the waves), the Lotus Atoll of giant floating flowers, the Abyssal Dome
 observatory, the Verdant Pillars (forested sea stacks) and pods of glowing whales that surface now and then. Every
 neighbourhood has its own architecture: terracotta with arched windows, whitewash with blue frames, rammed earth,
-verdigris copper, glazed mosaic, charred timber, limestone, woven bamboo and more, and each landmark its own finish. Walk,
-hoverboard or fly a drone through your streets, ride a commuter pod along its sky-lane, or frame the moment in photo mode.</td>
+verdigris copper, glazed mosaic, charred timber, limestone, woven bamboo and more, and each landmark its own finish. The
+**Aeroline**, a solar maglev loop on a viaduct of bloom pylons, circles the hero district above the streets of all four
+towns and out over the bay, its sleek trains stopping at glass-vaulted stations in Hillcrest, Eastgate, Bayfront and
+Westbrook (each a transit hub that takes commuters off the highways, boarded by Bloom Helix towers: planted
+spiral walkways wound round glass lifts). Walk, hoverboard or fly a drone through your
+streets, ride a commuter pod along its sky-lane or an Aeroline train round the island, or frame the moment in photo mode.</td>
 <td><b>A whole island to steward.</b> A 512 × 512 tile island with hills, lakes, a river and islets to bridge,
 reclaim or defend.</td>
 </tr>
@@ -94,7 +98,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **B** Bloom Retrofit · **M** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
 | Watch your city    | **P** City Pulse · **L** data lenses · **F** advisor · **K** dashboard · **O** overview            |
-| Explore            | **N** walk / hoverboard / drone / ride a pod (**Esc** back) · **J** photo mode (**P** saves a PNG) |
+| Explore            | **N** walk / hoverboard / drone / ride a pod / ride the Aeroline (**Tab** next, **Esc** back) · **J** photo mode (**P** saves a PNG) |
 | Time               | **Space** pause · **1 / 2 / 3** speed                                                              |
 | Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** / **⌘L** (Ctrl on Windows/Linux)                                         |
 | Remember a view    | **Alt+1–4** store · **Shift+1–4** recall                                                           |

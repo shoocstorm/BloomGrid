@@ -106,7 +106,7 @@ export interface BuildingDef {
   /** Symbiotic pairing: with a partner nearby, pollution is purified and output rises. */
   symbiosis?: Symbiosis;
   /** Transit hub (Pod Dock): carries up to `riders` commuters from homes within `radius` tiles by air. */
-  transit?: { radius: number; riders: number };
+  transit?: { radius: number; riders: number; /** A rail station: riders board trains, not sky-lane pods. */ rail?: boolean };
   /** Flora-Net Drone Hive: hummingbird drones pollinate, harvest, trim and mist within `radius` tiles. */
   drones?: { radius: number; count: number };
   /** Coastal defence (Mangrove Seawall): keeps flood water up to `height` out within `radius` tiles. */

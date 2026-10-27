@@ -339,3 +339,30 @@ recipe tints (light concrete, pale glass, plain timber) into the style, so desig
 their district's family (36-tile cells, 6 families of 4 related styles, 1 in 8 lots picks any style), so streets read
 as places rather than noise. Render-only: no sim state, saves or hash change. Classic is pixel-identical to before.
 **Cost:** draw calls unchanged; GPU and main thread within headless noise (GPU 3.5–5.5 ms vs 4.6–4.8 ms before).
+
+## D-041 — The Aeroline: an elevated maglev loop, render-side, with stations as transit buildings (2026-10-27)
+
+A futurist rail line for the founding city. **Route:** a closed loop on the grid's street lines one to three blocks
+round the hero district (`aerolineRoute` in `content/scenarios/founding-city.ts`), through Hillcrest, Eastgate,
+Bayfront (out over the bay toward Bloomtopia) and Westbrook, corners rounded to radius 26; `modules/aeroline/path.ts`
+parametrises it exactly by arc length (≈795 tiles), so baked geometry, trains and the ride camera agree. **Gameplay:**
+the four stations are ordinary `aeroline-station` buildings with `transit: { rail: true }`: the mobility sim counts
+their riders like a Pod Dock's (radius 26, 2 200 riders) but they draw no pod sky-lanes. No new sim state, save change
+or hash change. The line is drawn once a station exists, so `?scenario=empty` has none. **Relayout:** the two lot rows
+either side of the line in each town are filled first with low buildings (garden homes, pocket parks, work domes), so
+nothing rises into the viaduct; the deck sits a constant 4.6 above the highest ground on the loop. **Scale:** shapes
+are designed at full size and built at K = 0.55, since 1 tile ≈ 10 m (the first build at full size was a 120 m viaduct
+that dwarfed the towns). **Look:** box-girder viaduct with a grey track bed, white guide beams with glowing power
+rails, a moss median and lines of light; bloom pylons (V capitals, light collars, planted bases, pile caps at sea);
+stations with lit platform edges, an elliptical glass vault, and a halo crown. **Boarding:** each station's
+concourse (a 6×4 building on the loop's inner side) carries two Bloom Helix towers that climb to the platform: a
+planted, lit spiral walkway wound round a glass lift core, ending at platform level in a gate bridge onto the
+platform, crowned with opening petals. Lift cabins rise and fall in the cores and commuters walk the spirals (up
+the inner lane, down the outer), both pure functions of `U.clock` in `Movers.ts` (two more instanced meshes, no
+shadows). Lift shafts alone, rising under the deck, read as pylons rather than a way up. Six five-car trains (three per track, opposite directions) accelerate to 22 u/s, bank into curves and dwell
+7 s at each station; placed on the CPU each frame as 30 instance matrices. A chase camera rides them (explore mode,
+Tab for the next train). **Cost:** one merged guideway mesh, one glass mesh and two instanced train meshes. Chunking
+the guideway for culling cost more than it saved, since each chunk also casts into every shadow cascade (four chunks:
++12–18 draws; one mesh: +4–10). Trains cast no shadows (the shadow map is cached). Overview 257 → 269 at worst,
+near-horizon views ≤ 289; `?stress=1500` +6 (its near-horizon base already swings 293–314 between runs). Modules +33 ms
+at boot (with the towers); main thread ≈ 18.4% active / ≈ 17% idle, within noise of before.

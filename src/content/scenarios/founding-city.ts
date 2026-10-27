@@ -52,6 +52,44 @@ const QUARTERS: { blocks: [number, number, number, number]; heroes: (string | [s
 /** All hero ids on the grid, for tests. */
 export const HERO_IDS = QUARTERS.flatMap((q) => q.heroes.flat());
 
+/** An Aeroline station: its point on the line, the line's axis there, and its street-side building (D-041). */
+export interface AerolineStation {
+  name: string;
+  x: number;
+  z: number;
+  /** Building north-west tile and rotation (rot turns its local -z, the platform side, toward the line). */
+  bx: number;
+  bz: number;
+  rot: number;
+}
+
+/**
+ * The Aeroline maglev loop (D-041): an elevated ring on the grid's streets round the hero district, through
+ * Hillcrest, Eastgate, Bayfront (out over the bay) and Westbrook. Corners (tile centres of street lines, in loop
+ * order) are rounded with `radius`; each station sits mid-block with its building on the loop's inner side.
+ */
+export function aerolineRoute(size: number): { corners: [number, number][]; radius: number; stations: AerolineStation[] } {
+  const sx = Math.round(size / 2 - 7);
+  const L = (i: number) => sx - 1 + GRID * i + 0.5;
+  const mid = (i: number) => sx - 1 + GRID * i + 8; // centre of the block after line i
+  const [w, e, n, s] = [L(-7), L(7), L(-6), L(8)];
+  return {
+    corners: [
+      [w, n],
+      [e, n],
+      [e, s],
+      [w, s],
+    ],
+    radius: 26,
+    stations: [
+      { name: 'Hillcrest', x: mid(0), z: n, bx: mid(0) - 3, bz: n + 0.5, rot: 0 },
+      { name: 'Eastgate', x: e, z: mid(0), bx: e - 4.5, bz: mid(0) - 3, rot: 1 },
+      { name: 'Bayfront', x: mid(-1), z: s, bx: mid(-1) - 3, bz: s - 4.5, rot: 2 },
+      { name: 'Westbrook', x: w, z: mid(1), bx: w + 0.5, bz: mid(1) - 3, rot: 3 },
+    ],
+  };
+}
+
 type Mix = (ring: number) => [Record<string, number>, number];
 interface Town {
   /** Sides whose streets run on to the shore ('n', 'e', 's', 'w'): waterfront streets, and sites for water works. */
@@ -264,6 +302,19 @@ export default defineScenario({
     // Landmarks first, while their land is open: the Supertree Grove in downtown's west, the Lotus Arts Pavilion
     // on the bay, Pod Docks, the Drone Hive downtown and an Eco-Playground in Westbrook.
     const [down, west] = [TOWNS[0]!, TOWNS[2]!];
+    // Aeroline stations (the line itself is drawn above the streets by the aeroline module).
+    const line = aerolineRoute(S);
+    for (const st of line.stations) b.building('aeroline-station', st.bx, st.bz, st.rot);
+    // The two lot rows either side of the line take only low buildings, so nothing rises into the viaduct.
+    const low = { 'garden-residence': 3, 'pocket-park': 2, 'greenhouse-hub': 1 };
+    for (let i = 0; i < line.corners.length; i++) {
+      const [a, c] = [line.corners[i]!, line.corners[(i + 1) % line.corners.length]!].map(([x, z]) => [Math.floor(x), Math.floor(z)]) as [number, number][];
+      const [x0, x1, z0, z1] = [Math.min(a[0], c[0]), Math.max(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[1], c[1])];
+      for (const k of [-2, 1]) {
+        if (z0 === z1) fillRect([x0, z0 + k, x1, z0 + k + 1], low);
+        else fillRect([x0 + k, z0, x0 + k + 1, z1], low);
+      }
+    }
     fillRect(tiles([-3, 4, -2, 5]), { 'supertree-grove': 1 }, 1, 1);
     b.fill(0.46 * S, 0.66 * S, 0.66 * S, 0.8 * S, { 'lotus-pavilion': 1 }, 1, 1);
     // A Pod Dock on every block: a home's road commuters travel in one stream to the

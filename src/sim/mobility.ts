@@ -260,7 +260,7 @@ export function computeMobility(city: City): void {
   for (const dk of docks) {
     const riders = dk.cap - dk.left;
     Service.riders[dk.eid] = riders;
-    if (riders <= 0) continue;
+    if (riders <= 0 || buildings.at(Building.def[dk.eid]!).transit!.rail) continue;
     let best = -1;
     let score = 0;
     for (const hb of hubs) {

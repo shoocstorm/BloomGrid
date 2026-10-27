@@ -4,10 +4,11 @@ import { EventBus } from '@/core/EventBus';
 import { SAVE_VERSION, deserializeCity, migrateSave, serializeCity, type SaveData } from '@/sim/save';
 import { buildings } from '@/content';
 import { applyScenario } from '@/sim/scenario';
-import { Building } from '@/ecs/components';
+import { Building, Service } from '@/ecs/components';
 import { RoadNetworks } from '@/sim/networks';
 import { openingView } from '@/game/opening';
-import { GRID, GRID_N, GRID_S, GRID_W, HERO_IDS } from '@/content/scenarios/founding-city';
+import { GRID, GRID_N, GRID_S, GRID_W, HERO_IDS, aerolineRoute } from '@/content/scenarios/founding-city';
+import { LoopPath } from '@/modules/aeroline/path';
 import { findBridgeSpans } from '@/sim/bridges';
 import { terrainHeight } from '@/sim/terrain';
 import { WONDER_SITES } from '@/modules/scenery/sites';
@@ -149,5 +150,38 @@ describe('sea wonders', () => {
             const h = terrainHeight(nx! * S + Math.cos(a) * r, nz! * S + Math.sin(a) * r, seed, S);
             expect(h).toBeLessThan(-4);
           }
+  });
+});
+
+describe('aeroline', () => {
+  it('the founding city builds all four stations on any seed; they carry rail riders, not pod sky-lanes', () => {
+    for (const seed of [1, 42, 31337]) {
+      const s = makeSim(seed);
+      applyScenario(s.city, 'founding-city');
+      const stations = s.city.buildingEntities().filter((e) => buildings.at(Building.def[e]!).id === 'aeroline-station');
+      expect(stations.length, `seed ${seed}`).toBe(aerolineRoute(s.city.size).stations.length);
+      s.step(120);
+      expect(stations.some((e) => Service.riders[e]! > 0), `seed ${seed}`).toBe(true);
+      for (const e of stations) {
+        const [x, z] = [Building.x[e]! + Building.w[e]! / 2, Building.z[e]! + Building.d[e]! / 2];
+        expect(s.city.pulse.podRoutes.some((r) => r.ax === x && r.az === z)).toBe(false);
+      }
+    }
+  });
+
+  it('the loop is closed and continuous, and every station lies on it', () => {
+    const route = aerolineRoute(512);
+    const path = new LoopPath(route.corners, route.radius);
+    const p = { x: 0, z: 0, tx: 0, tz: 0, curv: 0 };
+    let prev = { ...path.at(0, p) };
+    for (let s = 0.5; s <= path.length + 1e-6; s += 0.5) {
+      const q = { ...path.at(s, p) };
+      expect(Math.hypot(q.x - prev.x, q.z - prev.z)).toBeLessThan(0.5001);
+      prev = q;
+    }
+    for (const st of route.stations) {
+      const q = path.at(path.project(st.x, st.z), p);
+      expect(Math.hypot(q.x - st.x, q.z - st.z)).toBeLessThan(0.05);
+    }
   });
 });

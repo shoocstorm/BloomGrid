@@ -7,15 +7,16 @@ import { h, setText } from '@/ui/dom';
 import { STEP, createCollider } from './collider';
 import './explore.css';
 
-export type ExploreMode = 'city' | 'walk' | 'board' | 'drone' | 'follow';
-const CYCLE: ExploreMode[] = ['city', 'walk', 'board', 'drone', 'follow'];
-const LABELS: Record<ExploreMode, string> = { city: 'City view', walk: 'Walk', board: 'Hoverboard', drone: 'Drone', follow: 'Ride a pod' };
+export type ExploreMode = 'city' | 'walk' | 'board' | 'drone' | 'follow' | 'train';
+const CYCLE: ExploreMode[] = ['city', 'walk', 'board', 'drone', 'follow', 'train'];
+const LABELS: Record<ExploreMode, string> = { city: 'City view', walk: 'Walk', board: 'Hoverboard', drone: 'Drone', follow: 'Ride a pod', train: 'Aeroline' };
 const HINTS: Record<ExploreMode, string> = {
   city: '',
   walk: 'WASD walk · Shift run · Space jump · drag or click-to-lock to look · N next mode · Esc city view',
   board: 'WASD ride · Shift boost · Space hop · glides over water · N next mode · Esc city view',
   drone: 'WASD fly · E up · Q down · Shift fast · N next mode · Esc city view',
   follow: 'Riding a commuter pod along its sky-lane · Tab next pod · drag to look · Esc city view',
+  train: 'Riding the Aeroline maglev round the island · Tab next train · drag to look · Esc city view',
 };
 
 /** Player scale in world units (1 tile ≈ 11 m; a storey is 0.32). */
@@ -43,6 +44,8 @@ export const exploreModule: GameModule = {
     let pitch = 0;
     let grounded = true;
     let followIdx = 0;
+    const eye = new Vector3();
+    const ahead = new Vector3();
     let savedView = cameraCtl.getView();
     let photo = false;
     let photoSpeed = 1;
@@ -108,6 +111,10 @@ export const exploreModule: GameModule = {
     function setMode(next: ExploreMode): void {
       if (next === 'follow' && !city.pulse.podRoutes.length) {
         ctx.bus.emit('toast', { text: 'No sky-lanes yet: build a Green Pod Dock first', tone: 'bad' });
+        next = 'city';
+      }
+      if (next === 'train' && !ctx.services.tryGet('aeroline')?.trains) {
+        ctx.bus.emit('toast', { text: 'No Aeroline here: it runs above the founding city', tone: 'bad' });
         next = 'city';
       }
       if (next === mode) return;
@@ -179,7 +186,7 @@ export const exploreModule: GameModule = {
       if (e.code === 'KeyN') return setMode(CYCLE[(CYCLE.indexOf(mode) + 1) % CYCLE.length]!), true;
       if (mode === 'city') return false;
       if (e.code === 'Escape') return setMode('city'), true;
-      if (mode === 'follow' && e.code === 'Tab') return (followIdx++, true);
+      if ((mode === 'follow' || mode === 'train') && e.code === 'Tab') return (followIdx++, true);
       // Swallow keys the city view would otherwise act on (tool hotkeys, Space pause…).
       return ['Space', 'KeyQ', 'KeyE', 'Tab'].includes(e.code) || e.code.startsWith('Key');
     });
@@ -309,10 +316,21 @@ export const exploreModule: GameModule = {
           const p0 = pitch - 0.28;
           look.set(-Math.sin(yaw) * Math.cos(p0), Math.sin(p0), -Math.cos(yaw) * Math.cos(p0));
           camera.lookAt(fwd.copy(camera.position).add(look));
+        } else if (mode === 'train') {
+          const line = ctx.services.tryGet('aeroline');
+          if (!line?.trains) return setMode('city');
+          line.ride(followIdx, eye, ahead);
+          pos.copy(eye);
+          ahead.sub(eye).normalize();
+          yaw = Math.atan2(-ahead.x, -ahead.z);
+          camera.position.copy(eye);
+          const p0 = pitch + Math.asin(Math.max(-1, Math.min(1, ahead.y)));
+          look.set(-Math.sin(yaw) * Math.cos(p0), Math.sin(p0), -Math.cos(yaw) * Math.cos(p0));
+          camera.lookAt(tmp.copy(camera.position).add(look));
         }
         // Everything that focuses on the camera target (shadows, fog, pollen, agents) follows the player.
         cameraCtl.target.set(pos.x, Math.max(0, g().heightAt(pos.x, pos.z)), pos.z);
-        cameraCtl.distance = mode === 'drone' || mode === 'follow' ? Math.max(8, pos.y - cameraCtl.target.y + 6) : 6;
+        cameraCtl.distance = mode === 'drone' || mode === 'follow' || mode === 'train' ? Math.max(8, pos.y - cameraCtl.target.y + 6) : 6;
         cameraCtl.yaw = yaw + Math.PI;
       },
     });
