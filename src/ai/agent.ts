@@ -124,6 +124,12 @@ export function plainIntent(request: string): string | null {
   const rules: [RegExp, string][] = [
     [/^\s*undo\b/, 'undo'],
     [/\b(fix|repair|solve|resolve|sort out)\b/, 'fix_issue'],
+    [/\b(pause|unpause|resume|speed up|slow down|fast forward)\b/, 'set_speed'],
+    [/\b(lens|overlay)\b/, 'show_lens'],
+    [/\bsave (the )?(game|city)\b/, 'save_game'],
+    [/\brepay\b|\bpay (back|off)\b/, 'repay_loan'],
+    [/\bmist\b|\bwater the (soil|gardens|farms)\b/, 'mist_soil'],
+    [/\b(build|construct|place|add)\b.*\b([2-6]|two|three|four|five|six|several|a few)\b/, 'build_many'],
     [/\b(build|construct|place|add|erect)\b/, 'build'],
     [/\b(demolish|bulldoze|tear down|knock down)\b/, 'demolish'],
     [/\b(connect|link|hook up)\b/, 'connect_highway'],
@@ -131,11 +137,101 @@ export function plainIntent(request: string): string | null {
     [/\b(tax|taxes)\b.*\d|\d.*\b(tax|taxes)\b/, 'set_tax'],
     [/\b(take|get) (a )?loan\b|\bborrow\b/, 'take_loan'],
     [/\b(where is|show me|locate|take me to)\b/, 'object_select'],
+    [/\b(budget|money|spending|income|upkeep|afford)\b/, 'budget_breakdown'],
+    [/\b(crisis|crises|storm|flood|heatwave|drought|forecast)\b/, 'crisis_status'],
+    [/\b(trend|over time|improving|getting (better|worse))\b/, 'city_trends'],
+    [/\b(best|cheapest|which building|what (should|can) (i|we) build)\b/, 'building_types'],
+    [/\b(advice|advise|suggest|recommend)\b/, 'advisor_tips'],
     [/\b(find|list|which|how many|search)\b/, 'inventory_search'],
   ];
-  const lookups = new Set(['object_select', 'inventory_search']);
+  const lookups = new Set([
+    'object_select',
+    'inventory_search',
+    'budget_breakdown',
+    'crisis_status',
+    'city_trends',
+    'building_types',
+    'advisor_tips',
+  ]);
   const hits = rules.filter(([re, t]) => re.test(r) && (!question || lookups.has(t))).map(([, t]) => t);
   return hits.length ? hits[0]! : null;
+}
+
+/** Always on the menu when offered: the lookups and the general remedies most requests need. */
+export const CORE_TOOLS = [
+  'inventory_search',
+  'inventory_inspect',
+  'advisor_tips',
+  'fix_issue',
+  'build',
+  'object_select',
+];
+const STOP = new Set([
+  'the',
+  'and',
+  'for',
+  'with',
+  'what',
+  'how',
+  'can',
+  'you',
+  'our',
+  'are',
+  'this',
+  'that',
+  'there',
+  'please',
+  'city',
+  'some',
+  'any',
+  'all',
+  'show',
+  'tell',
+  'about',
+  'from',
+  'into',
+  'more',
+  'less',
+  'make',
+  'need',
+  'want',
+]);
+const words = (t: string) =>
+  t
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !STOP.has(w))
+    .map((w) => w.replace(/(ies|es|s|ing|ed)$/, ''));
+
+/**
+ * The tools a menu offers (at most `max`, one letter each): the core lookups and remedies, then the tools
+ * whose name, option, description or keywords share the most words with the request. Registry order is kept,
+ * so the same tools keep their letters: Andai found a reshuffled menu moves a small model's other choices.
+ */
+export function selectMenu<T extends AgentTool<unknown>>(
+  request: string,
+  tools: T[],
+  max = LETTERS.length - 1,
+): T[] {
+  if (tools.length <= max) return tools;
+  const want = new Set(words(request));
+  const score = (t: T) => {
+    const own = new Set(
+      words(`${t.name.replace(/_/g, ' ')} ${optionText(t)} ${t.description} ${(t.keywords ?? []).join(' ')}`),
+    );
+    let n = 0;
+    for (const w of want) if (own.has(w)) n++;
+    return n + (t.keywords ?? []).filter((k) => want.has(words(k)[0] ?? '')).length * 2;
+  };
+  const core = tools.filter((t) => CORE_TOOLS.includes(t.name));
+  const rest = tools
+    .filter((t) => !CORE_TOOLS.includes(t.name))
+    .map((t, i) => ({ t, s: score(t), i }))
+    .sort((a, b) => b.s - a.s || a.i - b.i)
+    .slice(0, Math.max(0, max - core.length))
+    .map((x) => x.t);
+  const keep = new Set([...core, ...rest]);
+  return tools.filter((t) => keep.has(t));
 }
 
 /** A tool's one-line menu text. */
@@ -254,7 +350,7 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
   // A question is answered, not acted on: actions leave the menu (Qwen3 1.7B "fixed" things when asked what was wrong).
   const question = isQuestion(o.request);
   const offered = o.tools.list().filter((t) => policy(t) !== 'off' && !(question && t.effect === 'mutate'));
-  const menu = offered.slice(0, LETTERS.length - 1);
+  const menu = selectMenu(o.request, offered);
   const maxSteps = o.maxSteps ?? 4;
 
   for (let step = 1; step <= maxSteps; step++) {
@@ -399,7 +495,7 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
     ? steps
         .map(
           (s, i) =>
-            `${i + 1}. ${s.call.effect === 'mutate' ? 'ACTION' : 'Looked up'} ${s.call.tool} ${JSON.stringify(s.call.args)}: ${s.ok ? s.observation : `FAILED (${s.error})`}`,
+            `${i + 1}. ${s.call.effect === 'mutate' ? 'ACTION' : s.call.effect === 'view' ? 'Did' : 'Looked up'} ${s.call.tool} ${JSON.stringify(s.call.args)}: ${s.ok ? s.observation : `FAILED (${s.error})`}`,
         )
         .join('\n')
     : 'No tools were used.';
@@ -407,7 +503,7 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
     {
       role: 'system',
       content:
-        'You are Flora, the city assistant of BloomGrid, a solarpunk island city. You help the human steward run the city: you watch its systems, look things up and carry out actions they approve. Write a short, plain reply (at most 5 sentences or a short list), in your own words: no headings, no labels. Name city objects by id and name (e.g. LIV-0042 Garden Residence) and say where they are. Only say you did something if it is an ACTION below that did not fail; if an action failed or was declined, say so. Never promise to do something later: if more is needed, suggest what the steward can ask you to do next. Use only the facts below.',
+        'You are Flora, the city assistant of BloomGrid, a solarpunk island city. You help the human steward run the city: you watch its systems, look things up and carry out actions they approve. Reply to the steward directly in at most 3 short sentences of plain words, no headings or labels: say what you found or did, with the key numbers and ids. Name city objects by id and name (e.g. LIV-0042 Garden Residence) and say where they are. Only say you did something if it is an ACTION below that did not fail; if an action failed or was declined, say so. Never promise to do or monitor anything later, and never invent numbers or states that are not in the facts. Use only the facts below.',
     },
     {
       role: 'user',
@@ -424,7 +520,7 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
   let streamed = '';
   const raw = await o.llm.generate(
     messages,
-    { maxTokens: 400, temperature: 0.2, signal: o.signal },
+    { maxTokens: 220, temperature: 0.2, signal: o.signal },
     (piece) => {
       streamed += piece;
       emit({ type: 'delta', text: piece });

@@ -98,15 +98,15 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **B** Bloom Retrofit · **M** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
 | Watch your city    | **P** City Pulse · **L** data lenses · **F** advisor · **K** dashboard · **I** inventory · **O** overview |
-| Ask for help       | **U** Flora, the city assistant (✿ in the top bar, **✿ Ask** on any selected object) |
+| Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console (✿ in the top bar, **✿ Ask** on any selected object) |
 | Explore            | **N** walk / hoverboard / drone / ride a pod / ride the Aeroline (**Tab** next, **Esc** back) · **J** photo mode (**P** saves a PNG) |
 | Time               | **Space** pause · **1 / 2 / 3** speed                                                              |
 | Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** / **⌘L** (Ctrl on Windows/Linux)                                         |
 | Remember a view    | **Alt+1–4** store · **Shift+1–4** recall                                                           |
 
 **Flora** (**U**): a city assistant that runs a small AI model on your own computer. Ask it what needs fixing,
-or tell it what to do ("build a water works in Westbrook", "fix the power problem in Bayfront", "set taxes to
-14%"): it looks things up, then asks before changing anything, and every action can be undone with **⌘Z**. Pick
+or tell it what to do ("build three vertical farms in Bayfront", "fix the power problem in Bayfront", "set taxes to
+14%", "how is our budget?", "pause", "show the water lens"): it looks things up, then asks before changing anything, and every action can be undone with **⌘Z**. Pick
 a model under ⚙ (it downloads once from Hugging Face, ≈0.6–1 GB; on an Apple Silicon Mac the desktop app runs it
 natively, much faster). Without a model, slash commands work: type `/help`.
 

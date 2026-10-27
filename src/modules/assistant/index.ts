@@ -5,6 +5,8 @@ import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { TIERS } from '@/sim/pulseState';
 import { getCrisis } from '@/sim/crises';
 import { actionTools } from '@/sim/actionTools';
+import { insightTools } from '@/sim/insightTools';
+import { allOverlays, getOverlay } from '@/sim/overlays';
 import { ISSUES, inventoryKinds } from '@/sim/inventory';
 import { cityBrief } from '@/ai/brief';
 import { defaultPolicy, observe, runTurn, type Policy, type ToolCall } from '@/ai/agent';
@@ -21,6 +23,8 @@ import './assistant.css';
  */
 export interface AssistantService {
   toggle(open?: boolean): void;
+  /** Opens the console maximized (or restores it docked). */
+  maximize(on: boolean): void;
   /** Sends a request as if the steward typed it; resolves with the answer. */
   ask(text: string): Promise<string>;
   readonly engine: LlmEngine;
@@ -239,9 +243,111 @@ class Assistant {
         : { call, ok: false, observation: '', error: r.error },
     );
     const msg = r.ok ? observe(r.result, 900) : r.error;
-    bubble.finish(msg, !r.ok);
+    bubble.finish(msg, !r.ok, r.ok ? r.result : undefined);
     return msg;
   }
+}
+
+const SPEEDS = { pause: 0, normal: 1, fast: 3, fastest: 8 } as const;
+const EXPLORE = ['city', 'walk', 'board', 'drone', 'follow', 'train'] as const;
+
+/** Tools over the game rather than the city: time, lenses, camera, panels, explore modes, saving. */
+function gameTools(): AgentTool<GameContext, never>[] {
+  return [
+    {
+      name: 'set_speed',
+      option: 'Pause the game or change its speed',
+      description: 'Sets the simulation speed: pause, normal (1×), fast (3×) or fastest (8×).',
+      keywords: ['pause', 'resume', 'speed', 'time', 'faster', 'slower'],
+      input: {
+        type: 'object',
+        properties: { speed: { type: 'string', enum: Object.keys(SPEEDS) } },
+        required: ['speed'],
+      },
+      effect: 'view',
+      run(c, { speed }: { speed: keyof typeof SPEEDS }) {
+        c.engine.speed = SPEEDS[speed];
+        return { speed, multiplier: SPEEDS[speed] };
+      },
+    },
+    {
+      name: 'show_lens',
+      option: 'Show a data lens over the city (power, water, pollution, traffic…)',
+      description: `Colours the city by one measure so the steward can see it (or "none" to clear). Lenses: ${allOverlays()
+        .map((o) => o.id)
+        .join(', ')}.`,
+      keywords: ['lens', 'overlay', 'map', 'heatmap', 'visualize', 'pollution', 'traffic', 'coverage'],
+      input: {
+        type: 'object',
+        properties: { lens: { type: 'string', enum: ['none', ...allOverlays().map((o) => o.id)] } },
+        required: ['lens'],
+      },
+      effect: 'view',
+      run(c, { lens }: { lens: string }) {
+        c.services.get('overlays').set(lens === 'none' ? null : lens);
+        const o = getOverlay(lens);
+        return o
+          ? { lens, label: o.label, legend: { low: o.legend[0], high: o.legend[1] } }
+          : { lens: 'none' };
+      },
+    },
+    {
+      name: 'camera_overview',
+      option: 'Pull the camera back to see the whole island',
+      description: 'Flies the camera up to the overview of the whole island.',
+      keywords: ['overview', 'zoom out', 'whole', 'island', 'everything'],
+      input: { type: 'object', properties: {} },
+      effect: 'view',
+      run(c) {
+        c.cameraCtl.overview();
+        return { camera: 'overview' };
+      },
+    },
+    {
+      name: 'open_dashboard',
+      option: 'Open the city dashboard (charts) or the inventory',
+      description:
+        'Opens the city dashboard on its Overview (trend charts, budget, land use) or the Inventory (every object, searchable), optionally on one object id.',
+      keywords: ['dashboard', 'charts', 'graphs', 'inventory', 'statistics', 'stats'],
+      input: {
+        type: 'object',
+        properties: { tab: { type: 'string', enum: ['overview', 'inventory'] }, id: { type: 'string' } },
+        required: ['tab'],
+      },
+      effect: 'view',
+      run(c, { tab, id }: { tab: 'overview' | 'inventory'; id?: string }) {
+        const db = c.services.get('dashboard');
+        if (tab === 'inventory') db.openInventory(id);
+        else db.toggle();
+        return { opened: tab };
+      },
+    },
+    {
+      name: 'explore_mode',
+      option: 'Explore the city: walk, hoverboard, drone, ride a pod or the Aeroline',
+      description:
+        'Switches the camera to an explore mode: walk (first person), board (hoverboard), drone, follow (ride a pod), train (ride the Aeroline), or city (back to the normal view).',
+      keywords: ['walk', 'explore', 'drone', 'hoverboard', 'ride', 'train', 'aeroline', 'tour', 'fly'],
+      input: { type: 'object', properties: { mode: { type: 'string', enum: EXPLORE } }, required: ['mode'] },
+      effect: 'view',
+      run(c, { mode }: { mode: (typeof EXPLORE)[number] }) {
+        c.services.get('explore').setMode(mode);
+        return { mode };
+      },
+    },
+    {
+      name: 'save_game',
+      option: 'Save the city',
+      description: 'Saves the city to its save slot (replacing the previous save).',
+      keywords: ['save', 'store', 'backup'],
+      input: { type: 'object', properties: {} },
+      effect: 'mutate',
+      async run(c) {
+        await c.services.get('save').save();
+        return { saved: true, day: c.city.day };
+      },
+    },
+  ];
 }
 
 export const assistantModule: GameModule = {
@@ -249,16 +355,25 @@ export const assistantModule: GameModule = {
   deps: ['inventory', 'pulse', 'hud'],
   init(ctx) {
     const agent = ctx.services.get('agent');
-    for (const t of actionTools) agent.register(t);
+    for (const t of [...insightTools, ...actionTools, ...gameTools()]) agent.register(t);
     const a = new Assistant(ctx);
     ctx.services.provide('assistant', {
       toggle: (open) => a.panel.toggle(open),
+      maximize: (on) => a.panel.setMax(on),
       ask: (text) => a.ask(text),
       engine: a.engine,
     });
     ctx.input.onKey((e) => {
-      if (e.code === 'KeyU' && !e.metaKey && !e.ctrlKey) return (a.panel.toggle(), true);
+      if (e.code === 'KeyU' && !e.metaKey && !e.ctrlKey)
+        return (e.shiftKey ? a.panel.setMax(!a.panel.isMax) : a.panel.toggle(), true);
+      if (e.code === 'Escape' && a.panel.isMax) return (a.panel.setMax(false), true);
       return false;
+    });
+    ctx.systems.add({
+      id: 'assistant',
+      phase: 'render',
+      order: 135,
+      update: (_c, f) => a.panel.update(f.dt),
     });
   },
 };

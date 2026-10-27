@@ -2,7 +2,7 @@
 // once into a persistent profile, so later runs reuse its OPFS copy), sends requests, and prints each turn's
 // tool calls, answer and timings, plus a screenshot of the panel.
 //
-//   bun run ai-probe -- [--model qwen3-0.6b] [--auto] [--ask "What needs fixing?" --ask "…"] [--out shots/ai.png]
+//   bun run ai-probe -- [--model qwen3-0.6b] [--auto] [--max] [--ask "What needs fixing?" --ask "…"] [--out shots/ai.png]
 //
 // `--auto` lets the assistant act without approval (otherwise every action is approved by the probe).
 import puppeteer from 'puppeteer-core';
@@ -16,6 +16,7 @@ const opt = {};
 for (let i = 0; i < argv.length; i++) {
   const k = argv[i].replace(/^--/, '');
   if (k === 'auto') opt.auto = true;
+  else if (k === 'max') opt.max = true;
   else if (k === 'ask') asks.push(argv[++i]);
   else opt[k] = argv[++i];
 }
@@ -47,9 +48,10 @@ await page.goto(base + (opt.path ?? '/'), { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.bloomgrid?.services?.tryGet('assistant'), { timeout: 120_000 });
 
 const load = await page.evaluate(
-  async (id, auto) => {
+  async (id, auto, max) => {
     const a = window.bloomgrid.services.get('assistant');
-    a.toggle(true);
+    if (max) a.maximize(true);
+    else a.toggle(true);
     if (auto) document.querySelector('.ai-auto input')?.click();
     const t = performance.now();
     await a.engine.load(id);
@@ -63,6 +65,7 @@ const load = await page.evaluate(
   },
   model,
   !!opt.auto,
+  !!opt.max,
 );
 console.log(`[load] ${model}: ${JSON.stringify(load)}`);
 if (load.status !== 'ready') process.exit(1);
@@ -70,7 +73,7 @@ if (load.status !== 'ready') process.exit(1);
 // Approve every action the assistant asks about (the panel's Approve button), unless --auto already allows them.
 await page.evaluate(() => {
   new MutationObserver(() =>
-    document.querySelectorAll('.ai-msg.approve:not(.ok):not(.bad) .btn')[0]?.click(),
+    document.querySelector('.ai-approve:not(.ok):not(.bad) .ai-auth.yes')?.click(),
   ).observe(document.body, { subtree: true, childList: true });
 });
 

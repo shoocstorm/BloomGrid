@@ -1,12 +1,23 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { AgentToolRegistry } from '@/core/AgentTools';
-import { runTurn, observe, stripThink, idsIn, plainIntent, type AgentEvent, type Llm } from '@/ai/agent';
+import {
+  runTurn,
+  observe,
+  stripThink,
+  idsIn,
+  plainIntent,
+  selectMenu,
+  CORE_TOOLS,
+  type AgentEvent,
+  type Llm,
+} from '@/ai/agent';
 import { argsGrammar, choiceGrammar, dropNulls } from '@/ai/grammar';
 import { cityBrief } from '@/ai/brief';
 import type { ChatMessage, GenOptions } from '@/ai/llm/engine';
 import { actionTools, connectPath, findSites, resolveType, type ActionCtx } from '@/sim/actionTools';
 import { inventoryTools } from '@/sim/inventoryTools';
+import { insightTools } from '@/sim/insightTools';
 import { getObject, queryInventory } from '@/sim/inventory';
 import { applyScenario } from '@/sim/scenario';
 import { buildings } from '@/content';
@@ -22,7 +33,7 @@ function founded() {
 function registry(s: ReturnType<typeof makeSim>) {
   const ctx: ActionCtx = { city: s.city, commands: s.commands };
   const r = new AgentToolRegistry<ActionCtx>(ctx);
-  for (const t of [...inventoryTools, ...actionTools]) r.register(t);
+  for (const t of [...inventoryTools, ...insightTools, ...actionTools]) r.register(t);
   return r;
 }
 
@@ -128,6 +139,65 @@ describe('action tools', () => {
     expect(s.city.buildingEntities().length).toBe(0);
     expect((await r.call('demolish', { id })).ok).toBe(false);
     expect((await r.call('set_tax', { percent: 50 })).ok).toBe(false);
+  });
+});
+
+describe('insight and more action tools', () => {
+  it('explain the city: advice, trends, budget, crises, building types', async () => {
+    const s = founded();
+    s.step(300); // a few history samples (one per 10 sim-seconds)
+    const r = registry(s);
+    const call = async (name: string, args: unknown = {}) => {
+      const res = await r.call(name, args);
+      if (!res.ok) throw new Error(`${name}: ${res.error}`);
+      return JSON.parse(JSON.stringify(res.result)) as Record<string, unknown>;
+    };
+    expect(Array.isArray(await call('advisor_tips'))).toBe(true);
+    const trend = await call('city_trends', { metric: 'population' });
+    expect(['rising', 'falling', 'steady']).toContain(trend.direction);
+    const budget = await call('budget_breakdown');
+    expect(budget.netPerSecond).toBeTypeOf('number');
+    expect(
+      Object.keys((budget.spending as { upkeepByCategory: object }).upkeepByCategory).length,
+    ).toBeGreaterThan(2);
+    expect((await call('crisis_status')).crises).toEqual([]);
+    const water = (await call('building_types', { need: 'water' })).types as {
+      type: string;
+      perThousandCredits: number;
+    }[];
+    expect(water.map((t) => t.type)).toContain('water-works');
+    expect(water[0]!.perThousandCredits).toBeGreaterThanOrEqual(water[water.length - 1]!.perThousandCredits);
+  });
+
+  it('build_many builds several in one undoable action set; repay and mist report clearly', async () => {
+    const s = founded();
+    const r = registry(s);
+    const before = s.city.buildingEntities().length;
+    const res = await r.call('build_many', { type: 'pocket-park', count: 3, district: 'Hillcrest' });
+    if (!res.ok) throw new Error(res.error);
+    expect((res.result as { built: string[] }).built).toHaveLength(3);
+    expect(s.city.buildingEntities().length).toBe(before + 3);
+    expect(await r.call('repay_loan')).toEqual({ ok: false, error: 'There are no loans.' });
+    expect((await r.call('take_loan', { amount: 5000 })).ok).toBe(true);
+    expect((await r.call('repay_loan')).ok).toBe(true);
+    expect((await r.call('mist_soil', { id: 'DST-SUNFIELD' })).ok).toBe(true);
+  });
+});
+
+describe('menu', () => {
+  it('keeps the core tools and picks the rest by the request, in registry order', () => {
+    const tools = registry(makeSim(1)).list();
+    expect(tools.length).toBeGreaterThan(15);
+    const menu = selectMenu('repay the loan and check the budget', tools);
+    expect(menu.length).toBe(15);
+    const names = menu.map((t) => t.name);
+    for (const c of CORE_TOOLS) if (tools.some((t) => t.name === c)) expect(names).toContain(c);
+    expect(names).toContain('repay_loan');
+    expect(names).toContain('budget_breakdown');
+    expect(names).toEqual(tools.map((t) => t.name).filter((n) => names.includes(n)));
+    expect(plainIntent('build three pocket parks in Hillcrest')).toBe('build_many');
+    expect(plainIntent('pause the game')).toBe('set_speed');
+    expect(plainIntent('how is our budget?')).toBe('budget_breakdown');
   });
 });
 

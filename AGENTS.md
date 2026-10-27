@@ -32,7 +32,7 @@ bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--profile 15]   # 
 bun run optimize-glb -- raw.glb public/assets/x.glb --footprint 3 --height 4 [--ratio 0.5] [--yaw 90] [--tex 1024]
 bun run tauri:dev      # desktop shell (Tauri v2) against the dev server; tauri:build packages it (needs Rust)
 bun run release [patch|minor|major|X.Y.Z] [--dry-run] [--yes]   # tag + deploy to Firebase (see §10; ask first)
-bun run ai-probe -- [--model qwen3-1.7b] [--ask "…"]… [--auto]   # drive the city assistant with a real model in headless Chrome
+bun run ai-probe -- [--model qwen3-1.7b] [--ask "…"]… [--auto] [--max]   # drive the city assistant with a real model in headless Chrome
 bun run test:rust      # Rust unit tests (store, grammars, template); add `-- --ignored llm_qwen3_` for MLX parity (needs the HF cache)
 bun run tauri:build:mac-arm64   # Apple Silicon desktop bundle with mlx.metallib (the assistant's native engine)
 ```
@@ -115,7 +115,7 @@ Lotus Atoll ≈ 230/31, Abyssal Dome ≈ 440/471, Verdant Pillars ≈ 31/123, wh
 | Explore modes, photo mode          | `src/modules/explore/` (collider in `collider.ts`); `ctx.tools.suspended` and `cameraCtl.enabled` gate input                                                               |
 | Object inventory, readable ids     | `registerInventoryKind` in `src/sim/inventory.ts` (buildings, networks, bridges, sky-bridges, channels, districts built in); UI in `src/modules/dashboard/InventoryView.ts`; districts via `nameArea` in a scenario |
 | Agent (LLM) tools                  | `ctx.services.get('agent').register({ name, description, input, effect, run })` (`src/core/AgentTools.ts`); pure-sim read tools in `src/sim/inventoryTools.ts`; try them in the console: `await bloomgrid.services.get('agent').call('inventory_search', { status: 'critical' })` |
-| City assistant (local LLM agent)   | engine `src/ai/llm/` (wllama + native MLX), loop `src/ai/agent.ts`, action tools `src/sim/actionTools.ts`, panel `src/modules/assistant/`; Rust `src-tauri/src/{llm,models}/`, `mlx.rs`. Measure agent changes with `bun run ai-probe`, not by argument |
+| City assistant (local LLM agent)   | engine `src/ai/llm/` (wllama + native MLX), loop `src/ai/agent.ts` (menus via `selectMenu`, routing via `plainIntent`), tools `src/sim/{inventory,insight,action}Tools.ts` + game tools in `src/modules/assistant/index.ts`, console `src/modules/assistant/Panel.ts`; Rust `src-tauri/src/{llm,models}/`, `mlx.rs`. Measure agent changes with `bun run ai-probe`, not by argument |
 | Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                                                                                             |
 | New lit material                   | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)                                                                             |
 

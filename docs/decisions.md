@@ -410,3 +410,23 @@ macro (they replied with promises instead of choosing the right primitive). Ever
 unless the steward allows it; all actions are ordinary undoable commands.
 **Cost.** Nothing runs per frame; the panel renders on events; wllama and the model listing load on first open.
 
+## D-044 — Flora: more tools, a menu per request, and a maximizable console (2026-10-27)
+
+**Tools.** 29 agent tools now (insight, action and game tools). A decision menu holds at most 15 tools (one
+letter each), so `selectMenu` offers the core lookups and remedies (`CORE_TOOLS`) plus the tools sharing the
+most words with the request (name, option, description, optional `keywords`), **in registry order** so a tool
+keeps its letter (Andai: a reshuffled menu moves a small model's other choices). Plain commands and read-only
+questions about budget, crises, trends, building types and advice route straight to their tool
+(`plainIntent`). Game tools (`set_speed`, `show_lens`, camera, dashboard, explore, save) live in the assistant
+module because they need the game context; `save_game` is `mutate` (it overwrites the slot) so it asks first.
+Measured with Qwen3 1.7B in the browser (`bun run ai-probe --max`): budget, best building for food,
+"build three vertical farms in Bayfront", pause and crises each picked the right tool first time. The reply
+prompt was cut to three sentences with no promises and a 220-token budget, after 1.7B padded answers with
+"I'll monitor…" and made-up states.
+**Console.** The panel is a holographic instrument: static layered gradients (grid, scanlines, corner
+brackets, glow), chamfered mono controls, a mission log (timestamped process lines per tool call,
+authorization cards with argument rows, clickable ids, tool results as telemetry rows). Maximized, it spans
+from the City Pulse to the right edge, hides the right column, and adds a telemetry rail refreshed at 2 Hz
+(the inventory roll-up every 4 s) only while maximized and open. Motion only while Flora works (sigil orbit,
+scan line; transform only). Main thread unchanged (20.8% active).
+

@@ -7,6 +7,7 @@ import type { City } from './City';
 import type { SimCtx } from './systems';
 import { DEMOLISH_REFUND, RETROFIT_RADIUS, roadTileCost } from './commands';
 import { LOAN_SIZES } from './finance';
+import { MIST_COST } from './floranet';
 import { TAX_MAX, TAX_MIN } from './pulseState';
 import { ISSUES, buildingId, getObject, queryInventory, type CityObject } from './inventory';
 
@@ -289,6 +290,50 @@ export const actionTools: AgentTool<ActionCtx, never>[] = [
     },
   },
   {
+    name: 'build_many',
+    llmArgs: ['type', 'count', 'district'],
+    option: 'Build several buildings of one type (up to 6) in a district',
+    description:
+      'Builds `count` buildings of one type (1–6) at the nearest free lots with highway access in a district or near an object, as one action (undo removes them one by one). Stops early when credits or lots run out.',
+    input: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', description: 'Building type id or name.' },
+        count: { type: 'integer', minimum: 1, maximum: 6 },
+        district: where.district,
+        near: where.near,
+      },
+      required: ['type', 'count'],
+    },
+    effect: 'mutate',
+    run({ city, commands }, a: { type: string; count: number; district?: string; near?: string }) {
+      const def = resolveType(a.type);
+      const c = siteCentre(city, a);
+      const built: string[] = [];
+      for (let i = 0; i < a.count; i++) {
+        if (city.credits < def.stats.cost) break;
+        const site = findSites(city, def, c, 1)[0];
+        if (!site || !commands.execute('build', { def: def.id, x: site.x, z: site.z, rot: site.rot })) break;
+        built.push(buildingId(city, city.buildingAt(site.x, site.z)));
+      }
+      if (!built.length)
+        throw new Error(
+          `Couldn't build any ${def.name} near ${c.label} (credits ${money(city.credits)}, cost ${def.stats.cost}).`,
+        );
+      return {
+        built,
+        type: def.id,
+        name: def.name,
+        near: c.label,
+        cost: built.length * def.stats.cost,
+        credits: money(city.credits),
+        ...(built.length < a.count && {
+          note: `Only ${built.length} of ${a.count}: out of credits or free lots.`,
+        }),
+      };
+    },
+  },
+  {
     name: 'demolish',
     option: 'Demolish a building (returns half its cost)',
     description: `Removes one building by id and refunds ${DEMOLISH_REFUND * 100}% of its cost. Undoable.`,
@@ -432,6 +477,58 @@ export const actionTools: AgentTool<ActionCtx, never>[] = [
       if (!commands.execute('retrofit', { x: Math.round(o.x), z: Math.round(o.z), radius: RETROFIT_RADIUS }))
         throw new Error(`Nothing to retrofit around ${o.id}, or not enough credits.`);
       return { retrofitted: o.id, cost: money(before - city.credits), credits: money(city.credits) };
+    },
+  },
+  {
+    name: 'mist_soil',
+    option: 'Dispatch Flora-Net drones to mist dry soil around an object or district',
+    description: `Sends drones and pods to soak the soil zones around an object or a district's centre (+35% hydration), for ${MIST_COST} credits. Helps parched gardens and farms in a drought. Undoable.`,
+    input: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Object or district id, e.g. "DST-SUNFIELD" or "FOD-0004".' },
+      },
+      required: ['id'],
+    },
+    effect: 'mutate',
+    run({ city, commands }, { id }: { id: string }) {
+      const o = getObject(city, id);
+      if (!o) throw new Error(`No object "${id}"`);
+      if (!commands.execute('mist', { x: Math.round(o.x), z: Math.round(o.z) }))
+        throw new Error(
+          `Couldn't mist around ${o.id}: no land zones there, or not enough credits (${MIST_COST}).`,
+        );
+      return { misted: o.id, cost: MIST_COST, credits: money(city.credits) };
+    },
+  },
+  {
+    name: 'repay_loan',
+    option: 'Repay a loan in full',
+    description:
+      'Repays a loan in full (the oldest when no id is given), if the treasury can cover what remains. Undoable.',
+    input: {
+      type: 'object',
+      properties: {
+        loan: {
+          type: 'integer',
+          minimum: 0,
+          description: 'Loan id (see budget_breakdown); the oldest when omitted.',
+        },
+      },
+    },
+    effect: 'mutate',
+    run({ city, commands }, { loan }: { loan?: number }) {
+      const l = loan === undefined ? city.steward.loans[0] : city.steward.loans.find((x) => x.id === loan);
+      if (!l) throw new Error(city.steward.loans.length ? `No loan ${loan}.` : 'There are no loans.');
+      const owed = l.remaining;
+      if (!commands.execute('repayLoan', { id: l.id }))
+        throw new Error(`Repaying needs ${money(owed)}; the treasury has ${money(city.credits)}.`);
+      return {
+        repaid: l.id,
+        paid: money(owed),
+        credits: money(city.credits),
+        loansLeft: city.steward.loans.length,
+      };
     },
   },
   {

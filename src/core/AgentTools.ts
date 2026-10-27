@@ -32,6 +32,8 @@ export interface AgentTool<Ctx, A = Record<string, unknown>> {
    * every optional field they are shown, often with junk, so a tool with many options offers the few that matter.
    */
   llmArgs?: readonly string[];
+  /** Extra words a request may use for this tool (menu selection matches them, e.g. `pause` for set_speed). */
+  keywords?: readonly string[];
   effect: ToolEffect;
   run(ctx: Ctx, args: A): unknown;
 }

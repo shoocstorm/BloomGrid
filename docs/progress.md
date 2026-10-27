@@ -7,11 +7,11 @@ sections whenever you stop working** (see AGENTS.md §6).
 
 |             |                                                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Branch      | `feat/city-ai` (inventory + assistant; merge to `main` when the user asks), remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10)                              |
-| Last change | Flora, the local-LLM city assistant (D-043): wllama + native MLX engines ported from Andai, agent loop, action tools, assistant panel (U) |
+| Branch      | `feat/flora-tools` (on top of `main`, which has the inventory and assistant; `main` is ahead of `origin`, not pushed), remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10)                              |
+| Last change | Flora gets 29 tools and a maximizable sci-fi command console with a telemetry rail (D-044); local-LLM engines from Andai (D-043) |
 | Phases done | **All roadmap phases 0–14** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
-| Tests       | 93 passing (`bun run test`), 31 Rust (`bun run test:rust`); `bun run check` clean                                                                                                              |
+| Tests       | 96 passing (`bun run test`), 31 Rust (`bun run test:rust`); `bun run check` clean                                                                                                              |
 | Save format | v7 (building serials + named districts; migrations from v1–v6 in `src/sim/save.ts`)                                                                           |
 | Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈2 000 buildings on one grid, ≈25k residents, water Strained (≈95%) |
 
