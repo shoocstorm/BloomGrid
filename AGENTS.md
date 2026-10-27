@@ -45,7 +45,8 @@ wave), `nightlife.js` (night downtown: glow should follow activity; `window.NEAR
 (mid-Haze; prefix `window.SEASON = 1;` for a Monsoon shower), `mobility.js` (first Pod Dock at rush hour; `window.NIGHT = 1`,
 `window.LENS = 1` for the Traffic lens, `window.NEAR = 14`).
 Field passes share the pulse (`FIELD_PULSES` = 6, D-020): phase 0 pairing + pollution, 1 ecology + desirability, 2 bloom, 3 Flora-Net,
-4 night life, 5 mobility. All six are taken, so a new pass must share a phase or `FIELD_PULSES` must grow. `floranet.js` frames the Drone Hive and dispatches a mist. `weaver.js` weaves bridges, a banyan and reclaims coast. `explore.js` enters an explore mode (`window.MODE`). `landmark.js` frames the Wellspring Spire and its hero district at the island centre: a street grid of 14-tile blocks (`QUARTERS` in `content/scenarios/founding-city.ts`; quarters around `window.CX`/`window.CZ` ≈ 292/222 skyline, 292/286 exchange, 222/284 gardens, 215/220 working hills). To add a hero, append its id to a quarter: it takes the free graded lot nearest the spire (D-035). Bloomtopia, the fenced amusement park, fills the south islet (`window.CX`/`CZ` ≈ 252/440, `window.YAW` = π to face its gate); its suspension bridge is at ≈ 252/404 and the north-east one at ≈ 430/145. The towns (`TOWNS` in the same file) continue the grid: Westbrook ≈ 150/270, Eastgate ≈ 360/250, Hillcrest ≈ 255/160, Bayfront ≈ 270/340, Sunfield ≈ 130/205; keep pieces in the quarter's render chunk (D-034) (`window.NEAR`, `window.PITCH`, `window.YAW`, `window.NIGHT`). Crises: `--path "/?drill=monsoon"`
+4 night life, 5 mobility. All six are taken, so a new pass must share a phase or `FIELD_PULSES` must grow. `floranet.js` frames the Drone Hive and dispatches a mist. `weaver.js` weaves bridges, a banyan and reclaims coast. `explore.js` enters an explore mode (`window.MODE`). `landmark.js` frames the Wellspring Spire and its hero district at the island centre: a street grid of 14-tile blocks (`QUARTERS` in `content/scenarios/founding-city.ts`; quarters around `window.CX`/`window.CZ` ≈ 292/222 skyline, 292/286 exchange, 222/284 gardens, 215/220 working hills). To add a hero, append its id to a quarter: it takes the free graded lot nearest the spire (D-035). Bloomtopia, the fenced amusement park, fills the south islet (`window.CX`/`CZ` ≈ 252/440, `window.YAW` = π to face its gate); its suspension bridge is at ≈ 252/404 and the north-east one at ≈ 430/145. The towns (`TOWNS` in the same file) continue the grid: Westbrook ≈ 150/270, Eastgate ≈ 360/250, Hillcrest ≈ 255/160, Bayfront ≈ 270/340, Sunfield ≈ 130/205. Sea wonders (`modules/scenery/sites.ts`): Tidewatch Lighthouse ≈ 471/41, Tide Gates ≈ 72/471,
+Lotus Atoll ≈ 230/31, Abyssal Dome ≈ 440/471, Verdant Pillars ≈ 31/123, whale pods ≈ 154/481 and 348/26; keep pieces in the quarter's render chunk (D-034) (`window.NEAR`, `window.PITCH`, `window.YAW`, `window.NIGHT`). Crises: `--path "/?drill=monsoon"`
 (any crisis id; `&severity=1.2`), or the inspector's Crisis drills.
 
 ## 3. Hard rules
@@ -103,6 +104,7 @@ Field passes share the pulse (`FIELD_PULSES` = 6, D-020): phase 0 pairing + poll
 | Soil, mist, drones (Flora-Net)     | `src/sim/floranet.ts` (+ `drones` on a building def, `mist` command); visuals in `src/modules/floranet/`                                                                   |
 | Terrain edits, sea rise, seawalls  | `src/sim/coast.ts` (`setCorners` + `terrain:changed`; `defence` on a building def)                                                                                         |
 | Sky-bridges, banyan merges         | `src/sim/weaver.ts` (`tower: true` on a building def); visuals in `src/modules/weaver/`, `banyanPieces`                                                                    |
+| Sky and sea scenery                | `src/modules/scenery/`: one merged mesh per piece (`GeoBuilder` in `bake.ts`), shader motion from `U.clock`; wonder sites in `sites.ts` (tested deep sea) |
 | Signature bridges (render)         | `src/modules/construction/BridgeRenderer.ts` dresses straight spans from `findBridgeSpans` (`src/sim/bridges.ts`) by length                     |
 | Explore modes, photo mode          | `src/modules/explore/` (collider in `collider.ts`); `ctx.tools.suspended` and `cameraCtl.enabled` gate input                                                               |
 | Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                                                                                             |
@@ -187,6 +189,9 @@ own `requestAnimationFrame` loops.
 - Explore modes change `camera.near/far` and the sky dome scale; anything depending on them must restore on exit.
 - Missing files under `/assets/` get Vite's SPA fallback (HTML), so `GLTFLoader` rejects: always give GLB recipes a
   `fallback`. rtk may rewrite `bunx tauri …`; call `./node_modules/.bin/tauri` directly if it does.
+- A snap `--eval` that does `import('/src/render/uniforms.ts')` gets a *second* module instance (Vite serves the app's
+  copy with `?t=…`). Import the exact URL from `performance.getEntriesByType('resource')` to reach the app's `U`
+  (e.g. to pin `U.clock` while capturing shader-animated scenery).
 - Headless `?gputime` swings 1.7–5 ms between identical runs; compare several runs on and off before blaming a change.
 
 ## 9. Picking up work

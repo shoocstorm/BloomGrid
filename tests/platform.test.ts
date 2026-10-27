@@ -9,6 +9,8 @@ import { RoadNetworks } from '@/sim/networks';
 import { openingView } from '@/game/opening';
 import { GRID, GRID_N, GRID_S, GRID_W, HERO_IDS } from '@/content/scenarios/founding-city';
 import { findBridgeSpans } from '@/sim/bridges';
+import { terrainHeight } from '@/sim/terrain';
+import { WONDER_SITES } from '@/modules/scenery/sites';
 import { makeSim } from './helpers';
 
 describe('save migrations', () => {
@@ -133,5 +135,19 @@ describe('signature bridges', () => {
     expect(spans.some((sp) => !sp.alongX && sp.len >= 45)).toBe(true);
     for (const sp of spans)
       for (let k = 0; k < sp.len; k++) expect(s.city.grid.road[s.city.grid.index(sp.x + (sp.alongX ? k : 0), sp.z + (sp.alongX ? 0 : k))]).toBe(2);
+  });
+});
+
+describe('sea wonders', () => {
+  it('every wonder site is open deep sea on any seed (nothing stands on land or blocks a bridge)', () => {
+    const S = 512;
+    const sites = Object.values(WONDER_SITES).flatMap((v) => (typeof v[0] === 'number' ? [v as readonly number[]] : (v as readonly (readonly number[])[])));
+    for (const seed of [1, 42, 4242, 20261024, 31337])
+      for (const [nx, nz] of sites)
+        for (let a = 0; a < 12; a++)
+          for (const r of [0, 15, 30]) {
+            const h = terrainHeight(nx! * S + Math.cos(a) * r, nz! * S + Math.sin(a) * r, seed, S);
+            expect(h).toBeLessThan(-4);
+          }
   });
 });

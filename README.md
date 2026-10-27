@@ -46,7 +46,11 @@ terraces, solar kites and a great water wheel, with empty graded lots left for t
 islet behind a railing fence and a neon gate: the Comet Loop coaster, the Sky Orbit wheel, the Petal Drop tower, a
 dandelion swing ride, the Firefly Carousel, spinning Bloom Cups and a splash lagoon. Every long bridge becomes a
 landmark of its own: suspension bridges with lotus or portal towers over the straits, a cable-stayed fan over the
-bay, and Helix or Bloom Arch bridges over the river and lake (bridges you build get them too). Walk,
+bay, and Helix or Bloom Arch bridges over the river and lake (bridges you build get them too). Clouds drift over
+the island (parting around wherever you look), lantern balloons and a leaf-sailed airship circle it, seabirds wheel
+over the coast, and the open sea holds its own wonders: the Tidewatch Lighthouse sweeping its beam at night, the Tide
+Gates (three giant pearl rings rising from the waves), the Lotus Atoll of giant floating flowers, the Abyssal Dome
+observatory, the Verdant Pillars (forested sea stacks) and pods of glowing whales that surface now and then. Walk,
 hoverboard or fly a drone through your streets, ride a commuter pod along its sky-lane, or frame the moment in photo mode.</td>
 <td><b>A whole island to steward.</b> A 512 × 512 tile island with hills, lakes, a river and islets to bridge,
 reclaim or defend.</td>

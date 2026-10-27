@@ -305,3 +305,20 @@ reshuffle which homes feed which streets. Frontage is filled with pocket parks (
 baseline (occupancy keeps settling) and after 400 steps the brownout drives residents out. Opening budget ≈ +11–16/s
 (was ≈ +35/s): smaller population (≈25k) and dock upkeep. Seed 4242 no longer opens starved (food 1.04, water 0.92).
 
+## D-039 — Sky and sea scenery are merged, shader-animated meshes (2026-10-27)
+
+**Context:** the sky was an empty gradient and the open sea around the island had nothing in it. **Decision:** a
+`scenery` module adds render-only decoration with no sim state (nothing to save or hash). Every piece is baked into
+one merged geometry (`GeoBuilder`: per-vertex colour, `aGlow`, extra per-vertex attributes) instead of instanced kit
+pieces: kit batches are per piece *per chunk*, so the six wonders in empty sea chunks would have cost ≈40 draws at the
+overview. Moving things (64 clouds, 7 lantern balloons, the airship, 5 gull flocks, 2 whale pods) are animated in the
+vertex shader from `U.clock` (orbits, drift with wrap-around, wing beats, surfacing) with no per-frame CPU work; their
+unlit `MeshBasicNodeMaterial`s shade themselves (`skyShade`) and send glow to the bloom MRT via `mrtNode`. Clouds shrink
+away inside a capsule from the camera focus back to the camera, so they frame the view without hiding the city; storms
+bring more, greyer clouds. Sea wonders stand in deep water near the map corners (`sites.ts`, tested deep on several
+seeds) so they never sit on land or on likely bridge lines; each is its own mesh (culled separately), whale pods get a
+hand-set bounding sphere since their geometry is local. **Cost:** +2 draws everywhere (clouds, sky life), +1 per wonder
+in view: downtown 217 → 221, overview ≈253, low horizon 291 → 297; `?stress=1500` +4–8. Modules +35 ms at boot; main
+thread unchanged within noise. **Known:** the `?stress=1500` near-horizon dusk view (pitch 0.12) was already over budget
+before this change (312, now 318).
+

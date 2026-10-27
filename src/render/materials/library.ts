@@ -380,6 +380,19 @@ export function initMaterials(): void {
     return m;
   });
 
+  // Merged scenery meshes (sea wonders): per-vertex colour, and `aGlow` for parts that light up at night.
+  define(
+    'scenery',
+    () => {
+      const m = new MeshStandardNodeMaterial({ roughness: 0.7, metalness: 0.05 });
+      const c = attribute('color', 'vec3');
+      m.colorNode = c;
+      m.emissiveNode = c.mul(attribute('aGlow', 'float')).mul(U.night.mul(0.9).add(0.12));
+      return m;
+    },
+    { overlay: 'plain' },
+  );
+
   define('sky', () => {
     const m = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, fog: false });
     const dir = positionLocal.normalize();
