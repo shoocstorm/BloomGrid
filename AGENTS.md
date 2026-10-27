@@ -173,6 +173,9 @@ own `requestAnimationFrame` loops.
 - three builds node graphs per render context (keyed by call depth: the bloom pass renders nested, so `compileAsync`
   misses it) and per `InstancedMesh` uuid. `ChunkedInstancer.warmup` adds one instance of every piece and builds every
   batch through `PostFX.compile()` (D-030). Re-check it when adding pieces, materials or render passes.
+- ECS component stores (`ecs/components.ts`) are global arrays indexed by entity id, shared by every `City` in the
+  page, and ids are reused: when adding a store field, reset it where `City` adds a building, or a second city (new
+  game, load, tests) reads the last one's values and breaks determinism.
 - bitecs 0.4 API: `addComponent(world, eid, Component)`, `query(world, [A, B])`.
 - Tweakpane v4 typings need `@tweakpane/core` (already a dev dependency).
 - CSS `background-clip: text` doesn't paint through transformed child spans (bitten us in the boot title).

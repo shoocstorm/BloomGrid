@@ -203,6 +203,9 @@ export class City {
     Building.level[eid] = rec.level ?? 0;
     Service.paired[eid] = 0;
     Service.bloom[eid] = 0.4;
+    // Entity ids are reused (also across cities in one page), so reset every per-building store.
+    Service.riders[eid] = 0;
+    Service.soil[eid] = 0.7;
     Service.network[eid] = this.networks.dirty ? -1 : this.networks.networkFor(rec.x, rec.z, w, d);
     for (let j = rec.z; j < rec.z + d; j++)
       for (let i = rec.x; i < rec.x + w; i++) this.grid.occupant[this.grid.index(i, j)] = eid;
