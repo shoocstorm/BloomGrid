@@ -105,7 +105,7 @@ Lotus Atoll ≈ 230/31, Abyssal Dome ≈ 440/471, Verdant Pillars ≈ 31/123, wh
 | Terrain edits, sea rise, seawalls  | `src/sim/coast.ts` (`setCorners` + `terrain:changed`; `defence` on a building def)                                                                                         |
 | Sky-bridges, banyan merges         | `src/sim/weaver.ts` (`tower: true` on a building def); visuals in `src/modules/weaver/`, `banyanPieces`                                                                    |
 | Building finish / style            | `style` on a building def (`StyleId` in `content/types.ts`); looks in `render/materials/styles.ts` (`STYLES`, district `FAMILIES`). Only neutral tints are restyled |
-| Sky and sea scenery                | `src/modules/scenery/`: one merged mesh per piece (`GeoBuilder` in `bake.ts`), shader motion from `U.clock`; wonder sites in `sites.ts` (tested deep sea) |
+| Sky and sea scenery                | `src/modules/scenery/`: one merged mesh per piece (`GeoBuilder` in `render/bake.ts`), shader motion from `U.clock`; wonder sites in `sites.ts` (tested deep sea) |
 | Signature bridges (render)         | `src/modules/construction/BridgeRenderer.ts` dresses straight spans from `findBridgeSpans` (`src/sim/bridges.ts`) by length                     |
 | Explore modes, photo mode          | `src/modules/explore/` (collider in `collider.ts`); `ctx.tools.suspended` and `cameraCtl.enabled` gate input                                                               |
 | Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                                                                                             |

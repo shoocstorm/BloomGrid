@@ -31,7 +31,7 @@ import {
 import { getMaterial } from '@/render/materials/library';
 import { hash2 } from '@/sim/random';
 import { U } from '@/render/uniforms';
-import { GeoBuilder, skyShade, tf } from './bake';
+import { GeoBuilder, skyShade, tf } from '@/render/bake';
 import { orbit } from './SkyLife';
 import { WONDER_SITES } from './sites';
 

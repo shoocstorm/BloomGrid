@@ -16,7 +16,7 @@ import { abs, attribute, cos, mrt, normalGeometry, positionGeometry, sign, sin, 
 import type { Node } from 'three/webgpu';
 import { hash2 } from '@/sim/random';
 import { U } from '@/render/uniforms';
-import { GeoBuilder, skyShade, tf } from './bake';
+import { GeoBuilder, skyShade, tf } from '@/render/bake';
 
 const PETALS = [0xffb7d5, 0xffe08a, 0xc9b6ff, 0x9ff0d8, 0xffc59a] as const;
 

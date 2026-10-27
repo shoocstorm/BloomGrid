@@ -20,7 +20,7 @@ import {
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { hash2 } from '@/sim/random';
 import { U } from '@/render/uniforms';
-import { GeoBuilder, tf } from './bake';
+import { GeoBuilder, tf } from '@/render/bake';
 
 const CLOUDS = 64;
 /** Clouds drift east and wrap inside this band of x (world units), so the sky never empties. */
