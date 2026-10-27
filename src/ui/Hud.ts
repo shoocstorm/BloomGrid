@@ -2,6 +2,7 @@ import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import { CATEGORY_ICONS, CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
 import { NO_ENTITY } from '@/sim/Grid';
+import { idForSelection } from '@/sim/inventory';
 import type { GameContext, GameModule } from '@/game/context';
 import { h, setText } from './dom';
 import './styles.css';
@@ -307,6 +308,16 @@ class Hud {
     );
   }
 
+  /** Readable object id and district above the inspector title; the id opens it in the dashboard inventory. */
+  private idTag(id: string | null, district: string | null): HTMLElement {
+    return h(
+      'div',
+      { class: 'info-id' },
+      id ? h('button', { class: 'info-id-btn', title: 'Show in the inventory (I)', onClick: () => this.ctx.services.get('dashboard').openInventory(id) }, id) : null,
+      h('span', {}, district ?? 'Outskirts'),
+    );
+  }
+
   /** Highway network ("district") inspector. */
   private selectNetwork(road: number): void {
     const { city } = this.ctx;
@@ -320,7 +331,8 @@ class Hud {
     const ratio = (p: number, u: number) => (u > 0 ? `${Math.round((p / u) * 100)}%` : '—');
     const row = (k: string, v: string | number) => h('div', { class: 'row' }, h('span', {}, k), h('b', {}, String(v)));
     this.infoBody.replaceChildren(
-      h('h3', {}, `Highway network #${id + 1}`),
+      this.idTag(idForSelection(city, { road }), city.districtAt(road % city.grid.w, (road / city.grid.w) | 0)),
+      h('h3', {}, 'Highway network'),
       h('p', {}, 'Power and water flow along connected Living Highways. Everything touching this network shares its supply.'),
       row('Highway tiles', fmt(tiles)),
       row('Connected buildings', fmt(n.buildings)),
@@ -336,7 +348,9 @@ class Hud {
     const def = this.ctx.city.buildingDef(this.selected);
     const s = def.stats;
     const row = (k: string, v: string | number) => h('div', { class: 'row' }, h('span', {}, k), h('b', {}, String(v)));
+    const [bx, bz] = [Building.x[this.selected]! + Building.w[this.selected]! / 2, Building.z[this.selected]! + Building.d[this.selected]! / 2];
     this.infoBody.replaceChildren(
+      this.idTag(idForSelection(this.ctx.city, { eid: this.selected }), this.ctx.city.districtAt(Math.floor(bx), Math.floor(bz))),
       h('h3', {}, def.name),
       h('p', {}, def.description),
       h('div', { class: 'grow' }, h('div', { class: 'row' }, h('span', {}, 'Greenery'), h('b', { 'data-g': '1' }, '')), h('div', { class: 'meter' }, h('i', { 'data-gm': '1' }))),

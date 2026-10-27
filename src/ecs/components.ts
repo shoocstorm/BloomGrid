@@ -14,6 +14,8 @@ export const Building = {
   d: new Uint8Array(MAX_ENTITIES),
   /** 0 = original, 1 = Bloom Retrofit (district transformation). */
   level: new Uint8Array(MAX_ENTITIES),
+  /** Stable serial (saved, never reused by a live building): the number in its readable id, `LIV-0042`. */
+  uid: new Uint32Array(MAX_ENTITIES),
 };
 
 /** Living greenery level 0..1 — drives membrane moss coverage and staged plant growth. */

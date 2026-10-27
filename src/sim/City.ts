@@ -27,6 +27,17 @@ export interface BuildingRecord {
   condition?: number;
   /** Retrofit level (0 original, 1 Bloom Retrofit). */
   level?: number;
+  /** Stable serial behind the readable id (see `sim/inventory.ts`); assigned on add when missing. */
+  uid?: number;
+}
+
+/** A named area of the map (town, quarter, park), laid down by the scenario and saved. Inclusive tile rectangle. */
+export interface District {
+  name: string;
+  x0: number;
+  z0: number;
+  x1: number;
+  z1: number;
 }
 
 export interface CityStats {
@@ -92,6 +103,12 @@ export class City {
   channelsDirty = true;
   /** Number of highway tiles (kept in sync by setRoads). */
   roadCount = 0;
+  /** Next building serial (saved). Undoing the newest build hands its serial back, so redo gets the same id. */
+  nextUid = 1;
+  /** Building serial → entity id. */
+  readonly uids = new Map<number, number>();
+  /** Named areas, most specific first (the first containing a tile names it). */
+  districts: District[] = [];
   seed = 0;
   tick = 0;
   /** 0..1, 0 = midnight, 0.5 = noon. */
@@ -122,6 +139,9 @@ export class City {
     this.weaver = { bridges: [] };
     this.steward = createStewardState(difficulty);
     this.roadCount = 0;
+    this.nextUid = 1;
+    this.uids.clear();
+    this.districts = [];
     this.channelsDirty = true;
     this.pulse = createPulseState();
     this.tick = 0;
@@ -207,6 +227,10 @@ export class City {
     Service.riders[eid] = 0;
     Service.soil[eid] = 0.7;
     Service.network[eid] = this.networks.dirty ? -1 : this.networks.networkFor(rec.x, rec.z, w, d);
+    const uid = rec.uid && !this.uids.has(rec.uid) ? rec.uid : this.nextUid;
+    this.nextUid = Math.max(this.nextUid, uid + 1);
+    Building.uid[eid] = uid;
+    this.uids.set(uid, eid);
     for (let j = rec.z; j < rec.z + d; j++)
       for (let i = rec.x; i < rec.x + w; i++) this.grid.occupant[this.grid.index(i, j)] = eid;
     this.bus.emit('building:added', { eid });
@@ -219,6 +243,7 @@ export class City {
     const d = Building.d[eid]!;
     for (let j = rec.z; j < rec.z + d; j++)
       for (let i = rec.x; i < rec.x + w; i++) this.grid.occupant[this.grid.index(i, j)] = NO_ENTITY;
+    this.uids.delete(rec.uid!);
     removeEntity(this.world, eid);
     this.bus.emit('building:removed', { eid, record: rec });
     return rec;
@@ -243,7 +268,24 @@ export class City {
       occupancy: Service.occupancy[eid]!,
       condition: Service.condition[eid]!,
       level: Building.level[eid]!,
+      uid: Building.uid[eid]!,
     };
+  }
+
+  /** Live building with serial `uid`, or NO_ENTITY. */
+  buildingByUid(uid: number): number {
+    return this.uids.get(uid) ?? NO_ENTITY;
+  }
+
+  /** Hands back the newest serial when that building is undone (keeps ids stable across undo/redo). */
+  releaseUid(uid: number): void {
+    if (uid === this.nextUid - 1 && !this.uids.has(uid)) this.nextUid = uid;
+  }
+
+  /** Name of the district containing tile (x, z), or null in open country. */
+  districtAt(x: number, z: number): string | null {
+    for (const d of this.districts) if (x >= d.x0 && x <= d.x1 && z >= d.z0 && z <= d.z1) return d.name;
+    return null;
   }
 
   buildingEntities(): readonly number[] {
@@ -324,10 +366,10 @@ export class City {
 
   hash(): string {
     const b = this.snapshotBuildings().map(
-      (r) => `${r.def}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0}`,
+      (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => d.name).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}`,
     );
   }
 }

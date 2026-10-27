@@ -1,0 +1,296 @@
+/* Dashboard tabs and the Inventory tab (instrument theme tokens from ui/theme.css). */
+.db-tabs {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.db-head h2 {
+  flex: 0 0 auto;
+  margin-right: 12px;
+}
+.db-tab {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.db-tab kbd {
+  margin-left: 6px;
+  font-size: 9px;
+  color: var(--ink-faint);
+}
+.db-tab:hover {
+  color: var(--ink);
+  background: var(--bg-hover);
+}
+.db-tab.on {
+  color: var(--accent);
+  border-color: var(--line-strong);
+  background: var(--bg-raise);
+}
+.db-pane.hidden,
+.inv .hidden {
+  display: none;
+}
+
+.inv-kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.inv-kind {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.inv-kind:hover {
+  background: var(--bg-hover);
+}
+.inv-kind.on {
+  border-color: var(--line-strong);
+  outline: 1px solid var(--accent);
+}
+.inv-kind .db-tile-v {
+  font-size: 22px;
+}
+.led {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 5px 1px 2px;
+  vertical-align: middle;
+  background: var(--accent-2);
+}
+.led.warning,
+.led.warn {
+  background: var(--warn);
+}
+.led.critical,
+.led.crit {
+  background: var(--crit);
+}
+
+.inv-bar {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 1px 2px;
+  text-align: left;
+  cursor: pointer;
+}
+.inv-bar:hover,
+.inv-bar.on {
+  background: var(--bg-hover);
+}
+.inv-bar.on .db-bar-l {
+  color: var(--accent);
+}
+.inv-bar .db-bar-l {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-bar-t i.warn {
+  background: var(--warn);
+}
+.db-bar-t i.crit {
+  background: var(--crit);
+}
+.db-bar-v em {
+  font-style: normal;
+  font-size: 10.5px;
+}
+.db-bar-v em.warn {
+  color: var(--warn);
+}
+.db-bar-v em.crit {
+  color: var(--crit);
+}
+
+.inv-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.inv-search {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.inv-search,
+.inv-sel {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: var(--bg-raise);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 6px 8px;
+}
+.inv-sel option {
+  background: #061315;
+}
+.inv-search:focus,
+.inv-sel:focus {
+  outline: 1px solid var(--accent);
+}
+.inv-count {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  margin-left: auto;
+}
+.inv-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 14px;
+  margin-top: 8px;
+}
+@media (max-width: 860px) {
+  .inv-main {
+    grid-template-columns: 1fr;
+  }
+}
+.inv-table-wrap {
+  max-height: 46vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+}
+.inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.inv-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-strong);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.inv-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(95, 242, 218, 0.06);
+  white-space: nowrap;
+}
+.inv-table tbody tr {
+  cursor: pointer;
+}
+.inv-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+.inv-table tbody tr.on {
+  background: var(--bg-raise);
+  box-shadow: inset 2px 0 var(--accent);
+}
+.inv-id,
+.inv-table .num,
+.inv-d-id {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.inv-id {
+  color: var(--accent);
+}
+.inv-issues {
+  color: var(--warn);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inv-empty,
+.inv-hint {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.inv-more {
+  display: block;
+  margin: 6px auto;
+}
+.inv-detail {
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  font-size: 12px;
+  max-height: 46vh;
+  overflow: auto;
+}
+.inv-d-id {
+  color: var(--accent);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.inv-d-id .led {
+  margin-left: auto;
+}
+.inv-detail h4 {
+  margin: 4px 0 2px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.inv-d-sub {
+  margin: 0 0 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+.inv-detail p {
+  margin: 4px 0;
+  line-height: 1.4;
+}
+.inv-d-issue {
+  padding: 4px 6px;
+  border-left: 2px solid var(--warn);
+  background: rgba(255, 207, 106, 0.07);
+}
+.inv-d-issue.s2 {
+  border-color: var(--crit);
+  background: rgba(255, 90, 110, 0.08);
+}
+.inv-d-issue.s0 {
+  border-color: var(--line-strong);
+  background: var(--bg-raise);
+}
+.inv-kv .row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+}
+.inv-kv .row b {
+  font-family: var(--mono);
+  font-weight: 400;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.inv-d-more {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.inv-d-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.inv-d-actions .btn {
+  padding: 5px 10px;
+  cursor: pointer;
+}

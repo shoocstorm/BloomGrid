@@ -36,17 +36,17 @@ export const [GRID_W, GRID_N, GRID_S] = [4, 4, 3];
  * puts a big housing hero straight across the street from its workplace: a home sends all its road commuters to
  * the nearest workplace in one stream, which jams every tile of the trip, so that trip must be short.
  */
-const QUARTERS: { blocks: [number, number, number, number]; heroes: (string | [string, string])[] }[] = [
+const QUARTERS: { name: string; blocks: [number, number, number, number]; heroes: (string | [string, string])[] }[] = [
   // Civic ring around the spire plaza.
-  { blocks: [-1, -1, 1, 1], heroes: ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes', 'quartz-spire', 'nautilus-library', 'harmony-gate'] },
+  { name: 'Civic Ring', blocks: [-1, -1, 1, 1], heroes: ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes', 'quartz-spire', 'nautilus-library', 'harmony-gate'] },
   // Skyline hill (north-east): towers, homes and the skyport.
-  { blocks: [1, -4, 4, 0], heroes: ['dragonfly-port', ['glass-pine', 'vertical-forest'], 'moss-monolith', 'coral-arcology', 'lotus-pagoda', 'rain-vortex', 'bloom-eye', 'fog-harp'] },
+  { name: 'Skyline Hill', blocks: [1, -4, 4, 0], heroes: ['dragonfly-port', ['glass-pine', 'vertical-forest'], 'moss-monolith', 'coral-arcology', 'lotus-pagoda', 'rain-vortex', 'bloom-eye', 'fog-harp'] },
   // The exchange (south-east), toward downtown: trade, science and the algae works.
-  { blocks: [1, 1, 4, 3], heroes: ['zephyr-airport', 'seedpod-labs', 'bloom-clock', 'starlight-observatory', 'algae-lantern', 'wavecrest-gallery', 'sunset-amphitheatre', 'corkscrew-orchard'] },
+  { name: 'The Exchange', blocks: [1, 1, 4, 3], heroes: ['zephyr-airport', 'seedpod-labs', 'bloom-clock', 'starlight-observatory', 'algae-lantern', 'wavecrest-gallery', 'sunset-amphitheatre', 'corkscrew-orchard'] },
   // Garden quarter (south-west): timber halls, gardens and markets.
-  { blocks: [-4, 1, -1, 3], heroes: ['elder-banyan', 'levitating-gardens', 'bamboo-cathedral', 'canopy-skywalk', 'moonflower-hall', 'habitat-cascade', 'mycelium-towers', 'solar-sail-bazaar', 'aeolian-reeds'] },
+  { name: 'Garden Quarter', blocks: [-4, 1, -1, 3], heroes: ['elder-banyan', 'levitating-gardens', 'bamboo-cathedral', 'canopy-skywalk', 'moonflower-hall', 'habitat-cascade', 'mycelium-towers', 'solar-sail-bazaar', 'aeolian-reeds'] },
   // Working hills (north-west), by the lake: food, water, energy and baths.
-  { blocks: [-4, -4, -1, 0], heroes: ['great-noria', 'rice-terraces', 'heliostat-array', 'kite-meadow', 'honeycomb-apiary', 'travertine-baths'] },
+  { name: 'Working Hills', blocks: [-4, -4, -1, 0], heroes: ['great-noria', 'rice-terraces', 'heliostat-array', 'kite-meadow', 'honeycomb-apiary', 'travertine-baths'] },
 ];
 
 /** All hero ids on the grid, for tests. */
@@ -369,5 +369,12 @@ export default defineScenario({
       for (let i = -GRID_W; i <= GRID_W + 1; i++) b.road(lineX(i), z0, lineX(i), z1);
       for (let j = -GRID_N; j <= GRID_S + 1; j++) b.road(x0, lineZ(j), x1, lineZ(j), j === 2 || j === GRID_S + 1);
     }
+
+    // Named areas for the inventory and the inspector, most specific first; their streets included.
+    const streets = ([i0, j0, i1, j1]: Rect): Rect => [lineX(i0), lineZ(j0), lineX(i1 + 1), lineZ(j1 + 1)];
+    if (spire) for (const q of QUARTERS) b.nameArea(q.name, ...streets(q.blocks));
+    if (park) b.nameArea('Bloomtopia', park[0], park[1], park[0] + b.footprint('bloomtopia')[0] - 1, park[1] + b.footprint('bloomtopia')[1] - 1);
+    for (const t of all) b.nameArea(t.name, ...streets(t.blocks));
+    b.nameArea('Foundry Islet', ...islet);
   },
 });

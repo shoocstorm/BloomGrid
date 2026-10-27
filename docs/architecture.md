@@ -19,6 +19,12 @@ main.ts ── createGame()  core runtime: renderer, sim, input, tools, save, sy
 | Modules   | `src/modules/*`, `src/ui`, `src/debug` | Features. Each registers systems, commands, tools, services and events.                                                                                            |
 | Platform  | `src/platform`                         | Storage and file export; web (IndexedDB) now, Tauri later.                                                                                                         |
 
+**Inventory and agent tools (D-042).** `sim/inventory.ts` turns the city into JSON-ready `CityObject` records (readable
+`id`, kind, type, district, status, issues, metrics) from registered kinds; `queryInventory` / `summarize` /
+`inspectObject` answer every question about them. `modules/inventory` wraps it as service `inventory` (adds `focus` /
+`select`), the dashboard's Inventory tab is its UI, and `core/AgentTools.ts` exposes the same queries as named,
+schema-checked tools (service `agent`: `specs()` for an LLM request, `call(name, args)` to run one).
+
 ## Simulation model (City Pulse)
 
 | Piece             | Where                                                        | Notes                                                                                                                          |
@@ -87,3 +93,5 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Spatial field            | deposit + `boxBlur` (`sim/blur.ts`), computed on its own pulse phase                                              |
 | Right-hand HUD panel     | append to `ctx.services.get('hud').right`                                                                         |
 | Dashboard chart          | `new LineChart({ format, step })` from `modules/dashboard/LineChart.ts` (one series per chart)                    |
+| Inventory object kind    | `registerInventoryKind({ kind, label, icon, prefixes, description, list, get?, details? })` in `sim/inventory.ts` (or a module); issue codes via `registerIssue` |
+| Agent tool (LLM / script)| `ctx.services.get('agent').register({ name, description, input, effect, run })` (`core/AgentTools.ts`); pure-sim tools go in `sim/*Tools.ts` |

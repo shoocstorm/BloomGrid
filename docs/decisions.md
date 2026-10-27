@@ -366,3 +366,22 @@ the guideway for culling cost more than it saved, since each chunk also casts in
 +12–18 draws; one mesh: +4–10). Trains cast no shadows (the shadow map is cached). Overview 257 → 269 at worst,
 near-horizon views ≤ 289; `?stress=1500` +6 (its near-horizon base already swings 293–314 between runs). Modules +33 ms
 at boot (with the towers); main thread ≈ 18.4% active / ≈ 17% idle, within noise of before.
+
+## D-042 — City inventory: readable ids, pluggable kinds and agent tools (2026-10-27)
+
+The steward needs to find, count and inspect everything the city holds, and a future LLM agent needs the same
+through function calls, so both use one pure-sim API. **Ids:** buildings get a serial (`Building.uid`, `City.nextUid`,
+saved in v7, in the hash) shown behind a category code (`LIV-0042`; the code is cosmetic, lookup uses the number).
+Entity ids were rejected (bitecs reuses them) and positions too (a rebuilt lot would inherit the id). Undo of the
+newest build hands its serial back (`releaseUid`) so redo restores the same id; demolish/undo keeps it through the
+record. Tile infrastructure has no stored identity, so it is named by an anchor tile (`HWY-x.z` = first tile in
+row-major order; it changes only if that tile is removed), sky-bridges by their towers' serials. **Districts** are
+named tile rectangles the scenario lays down (`ScenarioBuilder.nameArea`), saved, most specific first; old saves have
+none (everything reads "Outskirts"). **Kinds** register like overlays (`registerInventoryKind`: `list`, optional `get`
+and `details`); modules can add render-side objects (the scenery module adds the sea wonders). Records are rebuilt on
+demand (no cached index to keep in sync); the UI snapshots every 2 s and filters the snapshot. **Agent tools** live
+in core (`AgentToolRegistry`, generic over the context, provided as service `agent`): lower-snake names, JSON-schema
+input, an `effect` of `read` / `view` / `mutate` so a host can gate state changes, and `call()` validates and
+returns `{ ok, result | error }` instead of throwing, which is what a model needs to read back. Read tools are pure
+sim (`sim/inventoryTools.ts`), so tests and headless agents run them without a renderer.
+

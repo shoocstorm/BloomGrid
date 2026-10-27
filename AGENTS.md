@@ -43,7 +43,8 @@ your change (`[boot] modules {…}` breaks module init down per module). `shots/
 drill), `drought.js` (water-failure drill; buildings should visibly wilt), `retrofit.js` (channel + Bloom Retrofit
 wave), `nightlife.js` (night downtown: glow should follow activity; `window.NEAR = 12` for a close-up) and `season.js`
 (mid-Haze; prefix `window.SEASON = 1;` for a Monsoon shower), `mobility.js` (first Pod Dock at rush hour; `window.NIGHT = 1`,
-`window.LENS = 1` for the Traffic lens, `window.NEAR = 14`).
+`window.LENS = 1` for the Traffic lens, `window.NEAR = 14`), `inventory.js` (dashboard Inventory tab on the worst object, plus every agent tool; `window.QUERY = 'district:westbrook'`
+pre-fills the search).
 Field passes share the pulse (`FIELD_PULSES` = 6, D-020): phase 0 pairing + pollution, 1 ecology + desirability, 2 bloom, 3 Flora-Net,
 4 night life, 5 mobility. All six are taken, so a new pass must share a phase or `FIELD_PULSES` must grow. `floranet.js` frames the Drone Hive and dispatches a mist. `weaver.js` weaves bridges, a banyan and reclaims coast. `explore.js` enters an explore mode (`window.MODE`). `landmark.js` frames the Wellspring Spire and its hero district at the island centre: a street grid of 14-tile blocks (`QUARTERS` in `content/scenarios/founding-city.ts`; quarters around `window.CX`/`window.CZ` ≈ 292/222 skyline, 292/286 exchange, 222/284 gardens, 215/220 working hills). To add a hero, append its id to a quarter: it takes the free graded lot nearest the spire (D-035). Bloomtopia, the fenced amusement park, fills the south islet (`window.CX`/`CZ` ≈ 252/440, `window.YAW` = π to face its gate); its suspension bridge is at ≈ 252/404 and the north-east one at ≈ 430/145. The towns (`TOWNS` in the same file) continue the grid: Westbrook ≈ 150/270, Eastgate ≈ 360/250, Hillcrest ≈ 255/160, Bayfront ≈ 270/340, Sunfield ≈ 130/205. Sea wonders (`modules/scenery/sites.ts`): Tidewatch Lighthouse ≈ 471/41, Tide Gates ≈ 72/471,
 Lotus Atoll ≈ 230/31, Abyssal Dome ≈ 440/471, Verdant Pillars ≈ 31/123, whale pods ≈ 154/481 and 348/26. Aeroline stations: Hillcrest ≈ 256/159, Eastgate ≈ 353/256, Bayfront ≈ 241/368, Westbrook ≈ 144/271 (`services.get('explore').setMode('train')` rides a train); keep pieces in the quarter's render chunk (D-034) (`window.NEAR`, `window.PITCH`, `window.YAW`, `window.NIGHT`). Crises: `--path "/?drill=monsoon"`
@@ -109,6 +110,8 @@ Lotus Atoll ≈ 230/31, Abyssal Dome ≈ 440/471, Verdant Pillars ≈ 31/123, wh
 | Sky and sea scenery                | `src/modules/scenery/`: one merged mesh per piece (`GeoBuilder` in `render/bake.ts`), shader motion from `U.clock`; wonder sites in `sites.ts` (tested deep sea) |
 | Signature bridges (render)         | `src/modules/construction/BridgeRenderer.ts` dresses straight spans from `findBridgeSpans` (`src/sim/bridges.ts`) by length                     |
 | Explore modes, photo mode          | `src/modules/explore/` (collider in `collider.ts`); `ctx.tools.suspended` and `cameraCtl.enabled` gate input                                                               |
+| Object inventory, readable ids     | `registerInventoryKind` in `src/sim/inventory.ts` (buildings, networks, bridges, sky-bridges, channels, districts built in); UI in `src/modules/dashboard/InventoryView.ts`; districts via `nameArea` in a scenario |
+| Agent (LLM) tools                  | `ctx.services.get('agent').register({ name, description, input, effect, run })` (`src/core/AgentTools.ts`); pure-sim read tools in `src/sim/inventoryTools.ts`; try them in the console: `await bloomgrid.services.get('agent').call('inventory_search', { status: 'critical' })` |
 | Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                                                                                             |
 | New lit material                   | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)                                                                             |
 
@@ -186,6 +189,11 @@ own `requestAnimationFrame` loops.
 - Headless screenshots can time out while the main thread is busy generating the world; re-run, or capture later.
 - `bun run snap` ignores `--eval` when `--times` is given; use `--after <ms>` with `--eval`. An eval may return a
   Promise (e.g. to sample `renderer.info.render.drawCalls` over a second; it reads 0 between frames).
+- Building ids (`LIV-0042`) come from `Building.uid`, a saved serial: build new buildings through `addBuilding` without a
+  `uid` (it assigns one), and pass the record's `uid` back when re-adding (undo), or the id changes. New object kinds
+  must give each object an id unique among live objects (`tests/inventory.test.ts` checks the founding city).
+- Agent tools return plain JSON (no entity ids, typed arrays or DOM): strip HUD handles (`ref`) as `inventoryTools.ts` does.
+  Tools that change the city must run commands and declare `effect: 'mutate'`.
 - Sim modules that `City.ts` imports must not import `City.ts` values back (only `import type`): a cycle leaves
   constants undefined at load (`DAY_LENGTH` lives in `pulseConst.ts` for this reason).
 - Anything derived from terrain heights must refresh in `City.refreshTerrainDerived()` (sim) or on `terrain:changed`

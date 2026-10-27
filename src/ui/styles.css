@@ -519,3 +519,25 @@ button {
     padding: 8px 10px;
   }
 }
+
+/* Inspector: readable object id (opens the inventory) and district. */
+.info-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  margin-right: 22px;
+}
+.info-id-btn {
+  font: inherit;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 1px 6px;
+  cursor: pointer;
+}
+.info-id-btn:hover {
+  background: var(--bg-hover);
+}

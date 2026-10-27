@@ -67,7 +67,7 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
     revert({ city }, p) {
       const eid = city.buildingAt(p.x, p.z);
       if (eid === NO_ENTITY) return;
-      city.removeBuilding(eid);
+      city.releaseUid(city.removeBuilding(eid).uid!);
       city.credits += buildings.get(p.def).stats.cost;
     },
   });

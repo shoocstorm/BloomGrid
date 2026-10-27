@@ -186,6 +186,8 @@ export interface ScenarioBuilder {
    * feathering back into the terrain over `margin` tiles (never over earlier edits). Water is never filled. Saved as terrain edits. Returns the height used.
    */
   level(x0: number, z0: number, x1: number, z1: number, margin?: number, height?: number): number;
+  /** Names the tile rectangle x0..x1 × z0..z1 (inclusive): a town, quarter or park. Earlier names win where areas overlap. */
+  nameArea(name: string, x0: number, z0: number, x1: number, z1: number): void;
   /** Running utility totals of everything placed so far (at full occupancy). */
   totals(): { energyProduced: number; energyUsed: number; waterProduced: number; waterUsed: number; food: number; population: number; jobs: number };
 }
@@ -208,6 +210,17 @@ export const CATEGORY_ICONS: Record<BuildingCategory, string> = {
   commercial: '❖',
   nature: '❀',
   food: '✾',
+};
+
+/** Prefixes of readable building ids (`LIV-0042`), one per category. */
+export const CATEGORY_CODES: Record<BuildingCategory, string> = {
+  residential: 'LIV',
+  energy: 'NRG',
+  utility: 'UTL',
+  tech: 'TEC',
+  commercial: 'WRK',
+  nature: 'NAT',
+  food: 'FOD',
 };
 
 export const CATEGORY_LABELS: Record<BuildingCategory, string> = {

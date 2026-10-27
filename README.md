@@ -97,11 +97,16 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Build              | **4–0** building categories · **R** rotate · **X** bulldoze                                        |
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **B** Bloom Retrofit · **M** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
-| Watch your city    | **P** City Pulse · **L** data lenses · **F** advisor · **K** dashboard · **O** overview            |
+| Watch your city    | **P** City Pulse · **L** data lenses · **F** advisor · **K** dashboard · **I** inventory · **O** overview |
 | Explore            | **N** walk / hoverboard / drone / ride a pod / ride the Aeroline (**Tab** next, **Esc** back) · **J** photo mode (**P** saves a PNG) |
 | Time               | **Space** pause · **1 / 2 / 3** speed                                                              |
 | Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** / **⌘L** (Ctrl on Windows/Linux)                                         |
 | Remember a view    | **Alt+1–4** store · **Shift+1–4** recall                                                           |
+
+**Inventory** (**I**): every building, highway network, bridge, sky-bridge, channel, district and sea wonder, each
+with a readable id such as `LIV-0042` or `HWY-118.204`. Search by name, id or district, or filter with `issue:power`,
+`status:critical`, `district:westbrook`; pick a row to inspect it and **Locate** to fly there. The inspector shows
+the id of whatever you select; click it to open the inventory.
 
 **Settings** (⚙ in the top bar): graphics quality, and a power mode (Battery 30 fps · Balanced 60 fps · Max) that
 keeps laptops cool. The game idles at a lower frame rate when nothing moves.

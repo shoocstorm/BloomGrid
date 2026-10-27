@@ -3,7 +3,7 @@ import type { BuildingRecord, City } from './City';
 import { createPulseState, type PulseState } from './pulseState';
 import { createStewardState, type StewardState } from './stewardState';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 export interface SaveData {
   version: number;
@@ -13,8 +13,12 @@ export interface SaveData {
   day: number;
   credits: number;
   rngState: number;
-  /** [def, x, z, rot, greenery, occupancy, condition, level] */
-  buildings: [string, number, number, number, number, number, number, number][];
+  /** [def, x, z, rot, greenery, occupancy, condition, level, uid] */
+  buildings: [string, number, number, number, number, number, number, number, number?][];
+  /** Next building serial (readable ids are never reused while the game lives). */
+  nextUid: number;
+  /** Named areas as [name, x0, z0, x1, z1], most specific first. */
+  districts: [string, number, number, number, number][];
   roads: number[];
   /** Sparse [tile, value] pairs of highway overgrowth. */
   overgrowth: [number, number][];
@@ -70,6 +74,13 @@ export function migrateSave(data: SaveData): SaveData {
     data.steward.seaRise ??= 0;
     data.version = 6;
   }
+  if (data.version === 6) {
+    // Serials in canonical (row-major) order; older saves have no named areas.
+    data.buildings = data.buildings.map((b, i) => [b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], i + 1]);
+    data.nextUid = data.buildings.length + 1;
+    data.districts = [];
+    data.version = 7;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -86,7 +97,9 @@ export function serializeCity(city: City): SaveData {
     day: city.day,
     credits: city.credits,
     rngState: city.rng.state,
-    buildings: city.snapshotBuildings().map((b) => [b.def, b.x, b.z, b.rot, b.greenery, b.occupancy ?? 0, b.condition ?? 1, b.level ?? 0]),
+    buildings: city.snapshotBuildings().map((b) => [b.def, b.x, b.z, b.rot, b.greenery, b.occupancy ?? 0, b.condition ?? 1, b.level ?? 0, b.uid ?? 0]),
+    nextUid: city.nextUid,
+    districts: city.districts.map((d) => [d.name, d.x0, d.z0, d.x1, d.z1]),
     channels: city.channelTiles(),
     roads: city.roadTiles(),
     overgrowth,
@@ -133,11 +146,13 @@ export function deserializeCity(city: City, input: SaveData): void {
     city.soil.hydration.set(data.soil.hydration);
     city.soil.nutrients.set(data.soil.nutrients);
   }
-  for (const [def, x, z, rot, greenery, occupancy, condition, level] of data.buildings) {
-    const rec: BuildingRecord = { def, x, z, rot, greenery, occupancy, condition, level };
+  city.districts = data.districts.map(([name, x0, z0, x1, z1]) => ({ name, x0, z0, x1, z1 }));
+  for (const [def, x, z, rot, greenery, occupancy, condition, level, uid] of data.buildings) {
+    const rec: BuildingRecord = { def, x, z, rot, greenery, occupancy, condition, level, uid };
     const eid = city.addBuilding(rec);
     Service.occupancy[eid] = occupancy;
   }
+  city.nextUid = Math.max(city.nextUid, data.nextUid);
 }
 
 const round3 = (v: number) => Math.round(v * 1000) / 1000;

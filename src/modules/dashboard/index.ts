@@ -8,6 +8,7 @@ import { h, setText } from '@/ui/dom';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { INCOME_SCALE } from '@/sim/pulse';
 import { LineChart } from './LineChart';
+import { InventoryView } from './InventoryView';
 import './dashboard.css';
 
 const HISTORY_STEP = 10; // sim seconds per history sample
@@ -20,9 +21,12 @@ interface Tile {
   sub: HTMLElement;
 }
 
+type Tab = 'overview' | 'inventory';
+
 /**
- * City dashboard (K): headline tiles, trend small-multiples (one series per chart), budget
- * and land-use breakdowns, and system health with icon + label. Refreshes ~1 Hz while open.
+ * City dashboard. Overview (K): headline tiles, trend small-multiples (one series per chart), budget and
+ * land-use breakdowns, and system health with icon + label; refreshes ~1 Hz while open. Inventory (I): every
+ * object in the city, counted, searchable and inspectable (see `InventoryView`).
  */
 class Dashboard {
   readonly el: HTMLElement;
@@ -33,6 +37,9 @@ class Dashboard {
   private landuse = h('div', { class: 'db-bars' });
   private open = false;
   private timer = 0;
+  private tab: Tab = 'overview';
+  private tabs = new Map<Tab, { btn: HTMLElement; pane: HTMLElement }>();
+  readonly inventory: InventoryView;
 
   constructor(private ctx: GameContext) {
     const tiles = h('div', { class: 'db-tiles' });
@@ -66,36 +73,80 @@ class Dashboard {
       charts.append(h('figure', { class: 'db-chart' }, h('figcaption', {}, label), chart.el));
     }
 
+    const overview = h(
+      'div',
+      { class: 'db-pane' },
+      tiles,
+      h('h3', {}, 'Trends · last 40 sim-minutes'),
+      charts,
+      h(
+        'div',
+        { class: 'db-cols' },
+        h('div', {}, h('h3', {}, 'System health'), this.health),
+        h('div', {}, h('h3', {}, 'Budget per second'), this.budget),
+        h('div', {}, h('h3', {}, 'Land use'), this.landuse),
+      ),
+    );
+    this.inventory = new InventoryView(ctx, () => this.toggle(false));
+    const tabBar = h('nav', { class: 'db-tabs', role: 'tablist' });
+    for (const [id, name, key, pane] of [
+      ['overview', 'Overview', 'K', overview],
+      ['inventory', 'Inventory', 'I', h('div', { class: 'db-pane' }, this.inventory.el)],
+    ] as [Tab, string, string, HTMLElement][]) {
+      const btn = h('button', { class: 'db-tab', role: 'tab', onClick: () => this.show(id) }, name, h('kbd', {}, key));
+      tabBar.append(btn);
+      this.tabs.set(id, { btn, pane });
+    }
     this.el = h(
       'div',
       { class: 'db-scrim hidden', onClick: (e: Event) => e.target === this.el && this.toggle(false) },
       h(
         'section',
         { class: 'db panel', role: 'dialog', 'aria-label': 'City dashboard' },
-        h('header', { class: 'db-head' }, h('h2', {}, 'City Dashboard'), h('span', { class: 'db-hint' }, 'K to close'), h('button', { class: 'icon-btn', onClick: () => this.toggle(false) }, '✕')),
-        tiles,
-        h('h3', {}, 'Trends · last 40 sim-minutes'),
-        charts,
-        h(
-          'div',
-          { class: 'db-cols' },
-          h('div', {}, h('h3', {}, 'System health'), this.health),
-          h('div', {}, h('h3', {}, 'Budget per second'), this.budget),
-          h('div', {}, h('h3', {}, 'Land use'), this.landuse),
-        ),
+        h('header', { class: 'db-head' }, h('h2', {}, 'City Dashboard'), tabBar, h('span', { class: 'db-hint' }, 'Esc to close'), h('button', { class: 'icon-btn', onClick: () => this.toggle(false) }, '✕')),
+        ...[...this.tabs.values()].map((t) => t.pane),
       ),
     );
+    this.show('overview');
     ctx.hud.append(this.el);
+  }
+
+  get isOpen(): boolean {
+    return this.open;
+  }
+
+  get activeTab(): Tab {
+    return this.tab;
   }
 
   toggle(open = !this.open): void {
     this.open = open;
     this.el.classList.toggle('hidden', !open);
-    if (open) this.refresh();
+    if (open) this.show(this.tab);
+  }
+
+  /** Opens on a tab (pressing its key again while it shows closes the dashboard). */
+  openTab(tab: Tab): void {
+    if (this.open && this.tab === tab) return this.toggle(false);
+    this.show(tab);
+    this.toggle(true);
+  }
+
+  show(tab: Tab): void {
+    this.tab = tab;
+    for (const [id, t] of this.tabs) {
+      t.btn.classList.toggle('on', id === tab);
+      t.btn.setAttribute('aria-selected', String(id === tab));
+      t.pane.classList.toggle('hidden', id !== tab);
+    }
+    if (!this.open) return;
+    if (tab === 'overview') this.refresh();
+    else this.inventory.update(0, true);
   }
 
   update(dt: number): void {
     if (!this.open) return;
+    if (this.tab === 'inventory') return this.inventory.update(dt);
     this.timer += dt;
     if (this.timer < 1) return;
     this.timer = 0;
@@ -176,20 +227,37 @@ class Dashboard {
 
 export const dashboardModule: GameModule = {
   id: 'dashboard',
-  deps: ['pulse'],
+  deps: ['pulse', 'inventory'],
   init(ctx) {
     const db = new Dashboard(ctx);
     ctx.systems.add({ id: 'dashboard', phase: 'render', order: 130, update: (_c, f) => db.update(f.dt) });
     ctx.input.onKey((e) => {
-      if (e.code === 'KeyK' && !e.metaKey && !e.ctrlKey) return db.toggle(), true;
+      if (e.metaKey || e.ctrlKey) return false;
+      if (e.code === 'KeyK') return db.openTab('overview'), true;
+      if (e.code === 'KeyI') {
+        db.openTab('inventory');
+        if (db.isOpen) setTimeout(() => db.inventory.focusSearch());
+        return true;
+      }
+      if (e.code === 'Escape' && db.isOpen) return db.toggle(false), true;
       return false;
     });
-    ctx.services.provide('dashboard', { toggle: () => db.toggle() });
+    ctx.services.provide('dashboard', {
+      toggle: () => db.toggle(),
+      openInventory(id?: string) {
+        if (!db.isOpen || db.activeTab !== 'inventory') db.openTab('inventory');
+        if (id) db.inventory.choose(id);
+      },
+    });
   },
 };
 
 declare module '@/core/Services' {
   interface GameServices {
-    dashboard: { toggle(): void };
+    dashboard: {
+      toggle(): void;
+      /** Opens the Inventory tab, optionally on one object id. */
+      openInventory(id?: string): void;
+    };
   }
 }

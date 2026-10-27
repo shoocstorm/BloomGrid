@@ -181,6 +181,17 @@ The city is a system that can run well or badly.
 - **Accept:** ✅ `tests/platform.test.ts` (v1 → v6 migration loads the same city; future versions refused; GLB landmarks have fallbacks). Visual: Rodin landmarks and pod on WebGPU and WebGL2 (day and night); desktop window renders the full game (`cargo build`, launched against the dev server).
 - **Measured:** main thread 16.3% active / 14.6% idle; GPU 1.9–3.5 ms; draws 195 (229 with `?stress=1500`); boot unchanged (GLBs load asynchronously after boot).
 
+## ✅ Phase 13 — City Inventory & Agent Tools (2026-10-27)
+
+- [x] Readable, unique ids for every object (D-042): buildings `LIV-0042` (category code + saved serial, stable through undo/redo and save/load), highway networks `HWY-x.z`, bridges `BRG-x.zE`, sky-bridges `SKY-0042-0107`, channels `CHN-x.z`, districts `DST-WESTBROOK`, sea wonders `LMK-…`
+- [x] Named districts from the scenario (`nameArea`): the five hero quarters, the four towns, Sunfield, Bloomtopia, Foundry Islet; saved (v7)
+- [x] Sim inventory (`sim/inventory.ts`): pluggable kinds (`registerInventoryKind`), shared issue vocabulary with severity and fix hints, search (`key:value` filters), sort, page, summarize, inspect
+- [x] Dashboard Inventory tab (**I**): counts per kind / issue / district / type (click to filter), searchable sortable list, inspector with Locate; the HUD inspector shows the id and district (click opens the inventory)
+- [x] Agent tools (`core/AgentTools.ts`, service `agent`): JSON-schema tools in Claude tool-use shape (`specs()`, `call()`), validated, never throwing; `city_overview`, `inventory_catalog`, `inventory_summary`, `inventory_search`, `inventory_inspect`, `camera_focus`, `object_select`
+- [ ] Deferred: an in-game LLM steward (host that sends `specs()` to the Claude API and loops `call()`), `mutate` tools over commands (build, demolish, tax) with player confirmation, hover highlight of search results in the 3D view
+- **Accept:** ✅ `tests/inventory.test.ts` (unique ids in the founding city, id stability through undo/redo and save/load, v6 → v7 migration, queries, summary, tools). Visual: `bun run snap -- --eval @scripts/scenes/inventory.js` on WebGPU and `?renderer=webgl`.
+- **Measured:** snapshot of ≈2 250 objects ≈9.5 ms (every 2 s, only while the Inventory tab is open), filter ≈0.5 ms per keystroke; nothing per frame when closed; main thread unchanged (20–21% active on this machine, same as HEAD).
+
 ---
 
 ## Tech debt / open issues

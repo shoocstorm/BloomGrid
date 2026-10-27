@@ -35,7 +35,8 @@ describe('save migrations', () => {
     } as unknown as SaveData;
     const m = migrateSave(structuredClone(v1));
     expect(m.version).toBe(SAVE_VERSION);
-    expect(m.buildings[0]!.length).toBe(8);
+    expect(m.buildings[0]!.length).toBe(9);
+    expect(m.districts).toEqual([]);
     expect(m.channels).toEqual([]);
     expect(m.terrain).toEqual([]);
     expect(m.bridges).toEqual([]);

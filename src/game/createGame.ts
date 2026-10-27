@@ -5,6 +5,7 @@ import { Engine } from '@/core/Engine';
 import { EventBus } from '@/core/EventBus';
 import { loadModules } from '@/core/Modules';
 import { Services } from '@/core/Services';
+import { AgentToolRegistry } from '@/core/AgentTools';
 import { SystemRegistry } from '@/core/Systems';
 import { City } from '@/sim/City';
 import { registerSimCommands } from '@/sim/commands';
@@ -38,6 +39,8 @@ declare module '@/core/Services' {
   interface GameServices {
     render: RenderService;
     save: SaveManager;
+    /** Agent tools (LLM function calling, scripts, console): modules register, hosts call (see core/AgentTools.ts). */
+    agent: AgentToolRegistry<GameContext>;
   }
 }
 
@@ -147,6 +150,7 @@ export async function createGame(
   };
   ctx.services.provide('render', { postfx, dynamicResolution: dynRes, setQuality, power });
   ctx.services.provide('save', new SaveManager(ctx));
+  ctx.services.provide('agent', new AgentToolRegistry<GameContext>(ctx));
   window.addEventListener('resize', applySize);
 
   // Core per-frame systems.
