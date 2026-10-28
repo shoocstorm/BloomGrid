@@ -1,9 +1,10 @@
+import type { ZoneKind } from '@/content/types';
 import { Service } from '@/ecs/components';
 import type { BuildingRecord, City } from './City';
 import { createPulseState, type PulseState } from './pulseState';
 import { createStewardState, type StewardState } from './stewardState';
 
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 export interface SaveData {
   version: number;
@@ -18,7 +19,8 @@ export interface SaveData {
   /** Next building serial (readable ids are never reused while the game lives). */
   nextUid: number;
   /** Named areas as [name, x0, z0, x1, z1], most specific first. */
-  districts: [string, number, number, number, number][];
+  /** Name, inclusive tile rectangle, and (v8+) the zone kind or '' for none. */
+  districts: [string, number, number, number, number, (ZoneKind | '')?][];
   roads: number[];
   /** Sparse [tile, value] pairs of highway overgrowth. */
   overgrowth: [number, number][];
@@ -81,6 +83,10 @@ export function migrateSave(data: SaveData): SaveData {
     data.districts = [];
     data.version = 7;
   }
+  if (data.version === 7) {
+    // Zones arrived with v8: older named areas simply have none.
+    data.version = 8;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -99,7 +105,7 @@ export function serializeCity(city: City): SaveData {
     rngState: city.rng.state,
     buildings: city.snapshotBuildings().map((b) => [b.def, b.x, b.z, b.rot, b.greenery, b.occupancy ?? 0, b.condition ?? 1, b.level ?? 0, b.uid ?? 0]),
     nextUid: city.nextUid,
-    districts: city.districts.map((d) => [d.name, d.x0, d.z0, d.x1, d.z1]),
+    districts: city.districts.map((d) => [d.name, d.x0, d.z0, d.x1, d.z1, d.zone ?? '']),
     channels: city.channelTiles(),
     roads: city.roadTiles(),
     overgrowth,
@@ -146,7 +152,7 @@ export function deserializeCity(city: City, input: SaveData): void {
     city.soil.hydration.set(data.soil.hydration);
     city.soil.nutrients.set(data.soil.nutrients);
   }
-  city.districts = data.districts.map(([name, x0, z0, x1, z1]) => ({ name, x0, z0, x1, z1 }));
+  city.districts = data.districts.map(([name, x0, z0, x1, z1, zone]) => ({ name, ...(zone ? { zone } : {}), x0, z0, x1, z1 }));
   for (const [def, x, z, rot, greenery, occupancy, condition, level, uid] of data.buildings) {
     const rec: BuildingRecord = { def, x, z, rot, greenery, occupancy, condition, level, uid };
     const eid = city.addBuilding(rec);

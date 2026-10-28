@@ -9,7 +9,7 @@ import { getCrisis } from '@/sim/crises';
 import { listObjects, summarize } from '@/sim/inventory';
 import { Dossier } from './Dossier';
 
-const ID_SPLIT = /(\b(?:LIV|NRG|UTL|TEC|WRK|NAT|FOD|HWY|BRG|SKY|CHN|DST|LMK)-[0-9A-Z][0-9A-Z.-]*[0-9A-Z]\b)/g;
+const ID_SPLIT = /(\b(?:LIV|NRG|UTL|TEC|WRK|IND|SPT|NAT|FOD|HWY|BRG|SKY|CHN|DST|LMK)-[0-9A-Z][0-9A-Z.-]*[0-9A-Z]\b)/g;
 const gb = (bytes: number) =>
   bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
 const fmt = (n: number) => Math.round(n).toLocaleString();

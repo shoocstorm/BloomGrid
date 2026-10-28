@@ -59,7 +59,7 @@ export interface KitBuilder {
   add(spec: PieceSpec): void;
 }
 
-export type BuildingCategory = 'residential' | 'energy' | 'utility' | 'tech' | 'commercial' | 'nature' | 'food';
+export type BuildingCategory = 'residential' | 'energy' | 'utility' | 'tech' | 'commercial' | 'industry' | 'sports' | 'nature' | 'food';
 
 export interface BuildingStats {
   cost: number;
@@ -167,6 +167,23 @@ export const defineBuilding = (def: BuildingDefInput): BuildingDef => ({
  * Scenarios describe a starting city. They run once at new-game time through a sim-implemented
  * builder (deterministic), so the bulk content exists before any renderer attaches.
  */
+/**
+ * What a named area is for (D-049): the founding city is planned in zones so homes, jobs, factories, fun and
+ * sport each have their place. Shown on the city map and in the inspector.
+ */
+export type ZoneKind = 'living' | 'work' | 'industry' | 'leisure' | 'sports' | 'utility' | 'civic' | 'parks';
+
+export const ZONES: Record<ZoneKind, { label: string; icon: string; color: number; note: string }> = {
+  living: { label: 'Living', icon: '⌂', color: 0x7fd68a, note: 'Homes, pocket parks and pod docks' },
+  work: { label: 'Work', icon: '❖', color: 0x6aa8ff, note: 'Offices, studios and work domes' },
+  industry: { label: 'Industry', icon: '⚙', color: 0xf09a4a, note: 'Factories, kept apart from homes' },
+  leisure: { label: 'Entertainment', icon: '✦', color: 0xff7ac8, note: 'Venues, culture and nightlife' },
+  sports: { label: 'Sports', icon: '✪', color: 0xffd34d, note: 'Stadium, pools, tracks and fields' },
+  utility: { label: 'Utility', icon: '◍', color: 0x5ff2da, note: 'Power, water and farms' },
+  civic: { label: 'Civic', icon: '◇', color: 0xc9b6ff, note: 'Landmarks at the city’s heart' },
+  parks: { label: 'Parkland', icon: '❀', color: 0x3fbf6a, note: 'Gardens and green landmarks' },
+};
+
 export interface ScenarioBuilder {
   readonly size: number;
   rand(): number;
@@ -186,8 +203,8 @@ export interface ScenarioBuilder {
    * feathering back into the terrain over `margin` tiles (never over earlier edits). Water is never filled. Saved as terrain edits. Returns the height used.
    */
   level(x0: number, z0: number, x1: number, z1: number, margin?: number, height?: number): number;
-  /** Names the tile rectangle x0..x1 × z0..z1 (inclusive): a town, quarter or park. Earlier names win where areas overlap. */
-  nameArea(name: string, x0: number, z0: number, x1: number, z1: number): void;
+  /** Names the tile rectangle x0..x1 × z0..z1 (inclusive): a town, quarter or park, with what it is for. Earlier names win where areas overlap. */
+  nameArea(name: string, x0: number, z0: number, x1: number, z1: number, zone?: ZoneKind): void;
   /** Running utility totals of everything placed so far (at full occupancy). */
   totals(): { energyProduced: number; energyUsed: number; waterProduced: number; waterUsed: number; food: number; population: number; jobs: number };
 }
@@ -208,6 +225,8 @@ export const CATEGORY_ICONS: Record<BuildingCategory, string> = {
   utility: '◍',
   tech: '⚗',
   commercial: '❖',
+  industry: '⚙',
+  sports: '✪',
   nature: '❀',
   food: '✾',
 };
@@ -219,6 +238,8 @@ export const CATEGORY_CODES: Record<BuildingCategory, string> = {
   utility: 'UTL',
   tech: 'TEC',
   commercial: 'WRK',
+  industry: 'IND',
+  sports: 'SPT',
   nature: 'NAT',
   food: 'FOD',
 };
@@ -231,4 +252,7 @@ export const CATEGORY_LABELS: Record<BuildingCategory, string> = {
   commercial: 'Work',
   nature: 'Nature',
   food: 'Food',
+  // Last, so the older categories keep their hotkeys (4–9, 0); these two are click-only in the toolbar.
+  industry: 'Industry',
+  sports: 'Sports',
 };

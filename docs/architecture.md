@@ -103,6 +103,7 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Top-bar control          | append to `ctx.services.get('hud').actions`; a dropdown menu hangs off its parent (the top bar), not the clipped panel |
 | Button beside the toolbar | append to `ctx.services.get('hud').dockRow` (Flora's phone orb; hide it on desktop if it is phone-only)        |
 | Foldable HUD panel       | toggle a `collapsed` class and register it with `ctx.services.get('hud').sheet(el)`: on phones it becomes an exclusive sheet (D-045) |
+| Zone of an area           | `nameArea(name, x0, z0, x1, z1, zone)` in a scenario; read `city.areaAt(x, z)?.zone`; colours/labels in `ZONES` |
 | Phone layout             | `.compact …` rules in `ui/mobile.css` (loaded last); `isCompact()` / `isTouchDevice()` in `platform/device.ts`    |
 | Dashboard chart          | `new LineChart({ format, step })` from `modules/dashboard/LineChart.ts` (one series per chart)                    |
 | Inventory object kind    | `registerInventoryKind({ kind, label, icon, prefixes, description, list, get?, details? })` in `sim/inventory.ts` (or a module); issue codes via `registerIssue` |

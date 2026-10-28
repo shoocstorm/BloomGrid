@@ -1,6 +1,6 @@
 import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
-import { CATEGORY_CODES, CATEGORY_LABELS } from '@/content/types';
+import { CATEGORY_CODES, CATEGORY_LABELS, ZONES } from '@/content/types';
 import { NO_ENTITY } from './Grid';
 import type { City } from './City';
 import { findBridgeSpans } from './bridges';
@@ -578,7 +578,8 @@ registerInventoryKind({
         kind: 'district',
         type: 'district',
         name: d.name,
-        group: 'Districts',
+        // The zone rides on the group so "group: living" finds the living districts (D-049).
+        group: d.zone ? `Districts · ${ZONES[d.zone].label}` : 'Districts',
         district: d.name,
         x: (d.x0 + d.x1 + 1) / 2,
         z: (d.z0 + d.z1 + 1) / 2,

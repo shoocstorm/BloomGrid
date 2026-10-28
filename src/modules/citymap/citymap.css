@@ -313,3 +313,40 @@
 .compact .cmap-title span {
   display: none;
 }
+
+/* Zones / Districts colouring toggle, and zone headers in the legend (D-049). */
+.cmap-mode {
+  display: flex;
+  border: 1px solid var(--line);
+}
+.cmap-mode-b {
+  padding: 4px 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.cmap-mode-b.on {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+.cmap-zone {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+  padding: 2px 4px 3px;
+  border-bottom: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+}
+.cmap-zone b {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--c);
+}
+.cmap-zone span {
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}

@@ -214,7 +214,8 @@ The city is a system that can run well or badly.
 - [x] Desktop HUD merges (D-047): telemetry strip inside City Pulse, explore bar → view-mode dropdown in the top bar, Flora's orb beside the toolbar on every screen
 - [x] Wind power (D-047): Breeze Turbine building with spinning rotors (`modules/wind`), Windward Isle wind farm and waterfront rows in the founding city; clean energy 74% → 99%
 - [x] City map (D-048): ⌗ MAP in the top bar / **Y**: districts tinted, outlined and named, legend with buildings and residents, camera marker, click to fly
-- [ ] Deferred: explore modes on touch (virtual stick), a phone-sized Flora model, PWA install, wind strength varying with weather
+- [x] Zoned founding city (D-049): living, work, industry, entertainment, sports, utility, civic and park zones (saved, on the city map and in the inspector); 5 industry + 5 sports buildings; Pod Interchanges, Skyline Hill transit and service lanes (flow 0.84 → 0.94, unemployment 8% → 0%)
+- [ ] Deferred: explore modes on touch (virtual stick), a phone-sized Flora model, PWA install, wind strength varying with weather, zone rules for player building (warnings when a factory goes in a living zone)
 - **Accept:** ✅ `tests/touch.test.ts` (tap, gesture cancels the press, pinch/twist deltas, tilt lock); `bun run snap -- --mobile --eval @scripts/scenes/mobile.js` (portrait and `--size 844x390`, WebGPU and WebGL); desktop HUD unchanged.
 
 ---

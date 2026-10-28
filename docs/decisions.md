@@ -496,3 +496,30 @@ counts (buildings, residents), which the legend keeps. The view is cropped to th
 focus and heading (5 Hz while open). Clicking a label, legend row or any spot flies the camera there. Nothing runs
 while the map is closed; 2D canvas only, so both renderers behave the same.
 
+## D-049 — A zoned founding city, industry and sports buildings, and transit for it (2026-10-28)
+
+**Zones.** Named areas carry a `zone` (`ZoneKind` in `content/types.ts`: living, work, industry, leisure
+(entertainment), sports, utility, civic, parks) via `nameArea(…, zone)`; saved (SAVE_VERSION 8: a sixth district
+tuple field, v7 saves load with no zones) and hashed. The founding city is planned: Hillcrest, Westbrook, Eastgate,
+Bayfront's west half and Skyline Hill are living; Harbour Commons and The Exchange are work; Westport Works (by the
+islet bridge) and the Foundry Islet are industry; Lumen Promenade and Bloomtopia are entertainment; Meridian Arena
+is sports; Sunfield, Windward Isle and Working Hills are utility; Civic Ring civic; Garden Quarter parkland. A town
+keeps its name (tests, the assistant and players use them); its sub-zones are named first so they win. Living
+zones hold homes, parks and a few vertical farms; job and food top-ups sweep only work, entertainment and
+industry lots. The city map colours by zone (toggle: per district) with the legend grouped by zone; the
+inspector shows a zone chip; inventory districts carry the zone in their group.
+**Buildings.** Two categories, Industry (IND) and Sports (SPT), last in the toolbar so the older categories keep
+keys 4–9, 0. Industry: Mycelium Brickworks, Kelp Bioplastic Refinery (both pair with Phyto Gardens), Solar Glass
+Foundry, Circular Reclaimery (cleans the air), Drone Fabricator. Sports: Bloom Stadium (12×12), Lagoon Aquatic
+Centre, Wind Velodrome, Canopy Climbing Tower, Meadow Sports Fields. Factories and sports fields carry explicit
+upkeep below the 0.03%-of-cost default (businesses whose staff pay tax; cheap turf). Existing kit pieces only.
+**Transit and roads.** Zoning sends commuters further, so: a new **Pod Interchange** (radius 22, 1 600 riders,
+upkeep 0.2) every third block of the living towns; a second pod dock on blocks within ring 6; docks and an
+interchange for Skyline Hill, whose towers had none and caused most of the jams (found by listing jammed tiles per
+district: 23 of 41 were there); mid-block service lanes through work, industry and entertainment blocks (four
+factory-sized lots each, more entrances). Default seed, settled: flow 0.94 (Thriving, was 0.84), unemployment
+0% (was 8%), residents 29.9k (29.5k), food/jobs Thriving, power +8%, clean 100%, budget +17/s (was +25: the city
+now pays for a stadium, factories and transit; the early dip while residents move in lasts ≈15 s longer).
+Rejected: two docks on every living block (homes lost, flow fell to 0.83); docks only (flow swings 0.77–0.91
+with layout). Draw calls 256 overview / 270 at the arena (`?stress=1500`: 329 at the arena, overview 304 as before).
+

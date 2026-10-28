@@ -2,7 +2,7 @@ import { addComponent, addEntity, createWorld, query, removeEntity, type World }
 import type { EventBus } from '@/core/EventBus';
 import { Building, Greenery, Service } from '@/ecs/components';
 import { buildings } from '@/content';
-import type { BuildingDef } from '@/content/types';
+import type { BuildingDef, ZoneKind } from '@/content/types';
 import { Grid, NO_ENTITY, SEA_LEVEL } from './Grid';
 import { generateTerrain } from './terrain';
 import { Rng, fnv1a } from './random';
@@ -34,6 +34,8 @@ export interface BuildingRecord {
 /** A named area of the map (town, quarter, park), laid down by the scenario and saved. Inclusive tile rectangle. */
 export interface District {
   name: string;
+  /** What the area is for (living, work, industry…); absent in older saves and hand-named areas. */
+  zone?: ZoneKind;
   x0: number;
   z0: number;
   x1: number;
@@ -283,6 +285,12 @@ export class City {
   }
 
   /** Name of the district containing tile (x, z), or null in open country. */
+  /** The named area containing a tile (most specific first), or null for the outskirts. */
+  areaAt(x: number, z: number): District | null {
+    for (const d of this.districts) if (x >= d.x0 && x <= d.x1 && z >= d.z0 && z <= d.z1) return d;
+    return null;
+  }
+
   districtAt(x: number, z: number): string | null {
     for (const d of this.districts) if (x >= d.x0 && x <= d.x1 && z >= d.z0 && z <= d.z1) return d.name;
     return null;
@@ -369,7 +377,7 @@ export class City {
       (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => d.name).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}`,
     );
   }
 }

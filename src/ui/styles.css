@@ -224,6 +224,31 @@ button {
   min-width: 0;
   max-width: 100%;
 }
+/* The toolbar gives way (and scrolls sideways) so Flora's orb beside it always stays on screen. */
+.dock-row .toolbar {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.dock-row .toolbar::-webkit-scrollbar {
+  display: none;
+}
+.dock-row .toolbar .tool {
+  flex: none;
+}
+.dock-row > :not(.toolbar) {
+  flex: none;
+}
+/* Narrower desktops: drop the hotkey hints (tooltips keep them) before the toolbar has to scroll. */
+@media (max-width: 1400px) {
+  .toolbar .tool kbd {
+    display: none;
+  }
+  .toolbar .tool {
+    padding: 8px 9px;
+  }
+}
 .tray {
   display: flex;
   gap: 8px;
@@ -548,4 +573,11 @@ button {
 }
 .info-ask {
   margin-left: auto;
+}
+/* Zone chip beside the district (D-049). */
+.info-zone {
+  padding: 0 5px;
+  color: var(--c);
+  border: 1px solid color-mix(in srgb, var(--c) 50%, transparent);
+  white-space: nowrap;
 }

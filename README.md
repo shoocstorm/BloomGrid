@@ -123,6 +123,11 @@ with a readable id such as `LIV-0042` or `HWY-118.204`. Search by name, id or di
 `status:critical`, `district:westbrook`; pick a row to inspect it and **Locate** to fly there. The inspector shows
 the id of whatever you select; click it to open the inventory.
 
+**A planned city:** every area has a purpose: living, work, industry, entertainment, sports, utility, civic and
+parkland. Open the city map (**Y**) to see the zones in colour (toggle to per-district colours); the inspector
+shows the zone of whatever you select. Factories (Industry ⚙) and venues like Bloom Stadium (Sports ✪) are the
+last two build categories. Pod Interchanges in the living towns fly commuters to the work and industry zones.
+
 **Wind power:** Breeze Turbines (☀ energy category) are cheap, clean and the cheapest power to run. The founding
 city already runs on them: a wind farm fills Windward Isle in the north-east and rows line the waterfront.
 

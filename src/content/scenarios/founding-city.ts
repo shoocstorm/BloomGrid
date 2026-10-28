@@ -1,4 +1,4 @@
-import { defineScenario, type ScenarioBuilder } from '../types';
+import { defineScenario, type ScenarioBuilder, type ZoneKind } from '../types';
 
 /** Map size the founding city was designed on: on larger maps its towns keep this tile size. */
 const DESIGN_SIZE = 384;
@@ -36,17 +36,17 @@ export const [GRID_W, GRID_N, GRID_S] = [4, 4, 3];
  * puts a big housing hero straight across the street from its workplace: a home sends all its road commuters to
  * the nearest workplace in one stream, which jams every tile of the trip, so that trip must be short.
  */
-const QUARTERS: { name: string; blocks: [number, number, number, number]; heroes: (string | [string, string])[] }[] = [
+const QUARTERS: { name: string; zone: ZoneKind; blocks: [number, number, number, number]; heroes: (string | [string, string])[] }[] = [
   // Civic ring around the spire plaza.
-  { name: 'Civic Ring', blocks: [-1, -1, 1, 1], heroes: ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes', 'quartz-spire', 'nautilus-library', 'harmony-gate'] },
+  { name: 'Civic Ring', zone: 'civic', blocks: [-1, -1, 1, 1], heroes: ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes', 'quartz-spire', 'nautilus-library', 'harmony-gate'] },
   // Skyline hill (north-east): towers, homes and the skyport.
-  { name: 'Skyline Hill', blocks: [1, -4, 4, 0], heroes: ['dragonfly-port', ['glass-pine', 'vertical-forest'], 'moss-monolith', 'coral-arcology', 'lotus-pagoda', 'rain-vortex', 'bloom-eye', 'fog-harp'] },
+  { name: 'Skyline Hill', zone: 'living', blocks: [1, -4, 4, 0], heroes: ['dragonfly-port', ['glass-pine', 'vertical-forest'], 'moss-monolith', 'coral-arcology', 'lotus-pagoda', 'rain-vortex', 'bloom-eye', 'fog-harp'] },
   // The exchange (south-east), toward downtown: trade, science and the algae works.
-  { name: 'The Exchange', blocks: [1, 1, 4, 3], heroes: ['zephyr-airport', 'seedpod-labs', 'bloom-clock', 'starlight-observatory', 'algae-lantern', 'wavecrest-gallery', 'sunset-amphitheatre', 'corkscrew-orchard'] },
+  { name: 'The Exchange', zone: 'work', blocks: [1, 1, 4, 3], heroes: ['zephyr-airport', 'seedpod-labs', 'bloom-clock', 'starlight-observatory', 'algae-lantern', 'wavecrest-gallery', 'sunset-amphitheatre', 'corkscrew-orchard'] },
   // Garden quarter (south-west): timber halls, gardens and markets.
-  { name: 'Garden Quarter', blocks: [-4, 1, -1, 3], heroes: ['elder-banyan', 'levitating-gardens', 'bamboo-cathedral', 'canopy-skywalk', 'moonflower-hall', 'habitat-cascade', 'mycelium-towers', 'solar-sail-bazaar', 'aeolian-reeds'] },
+  { name: 'Garden Quarter', zone: 'parks', blocks: [-4, 1, -1, 3], heroes: ['elder-banyan', 'levitating-gardens', 'bamboo-cathedral', 'canopy-skywalk', 'moonflower-hall', 'habitat-cascade', 'mycelium-towers', 'solar-sail-bazaar', 'aeolian-reeds'] },
   // Working hills (north-west), by the lake: food, water, energy and baths.
-  { name: 'Working Hills', blocks: [-4, -4, -1, 0], heroes: ['great-noria', 'rice-terraces', 'heliostat-array', 'kite-meadow', 'honeycomb-apiary', 'travertine-baths'] },
+  { name: 'Working Hills', zone: 'utility', blocks: [-4, -4, -1, 0], heroes: ['great-noria', 'rice-terraces', 'heliostat-array', 'kite-meadow', 'honeycomb-apiary', 'travertine-baths'] },
 ];
 
 /** All hero ids on the grid, for tests. */
@@ -105,12 +105,35 @@ interface Town {
   bridges?: { x?: number[]; z?: number[] };
   /** Service-lane spacing inside blocks (solar farm rows). */
   lanes?: number;
+  /** What the town is for, and its sub-areas planned for something else (named and filled first). */
+  zone: ZoneKind;
+  zones?: SubZone[];
 }
 
+/** A planned sub-area of a town (D-049): its own name, purpose and building mix. */
+interface SubZone {
+  name: string;
+  zone: ZoneKind;
+  blocks: [number, number, number, number];
+  mix: Mix;
+  parks?: number;
+}
+
+/**
+ * Living zones (D-049): homes, denser near the centre so the towns keep their residents after giving blocks to
+ * work, industry and sport; a few vertical farms for food. Jobs live in the work and industry zones.
+ */
 const homes: Mix = (ring) =>
   ring <= 6
-    ? [{ 'canopy-tower': 1, 'garden-residence': 4, 'greenhouse-hub': 2, 'pocket-park': 4 }, 0.7]
-    : [{ 'garden-residence': 4, 'pocket-park': 5, 'greenhouse-hub': 1 }, 0.6];
+    ? [{ 'canopy-tower': 2, 'garden-residence': 4, 'pocket-park': 3, 'vertical-farm': 1 }, 0.75]
+    : [{ 'garden-residence': 5, 'pocket-park': 4 }, 0.68];
+const offices: Mix = () => [{ 'greenhouse-hub': 3, 'living-studio': 4, 'vertical-farm': 2, 'pocket-park': 1 }, 0.85];
+const factories: Mix = () => [
+  { 'mycelium-brickworks': 2, 'kelp-refinery': 1, 'solar-glass-foundry': 2, 'circular-reclaimery': 2, 'drone-fabricator': 2, 'phyto-garden': 3 },
+  0.85,
+];
+const venues: Mix = () => [{ 'lotus-pavilion': 2, 'living-studio': 2, 'eco-playground': 2, 'pocket-park': 2 }, 0.8];
+const sport: Mix = () => [{ 'sports-fields': 3, 'climbing-tower': 1, 'pocket-park': 3 }, 0.65];
 
 /**
  * The towns round the hero district, on its grid. Bayfront (downtown) must stay first, Eastgate second and
@@ -120,17 +143,42 @@ const TOWNS: Town[] = [
   {
     name: 'Bayfront',
     blocks: [-3, 4, 4, 7],
-    mix: () => [{ 'canopy-tower': 3, 'greenhouse-hub': 3, 'garden-residence': 3, 'pocket-park': 2, 'vertical-farm': 1 }, 0.6],
+    mix: () => [{ 'canopy-tower': 3, 'garden-residence': 3, 'pocket-park': 2, 'vertical-farm': 1 }, 0.65],
     parks: 8,
     bridges: { z: [5, 7] },
     shore: 's',
+    zone: 'living',
+    // Downtown's east half: offices by the river, and the waterfront venues facing Bloomtopia's bridge.
+    zones: [
+      { name: 'Harbour Commons', zone: 'work', blocks: [1, 4, 4, 5], mix: offices, parks: 4 },
+      { name: 'Lumen Promenade', zone: 'leisure', blocks: [1, 6, 4, 7], mix: venues, parks: 10 },
+    ],
   },
-  { name: 'Eastgate', blocks: [5, -3, 9, 3], mix: homes, parks: 12, shore: 'e' },
-  { name: 'Westbrook', blocks: [-10, -1, -5, 3], mix: homes, parks: 12, shore: 'ws' },
-  { name: 'Hillcrest', blocks: [-3, -8, 3, -5], mix: homes, parks: 14, shore: 'n' },
+  {
+    name: 'Eastgate',
+    blocks: [5, -3, 9, 3],
+    mix: homes,
+    parks: 12,
+    shore: 'e',
+    zone: 'living',
+    zones: [{ name: 'Meridian Arena', zone: 'sports', blocks: [5, 2, 9, 3], mix: sport, parks: 6 }],
+  },
+  {
+    name: 'Westbrook',
+    blocks: [-10, -1, -5, 3],
+    mix: homes,
+    parks: 12,
+    shore: 'ws',
+    zone: 'living',
+    // Factories on the west shore by the Foundry Islet bridge, downwind and a short commute from Westbrook.
+    zones: [{ name: 'Westport Works', zone: 'industry', blocks: [-10, 1, -9, 3], mix: factories, parks: 0 }],
+  },
+  { name: 'Hillcrest', blocks: [-3, -8, 3, -5], mix: homes, parks: 14, shore: 'n', zone: 'living' },
 ];
+const subZoneAt = (t: Town, i: number, j: number) =>
+  t.zones?.find(({ blocks: [i0, j0, i1, j1] }) => i >= i0 && i <= i1 && j >= j0 && j <= j1);
 /** The Sunfield solar farm, north-west of Westbrook (its south street is Westbrook's north street). */
-const UTILITY: Town[] = [{ name: 'Sunfield', blocks: [-9, -2, -7, -2], mix: () => [{}, 0], parks: 0, lanes: 5 }];
+const UTILITY: Town[] = [{ name: 'Sunfield', blocks: [-9, -2, -7, -2], mix: () => [{}, 0], parks: 0, lanes: 5, zone: 'utility' }];
 
 /** Steepest step between neighbouring blocks' terraces: streets refuse tiles that climb more than 0.9. */
 const TERRACE_STEP = 0.8;
@@ -281,6 +329,14 @@ export default defineScenario({
         for (let k = lineX(i0) + t.lanes; k < lineX(i1 + 1); k += t.lanes) {
           if ((k - lineX(0)) % GRID) b.road(k, lineZ(j0), k, lineZ(j1 + 1));
         }
+      // Mid-block service lanes through the work, industry and entertainment zones (D-049): four lots per block (wide enough
+      // for a factory), and every workplace gets more entrances, so the morning arrivals spread over more road.
+      for (const z of t.zones ?? []) {
+        if (z.zone !== 'work' && z.zone !== 'industry' && z.zone !== 'leisure') continue;
+        const [a0, c0, a1, c1] = z.blocks;
+        for (let i = a0; i <= a1; i++) b.road(lineX(i) + 7, lineZ(c0), lineX(i) + 7, lineZ(c1 + 1));
+        for (let j = c0; j <= c1; j++) b.road(lineX(a0), lineZ(j) + 7, lineX(a1 + 1), lineZ(j) + 7);
+      }
     }
     // Waterfront streets: the outer streets run on until the shore.
     const shoreRoads: [x: number, z: number, dx: number, dz: number, n: number][] = [];
@@ -319,12 +375,29 @@ export default defineScenario({
     }
     fillRect(tiles([-3, 4, -2, 5]), { 'supertree-grove': 1 }, 1, 1);
     b.fill(0.46 * S, 0.66 * S, 0.66 * S, 0.8 * S, { 'lotus-pavilion': 1 }, 1, 1);
-    // A Pod Dock on every block: a home's road commuters travel in one stream to the
-    // nearest workplace, and next to the hero district those streams jam its streets, so most fly instead.
+    // Meridian Arena's venues first, while their blocks are open: the stadium, the pools and the velodrome.
+    // Each takes the first candidate block it fits (terrain and shore vary by seed).
+    const arena: [number, number][] = [[7, 2], [6, 2], [8, 2], [7, 3], [6, 3], [8, 3], [5, 2], [9, 2], [5, 3], [9, 3]];
+    for (const id of ['bloom-stadium', 'aquatic-centre', 'wind-velodrome'])
+      arena.some(([i, j]) => fillRect(tiles([i, j, i, j]), { [id]: 1 }, 1, 1) > 0);
+    // Pod Interchanges every third block of each living town (radius 22 covers the blocks round it): the
+    // backbone of public transport once jobs are zoned away from homes (D-049).
+    for (const t of TOWNS) {
+      const [i0, j0, i1, j1] = t.blocks;
+      for (let j = j0 + 1; j <= j1; j += 3)
+        for (let i = i0 + 1; i <= i1; i += 3) if (!subZoneAt(t, i, j)) fillRect(tiles([i, j, i, j]), { 'pod-interchange': 1 }, 1, 1);
+    }
+    // A Pod Dock on every living block: a home's road commuters travel in one stream to the nearest workplace,
+    // and with jobs zoned away from homes those streams would jam the streets between, so most fly instead.
+    // Work, industry, venue and sport blocks need none (docks lift commuters from homes).
     for (const t of TOWNS) {
       const [i0, j0, i1, j1] = t.blocks;
       for (let j = j0; j <= j1; j++)
-        for (let i = i0; i <= i1; i++) fillRect(tiles([i, j, i, j]), { 'pod-dock': 1 }, 1, 1);
+        for (let i = i0; i <= i1; i++) {
+          if (subZoneAt(t, i, j)) continue;
+          // Dense inner blocks (towers) get a second dock: their commuters travel furthest to the zoned jobs.
+          fillRect(tiles([i, j, i, j]), { 'pod-dock': 1 }, 1, Math.max(Math.abs(i), Math.abs(j)) <= 6 ? 2 : 1);
+        }
     }
     fillRect(tiles(down.blocks), { 'flora-hive': 1 }, 1, 1);
     fillRect(tiles(west.blocks), { 'eco-playground': 1 }, 1, 1);
@@ -333,19 +406,20 @@ export default defineScenario({
       for (let j = j0; j <= j1; j++)
         for (let i = i0; i <= i1; i++) {
           const ring = Math.max(Math.abs(i), Math.abs(j));
-          const parkBlock = ((((i + 31) * 73856093) ^ ((j + 31) * 19349663)) >>> 0) % 100 < t.parks;
-          const [weights, density] = parkBlock ? [{ 'pocket-park': 3, 'garden-residence': 1 }, 0.35] : t.mix(ring);
+          const sub = subZoneAt(t, i, j);
+          const parkBlock = ((((i + 31) * 73856093) ^ ((j + 31) * 19349663)) >>> 0) % 100 < (sub?.parks ?? t.parks);
+          const [weights, density] = parkBlock ? [{ 'pocket-park': 3, 'garden-residence': sub ? 0 : 1 }, 0.35] : (sub?.mix ?? t.mix)(ring);
           fillRect(tiles([i, j, i, j]), weights, density);
         }
     }
-    // Industrial islet: power and work. Its bioreactors come with phyto-gardens, so most are paired (clean).
-    district(b, 0.05, 0.6, 0.15, 0.72, 4, { bioreactor: 2, 'phyto-garden': 2, 'solar-spire': 1, 'greenhouse-hub': 1 }, 0.7);
+    // Industrial islet: factories on lots wide enough for them, bioreactors paired with phyto-gardens (clean).
+    district(b, 0.05, 0.6, 0.15, 0.72, 7, { bioreactor: 2, 'phyto-garden': 3, 'kelp-refinery': 1, 'circular-reclaimery': 1, 'drone-fabricator': 1, 'solar-spire': 1 }, 0.75);
 
     // Wind (D-047): turbines both sides of a road, staggered about a rotor's width apart so blades never cross.
     // Each road joins the highway network, so the farms feed the city grid.
     // About half the founding city's power; the solar sweep below tops up the rest with the usual thin margin.
     const ROTOR_GAP = 9;
-    const WIND_TURBINES = 90;
+    const WIND_TURBINES = 110; // the industry zones draw ≈1 000 more power than the old mixed towns
     let turbines = 0;
     const turbine = (x: number, z: number) => turbines < WIND_TURBINES && b.building('wind-turbine', x, z) && turbines++;
     /** Turbines beside road tiles `from`..`to` (steps from x, z along dx, dz); both stay beside the road. */
@@ -390,10 +464,18 @@ export default defineScenario({
       }
     };
     const t = () => b.totals();
-    sweep('greenhouse-hub', () => t().jobs > t().population * 0.65 * 0.85, towns);
-    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.06, [sun, islet]);
+    // Jobs top up in the work and industry zones only, so the living zones stay homes (D-049).
+    const zoned = (kind: ZoneKind) => all.flatMap((tw) => (tw.zones ?? []).filter((z) => z.zone === kind).map((z) => tiles(z.blocks)));
+    const jobsOk = () => t().jobs > t().population * 0.65 * 0.85;
+    sweep('living-studio', jobsOk, [...zoned('work'), ...zoned('leisure')]);
+    sweep('greenhouse-hub', jobsOk, zoned('work'));
+    sweep('drone-fabricator', jobsOk, [...zoned('industry'), islet]);
+    sweep('circular-reclaimery', jobsOk, [...zoned('industry'), islet]);
+    // Food: vertical farms in the towns, then as urban farm towers in whatever work-zone lots remain.
+    sweep('vertical-farm', () => t().food > t().population * 0.55, [...towns, ...zoned('work')]);
+    // 1.12× planned demand: the factories run near full shifts, so live use sits close to the plan.
+    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.12, [sun, islet]);
     sweep('water-works', () => t().waterProduced > t().waterUsed * 0.88, [[0, 0, S - 1, S - 1]]);
-    sweep('vertical-farm', () => t().food > t().population * 0.55, towns);
 
     if (park) b.road(park[0] + 8, park[1] - 1, park[0] + 28, park[1] - 1, true);
 
@@ -402,14 +484,23 @@ export default defineScenario({
       const [x0, x1, z0, z1] = [lineX(-GRID_W), lineX(GRID_W + 1), lineZ(-GRID_N), lineZ(GRID_S + 1)];
       for (let i = -GRID_W; i <= GRID_W + 1; i++) b.road(lineX(i), z0, lineX(i), z1);
       for (let j = -GRID_N; j <= GRID_S + 1; j++) b.road(x0, lineZ(j), x1, lineZ(j), j === 2 || j === GRID_S + 1);
+      // Transit for the hero district's living quarter (its towers' commuters otherwise jam the centre's
+      // streets): an interchange in its middle and a dock in every block, now that the streets reach the lots.
+      for (const q of QUARTERS.filter((qq) => qq.zone === 'living')) {
+        const [i0, j0, i1, j1] = q.blocks;
+        fillRect(tiles([Math.round((i0 + i1) / 2), Math.round((j0 + j1) / 2), Math.round((i0 + i1) / 2), Math.round((j0 + j1) / 2)]), { 'pod-interchange': 1 }, 1, 1);
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) fillRect(tiles([i, j, i, j]), { 'pod-dock': 1 }, 1, 1);
+      }
     }
 
     // Named areas for the inventory and the inspector, most specific first; their streets included.
     const streets = ([i0, j0, i1, j1]: Rect): Rect => [lineX(i0), lineZ(j0), lineX(i1 + 1), lineZ(j1 + 1)];
-    if (spire) for (const q of QUARTERS) b.nameArea(q.name, ...streets(q.blocks));
-    if (park) b.nameArea('Bloomtopia', park[0], park[1], park[0] + b.footprint('bloomtopia')[0] - 1, park[1] + b.footprint('bloomtopia')[1] - 1);
-    for (const t of all) b.nameArea(t.name, ...streets(t.blocks));
-    b.nameArea('Foundry Islet', ...islet);
-    b.nameArea('Windward Isle', ...isle);
+    if (spire) for (const q of QUARTERS) b.nameArea(q.name, ...streets(q.blocks), q.zone);
+    if (park) b.nameArea('Bloomtopia', park[0], park[1], park[0] + b.footprint('bloomtopia')[0] - 1, park[1] + b.footprint('bloomtopia')[1] - 1, 'leisure');
+    // Sub-zones before their towns, so their tiles take the more specific name.
+    for (const t of all) for (const z of t.zones ?? []) b.nameArea(z.name, ...streets(z.blocks), z.zone);
+    for (const t of all) b.nameArea(t.name, ...streets(t.blocks), t.zone);
+    b.nameArea('Foundry Islet', ...islet, 'industry');
+    b.nameArea('Windward Isle', ...isle, 'utility');
   },
 });

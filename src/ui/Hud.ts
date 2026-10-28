@@ -1,6 +1,6 @@
 import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
-import { CATEGORY_ICONS, CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
+import { CATEGORY_ICONS, CATEGORY_LABELS, ZONES, type BuildingCategory, type BuildingDef } from '@/content/types';
 import { NO_ENTITY } from '@/sim/Grid';
 import { idForSelection } from '@/sim/inventory';
 import type { GameContext, GameModule } from '@/game/context';
@@ -281,8 +281,10 @@ class Hud {
     toolbar.append(h('div', { class: 'sep' }));
     const present = new Set(buildings.all().map((b) => b.category));
     const cats = (Object.keys(CATEGORY_LABELS) as BuildingCategory[]).filter((c) => present.has(c));
+    // Category hotkeys: 4–9 then 0 (1–3 set the speed); later categories are click-only.
+    const catKey = (i: number) => (i < 6 ? String(i + 4) : i === 6 ? '0' : undefined);
     cats.forEach((cat, i) => {
-      toolBtn(`cat:${cat}`, CATEGORY_ICONS[cat], CATEGORY_LABELS[cat], String(i + 1 + 3), () => {
+      toolBtn(`cat:${cat}`, CATEGORY_ICONS[cat], CATEGORY_LABELS[cat], catKey(i), () => {
         this.category = this.category === cat ? null : cat;
         this.renderTray();
         if (this.category) {
@@ -292,9 +294,9 @@ class Hud {
       });
     });
     ctx.input.onKey((e) => {
-      const n = Number(e.key);
-      if (!e.metaKey && !e.ctrlKey && n >= 4 && n < 4 + cats.length) {
-        (this.toolBtns.get(`cat:${cats[n - 4]}`) as HTMLButtonElement).click();
+      const i = cats.findIndex((_, k) => catKey(k) === e.key);
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && i >= 0) {
+        (this.toolBtns.get(`cat:${cats[i]}`) as HTMLButtonElement).click();
         return true;
       }
       return false;
@@ -370,11 +372,14 @@ class Hud {
 
   /** Readable object id and district above the inspector title; the id opens it in the dashboard inventory. */
   private idTag(id: string | null, district: string | null): HTMLElement {
+    const zone = this.ctx.city.districts.find((d) => d.name === district)?.zone;
+    const z = zone ? ZONES[zone] : null;
     return h(
       'div',
       { class: 'info-id' },
       id ? h('button', { class: 'info-id-btn', title: 'Show in the inventory (I)', onClick: () => this.ctx.services.get('dashboard').openInventory(id) }, id) : null,
       h('span', {}, district ?? 'Outskirts'),
+      z ? h('span', { class: 'info-zone', style: `--c:#${z.color.toString(16).padStart(6, '0')}`, title: z.note }, `${z.icon} ${z.label}`) : null,
       id && this.ctx.services.tryGet('assistant')
         ? h('button', { class: 'info-id-btn info-ask', title: 'Ask the city assistant about it (U)', onClick: () => this.askAbout(id) }, '✿ Ask')
         : null,

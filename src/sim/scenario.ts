@@ -90,9 +90,9 @@ export function applyScenario(city: City, id: string): { buildings: number; road
       return n;
     },
     totals: () => ({ ...totals }),
-    nameArea(name, x0, z0, x1, z1) {
+    nameArea(name, x0, z0, x1, z1, zone) {
       [x0, z0, x1, z1] = [x0, z0, x1, z1].map(Math.round) as [number, number, number, number];
-      city.districts.push({ name, x0: Math.min(x0, x1), z0: Math.min(z0, z1), x1: Math.max(x0, x1), z1: Math.max(z0, z1) });
+      city.districts.push({ name, ...(zone ? { zone } : {}), x0: Math.min(x0, x1), z0: Math.min(z0, z1), x1: Math.max(x0, x1), z1: Math.max(z0, z1) });
     },
     level(x0, z0, x1, z1, margin = 4, height) {
       const W = g.w + 1;

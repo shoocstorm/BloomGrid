@@ -109,7 +109,7 @@ export const PROMPTS = {
  */
 export const HIDDEN_BY_DEFAULT = new Set(['city_overview', 'inventory_catalog', 'camera_focus']);
 const OBSERVATION_CHARS = 1400;
-const ID_RE = /\b(?:LIV|NRG|UTL|TEC|WRK|NAT|FOD|HWY|BRG|SKY|CHN|DST|LMK)-[0-9A-Z][0-9A-Z.-]*\b/g;
+const ID_RE = /\b(?:LIV|NRG|UTL|TEC|WRK|IND|SPT|NAT|FOD|HWY|BRG|SKY|CHN|DST|LMK)-[0-9A-Z][0-9A-Z.-]*\b/g;
 
 export const defaultPolicy = (t: AgentTool<unknown>): Policy =>
   HIDDEN_BY_DEFAULT.has(t.name) ? 'off' : t.effect === 'mutate' ? 'ask' : 'auto';

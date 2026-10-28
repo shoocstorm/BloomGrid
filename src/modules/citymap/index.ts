@@ -2,6 +2,7 @@ import type { GameContext, GameModule } from '@/game/context';
 import { Building, Service } from '@/ecs/components';
 import { NO_ENTITY } from '@/sim/Grid';
 import type { District } from '@/sim/City';
+import { ZONES, type ZoneKind } from '@/content/types';
 import { h, setText } from '@/ui/dom';
 import './citymap.css';
 
@@ -44,11 +45,15 @@ function hue(i: number): [number, number, number] {
   return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
 }
 
+const rgb = (hex: number): [number, number, number] => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
+const ZONE_ORDER = Object.keys(ZONES) as ZoneKind[];
+
 /**
  * City map (Y, ⌖ map button in the top bar's stats): a holographic plan of the island painted from the live
  * city when opened (terrain relief, water depth, highways, buildings), every named district tinted and outlined
  * with its name, building and resident counts placed at its centre, a legend, and the camera's position and
- * heading. Click a district (label or legend) or any spot to fly there. Painted once per open (one pass over the
+ * heading. Colours show each area's zone (living, work, industry, entertainment, sports…; D-049), or, toggled,
+ * one colour per district. Click a district (label or legend) or any spot to fly there. Painted once per open (one pass over the
  * tiles, ≈ tens of ms); only the camera marker updates while open (5 Hz).
  */
 class CityMap {
@@ -66,6 +71,9 @@ class CityMap {
   private timer = 0;
   /** Square view box over the land (tiles): the open sea round the island is cropped away. */
   private view = { x: 0, z: 0, size: 1 };
+  /** Colour by zone (default) or one colour per district. */
+  private byZone = true;
+  private modeBtns: HTMLElement[] = [];
 
   constructor(private ctx: GameContext) {
     this.stage = h(
@@ -98,6 +106,19 @@ class CityMap {
             h('b', {}, 'City Map'),
             h('span', {}, 'Districts and areas · click anywhere to fly there'),
           ),
+          h(
+            'div',
+            { class: 'cmap-mode', role: 'tablist' },
+            ...(['Zones', 'Districts'] as const).map((label, k) => {
+              const btn = h(
+                'button',
+                { class: `cmap-mode-b${k === 0 ? ' on' : ''}`, onClick: () => this.setMode(k === 0) },
+                label,
+              );
+              this.modeBtns.push(btn);
+              return btn;
+            }),
+          ),
           h('kbd', { class: 'cmap-key' }, 'Y'),
           h('button', { class: 'icon-btn', title: 'Close (Esc)', onClick: () => this.toggle(false) }, '✕'),
         ),
@@ -115,6 +136,12 @@ class CityMap {
       if (e.code === 'Escape' && this.open) return (this.toggle(false), true);
       return false;
     });
+  }
+
+  private setMode(byZone: boolean): void {
+    this.byZone = byZone;
+    this.modeBtns.forEach((b, k) => b.classList.toggle('on', (k === 0) === byZone));
+    if (this.open) this.paint();
   }
 
   get isOpen(): boolean {
@@ -161,7 +188,7 @@ class CityMap {
           s.n++;
         }
       }
-    const colors = ds.map((_, i) => hue(i));
+    const colors = ds.map((d, i) => (this.byZone && d.zone ? rgb(ZONES[d.zone].color) : hue(i)));
     const size = Math.min(W, Math.max(lx1 - lx0, lz1 - lz0) + 24);
     const clampV = (c: number) => Math.max(0, Math.min(W - size, Math.round(c - size / 2)));
     this.view = { x: clampV((lx0 + lx1) / 2), z: clampV((lz0 + lz1) / 2), size };
@@ -251,6 +278,7 @@ class CityMap {
           row: h('div'),
         };
         const stat = `${area.buildings} bldg${area.residents >= 1 ? ` · ${fmtK(area.residents)} res` : ''}`;
+        const zone = d.zone ? ZONES[d.zone] : null;
         // Names fit their district's width on screen (≈0.78 em per mono character incl. letter spacing).
         const wpx = (d.x1 - d.x0) * pxPerTile;
         const fs = Math.max(9.5, Math.min(15, (wpx * 0.92) / (d.name.length * 0.78)));
@@ -264,7 +292,7 @@ class CityMap {
             onClick: (e: Event) => (e.stopPropagation(), this.fly(area)),
             onPointerenter: () => this.setHot(area),
           },
-          h('b', {}, d.name),
+          h('b', {}, zone && this.byZone ? `${zone.icon} ${d.name}` : d.name),
           h('span', {}, stat),
         );
         area.row = h(
@@ -285,14 +313,33 @@ class CityMap {
       .filter((a): a is Area => a !== null);
     this.labels.replaceChildren(...this.areas.map((a) => a.label));
     const sorted = [...this.areas].sort((a, b) => b.residents - a.residents || b.buildings - a.buildings);
+    // Grouped by zone (in ZONES order, with what each zone is for), or one list by residents.
+    const groups = this.byZone
+      ? [
+          ...ZONE_ORDER.map((z) => [z, sorted.filter((a) => a.d.zone === z)] as const),
+          [null, sorted.filter((a) => !a.d.zone)] as const,
+        ].filter(([, list]) => list.length)
+      : [[null, sorted] as const];
     this.legend.replaceChildren(
       h(
         'div',
         { class: 'cmap-lh' },
         h('span', {}, `${this.areas.length} districts`),
-        h('span', {}, 'by residents'),
+        h('span', {}, this.byZone ? 'by zone' : 'by residents'),
       ),
-      ...sorted.map((a) => a.row),
+      ...groups.flatMap(([z, list]): HTMLElement[] => [
+        ...(z
+          ? [
+              h(
+                'div',
+                { class: 'cmap-zone', style: `--c:#${ZONES[z].color.toString(16).padStart(6, '0')}` },
+                h('b', {}, `${ZONES[z].icon} ${ZONES[z].label}`),
+                h('span', {}, ZONES[z].note),
+              ),
+            ]
+          : []),
+        ...list.map((a) => a.row),
+      ]),
       h('div', { class: 'cmap-note' }, 'Land outside every district is the Outskirts.'),
     );
   }
@@ -364,21 +411,19 @@ export const cityMapModule: GameModule = {
   deps: ['hud'],
   init(ctx) {
     const map = new CityMap(ctx);
-    ctx.services
-      .get('hud')
-      .stats.prepend(
-        h(
-          'button',
-          {
-            class: 'cmap-btn',
-            title: 'City map: districts (Y)',
-            'aria-label': 'Open the city map',
-            onClick: () => map.toggle(),
-          },
-          h('span', { class: 'g' }, '⌗'),
-          h('span', { class: 'l' }, 'Map'),
-        ),
-      );
+    ctx.services.get('hud').stats.prepend(
+      h(
+        'button',
+        {
+          class: 'cmap-btn',
+          title: 'City map: districts (Y)',
+          'aria-label': 'Open the city map',
+          onClick: () => map.toggle(),
+        },
+        h('span', { class: 'g' }, '⌗'),
+        h('span', { class: 'l' }, 'Map'),
+      ),
+    );
     ctx.services.provide('citymap', {
       toggle: (o) => map.toggle(o),
       get isOpen() {
