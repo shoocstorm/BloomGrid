@@ -4,7 +4,7 @@ import type { BuildingRecord, City } from './City';
 import { createPulseState, type PulseState } from './pulseState';
 import { createStewardState, type StewardState } from './stewardState';
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 export interface SaveData {
   version: number;
@@ -86,6 +86,11 @@ export function migrateSave(data: SaveData): SaveData {
   if (data.version === 7) {
     // Zones arrived with v8: older named areas simply have none.
     data.version = 8;
+  }
+  if (data.version === 8) {
+    // Hazards (v9): no fires, ruins or incident log yet.
+    Object.assign(data.steward, { fires: [], ruins: [], history: [], nextIncidentId: 1 });
+    data.version = 9;
   }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;

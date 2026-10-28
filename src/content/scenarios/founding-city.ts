@@ -380,6 +380,12 @@ export default defineScenario({
     const arena: [number, number][] = [[7, 2], [6, 2], [8, 2], [7, 3], [6, 3], [8, 3], [5, 2], [9, 2], [5, 3], [9, 3]];
     for (const id of ['bloom-stadium', 'aquatic-centre', 'wind-velodrome'])
       arena.some(([i, j]) => fillRect(tiles([i, j, i, j]), { [id]: 1 }, 1, 1) > 0);
+    // Ember Watch stations (D-050) about every fourth block of each town, whatever its zone (reach ≈ 2 blocks).
+    // The islets beyond and the open countryside stay uncovered: fires there need the steward's crews.
+    for (const t of TOWNS) {
+      const [i0, j0, i1, j1] = t.blocks;
+      for (let j = j0 + 1; j <= j1; j += 4) for (let i = i0 + 1; i <= i1; i += 4) fillRect(tiles([i, j, i, j]), { 'ember-watch': 1 }, 1, 1);
+    }
     // Pod Interchanges every third block of each living town (radius 22 covers the blocks round it): the
     // backbone of public transport once jobs are zoned away from homes (D-049).
     for (const t of TOWNS) {
@@ -447,6 +453,7 @@ export default defineScenario({
     // Sea-breeze rows along the longest waterfront streets, past the last town block.
     for (const [x, z, dx, dz, n] of [...shoreRoads].sort((p, q) => q[4] - p[4])) if (n >= 16) windAlong(x, z, dx, dz, 8, n);
     const islet = fit(S, 0.05, 0.6, 0.15, 0.72).map((v) => Math.round(v * S)) as Rect;
+    fillRect(islet, { 'ember-watch': 1 }, 1, 1);
 
     // Balance: jobs for most of the labour force, power with a thin margin; water and food left short. Utilities go
     // to their own places: solar panels to the Sunfield, water works to any town or utility shore.
@@ -491,6 +498,8 @@ export default defineScenario({
         fillRect(tiles([Math.round((i0 + i1) / 2), Math.round((j0 + j1) / 2), Math.round((i0 + i1) / 2), Math.round((j0 + j1) / 2)]), { 'pod-interchange': 1 }, 1, 1);
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) fillRect(tiles([i, j, i, j]), { 'pod-dock': 1 }, 1, 1);
       }
+      // An Ember Watch station for the centre's living and work quarters.
+      for (const q of QUARTERS.filter((qq) => qq.zone === 'living' || qq.zone === 'work')) fillRect(tiles(q.blocks), { 'ember-watch': 1 }, 1, 1);
     }
 
     // Named areas for the inventory and the inspector, most specific first; their streets included.

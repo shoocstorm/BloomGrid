@@ -162,3 +162,232 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Incidents tab (D-050) ─────────────────────────────────────────────── */
+.il {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.il-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+.il-tile {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-top: 2px solid #ff8a5a;
+  background: var(--bg-raise);
+}
+.il-tile span,
+.il-tile i {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.il-tile i {
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+.il-tile b {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 400;
+}
+.il-tile.bad b {
+  color: #ff8a5a;
+}
+.il-h {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.il-calm {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.il-nowlist {
+  display: grid;
+  gap: 4px;
+}
+.il-now {
+  display: grid;
+  grid-template-columns: 22px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 8px;
+  border-left: 2px solid #ff6a4a;
+  background: rgba(255, 106, 74, 0.07);
+}
+.il-now.ruin {
+  border-left-color: #9a8a7a;
+  background: rgba(160, 140, 120, 0.08);
+}
+.il-now b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.il-now span {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.il-ico {
+  text-align: center;
+}
+.il-go {
+  color: var(--accent);
+  padding: 2px 6px;
+}
+.il-act {
+  padding: 4px 9px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1a0a06;
+  background: #ff8a5a;
+}
+.il-act.all {
+  justify-self: start;
+  margin-top: 2px;
+}
+.il-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.il-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.il-f {
+  padding: 3px 9px;
+  font-size: 11px;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+.il-f.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.il-log {
+  display: grid;
+  gap: 4px;
+}
+.il-row {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink-faint);
+  background: rgba(2, 10, 12, 0.35);
+}
+.il-row.fire {
+  border-left-color: #ff6a4a;
+}
+.il-row.quake {
+  border-left-color: #d8a35a;
+}
+.il-row.storm {
+  border-left-color: #9db7ff;
+}
+.il-row.water {
+  border-left-color: #5fb8f2;
+}
+.il-row header {
+  display: grid;
+  grid-template-columns: 22px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.il-row header:hover {
+  background: var(--bg-hover);
+}
+.il-main b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.il-main span {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+.il-out span {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.il-out span.bad {
+  color: #ff8a5a;
+}
+.il-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 8px 6px 38px;
+}
+.il-chips:empty {
+  display: none;
+}
+.il-chip {
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+  background: rgba(95, 242, 218, 0.07);
+}
+.il-chip.bad {
+  color: #ffb08a;
+  background: rgba(255, 106, 74, 0.1);
+}
+.il-detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 4px 12px;
+  padding: 6px 8px 8px 38px;
+  border-top: 1px dashed var(--line);
+  font-size: 11.5px;
+}
+.il-detail span {
+  margin-right: 6px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.il-objs {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.il-obj {
+  padding: 0 5px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--accent);
+  border: 1px solid var(--line);
+}
+.il-more {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}

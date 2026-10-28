@@ -115,6 +115,8 @@ export interface BuildingDef {
   landmark?: boolean;
   /** A tower the Green Weaver can bridge to other towers or merge with a banyan. */
   tower?: boolean;
+  /** Emergency services (D-050): fires within `radius` tiles are fought automatically while it is powered and staffed. */
+  response?: { radius: number };
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */
   variants?: number;
   /**

@@ -53,7 +53,8 @@ the last returns camera distance/yaw before and after a synthetic pinch + twist)
 Field passes share the pulse (`FIELD_PULSES` = 6, D-020): phase 0 pairing + pollution, 1 ecology + desirability, 2 bloom, 3 Flora-Net,
 4 night life, 5 mobility. All six are taken, so a new pass must share a phase or `FIELD_PULSES` must grow. `floranet.js` frames the Drone Hive and dispatches a mist. `weaver.js` weaves bridges, a banyan and reclaims coast. `explore.js` enters an explore mode (`window.MODE`). `landmark.js` frames the Wellspring Spire and its hero district at the island centre: a street grid of 14-tile blocks (`QUARTERS` in `content/scenarios/founding-city.ts`; quarters around `window.CX`/`window.CZ` ≈ 292/222 skyline, 292/286 exchange, 222/284 gardens, 215/220 working hills). To add a hero, append its id to a quarter: it takes the free graded lot nearest the spire (D-035). Bloomtopia, the fenced amusement park, fills the south islet (`window.CX`/`CZ` ≈ 252/440, `window.YAW` = π to face its gate); its suspension bridge is at ≈ 252/404 and the north-east one at ≈ 430/145. The towns (`TOWNS` in the same file) continue the grid: Westbrook ≈ 150/270, Eastgate ≈ 360/250, Hillcrest ≈ 255/160, Bayfront ≈ 270/340, Sunfield ≈ 130/205. Zoned sub-areas (D-049): Westport Works (industry) ≈ 113/285, Meridian Arena (sports, Bloom Stadium ≈ 345/285) ≈ 360/285, Harbour Commons (work) ≈ 300/330, Lumen Promenade (entertainment) ≈ 300/360. Sea wonders (`modules/scenery/sites.ts`): Tidewatch Lighthouse ≈ 471/41, Tide Gates ≈ 72/471,
 Lotus Atoll ≈ 230/31, Abyssal Dome ≈ 440/471, Verdant Pillars ≈ 31/123, whale pods ≈ 154/481 and 348/26. Windward Isle (wind farm, 2×2 Breeze Turbines) ≈ 430/102. Aeroline stations: Hillcrest ≈ 256/159, Eastgate ≈ 353/256, Bayfront ≈ 241/368, Westbrook ≈ 144/271 (`services.get('explore').setMode('train')` rides a train); keep pieces in the quarter's render chunk (D-034) (`window.NEAR`, `window.PITCH`, `window.YAW`, `window.NIGHT`). Crises: `--path "/?drill=monsoon"`
-(any crisis id; `&severity=1.2`), or the inspector's Crisis drills.
+(any crisis id, including `earthquake`, `thunderstorm`, `industrial-fire`; `&severity=1.2`), or the inspector's Crisis drills.
+To light a fire from a snap eval: `(await import('/src/sim/hazards.ts')).ignite(bloomgrid.city, eid, 'lightning', 0.8)`.
 
 ## 3. Hard rules
 
@@ -120,6 +121,7 @@ Lotus Atoll ≈ 230/31, Abyssal Dome ≈ 440/471, Verdant Pillars ≈ 31/123, wh
 | City assistant (local LLM agent)   | engine `src/ai/llm/` (wllama + native MLX), loop `src/ai/agent.ts` (system prompts in `PROMPTS`, shown verbatim in the console's Profile tab; menus via `selectMenu`, routing via `plainIntent`), Profile/Tools tabs `src/modules/assistant/Dossier.ts`, tools `src/sim/{inventory,insight,action}Tools.ts` + game tools in `src/modules/assistant/index.ts`, console `src/modules/assistant/Panel.ts`; Rust `src-tauri/src/{llm,models}/`, `mlx.rs`. Measure agent changes with `bun run ai-probe`, not by argument |
 | Phone layout / touch input         | `.compact` rules in `src/ui/mobile.css` (loaded last), `platform/device.ts` (`isCompact`, `isTouchDevice`); foldable panels register with `hud.sheet(el)`; gestures in `input/Input.ts`, tools get `cancel` and `e.touch` (D-045). Check with `bun run snap -- --mobile` |
 | Zones (living, work, industry…)    | `ZoneKind` / `ZONES` in `src/content/types.ts`; `nameArea(…, zone)` in a scenario; `District.zone` (saved, hashed); town sub-zones in `founding-city.ts` (`zones` on a `Town`) |
+| Hazards (quake, lightning, fire)   | `src/sim/hazards.ts` (crises, fires, ruins, `respond` / `repair`), log via `logIncident` in `sim/crises.ts`; visuals and fire panel `src/modules/hazards/`; Incidents tab `modules/dashboard/IncidentLog.ts`; Flora tools `sim/hazardTools.ts`; stations: `response` on a def (D-050) |
 | Wind turbines                      | building `src/content/buildings/wind-turbine.ts` (plinth + tower); nacelles and spinning rotors `src/modules/wind/` (one prevailing wind, CPU-posed from `U.clock`); founding-city farm placement in `founding-city.ts` (`WIND_TURBINES` cap, D-047) |
 | City map (districts)               | `src/modules/citymap/` (canvas painted on open from `city.districts`; labels fit their district); button prepended to `hud.stats`; **Y** |
 | HUD layout (desktop)               | telemetry strip lives in City Pulse (`hud.readout`); explore modes are a top-bar dropdown (`explore/index.ts`, styles in `ui/theme.css`); Flora's orb in `hud.dockRow` |
@@ -226,6 +228,9 @@ own `requestAnimationFrame` loops.
 - A snap `--eval` that does `import('/src/render/uniforms.ts')` gets a *second* module instance (Vite serves the app's
   copy with `?t=…`). Import the exact URL from `performance.getEntriesByType('resource')` to reach the app's `U`
   (e.g. to pin `U.clock` while capturing shader-animated scenery).
+- Hazard damage goes through `damageBuilding` (books the credits and the log, ruins at zero); don't write
+  `Service.condition` down directly for a hazard. A new crisis is logged automatically when it ends; give it
+  `c.x / c.z` so the log and the map can place it.
 - Building categories feed the toolbar in `CATEGORY_LABELS` order with hotkeys 4–9, 0: add a category at the end
   (it is click-only) and give it a `CATEGORY_CODES` prefix; the id regexes in `ai/agent.ts` and
   `modules/assistant/Panel.ts` list every prefix.

@@ -6,6 +6,7 @@ import type { SimCtx } from './systems';
 import { HISTORY_LENGTH, HISTORY_METRICS, SYSTEMS, tierFromRatio, type SystemKey, type Tier } from './pulseState';
 import { FIELD_PULSES, computeEcology, computePollution } from './fields';
 import { blightLoss, updateCrises } from './crises';
+import { updateHazards } from './hazards';
 import { updateFinance } from './finance';
 import { updateCondition, updateOvergrowth } from './upkeep';
 import { updateStewardship } from './steward';
@@ -102,6 +103,7 @@ export const pulseSystem: System<SimCtx> = {
     }
     updateSeaRise(city);
     const mod = updateCrises(city);
+    updateHazards(city, mod);
     const defences = mod.floodLevel > 0 ? defenceList(city) : [];
     const bridges = city.weaver.bridges.length ? bridgeEnds(city) : null;
     const n = networks.count;
@@ -149,7 +151,7 @@ export const pulseSystem: System<SimCtx> = {
       flooded[eid] = fl ? 1 : 0;
       const centre = city.grid.index(Building.x[eid]! + (Building.w[eid]! >> 1), Building.z[eid]! + (Building.d[eid]! >> 1));
       Service.bloom[eid] = bloomField[centre]!;
-      if (fl || eid === mod.offline) continue;
+      if (fl || eid === mod.offline || mod.down.has(eid)) continue;
       // Worn-down buildings work at reduced capacity.
       const activity = (st.population > 0 ? 0.3 + 0.7 * occ : st.jobs > 0 ? 0.4 + 0.6 * occ : 1) * (0.4 + 0.6 * Service.condition[eid]!);
       // Pollinated farms yield more; seasons shift harvests.
@@ -206,12 +208,15 @@ export const pulseSystem: System<SimCtx> = {
       // Flag only shortages severe enough to matter locally; mild deficits show as system tiers.
       if (power < 0.8) p |= Problem.NO_POWER;
       if (water < 0.8) p |= Problem.NO_WATER;
-      const isFlooded = flooded[eid] === 1;
+      // Burning and ruined buildings (hazards) are evacuated like flooded ones, and don't mend themselves.
+      const isDown = mod.down.has(eid);
+      const isFlooded = flooded[eid] === 1 || isDown;
       const isOffline = eid === mod.offline;
-      if (isFlooded) p |= Problem.FLOODED;
+      if (flooded[eid] === 1) p |= Problem.FLOODED;
       if (isOffline) p |= Problem.OFFLINE;
+      if (isDown) p |= Service.condition[eid]! <= 0 ? Problem.RUINED : Problem.ON_FIRE;
       const occ = Service.occupancy[eid]!;
-      const cond = updateCondition(eid, funding, isFlooded, (st.population > 0 || st.jobs > 0) && occ < 0.1, floodSev);
+      const cond = isDown ? Service.condition[eid]! : updateCondition(eid, funding, isFlooded, (st.population > 0 || st.jobs > 0) && occ < 0.1, floodSev);
       if (cond < 0.35) p |= Problem.NEGLECTED;
       const service = isFlooded ? 0 : Math.min(power, water);
       if (st.population > 0) {

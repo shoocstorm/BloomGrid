@@ -128,6 +128,12 @@ parkland. Open the city map (**Y**) to see the zones in colour (toggle to per-di
 shows the zone of whatever you select. Factories (Industry ⚙) and venues like Bloom Stadium (Sports ✪) are the
 last two build categories. Pod Interchanges in the living towns fly commuters to the work and industry zones.
 
+**Disasters:** earthquakes, thunderstorms that throw lightning at tall buildings, and fires (from quakes,
+lightning, heatwaves and factories) that spread if nobody fights them. Ember Watch Stations put out fires within
+reach on their own; elsewhere, dispatch crews from the fire panel or the inspector (◈150 a fire), or ask Flora
+("put out the fires", "what is burning?"). Burned-out buildings become ruins until you rebuild them. Every crisis
+and fire is recorded with its losses in the dashboard's **Incidents** tab (**K**, then Incidents).
+
 **Wind power:** Breeze Turbines (☀ energy category) are cheap, clean and the cheapest power to run. The founding
 city already runs on them: a wind farm fills Windward Isle in the north-east and rows line the waterfront.
 

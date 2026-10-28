@@ -523,3 +523,28 @@ now pays for a stadium, factories and transit; the early dip while residents mov
 Rejected: two docks on every living block (homes lost, flow fell to 0.83); docks only (flow swings 0.77–0.91
 with layout). Draw calls 256 overview / 270 at the arena (`?stress=1500`: 329 at the arena, overview 304 as before).
 
+## D-050 — Hazards: earthquakes, lightning and fires, emergency response and an incident log (2026-10-28)
+
+**Hazards** (`sim/hazards.ts`), on top of the slow crises: three new crises in the same scheduler and drills
+(`?drill=earthquake|thunderstorm|industrial-fire`). *Earthquake*: 8 s of tremor warning, a main shock damaging
+buildings by distance from a random built-up epicentre (towers more), aftershocks, camera shake, and fires where
+damage is heavy. *Thunderstorm*: a storm cell whose lightning favours towers, turbines and big landmarks (damage,
+often fire); its rain helps put fires out. *Industrial fire*: a factory catches fire. Heatwaves also start fires,
+mostly in factories. **Fires** grow, burn their building's condition and leap to a neighbour when fierce (at most
+twice each; measured: uncapped spread at 0.07/s ran a quake's fires away to 40+ at once). They die to dispatched
+crews (`respond`, ◈150 a fire), to an **Ember Watch Station** in reach (new utility building, `response` on a def;
+founding city: about every fourth town block, the islets beyond uncovered), or to rain. A building brought to zero
+becomes a **ruin** (evacuated, out of service, smoke) until rebuilt (`repair`: half its price; damage is repaired in
+proportion). Damage costs 18% of the building's price in credits (30% let one downtown quake take ~7 000).
+**State and saves.** `steward.fires`, `ruins` (building serials), `history` (≤ 80 records: kind, time, place,
+duration, damage events, ruins, fires, displaced residents, credits lost, outcome, worst-hit ids), saved (v9) and
+hashed; burning and ruined buildings flow into the pulse through `Modifiers.down` and get `Problem.ON_FIRE` /
+`RUINED` (problems widened to 16 bits). Every crisis, old and new, is logged when it ends; a fire's burn damage is
+its own entry's, a crisis counts its direct hits and the fires it started, so the log's totals add up.
+**Response.** Fire panel under the crisis banners (dispatch one or all, fly to, open the log); inspector buttons
+(dispatch, rebuild, repair); dashboard **Incidents** tab (tiles, now, filterable log with details); Flora tools
+`incident_status`, `respond_incident`, `repair_damage` (in the Rust grammar fixture), plain-request routing, and
+monitor notices for fires, ruins and quakes. Visuals (`modules/hazards`): flame tongues and smoke on burning roofs,
+ruin plumes, a lightning bolt and flash, quake shake (sync phase, so it lands in the frame); no shadows; two
+instanced meshes posed only while something burns or smoulders.
+

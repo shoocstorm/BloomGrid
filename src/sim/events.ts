@@ -1,6 +1,6 @@
 import type { BuildingRecord } from './City';
 import type { SystemKey, Tier } from './pulseState';
-import type { CrisisInstance } from './stewardState';
+import type { CrisisInstance, FireIncident, IncidentRecord } from './stewardState';
 
 declare module '@/core/EventBus' {
   interface GameEvents {
@@ -38,6 +38,14 @@ declare module '@/core/EventBus' {
     /** The fail clock started (seconds left) or stopped (null). */
     'steward:warning': { secondsLeft: number | null };
     'steward:replaced': { day: number; peakPopulation: number };
+    /** Hazards (D-050): a fire broke out / went out; a building was ruined; the ground shook; lightning struck. */
+    'fire:start': { fire: FireIncident; eid: number };
+    'fire:end': { fire: FireIncident; ruined: boolean };
+    'building:ruined': { eid: number; cause: string };
+    'quake:shock': { x: number; z: number; radius: number; magnitude: number; aftershock: boolean };
+    'lightning:strike': { x: number; z: number; y: number; eid: number; fire: boolean };
+    /** A crisis or fire was added to the incident log. */
+    'incident:logged': { record: IncidentRecord };
   }
 }
 export {};

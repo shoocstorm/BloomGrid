@@ -4,6 +4,7 @@ import { NO_ENTITY } from './Grid';
 import type { BuildingRecord, City } from './City';
 import { TAX_MAX, TAX_MIN } from './pulseState';
 import { registerFinanceCommands } from './finance';
+import { registerHazardCommands } from './hazards';
 import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from './floranet';
 import { RECLAIM_HEIGHT, cornersOf, reclaimPlan, setCorners } from './coast';
 import { BANYAN_LEVEL, banyanPlan, bridgePlan, towerAt } from './weaver';
@@ -53,6 +54,7 @@ function setOvergrowth(city: City, values: [number, number][]): void {
 /** Registers the core city-building commands. Feature modules register their own. */
 export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerFinanceCommands(stack);
+  registerHazardCommands(stack);
   registerMist(stack);
   registerReclaim(stack);
   registerWeaver(stack);

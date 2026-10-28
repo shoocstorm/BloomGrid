@@ -18,6 +18,7 @@ import type { ChatMessage, GenOptions } from '@/ai/llm/engine';
 import { actionTools, connectPath, findSites, resolveType, type ActionCtx } from '@/sim/actionTools';
 import { inventoryTools } from '@/sim/inventoryTools';
 import { insightTools } from '@/sim/insightTools';
+import { hazardTools } from '@/sim/hazardTools';
 import { getObject, queryInventory } from '@/sim/inventory';
 import { applyScenario } from '@/sim/scenario';
 import { buildings } from '@/content';
@@ -33,7 +34,7 @@ function founded() {
 function registry(s: ReturnType<typeof makeSim>) {
   const ctx: ActionCtx = { city: s.city, commands: s.commands };
   const r = new AgentToolRegistry<ActionCtx>(ctx);
-  for (const t of [...inventoryTools, ...insightTools, ...actionTools]) r.register(t);
+  for (const t of [...inventoryTools, ...insightTools, ...actionTools, ...hazardTools]) r.register(t);
   return r;
 }
 

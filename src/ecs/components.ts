@@ -33,6 +33,10 @@ export const Problem = {
   FLOODED: 16,
   NEGLECTED: 32,
   OFFLINE: 64,
+  /** Burning (hazards, D-050): evacuated until the fire is out. */
+  ON_FIRE: 128,
+  /** A ruin: burned out or shaken down; needs repair. */
+  RUINED: 256,
 } as const;
 
 /**
@@ -44,7 +48,7 @@ export const Service = {
   power: new Float32Array(MAX_ENTITIES),
   water: new Float32Array(MAX_ENTITIES),
   occupancy: new Float32Array(MAX_ENTITIES),
-  problems: new Uint8Array(MAX_ENTITIES),
+  problems: new Uint16Array(MAX_ENTITIES),
   /** Physical condition 0..1: decays under austerity, flooding and abandonment. */
   condition: new Float32Array(MAX_ENTITIES).fill(1),
   /** 1 when a symbiotic partner is nearby (see `sim/bloom.ts`). */

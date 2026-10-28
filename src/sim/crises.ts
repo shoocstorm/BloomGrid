@@ -3,7 +3,7 @@ import { Building } from '@/ecs/components';
 import { buildings } from '@/content';
 import { DAY_LENGTH, type City } from './City';
 import { DIFFICULTIES } from './difficulty';
-import { neutralModifiers, type CrisisInstance, type Modifiers } from './stewardState';
+import { neutralModifiers, type CrisisInstance, type IncidentRecord, type Modifiers } from './stewardState';
 import { PULSE_TICKS } from './pulseConst';
 import { seasonAt } from './seasons';
 
@@ -35,6 +35,25 @@ const defs = new Map<string, CrisisDef>();
 export const registerCrisis = (d: CrisisDef) => void defs.set(d.id, d);
 export const getCrisis = (id: string) => defs.get(id)!;
 export const allCrises = () => [...defs.values()];
+
+/** Incident log length kept in saves (oldest dropped first). */
+export const HISTORY_MAX = 80;
+
+/** Appends a finished crisis or fire to the steward's incident log (D-050). */
+export function logIncident(city: City, rec: Omit<IncidentRecord, 'id'>): IncidentRecord {
+  const st = city.steward;
+  const full = { id: st.nextIncidentId++, ...rec };
+  st.history.push(full);
+  if (st.history.length > HISTORY_MAX) st.history.splice(0, st.history.length - HISTORY_MAX);
+  city.bus.emit('incident:logged', { record: full });
+  return full;
+}
+
+/** Notes a building hit by a crisis (for its log entry): counts it and keeps the first few ids. */
+export function noteHit(c: CrisisInstance, id: string | null): void {
+  c.hits = (c.hits ?? 0) + 1;
+  if (id && !(c.objects ??= []).includes(id) && c.objects.length < 6) c.objects.push(id);
+}
 
 /** Minimum calm between crises (seconds). */
 const MIN_GAP = 75;
@@ -80,6 +99,32 @@ export function updateCrises(city: City): Modifiers {
     if (c.phase === 'active' && city.tick >= c.endTick) {
       st.crises.splice(i, 1);
       st.lastCrisisEndTick = city.tick;
+      const d = getCrisis(c.def);
+      const fires = c.fires ?? 0;
+      logIncident(city, {
+        kind: c.def,
+        name: d.name,
+        icon: d.icon,
+        startTick: c.startTick,
+        endTick: city.tick,
+        severity: c.severity,
+        district: c.x !== undefined ? city.districtAt(Math.floor(c.x), Math.floor(c.z!)) : null,
+        ...(c.x !== undefined ? { x: c.x, z: c.z! } : {}),
+        hits: c.hits ?? 0,
+        lost: c.lost ?? 0,
+        fires,
+        displaced: Math.round(c.displaced ?? 0),
+        cost: Math.round(c.cost ?? 0),
+        outcome:
+          (c.lost ?? 0) > 0
+            ? `${c.lost} building${c.lost === 1 ? '' : 's'} ruined`
+            : fires > 0
+              ? `${fires} fire${fires === 1 ? '' : 's'} started`
+              : (c.hits ?? 0) > 0
+                ? 'damage contained'
+                : 'weathered',
+        objects: c.objects ?? [],
+      });
       city.bus.emit('crisis:end', { crisis: c });
     }
   }

@@ -92,6 +92,16 @@ export const ISSUES: Record<string, IssueInfo> = {
     severity: 2,
     hint: 'Shut down by a crisis: resolve the crisis to bring it back.',
   },
+  'on-fire': {
+    label: 'On fire',
+    severity: 2,
+    hint: 'Dispatch crews (respond) before it spreads; an Ember Watch station nearby fights it automatically.',
+  },
+  ruined: {
+    label: 'Ruined',
+    severity: 2,
+    hint: 'Burned out or shaken down: repair it (half its price) or return it to nature.',
+  },
   worn: {
     label: 'Worn',
     severity: 1,
@@ -178,6 +188,8 @@ const PROBLEM_ISSUES: [number, string][] = [
   [Problem.FLOODED, 'flooded'],
   [Problem.NEGLECTED, 'neglected'],
   [Problem.OFFLINE, 'offline'],
+  [Problem.ON_FIRE, 'on-fire'],
+  [Problem.RUINED, 'ruined'],
 ];
 
 function buildingObject(city: City, eid: number): CityObject {

@@ -1,0 +1,136 @@
+/* Hazards (D-050): the fire panel under the crisis banners, and the lightning flash. Instrument theme tokens. */
+.hz-panel {
+  --bg: rgba(28, 8, 6, 0.92);
+  width: min(460px, calc(100vw - 24px));
+  padding: 8px 10px;
+  border-color: rgba(255, 106, 74, 0.5);
+}
+.hz-panel.hidden,
+.hz-panel .hidden {
+  display: none;
+}
+.hz-panel header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffb08a;
+}
+.hz-panel header b {
+  flex: 1;
+  font-weight: 600;
+}
+.hz-dot {
+  width: 8px;
+  height: 8px;
+  background: #ff6a4a;
+  animation: hz-blink 1s steps(2) infinite;
+}
+@keyframes hz-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+.hz-list {
+  display: grid;
+  gap: 4px;
+  max-height: 210px;
+  overflow-y: auto;
+}
+.hz-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  border-left: 2px solid #ff6a4a;
+  background: rgba(255, 106, 74, 0.07);
+}
+.hz-go {
+  color: var(--accent);
+}
+.hz-what {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.hz-what b {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hz-what span {
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+.hz-bar {
+  height: 3px;
+  margin-top: 3px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.hz-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ffc94a, #ff4a2a);
+  transition: width 0.3s;
+}
+.hz-state {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.hz-btn {
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1a0a06;
+  background: #ff8a5a;
+  white-space: nowrap;
+}
+.hz-btn:hover {
+  background: #ffb08a;
+}
+.hz-btn:empty {
+  display: none;
+}
+/* A quarter-second lightning flash (opacity only). */
+.hz-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 30%, rgba(235, 245, 255, 0.55), rgba(200, 220, 255, 0.15) 70%);
+  opacity: 0;
+}
+.hz-flash.on {
+  animation: hz-flash 0.35s ease-out;
+}
+@keyframes hz-flash {
+  0%,
+  30% {
+    opacity: 1;
+  }
+  15% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.hz-log {
+  padding: 3px 7px;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #ffb08a;
+  border: 1px solid rgba(255, 138, 90, 0.5);
+}

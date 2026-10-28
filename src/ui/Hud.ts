@@ -3,6 +3,7 @@ import { buildings } from '@/content';
 import { CATEGORY_ICONS, CATEGORY_LABELS, ZONES, type BuildingCategory, type BuildingDef } from '@/content/types';
 import { NO_ENTITY } from '@/sim/Grid';
 import { idForSelection } from '@/sim/inventory';
+import { RESPONSE_COST, fireAt, isRuined, repairCost } from '@/sim/hazards';
 import type { GameContext, GameModule } from '@/game/context';
 import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from './dom';
@@ -417,6 +418,7 @@ class Hud {
 
   private select(eid: number | null): void {
     this.selected = eid === NO_ENTITY ? null : eid;
+    this.hzKey = '';
     this.info.classList.toggle('hidden', this.selected === null);
     if (this.selected === null) return;
     const def = this.ctx.city.buildingDef(this.selected);
@@ -429,6 +431,7 @@ class Hud {
       h('p', {}, def.description),
       h('div', { class: 'grow' }, h('div', { class: 'row' }, h('span', {}, 'Greenery'), h('b', { 'data-g': '1' }, '')), h('div', { class: 'meter' }, h('i', { 'data-gm': '1' }))),
       h('div', { class: 'svc', 'data-svc': '1' }),
+      h('div', { class: 'info-hz', 'data-hz': '1' }),
       row('Energy', `${s.energy > 0 ? '+' : ''}${s.energy}`),
       row('Ecology', s.eco),
       row('Residents', s.population),
@@ -456,6 +459,8 @@ class Hud {
         p & Problem.NO_POWER && 'Brownout: the grid lacks power',
         p & Problem.NO_WATER && 'Dry taps: the network lacks water',
         p & Problem.UNSTAFFED && 'Understaffed: not enough workers',
+        p & Problem.ON_FIRE && 'On fire: evacuated; dispatch crews before it spreads',
+        p & Problem.RUINED && 'A ruin: burned out or shaken down; rebuild it',
       ].filter(Boolean) as string[];
       const occLabel = st.population > 0 ? 'Occupancy' : st.jobs > 0 ? 'Staffing' : '';
       const def = this.ctx.city.buildingDef(eid);
@@ -473,7 +478,37 @@ class Hud {
       ].filter(Boolean);
       setText(svc, [lines.join(' · '), ...extra, ...issues.map((i) => `⚠ ${i}`)].filter(Boolean).join('\n'));
       svc.classList.toggle('bad', issues.length > 0);
+      this.hazardActions(eid);
     }
+  }
+
+  private hzKey = '';
+  /** Dispatch / rebuild / repair for a burning, ruined or damaged building (D-050); rebuilt only on change. */
+  private hazardActions(eid: number): void {
+    const box = this.infoBody.querySelector<HTMLElement>('[data-hz]');
+    if (!box) return;
+    const { city, commands, bus } = this.ctx;
+    const fire = fireAt(city, eid);
+    const ruined = isRuined(city, eid);
+    const cond = Service.condition[eid]!;
+    const key = `${eid}|${fire ? `f${fire.id}${fire.crew}` : ruined ? 'r' : cond < 0.95 ? `d${repairCost(city, eid)}` : ''}`;
+    if (key === this.hzKey) return;
+    this.hzKey = key;
+    const run = (type: string, payload: unknown) => {
+      if (!commands.execute(type, payload)) bus.emit('toast', { text: 'Not enough credits', tone: 'bad' });
+      this.hzKey = '';
+    };
+    const at = { x: Building.x[eid]!, z: Building.z[eid]! };
+    const btn = fire
+      ? fire.crew
+        ? h('span', { class: 'info-hz-note' }, '🚒 Crews are fighting the fire')
+        : h('button', { class: 'tool info-hz-btn', onClick: () => run('respond', { id: fire.id }) }, `🚒 Dispatch crews · ◈${RESPONSE_COST}`)
+      : ruined
+        ? h('button', { class: 'tool info-hz-btn', onClick: () => run('repair', at) }, `⚒ Rebuild · ◈${repairCost(city, eid).toLocaleString()}`)
+        : cond < 0.95
+          ? h('button', { class: 'tool info-hz-btn', onClick: () => run('repair', at) }, `⚒ Repair ${Math.round(cond * 100)}% → 100% · ◈${repairCost(city, eid).toLocaleString()}`)
+          : null;
+    box.replaceChildren(...(btn ? [btn] : []));
   }
 
   /** Per frame (cheap) + throttled stat refresh. */

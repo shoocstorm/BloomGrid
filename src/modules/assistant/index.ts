@@ -6,6 +6,7 @@ import { TIERS } from '@/sim/pulseState';
 import { getCrisis } from '@/sim/crises';
 import { actionTools } from '@/sim/actionTools';
 import { insightTools } from '@/sim/insightTools';
+import { hazardTools } from '@/sim/hazardTools';
 import { allOverlays, getOverlay } from '@/sim/overlays';
 import { ISSUES, inventoryKinds } from '@/sim/inventory';
 import { cityBrief } from '@/ai/brief';
@@ -95,6 +96,30 @@ class Assistant {
         `The ${getCrisis(crisis.def).name} has begun. What is affected and what should we do?`,
       ),
     );
+    // Hazards (D-050): fires, ruins and quakes, each with a prompt that leads to incident_status / respond_incident.
+    bus.on('fire:start', ({ fire, eid }) => {
+      const where = this.ctx.city.districtAt(Math.floor(fire.x), Math.floor(fire.z)) ?? 'the outskirts';
+      notice(
+        'fire',
+        `🔥 Fire at ${this.ctx.city.buildingDef(eid).name} in ${where} (fire ${fire.id}, cause: ${fire.cause}).`,
+        'What is burning right now, and which fires need crews?',
+      );
+    });
+    bus.on('building:ruined', ({ eid, cause }) =>
+      notice(
+        'ruin',
+        `${this.ctx.city.buildingDef(eid).name} is a ruin (${cause}).`,
+        'Which buildings are ruined or damaged, and what would repairs cost?',
+      ),
+    );
+    bus.on('quake:shock', ({ x, z, magnitude, aftershock }) => {
+      if (aftershock) return;
+      notice(
+        'quake',
+        `🌋 Magnitude ${magnitude.toFixed(1)} earthquake near ${this.ctx.city.districtAt(Math.floor(x), Math.floor(z)) ?? 'the outskirts'}.`,
+        'An earthquake hit. Which buildings are damaged or burning, and what should we do first?',
+      );
+    });
     bus.on('steward:warning', ({ secondsLeft }) => {
       if (secondsLeft !== null)
         notice(
@@ -355,7 +380,7 @@ export const assistantModule: GameModule = {
   deps: ['inventory', 'pulse', 'hud'],
   init(ctx) {
     const agent = ctx.services.get('agent');
-    for (const t of [...insightTools, ...actionTools, ...gameTools()]) agent.register(t);
+    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...gameTools()]) agent.register(t);
     const a = new Assistant(ctx);
     ctx.services.provide('assistant', {
       toggle: (open) => a.panel.toggle(open),

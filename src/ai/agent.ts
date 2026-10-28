@@ -135,6 +135,9 @@ export function plainIntent(request: string): string | null {
   const question = isQuestion(r);
   const rules: [RegExp, string][] = [
     [/^\s*undo\b/, 'undo'],
+    // Hazards (D-050) before the general remedies: crews to fires, rebuilding ruins.
+    [/\b(put out|extinguish|firefighters?|fire ?crews?|dispatch (the )?crews?|send (the )?crews?)\b/, 'respond_incident'],
+    [/\b(rebuild|ruins?|repair (the )?(damage|damaged|ruins?|quake|fire))\b/, 'repair_damage'],
     [/\b(fix|repair|solve|resolve|sort out)\b/, 'fix_issue'],
     [/\b(pause|unpause|resume|speed up|slow down|fast forward)\b/, 'set_speed'],
     [/\b(lens|overlay)\b/, 'show_lens'],
@@ -150,6 +153,7 @@ export function plainIntent(request: string): string | null {
     [/\b(take|get) (a )?loan\b|\bborrow\b/, 'take_loan'],
     [/\b(where is|show me|locate|take me to)\b/, 'object_select'],
     [/\b(budget|money|spending|income|upkeep|afford)\b/, 'budget_breakdown'],
+    [/\b(fires?|burning|earthquakes?|quakes?|lightning|incidents?|emergenc(y|ies)|damaged?)\b/, 'incident_status'],
     [/\b(crisis|crises|storm|flood|heatwave|drought|forecast)\b/, 'crisis_status'],
     [/\b(trend|over time|improving|getting (better|worse))\b/, 'city_trends'],
     [/\b(best|cheapest|which building|what (should|can) (i|we) build)\b/, 'building_types'],
@@ -161,6 +165,7 @@ export function plainIntent(request: string): string | null {
     'inventory_search',
     'budget_breakdown',
     'crisis_status',
+    'incident_status',
     'city_trends',
     'building_types',
     'advisor_tips',

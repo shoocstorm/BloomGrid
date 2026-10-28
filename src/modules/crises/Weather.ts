@@ -71,6 +71,9 @@ export class Weather {
       if (c.def === 'monsoon') {
         rain = Math.max(rain, c.phase === 'active' ? k : 0);
         storm = Math.max(storm, k * 0.85);
+      } else if (c.def === 'thunderstorm') {
+        rain = Math.max(rain, c.phase === 'active' ? k : 0);
+        storm = Math.max(storm, k);
       } else if (c.def === 'king-tide') storm = Math.max(storm, k * 0.35);
       else if (c.def === 'heatwave') {
         heat = k;
