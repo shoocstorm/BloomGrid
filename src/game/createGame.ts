@@ -14,6 +14,7 @@ import { foundCity, preferredDifficulty } from './newCity';
 import { chunkSizeFor } from '@/sim/City';
 import { createRenderer } from '@/render/Renderer';
 import { ChunkedInstancer } from '@/render/Instancer';
+import { isTouchDevice } from '@/platform/device';
 import { DynamicResolution, QUALITY_TIERS, type QualitySettings, type QualityTier } from '@/render/Quality';
 import { PostFX } from '@/render/PostFX';
 import { PowerManager } from '@/render/Power';
@@ -74,7 +75,8 @@ export async function createGame(
   await onProgress('Negotiating GPU link', 0.05);
   const gpuTiming = params.has('gputime');
   const { renderer, isWebGPU } = await createRenderer(canvas, params.get('renderer') === 'webgl', gpuTiming);
-  const tier = (params.get('quality') as QualityTier) || (isWebGPU ? 'high' : 'medium');
+  // Phones and tablets start on Medium (pixel ratio 1, no MSAA) to stay cool; Settings can raise it.
+  const tier = (params.get('quality') as QualityTier) || (isWebGPU && !isTouchDevice() ? 'high' : 'medium');
   await onProgress(`${isWebGPU ? 'WebGPU' : 'WebGL2'} core · calibrating bio-shaders`, 0.15);
 
   initMaterials();

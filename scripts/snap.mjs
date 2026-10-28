@@ -6,6 +6,7 @@
  *   bun run snap -- --path "/?perf" --out shots/day.png
  *   bun run snap -- --path "/?renderer=webgl" --eval @scripts/scenes/demo-city.js --after 4000
  *   bun run snap -- --times 300,1500,3000,6000 --out shots/boot.png   # timed frames: boot-300.png …
+ *   bun run snap -- --mobile --out shots/phone.png                      # 390×844 touch phone (--size overrides)
  *
  * Prints page console warnings/errors; exits 1 on uncaught page errors.
  */
@@ -21,7 +22,8 @@ const out = args.out ?? 'shots/snap.png';
 const wait = Number(args.wait ?? 8000);
 const after = Number(args.after ?? 3000);
 const times = args.times ? args.times.split(',').map(Number) : null;
-const [w, h] = (args.size ?? '1440x900').split('x').map(Number);
+const mobile = args.mobile === 'true';
+const [w, h] = (args.size ?? (mobile ? '390x844' : '1440x900')).split('x').map(Number);
 const chrome =
   args.chrome ??
   process.env.CHROME_PATH ??
@@ -34,7 +36,7 @@ const browser = await puppeteer.launch({
   args: ['--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', `--window-size=${w},${h}`],
 });
 const page = await browser.newPage();
-await page.setViewport({ width: w, height: h });
+await page.setViewport({ width: w, height: h, ...(mobile ? { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : {}) });
 let errors = 0;
 // Warnings/errors, plus the app's own tagged logs (e.g. "[boot] …", "[scenario] …").
 page.on('console', (m) => (['warn', 'error'].includes(m.type()) || /^\[[a-z]+\]/.test(m.text())) && console.log(`[${m.type()}] ${m.text()}`));

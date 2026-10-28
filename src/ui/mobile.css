@@ -1,0 +1,364 @@
+/*
+ * Phone layout. `body.compact` (platform/device.ts) trims the HUD to what a thumb needs: clock,
+ * key stats and actions on top; City Pulse, Flora-Net and lenses as chips that open one sheet at a
+ * time; the inspector as a bottom sheet; a scrolling icon toolbar. Telemetry, explore modes and
+ * keyboard hints are dropped. `body.touch` only removes hover/keyboard affordances.
+ * Loaded after theme.css so it wins without !important wars.
+ */
+body.touch button,
+body.touch input {
+  touch-action: manipulation;
+}
+body.touch kbd,
+body.touch .tool kbd,
+body.touch .lens-bar kbd {
+  display: none;
+}
+.lens-toggle {
+  display: none;
+}
+
+body.compact {
+  --gut: 8px;
+  --top: calc(env(safe-area-inset-top, 0px) + 6px);
+  --bot: calc(env(safe-area-inset-bottom, 0px) + 6px);
+  /* Chip row under the two top-bar rows. */
+  --chips: calc(var(--top) + 86px);
+  /* First free line under the chips (crisis banners). */
+  --below: calc(var(--chips) + 42px);
+}
+
+/* ── Top bar: clock + actions, then the key stats ─────────────────────────── */
+.compact .topbar {
+  top: var(--top);
+  left: calc(var(--gut) + env(safe-area-inset-left, 0px));
+  right: calc(var(--gut) + env(safe-area-inset-right, 0px));
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.compact .brand {
+  display: none;
+}
+.compact .clock {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  gap: 6px;
+  justify-content: space-between;
+}
+.compact .clock .time {
+  flex: none;
+  min-width: 0;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.compact .seg button {
+  padding: 5px 6px;
+  font-size: 10.5px;
+}
+.compact .actions {
+  padding: 2px;
+}
+.compact .actions .opt,
+.compact .ai-launch {
+  display: none;
+}
+.compact .actions .icon-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 7px;
+}
+.compact .stats {
+  order: 3;
+  flex: 1 0 100%;
+  justify-content: space-between;
+  padding: 3px 4px;
+}
+.compact .stat {
+  padding: 1px 4px;
+  gap: 3px;
+  font-size: 12px;
+}
+.compact .stat .k,
+.compact .stat .sub,
+.compact .stat .meter,
+.compact .stat-eco {
+  display: none;
+}
+
+
+/* ── Chips → sheets (City Pulse left, lenses centre, Flora-Net right) ─────── */
+.compact .rightcol {
+  display: contents;
+}
+.compact .pulse,
+.compact .advisor {
+  position: absolute;
+  top: var(--chips);
+  width: auto;
+  max-width: calc(100vw - 2 * var(--gut));
+  max-height: calc(100dvh - var(--chips) - var(--bot) - 70px);
+  overflow-y: auto;
+  padding: 6px 10px;
+  z-index: 12;
+}
+.compact .pulse {
+  left: var(--gut);
+}
+.compact .advisor {
+  right: var(--gut);
+}
+.compact .pulse:not(.collapsed),
+.compact .advisor:not(.collapsed) {
+  left: var(--gut);
+  right: var(--gut);
+  z-index: 14;
+}
+/* Open sheets cover the chips beneath them: use the opaque panel fill. */
+.compact .pulse:not(.collapsed),
+.compact .advisor:not(.collapsed),
+.compact .lens-wrap:not(.collapsed) .lens-bar,
+.compact .info {
+  --bg: var(--bg-strong);
+}
+.compact .pulse-head {
+  font-size: 11.5px;
+  padding: 2px 0;
+  white-space: nowrap;
+}
+.compact .pulse:not(.collapsed) .pulse-head {
+  padding-bottom: 6px;
+}
+.compact .advisor.collapsed .adv-tabs {
+  display: none;
+}
+.compact .adv-title {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+.compact .lens-wrap {
+  top: var(--chips);
+  width: calc(100vw - 2 * var(--gut));
+  z-index: 13;
+}
+.compact .lens-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+.compact .lens-toggle .l {
+  display: none;
+}
+.compact .lens-wrap.collapsed .lens-bar {
+  display: none;
+}
+.compact .lens-bar {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.compact .lens {
+  padding: 8px 10px;
+}
+.compact .lens .l {
+  display: inline;
+}
+
+/* ── Bottom: inspector sheet above a scrolling toolbar ────────────────────── */
+.compact .dock {
+  left: calc(var(--gut) + env(safe-area-inset-left, 0px));
+  right: calc(var(--gut) + env(safe-area-inset-right, 0px));
+  bottom: var(--bot);
+  transform: none;
+  max-width: none;
+  align-items: stretch;
+  gap: 6px;
+}
+.compact .toolbar {
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px;
+  gap: 2px;
+}
+.compact .toolbar::-webkit-scrollbar {
+  display: none;
+}
+.compact .tool {
+  flex: none;
+  padding: 9px 10px;
+}
+.compact .tool span.l {
+  display: none;
+}
+.compact .tray {
+  padding: 6px;
+  gap: 6px;
+  scrollbar-width: none;
+}
+.compact .card {
+  width: 116px;
+  padding: 7px 8px;
+}
+.compact .card .n {
+  font-size: 12px;
+}
+.compact .card .c {
+  font-size: 10.5px;
+}
+.compact .card .tags {
+  display: none;
+}
+.compact .card:hover {
+  transform: none;
+}
+.card.rotate {
+  width: 64px;
+  text-align: center;
+}
+.card.rotate .n {
+  font-size: 18px;
+}
+/* Tool hint, moved into the dock by the HUD. */
+.compact .tooltip {
+  position: static;
+  align-self: center;
+  transform: none !important;
+  white-space: normal;
+  text-align: center;
+  max-width: 100%;
+  font-size: 12px;
+}
+
+.compact .info {
+  position: absolute;
+  left: var(--gut);
+  right: var(--gut);
+  bottom: calc(var(--bot) + 58px);
+  max-height: 44dvh;
+  overflow-y: auto;
+  padding: 12px 14px;
+  z-index: 15;
+}
+.compact .info p {
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.compact .help {
+  position: absolute;
+  left: var(--gut);
+  right: var(--gut);
+  top: 34%;
+  max-width: none;
+  margin: 0 auto;
+  width: min(340px, calc(100vw - 2 * var(--gut)));
+  z-index: 20;
+}
+.help-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.help-row b {
+  color: var(--accent);
+  font-weight: 500;
+}
+.help-ok {
+  display: block;
+  margin: 8px auto 0;
+  border: 1px solid var(--line-strong);
+  color: var(--accent);
+}
+
+/* Toasts under the chips: the bottom belongs to the inspector and the build tray. */
+.compact .toasts {
+  top: var(--below);
+  bottom: auto;
+  flex-direction: column;
+  width: calc(100vw - 2 * var(--gut));
+  /* Under open sheets (z 14). */
+  z-index: 11;
+}
+.compact .toast {
+  font-size: 12.5px;
+  text-align: center;
+}
+.compact .crisis-wrap {
+  top: var(--below);
+  width: calc(100vw - 2 * var(--gut));
+  min-width: 0;
+}
+
+/* Desktop-only instruments. */
+.compact .readout,
+.compact .explore-bar {
+  display: none;
+}
+
+/* ── Full-screen surfaces ─────────────────────────────────────────────────── */
+.compact .db {
+  width: 100vw;
+  max-height: 100dvh;
+  height: 100dvh;
+  padding: calc(var(--top) + 6px) 12px calc(var(--bot) + 12px);
+}
+body.compact .ai.panel,
+body.compact .ai.panel.max {
+  inset: 0;
+  width: auto;
+  height: auto;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.compact .settings {
+  left: var(--gut);
+  right: var(--gut);
+  top: var(--chips);
+  width: auto;
+}
+.compact .modal {
+  width: calc(100vw - 2 * var(--gut));
+  max-height: calc(100dvh - 2 * var(--top));
+  overflow-y: auto;
+  padding: 16px;
+}
+.compact .db-head {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.compact .db-head h2 {
+  font-size: 15px;
+}
+.compact .db-hint {
+  display: none;
+}
+.compact .db-tabs {
+  order: 3;
+  flex: 1 0 100%;
+}
+
+/* Landscape phones: one top row (clock, stats, actions) so the city keeps its height. */
+@media (min-width: 700px) {
+  body.compact {
+    --chips: calc(var(--top) + 48px);
+  }
+  .compact .clock {
+    flex: none;
+  }
+  .compact .stats {
+    order: 0;
+    flex: 1 1 0;
+  }
+  .compact .info {
+    left: auto;
+    width: min(380px, 48vw);
+    top: var(--below);
+    max-height: none;
+  }
+}

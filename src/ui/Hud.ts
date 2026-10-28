@@ -4,16 +4,17 @@ import { CATEGORY_ICONS, CATEGORY_LABELS, type BuildingCategory, type BuildingDe
 import { NO_ENTITY } from '@/sim/Grid';
 import { idForSelection } from '@/sim/inventory';
 import type { GameContext, GameModule } from '@/game/context';
+import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from './dom';
 import './styles.css';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
-function timeLabel(t: number, day: number): string {
+function timeLabel(t: number, day: number, short: boolean): string {
   const mins = Math.floor(t * 24 * 60);
   const hh = String(Math.floor(mins / 60)).padStart(2, '0');
   const mm = String(mins % 60).padStart(2, '0');
-  return `Day ${day} · ${hh}:${mm}`;
+  return short ? `D${day} ${hh}:${mm}` : `Day ${day} · ${hh}:${mm}`;
 }
 
 function tags(def: BuildingDef): HTMLElement {
@@ -38,12 +39,15 @@ class Hud {
   right!: HTMLElement;
   /** Top-bar action buttons; modules may append their own (the assistant's launcher). */
   actions!: HTMLElement;
-  private statEls = new Map<string, { el: HTMLElement; v: HTMLElement }>();
+  private statEls = new Map<string, { el: HTMLElement; v: HTMLElement; sub: HTMLElement }>();
+  /** Panels that become exclusive sheets on phones (see `sheet`). */
+  private sheets: HTMLElement[] = [];
   private timeEl!: HTMLElement;
   private speedBtns: HTMLButtonElement[] = [];
   private toolBtns = new Map<string, HTMLElement>();
   private cards = new Map<string, HTMLElement>();
   private tray!: HTMLElement;
+  private dock!: HTMLElement;
   private category: BuildingCategory | null = null;
   private info!: HTMLElement;
   private infoBody!: HTMLElement;
@@ -65,7 +69,7 @@ class Hud {
     this.buildInfo();
     this.tooltip = h('div', { class: 'tooltip panel hidden' });
     this.toasts = h('div', { class: 'toasts' });
-    this.help = h(
+    this.help = isTouchDevice() ? this.touchHelp() : h(
       'div',
       { class: 'help panel' },
       h('b', {}, 'Welcome to BloomGrid'),
@@ -99,9 +103,19 @@ class Hud {
     this.right = h('div', { class: 'rightcol' });
     this.root.append(this.tooltip, this.toasts, this.right);
     this.right.append(this.info, this.help);
+    // Phones have no hover: the tool hint sits in the dock above the tray instead of at the cursor.
+    const placeTooltip = (compact: boolean) => (compact ? this.dock.prepend(this.tooltip) : this.root.append(this.tooltip));
+    placeTooltip(isCompact());
+    onCompactChange(placeTooltip);
     setTimeout(() => this.help.classList.add('hidden'), 25_000);
 
     const { bus } = ctx;
+    // On phones a tap on the city folds every open sheet away (and the welcome card).
+    ctx.renderer.domElement.addEventListener('pointerdown', () => {
+      if (!document.body.classList.contains('compact')) return;
+      for (const el of this.sheets) el.classList.add('collapsed');
+      this.help.classList.add('hidden');
+    });
     bus.on('tool:changed', ({ id }) => this.syncTools(id));
     bus.on('tool:tooltip', ({ text, tone }) => {
       this.tooltip.classList.toggle('hidden', !text);
@@ -127,6 +141,35 @@ class Hud {
     this.syncUndo();
   }
 
+  private touchHelp(): HTMLElement {
+    const row = (k: string, v: string) => h('div', { class: 'help-row' }, h('b', {}, k), h('span', {}, v));
+    return h(
+      'div',
+      { class: 'help panel' },
+      h('b', {}, 'Welcome to BloomGrid'),
+      row('Drag', 'pan the island'),
+      row('Pinch · twist', 'zoom · rotate'),
+      row('Two fingers ↕', 'tilt the view'),
+      row('Tap', 'inspect a building or highway'),
+      row('Build', 'tap to preview, tap again to place'),
+      h('button', { class: 'icon-btn help-ok', onClick: () => this.help.classList.add('hidden') }, 'Got it'),
+    );
+  }
+
+  /**
+   * Registers a panel that folds with a `collapsed` class (city pulse, Flora-Net, lenses). On a
+   * phone it starts folded, opening one folds the others, and a tap on the city folds them all.
+   */
+  sheet(el: HTMLElement): void {
+    this.sheets.push(el);
+    if (isCompact()) el.classList.add('collapsed');
+    new MutationObserver(() => {
+      if (el.classList.contains('collapsed') || !document.body.classList.contains('compact')) return;
+      for (const o of this.sheets) if (o !== el) o.classList.add('collapsed');
+      this.help.classList.add('hidden');
+    }).observe(el, { attributes: true, attributeFilter: ['class'] });
+  }
+
   private toast(text: string, tone: 'ok' | 'bad' | 'info' = 'info'): void {
     const t = h('div', { class: `toast panel ${tone}` }, text);
     this.toasts.append(t);
@@ -150,12 +193,14 @@ class Hud {
     });
     const stats = h('div', { class: 'stats panel' });
     const stat = (id: string, key: string, extra?: HTMLElement) => {
-      const v = h('span', { class: 'v' });
+      const v = h('span');
+      // Secondary part of the value (rate, capacity) that phones drop.
+      const sub = h('span', { class: 'sub' });
       // "◈ Credits" → icon + label; the label collapses on narrow screens, the icon and tooltip stay.
       const [icon, ...rest] = key.split(' ');
       const label = rest.join(' ');
-      const el = h('div', { class: 'stat', title: label }, h('span', { class: 'ki' }, icon!), h('span', { class: 'k' }, label), v, extra ?? null);
-      this.statEls.set(id, { el, v });
+      const el = h('div', { class: `stat stat-${id}`, title: label }, h('span', { class: 'ki' }, icon!), h('span', { class: 'k' }, label), h('span', { class: 'v' }, v, sub), extra ?? null);
+      this.statEls.set(id, { el, v, sub });
       stats.append(el);
     };
     stat('credits', '◈ Credits');
@@ -168,16 +213,16 @@ class Hud {
 
     const save = ctx.services.get('save');
     this.undoBtn = h('button', { class: 'icon-btn', title: 'Undo (⌘Z)', onClick: () => ctx.commands.undo() }, '↶');
-    this.redoBtn = h('button', { class: 'icon-btn', title: 'Redo (⇧⌘Z)', onClick: () => ctx.commands.redo() }, '↷');
+    this.redoBtn = h('button', { class: 'icon-btn opt', title: 'Redo (⇧⌘Z)', onClick: () => ctx.commands.redo() }, '↷');
     const actions = (this.actions = h(
       'div',
       { class: 'actions panel' },
       this.undoBtn,
       this.redoBtn,
       h('button', { class: 'icon-btn', title: 'City dashboard (K)', onClick: () => ctx.services.get('dashboard').toggle() }, '▤'),
-      h('button', { class: 'icon-btn', title: 'Overview (O) · bookmarks: Alt+1–4 store, Shift+1–4 recall', onClick: () => ctx.cameraCtl.overview() }, '⌖'),
+      h('button', { class: 'icon-btn opt', title: 'Overview (O) · bookmarks: Alt+1–4 store, Shift+1–4 recall', onClick: () => ctx.cameraCtl.overview() }, '⌖'),
       h('button', { class: 'icon-btn', title: 'Save (⌘S)', onClick: () => void save.save() }, 'Save'),
-      h('button', { class: 'icon-btn', title: 'Load (⌘L)', onClick: () => void save.load().then((ok) => ok || this.toast('No save yet', 'bad')) }, 'Load'),
+      h('button', { class: 'icon-btn opt', title: 'Load (⌘L)', onClick: () => void save.load().then((ok) => ok || this.toast('No save yet', 'bad')) }, 'Load'),
     ));
     this.root.append(
       h(
@@ -247,7 +292,8 @@ class Hud {
       }
       return false;
     });
-    this.root.append(h('div', { class: 'dock' }, this.tray, toolbar));
+    this.dock = h('div', { class: 'dock' }, this.tray, toolbar);
+    this.root.append(this.dock);
   }
 
   private renderTray(): void {
@@ -258,6 +304,10 @@ class Hud {
     for (const [id, b] of this.toolBtns) if (id.startsWith('cat:')) b.classList.toggle('on', id === `cat:${this.category}`);
     if (!this.category) return;
     const construction = ctx.services.get('construction');
+    // Rotation without a keyboard (R still works).
+    this.tray.append(
+      h('button', { class: 'card rotate', title: 'Rotate (R)', onClick: () => (construction.state.rot = (construction.state.rot + 1) % 4) }, h('div', { class: 'n' }, '⟳'), h('div', { class: 'c' }, 'Rotate')),
+    );
     for (const def of buildings.all().filter((b) => b.category === this.category)) {
       const card = h(
         'button',
@@ -418,23 +468,24 @@ class Hud {
     const { ctx } = this;
     const p = ctx.input.pointer;
     // transform (not left/top) so moving the tooltip never triggers layout.
-    if (!this.tooltip.classList.contains('hidden')) this.tooltip.style.transform = `translate(${p.x + 16}px, ${p.y + 16}px)`;
+    if (!this.tooltip.classList.contains('hidden') && !document.body.classList.contains('compact')) this.tooltip.style.transform = `translate(${p.x + 16}px, ${p.y + 16}px)`;
     this.timer += dt;
     if (this.timer < 0.2) return;
     this.timer = 0;
     const { city, engine } = ctx;
     const s = city.stats;
-    setText(this.timeEl, timeLabel(city.timeOfDay, city.day));
+    setText(this.timeEl, timeLabel(city.timeOfDay, city.day, document.body.classList.contains('compact')));
     const speeds = [0, 1, 3, 8];
     this.speedBtns.forEach((b, i) => b.classList.toggle('on', speeds[i] === engine.speed));
-    const set = (id: string, text: string, bad = false) => {
+    const set = (id: string, text: string, bad = false, sub = '') => {
       const e = this.statEls.get(id)!;
       setText(e.v, text);
+      setText(e.sub, sub);
       e.el.classList.toggle('bad', bad);
     };
     const net = s.income - s.upkeep;
-    set('credits', `${fmt(city.credits)}  ${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(1)}/s`, city.credits < 0 || net < 0);
-    set('pop', `${fmt(s.population)} / ${fmt(s.capacity)}`);
+    set('credits', fmt(city.credits), city.credits < 0 || net < 0, `  ${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(1)}/s`);
+    set('pop', fmt(s.population), false, ` / ${fmt(s.capacity)}`);
     set('energy', `${fmt(s.energyProduced - s.energyUsed)}`, s.energyUsed > s.energyProduced);
     set('water', `${fmt(s.waterProduced - s.waterUsed)}`, s.waterUsed > s.waterProduced);
     set('eco', fmt(s.eco), s.eco < 0);
@@ -457,6 +508,8 @@ export interface HudService {
   right: HTMLElement;
   /** Top-bar action buttons. */
   actions: HTMLElement;
+  /** Register a panel that folds with a `collapsed` class; phones show these as exclusive sheets. */
+  sheet(el: HTMLElement): void;
 }
 
 declare module '@/core/Services' {
@@ -470,7 +523,7 @@ export const hudModule: GameModule = {
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
-    ctx.services.provide('hud', { right: hud.right, actions: hud.actions });
+    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, sheet: (el) => hud.sheet(el) });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

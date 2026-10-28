@@ -76,7 +76,12 @@ export const overlaysModule: GameModule = {
       bar.append(b);
     }
     bar.append(h('kbd', { title: 'Cycle lenses' }, 'L'));
-    ctx.hud.append(h('div', { class: 'lens-wrap' }, bar, legend));
+    // Phones fold the lens bar behind a toggle (a HUD sheet); desktops hide the toggle.
+    const wrap = h('div', { class: 'lens-wrap' });
+    const toggle = h('button', { class: 'lens-toggle panel', title: 'Data lenses', onClick: () => wrap.classList.toggle('collapsed') }, h('span', { class: 'g' }, '◐'), h('span', { class: 'l' }, 'Lens'));
+    wrap.append(toggle, bar, legend);
+    ctx.hud.append(wrap);
+    ctx.services.get('hud').sheet(wrap);
 
     const service: OverlayService = {
       get active() {

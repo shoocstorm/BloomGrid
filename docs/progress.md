@@ -3,15 +3,15 @@
 A snapshot for picking up BloomGrid in a new session or with another agent. **Update the "Snapshot" and "Next up"
 sections whenever you stop working** (see AGENTS.md §6).
 
-## Snapshot (2026-10-27)
+## Snapshot (2026-10-28)
 
 |             |                                                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Branch      | `feat/flora-tools` (on top of `main`, which has the inventory and assistant; `main` is ahead of `origin`, not pushed), remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10)                              |
-| Last change | Flora gets 29 tools and a maximizable sci-fi command console with a telemetry rail (D-044); local-LLM engines from Andai (D-043) |
-| Phases done | **All roadmap phases 0–14** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
+| Branch      | `main` (uncommitted: phone support), remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10) |
+| Last change | Playable on phones: compact HUD with chip sheets, touch gestures, tap-to-confirm building (D-045); before that Flora's 29 tools and console (D-044) |
+| Phases done | **All roadmap phases 0–15** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
-| Tests       | 96 passing (`bun run test`), 31 Rust (`bun run test:rust`); `bun run check` clean                                                                                                              |
+| Tests       | 99 passing (`bun run test`), 31 Rust (`bun run test:rust`); `bun run check` clean                                                                                                              |
 | Save format | v7 (building serials + named districts; migrations from v1–v6 in `src/sim/save.ts`)                                                                           |
 | Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈2 000 buildings on one grid, ≈25k residents, water Strained (≈95%) |
 

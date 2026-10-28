@@ -62,7 +62,7 @@ Desktop: `src-tauri/src/{llm,models}/`, `mlx.rs` (`llm_*` commands; Apple Silico
 
 ## Frame
 
-1. `input` phase: tools hover/pick, camera update.
+1. `input` phase: tools hover/pick, camera update (mouse, keys, and touch: one finger = left button, two = pinch/twist/pan/tilt gesture that cancels the tool's press, D-045).
 2. `sim` phase: 0..N fixed ticks (`clock → greenery → economy …`). **Only this phase mutates sim state**, besides commands.
 3. `sync` phase: renderers mirror sim (building growth staging, atmosphere, instancer flush/LOD).
 4. `render` phase: PostFX render, HUD, debug overlays.
@@ -98,6 +98,8 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Symbiotic pair           | `symbiosis: { partners, radius, pollutionMul, outputMul, label }` on a building definition                        |
 | Spatial field            | deposit + `boxBlur` (`sim/blur.ts`), computed on its own pulse phase                                              |
 | Right-hand HUD panel     | append to `ctx.services.get('hud').right`                                                                         |
+| Foldable HUD panel       | toggle a `collapsed` class and register it with `ctx.services.get('hud').sheet(el)`: on phones it becomes an exclusive sheet (D-045) |
+| Phone layout             | `.compact …` rules in `ui/mobile.css` (loaded last); `isCompact()` / `isTouchDevice()` in `platform/device.ts`    |
 | Dashboard chart          | `new LineChart({ format, step })` from `modules/dashboard/LineChart.ts` (one series per chart)                    |
 | Inventory object kind    | `registerInventoryKind({ kind, label, icon, prefixes, description, list, get?, details? })` in `sim/inventory.ts` (or a module); issue codes via `registerIssue` |
 | Agent tool (LLM / script)| `ctx.services.get('agent').register({ name, description, input, effect, run })` (`core/AgentTools.ts`); pure-sim tools go in `sim/*Tools.ts` |

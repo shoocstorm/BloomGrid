@@ -50,6 +50,7 @@ export const advisorModule: GameModule = {
       list,
     );
     ctx.services.get('hud').right.prepend(panel);
+    ctx.services.get('hud').sheet(panel);
 
     const addLog = (text: string, severity: Severity) => {
       log.unshift({ stamp: stamp(ctx), text, severity });

@@ -204,6 +204,14 @@ The city is a system that can run well or badly.
 - **Accept:** ✅ `tests/assistant.test.ts` (action tools on the founding city, grammars, scripted agent loop: lookup → approved action → answer, decline, retry, routing, question guard); Rust `cargo test --lib` (31: store, grammar incl. every BloomGrid tool grammar, template) and `--ignored llm_qwen3_` (token parity with mlx-lm). Real models: `bun run ai-probe` (Qwen3 0.6B / 1.7B in headless Chrome) and the desktop app (Qwen3 1.7B MLX).
 - **Measured:** browser (WebGPU, M-series): Qwen3 1.7B 35–60 tok/s, a turn 2.5–9 s; desktop MLX: 1.7B loads in 0.4 s, 310–345 tok/s, a turn 0.6–1.5 s. Boot unchanged (assistant init 0 ms; wllama is a lazy 314 KB chunk loaded on first open).
 
+## ✅ Phase 15 — Playable on phones (2026-10-28)
+
+- [x] Compact HUD (`ui/mobile.css`, `body.compact`): two-row top bar, chip → sheet panels (City Pulse, Flora-Net, lenses), bottom-sheet inspector (side sheet in landscape), scrolling toolbar, full-screen dashboard, assistant, settings and modals; desktop-only instruments hidden (D-045)
+- [x] Touch input (`input/Input.ts`): pinch zoom, twist rotate, two-finger pan / tilt; one-finger pan where the tool doesn't draw; tap-to-preview, tap-again-to-confirm for build, retrofit, mist and demolish; ⟳ Rotate card in the build tray
+- [x] Touch devices default to Medium quality; viewport fit, safe-area insets, no double-tap zoom
+- [ ] Deferred: explore modes on touch (virtual stick), a phone-sized Flora model, PWA install
+- **Accept:** ✅ `tests/touch.test.ts` (tap, gesture cancels the press, pinch/twist deltas, tilt lock); `bun run snap -- --mobile --eval @scripts/scenes/mobile.js` (portrait and `--size 844x390`, WebGPU and WebGL); desktop HUD unchanged.
+
 ---
 
 ## Tech debt / open issues

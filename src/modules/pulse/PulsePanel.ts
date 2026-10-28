@@ -177,6 +177,7 @@ export class PulsePanel {
 
     body.append(health, bloomSec, demand, budget, harmony, trends);
     ctx.hud.append(this.el);
+    ctx.services.get('hud').sheet(this.el);
     ctx.input.onKey((e) => {
       if (e.code === 'KeyP' && !e.metaKey && !e.ctrlKey) {
         this.el.classList.toggle('collapsed');

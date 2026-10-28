@@ -430,3 +430,23 @@ from the City Pulse to the right edge, hides the right column, and adds a teleme
 (the inventory roll-up every 4 s) only while maximized and open. Motion only while Flora works (sigil orbit,
 scan line; transform only). Main thread unchanged (20.8% active).
 
+## D-045 — Phones: a compact HUD and touch gestures (2026-10-28)
+
+**Layout.** `platform/device.ts` sets `body.compact` (width ≤ 760 px, or a short coarse-pointer screen) and
+`body.touch` (coarse pointer) from live media queries; `ui/mobile.css` loads after `theme.css` and restyles the
+existing DOM rather than building a second HUD. Phones keep: clock and speed, five key stats (no rates or
+capacity), undo / dashboard / save / settings, the toolbar (icons, scrolls sideways) and build tray (with a ⟳ Rotate
+card, shown on desktop too). City Pulse, Flora-Net and lenses become chips that open one full-width sheet at a time
+(`hud.sheet(el)`: folded at start, opening one folds the others, a tap on the city folds all); the inspector is a
+bottom sheet (a side sheet in landscape). Dropped on phones: brand, telemetry readout, explore bar, redo, load,
+overview (pinch out instead) and the Flora launcher (a local LLM is impractical on a phone; **✿ Ask** still opens
+her full-screen). The tool hint moves into the dock because there is no cursor to follow.
+**Input.** One finger is the left button. A second finger turns the press into a camera gesture (pinch zoom,
+twist rotate, two-finger pan; a parallel vertical drag tilts when one finger already pans): tools get
+`cancel` instead of `up`, and nothing reaches them until every finger lifts. One finger pans with any tool that
+doesn't draw by dragging (`touchPan` = `dragPan` or no `down`); highway, channel, bulldoze and reclaim keep it for
+drawing. With no hover, build, retrofit, mist and single-building demolish preview on the first tap and act on a
+second tap on the preview. Touch slop is 12 px (6 for a mouse).
+**Quality.** Touch devices default to Medium (pixel ratio 1, no MSAA); Settings can raise it. Rejected: a
+separate mobile HUD (two UIs to keep in sync with every module).
+

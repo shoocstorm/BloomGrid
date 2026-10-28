@@ -19,6 +19,8 @@ export interface Tool {
   hover?(ctx: GameContext, hit: GroundHit | null): void;
   down?(ctx: GameContext, hit: GroundHit | null, e: PointerEventInfo): void;
   up?(ctx: GameContext, hit: GroundHit | null, e: PointerEventInfo): void;
+  /** A press ended without an up (a second finger started a camera gesture): drop any drag in progress. */
+  cancel?(ctx: GameContext): void;
   /** Return true to consume the key. */
   key?(ctx: GameContext, e: KeyboardEvent): boolean;
 }
@@ -61,6 +63,8 @@ export class ToolManager {
     this.active?.deactivate?.(this.ctx);
     this.active = next;
     this.ctx.cameraCtl.dragPan = !!next.dragPan;
+    // Tools that draw with a drag keep one finger for drawing; the rest let it pan.
+    this.ctx.cameraCtl.touchPan = !!next.dragPan || !next.down;
     next.activate?.(this.ctx);
     this.ctx.bus.emit('tool:tooltip', { text: null });
     this.ctx.bus.emit('tool:changed', { id });
@@ -75,6 +79,7 @@ export class ToolManager {
     input.onPointerUp((e) => {
       if (e.button === 0 && !this.suspended) this.active?.up?.(this.ctx, this.pick(), e);
     });
+    input.onPointerCancel(() => this.active?.cancel?.(this.ctx));
     input.onKey((e) => {
       if (this.suspended) return false;
       if (this.active?.key?.(this.ctx, e)) return true;

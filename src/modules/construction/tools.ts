@@ -27,6 +27,16 @@ export interface BuildState {
 
 export function createTools(ghost: Ghost, build: BuildState) {
   let selected: number | null = null;
+  /**
+   * Touch has no hover: the first tap previews (ghost, ring, highlight) and a second tap on the
+   * preview confirms. `armed` is the previewed spot; any other tap moves the preview there.
+   */
+  let armed: { x: number; z: number; kind: string } | null = null;
+  const confirmTap = (kind: string, x: number, z: number, near: (a: { x: number; z: number }) => boolean): boolean => {
+    if (armed?.kind === kind && near(armed)) return true;
+    armed = { x, z, kind };
+    return false;
+  };
 
   const footprintCursor = (ctx: GameContext, eid: number) => {
     const { city } = ctx;
@@ -51,7 +61,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
       else ghost.hideCursor();
     },
     up(ctx, hit) {
-      if (ctx.input.dragDistance > 6) return;
+      if (!ctx.input.isTap) return;
       const eid = hit?.inBounds ? ctx.city.buildingAt(hit.tx, hit.tz) : NO_ENTITY;
       selected = eid === NO_ENTITY ? null : eid;
       const tile = hit?.inBounds ? ctx.city.grid.index(hit.tx, hit.tz) : -1;
@@ -95,14 +105,22 @@ export function createTools(ghost: Ghost, build: BuildState) {
       } else ghost.hideAll();
       ctx.bus.emit('tool:tooltip', {
         text: res.ok
-          ? `${def.name} · ${fmt(def.stats.cost)} ◈ · R to rotate${res.warning ? ` · ⚠ ${res.warning}` : ''}`
+          ? `${def.name} · ${fmt(def.stats.cost)} ◈ · ${ctx.input.touch ? 'tap it again to build' : 'R to rotate'}${res.warning ? ` · ⚠ ${res.warning}` : ''}`
           : `${def.name} — ${res.reason}`,
         tone: res.ok && !res.warning ? 'ok' : 'bad',
       });
     },
-    up(ctx, hit) {
-      if (!hit || ctx.input.dragDistance > 6) return;
-      const { def, x, z } = anchor(ctx, hit);
+    up(ctx, hit, e) {
+      if (!hit || !ctx.input.isTap) return;
+      const { def, w, d, ...at } = anchor(ctx, hit);
+      let { x, z } = at;
+      if (e.touch) {
+        // A tap inside the previewed footprint builds there, so a slightly-off finger doesn't shift it.
+        const inside = (a: { x: number; z: number }) => hit.tx >= a.x && hit.tx < a.x + w && hit.tz >= a.z && hit.tz < a.z + d;
+        if (!confirmTap(`build:${def.id}:${build.rot}`, x, z, inside)) return;
+        ({ x, z } = armed!);
+        armed = null;
+      }
       if (ctx.commands.execute('build', { def: def.id, x, z, rot: build.rot })) {
         ctx.bus.emit('toast', { text: `${def.name} is taking root`, tone: 'ok' });
         lastKey = '';
@@ -179,6 +197,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
     down(_ctx, hit) {
       if (hit?.inBounds) dragStart = { x: hit.tx, z: hit.tz };
     },
+    cancel: () => (dragStart = null),
     up(ctx, hit) {
       if (dragStart && hit?.inBounds) ctx.commands.execute('road', { tiles: pathTiles(ctx, dragStart, { x: hit.tx, z: hit.tz }), bridges: true });
       dragStart = null;
@@ -224,12 +243,22 @@ export function createTools(ghost: Ghost, build: BuildState) {
     down(_ctx, hit) {
       if (hit?.inBounds) bzStart = { x: hit.tx, z: hit.tz };
     },
-    up(ctx, hit) {
+    cancel() {
+      bzStart = null;
+      ghost.showTiles([]);
+    },
+    up(ctx, hit, e) {
       const start = bzStart;
       bzStart = null;
       ghost.showTiles([]);
       if (!start || !hit?.inBounds) return;
-      if (start.x === hit.tx && start.z === hit.tz && ctx.city.buildingAt(hit.tx, hit.tz) !== NO_ENTITY) {
+      const eid = ctx.city.buildingAt(hit.tx, hit.tz);
+      if (start.x === hit.tx && start.z === hit.tz && eid !== NO_ENTITY) {
+        if (e.touch && !confirmTap(`demolish:${eid}`, hit.tx, hit.tz, () => true)) {
+          ctx.bus.emit('tool:tooltip', { text: `Tap ${ctx.city.buildingDef(eid).name} again to return it to nature`, tone: 'bad' });
+          return;
+        }
+        armed = null;
         ctx.commands.execute('demolish', { x: hit.tx, z: hit.tz });
         return;
       }
@@ -265,6 +294,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
     down(_ctx, hit) {
       if (hit?.inBounds) chStart = { x: hit.tx, z: hit.tz };
     },
+    cancel: () => (chStart = null),
     up(ctx, hit) {
       if (chStart && hit?.inBounds) ctx.commands.execute('channel', { tiles: pathTiles(ctx, chStart, { x: hit.tx, z: hit.tz }) });
       chStart = null;
@@ -293,8 +323,10 @@ export function createTools(ghost: Ghost, build: BuildState) {
         tone: ok ? 'ok' : 'bad',
       });
     },
-    up(ctx, hit) {
-      if (!hit?.inBounds || ctx.input.dragDistance > 6) return;
+    up(ctx, hit, e) {
+      if (!hit?.inBounds || !ctx.input.isTap) return;
+      if (e.touch && !confirmTap('retrofit', hit.point.x, hit.point.z, (a) => Math.hypot(a.x - hit.point.x, a.z - hit.point.z) < 4)) return;
+      armed = null;
       if (ctx.commands.execute('retrofit', { x: hit.point.x, z: hit.point.z, radius: RETROFIT_RADIUS }))
         ctx.bus.emit('toast', { text: 'The district bursts into bloom', tone: 'ok' });
     },
@@ -322,8 +354,10 @@ export function createTools(ghost: Ghost, build: BuildState) {
         tone: ok ? 'ok' : 'bad',
       });
     },
-    up(ctx, hit) {
-      if (!hit?.inBounds || ctx.input.dragDistance > 6) return;
+    up(ctx, hit, e) {
+      if (!hit?.inBounds || !ctx.input.isTap) return;
+      if (e.touch && !confirmTap('mist', hit.point.x, hit.point.z, (a) => Math.hypot(a.x - hit.point.x, a.z - hit.point.z) < 4)) return;
+      armed = null;
       if (ctx.commands.execute('mist', { x: hit.point.x, z: hit.point.z })) ctx.bus.emit('toast', { text: 'Flora-Net drones mist the gardens', tone: 'ok' });
     },
   };
@@ -359,6 +393,10 @@ export function createTools(ghost: Ghost, build: BuildState) {
     },
     down(_ctx, hit) {
       if (hit?.inBounds) rcStart = { x: hit.tx, z: hit.tz };
+    },
+    cancel() {
+      rcStart = null;
+      ghost.showTiles([]);
     },
     up(ctx, hit) {
       const start = rcStart;
@@ -419,7 +457,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
       ctx.bus.emit('tool:tooltip', { text, tone: ok ? 'ok' : 'bad' });
     },
     up(ctx, hit) {
-      if (!hit?.inBounds || ctx.input.dragDistance > 6) return;
+      if (!hit?.inBounds || !ctx.input.isTap) return;
       const { city } = ctx;
       const eid = city.buildingAt(hit.tx, hit.tz);
       if (eid === NO_ENTITY || !city.buildingDef(eid).tower) {
@@ -439,5 +477,13 @@ export function createTools(ghost: Ghost, build: BuildState) {
     },
   };
 
-  return [select, place, road, bulldoze, channel, retrofit, mist, reclaim, weave];
+  const tools = [select, place, road, bulldoze, channel, retrofit, mist, reclaim, weave];
+  for (const t of tools) {
+    const activate = t.activate;
+    t.activate = (ctx) => {
+      armed = null;
+      activate?.(ctx);
+    };
+  }
+  return tools;
 }

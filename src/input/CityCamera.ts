@@ -6,6 +6,8 @@ import type { Input } from './Input';
  * City-builder orbit camera: smooth pan / rotate / zoom around a ground target.
  * Controls: WASD / arrows pan, Q/E rotate, wheel zoom, right-drag orbit, middle-drag pan.
  * Left-drag panning is enabled by tools that request it (`dragPan`).
+ * Touch: one-finger drag pans when the tool allows it (`touchPan`); two fingers pinch-zoom,
+ * twist-rotate and drag to pan, or tilt with a parallel vertical drag where one finger already pans.
  */
 export interface CameraView {
   x: number;
@@ -30,6 +32,8 @@ export class CityCamera {
   smoothing = 10;
   /** Set by tools: left-drag pans the camera. */
   dragPan = false;
+  /** Set by tools: a one-finger drag pans (tools that don't draw with a drag). */
+  touchPan = true;
   /** False while an explore mode drives the camera (target / distance still describe the focus). */
   enabled = true;
   /** Set by explore modes so power pacing treats a moving first-person view as active. */
@@ -136,9 +140,13 @@ export class CityCamera {
       this.goalYaw -= inp.dragDX * 0.006;
       this.goalPitch = MathUtils.clamp(this.goalPitch + inp.dragDY * 0.005, 0.25, 1.48);
     }
-    if (b.has(1) || (this.dragPan && b.has(0))) {
-      const s = this.goalDistance * 0.0022;
-      this.pan(-inp.dragDX * s, -inp.dragDY * s);
+    const s = this.goalDistance * 0.0022;
+    if (b.has(1) || (b.has(0) && (this.dragPan || (inp.touch && this.touchPan)))) this.pan(-inp.dragDX * s, -inp.dragDY * s);
+    if (inp.gesture) {
+      this.goalDistance *= Math.exp(-inp.pinch);
+      this.goalYaw += inp.twist;
+      if (inp.gestureMode === 'tilt' && this.touchPan) this.goalPitch = MathUtils.clamp(this.goalPitch + inp.gestureDY * 0.005, 0.25, 1.48);
+      else this.pan(-inp.gestureDX * s, -inp.gestureDY * s);
     }
     if (inp.wheel) this.goalDistance *= Math.exp(inp.wheel * 0.0012);
     this.goalDistance = MathUtils.clamp(this.goalDistance, this.minDistance, this.maxDistance);

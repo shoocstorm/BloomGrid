@@ -21,8 +21,11 @@ import { sceneryModule } from '@/modules/scenery';
 import { aerolineModule } from '@/modules/aeroline';
 import { exploreModule } from '@/modules/explore';
 import { createBootScreen } from '@/ui/Boot';
-// The HUD theme loads after every module stylesheet so it can restyle them from one place.
+import { watchDevice } from '@/platform/device';
+// The HUD theme loads after every module stylesheet so it can restyle them from one place; the
+// phone layout loads after it.
 import '@/ui/theme.css';
+import '@/ui/mobile.css';
 
 /**
  * Feature modules. New gameplay layers (city pulse, overlays, crises, bloom engine, mobility,
@@ -33,6 +36,7 @@ const MODULES = [worldModule, constructionModule, hudModule, pulseModule, overla
 async function boot() {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const hud = document.getElementById('hud')!;
+  watchDevice();
   const screen = createBootScreen(document.getElementById('boot')!, 'SOLARPUNK ISLAND CITY SYSTEMS');
   hud.style.opacity = '0';
   try {
