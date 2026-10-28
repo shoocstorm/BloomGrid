@@ -39,6 +39,8 @@ class Hud {
   right!: HTMLElement;
   /** Top-bar action buttons; modules may append their own (the assistant's launcher). */
   actions!: HTMLElement;
+  /** The central stats panel; modules may prepend a control (the city map button). */
+  stats!: HTMLElement;
   private statEls = new Map<string, { el: HTMLElement; v: HTMLElement; sub: HTMLElement }>();
   /** Panels that become exclusive sheets on phones (see `sheet`). */
   private sheets: HTMLElement[] = [];
@@ -195,7 +197,7 @@ class Hud {
       this.speedBtns.push(b);
       seg.append(b);
     });
-    const stats = h('div', { class: 'stats panel' });
+    const stats = (this.stats = h('div', { class: 'stats panel' }));
     const stat = (id: string, key: string, extra?: HTMLElement) => {
       const v = h('span');
       // Secondary part of the value (rate, capacity) that phones drop.
@@ -516,6 +518,8 @@ export interface HudService {
   actions: HTMLElement;
   /** The toolbar's row, for a button beside it. */
   dockRow: HTMLElement;
+  /** The central stats panel of the top bar. */
+  stats: HTMLElement;
   /** Telemetry strip (sim rate, camera focus, heading, altitude, fps); a panel may adopt it. */
   readout: HTMLElement;
   /** Register a panel that folds with a `collapsed` class; phones show these as exclusive sheets. */
@@ -533,7 +537,7 @@ export const hudModule: GameModule = {
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
-    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, dockRow: hud.dockRow, readout: hud.readoutEl, sheet: (el) => hud.sheet(el) });
+    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, sheet: (el) => hud.sheet(el) });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

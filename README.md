@@ -97,7 +97,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Build              | **4–0** building categories · **R** rotate · **X** bulldoze                                        |
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **B** Bloom Retrofit · **M** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
-| Watch your city    | **P** City Pulse · **L** data lenses · **F** advisor · **K** dashboard · **I** inventory · **O** overview |
+| Watch your city    | **P** City Pulse · **L** data lenses · **F** advisor · **K** dashboard · **I** inventory · **O** overview · **Y** city map (⌗ MAP in the top bar: every district named; click one to fly there) |
 | Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console (the glowing orb beside the toolbar, **✿ Ask** on any selected object) |
 | Explore            | **N** walk / hoverboard / drone / ride a pod / ride the Aeroline (**Tab** next, **Esc** back) · **J** photo mode (**P** saves a PNG); or the ◇ view-mode menu at the end of the top bar |
 | Time               | **Space** pause · **1 / 2 / 3** speed                                                              |

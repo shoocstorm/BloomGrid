@@ -99,6 +99,7 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Spatial field            | deposit + `boxBlur` (`sim/blur.ts`), computed on its own pulse phase                                              |
 | Right-hand HUD panel     | append to `ctx.services.get('hud').right`                                                                         |
 | Animated building part   | draw the static part in the recipe; a module owns an `InstancedMesh` posed from `U.clock` per frame, synced on `building:added/removed`, `city:reset`, `terrain:changed` (see `modules/wind`, D-047); no shadows |
+| Central top-bar control  | prepend to `ctx.services.get('hud').stats` (the city map button)                                                  |
 | Top-bar control          | append to `ctx.services.get('hud').actions`; a dropdown menu hangs off its parent (the top bar), not the clipped panel |
 | Button beside the toolbar | append to `ctx.services.get('hud').dockRow` (Flora's phone orb; hide it on desktop if it is phone-only)        |
 | Foldable HUD panel       | toggle a `collapsed` class and register it with `ctx.services.get('hud').sheet(el)`: on phones it becomes an exclusive sheet (D-045) |

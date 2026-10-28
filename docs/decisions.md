@@ -485,3 +485,14 @@ seed: clean energy 74% → 99%, power margin unchanged (≈9%), budget unchanged
 unpaired polluters 36 → 1. Draw calls: +0 at overview, 156 near the farm. `?stress=1500` overview measures 302
 with or without the farm (pre-existing).
 
+## D-048 — City map of districts (2026-10-28)
+
+A ⌗ MAP button at the start of the top bar's stats (and **Y**) opens a holographic plan of the island
+(`modules/citymap`). It is painted from the live city into a 2D canvas when opened, one pass over the tiles:
+height relief, water depth, highways, building footprints, each named district (`city.districts`, most specific
+first) tinted and outlined in its own colour. Names are HTML labels at each district's tile centroid, sized to fit
+the district's on-screen width and wrapping rather than running into neighbours; narrow districts drop their
+counts (buildings, residents), which the legend keeps. The view is cropped to the land. A marker shows the camera's
+focus and heading (5 Hz while open). Clicking a label, legend row or any spot flies the camera there. Nothing runs
+while the map is closed; 2D canvas only, so both renderers behave the same.
+
