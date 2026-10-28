@@ -1463,11 +1463,30 @@ body.flora-max .help {
 }
 
 /* ── Phone: Flora's dock button and a full-screen console ──────────────── */
-.dock-row {
-  display: flex;
-  gap: 6px;
-  min-width: 0;
-}
+/* Flora's orb beside the build toolbar. Slow orbit always (one small SVG, transform only). */
 .ai-fab {
-  display: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 54px;
+  padding: 0;
+  pointer-events: auto;
+}
+.ai-fab .ai-sigil {
+  width: 34px;
+  height: 34px;
+}
+.ai-fab .ai-sigil .s-orbit {
+  animation: ai-orbit 6s linear infinite;
+}
+.ai-fab:hover .ai-sigil {
+  filter: drop-shadow(0 0 7px rgba(95, 242, 218, 0.8));
+}
+.ai-fab.on {
+  --bg: rgba(95, 242, 218, 0.16);
+}
+.ai-fab .ai-badge {
+  top: 4px;
+  right: 4px;
 }

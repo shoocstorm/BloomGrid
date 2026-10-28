@@ -60,6 +60,8 @@ class Hud {
   private redoBtn!: HTMLButtonElement;
   private happyMeter!: HTMLElement;
   private readout!: { pos: HTMLElement; hdg: HTMLElement; alt: HTMLElement; sim: HTMLElement; fps: HTMLElement };
+  /** Telemetry strip; the City Pulse panel adopts it as its footer when present. */
+  readoutEl!: HTMLElement;
   private help!: HTMLElement;
   private timer = 0;
 
@@ -251,7 +253,8 @@ class Hud {
     const sim = cell('SIM', 'live');
     const fps = cell('FPS', 'opt');
     this.readout = { pos: pos.b, hdg: hdg.b, alt: alt.b, sim: sim.b, fps: fps.b };
-    this.root.append(h('div', { class: 'readout panel' }, sim.el, pos.el, hdg.el, alt.el, fps.el));
+    this.readoutEl = h('div', { class: 'readout panel' }, sim.el, pos.el, hdg.el, alt.el, fps.el);
+    this.root.append(this.readoutEl);
   }
 
   private buildDock(): void {
@@ -513,6 +516,8 @@ export interface HudService {
   actions: HTMLElement;
   /** The toolbar's row, for a button beside it. */
   dockRow: HTMLElement;
+  /** Telemetry strip (sim rate, camera focus, heading, altitude, fps); a panel may adopt it. */
+  readout: HTMLElement;
   /** Register a panel that folds with a `collapsed` class; phones show these as exclusive sheets. */
   sheet(el: HTMLElement): void;
 }
@@ -528,7 +533,7 @@ export const hudModule: GameModule = {
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
-    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, dockRow: hud.dockRow, sheet: (el) => hud.sheet(el) });
+    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, dockRow: hud.dockRow, readout: hud.readoutEl, sheet: (el) => hud.sheet(el) });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

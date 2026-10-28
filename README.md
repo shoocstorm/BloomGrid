@@ -98,8 +98,8 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **B** Bloom Retrofit · **M** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
 | Watch your city    | **P** City Pulse · **L** data lenses · **F** advisor · **K** dashboard · **I** inventory · **O** overview |
-| Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console (✿ in the top bar, **✿ Ask** on any selected object) |
-| Explore            | **N** walk / hoverboard / drone / ride a pod / ride the Aeroline (**Tab** next, **Esc** back) · **J** photo mode (**P** saves a PNG) |
+| Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console (the glowing orb beside the toolbar, **✿ Ask** on any selected object) |
+| Explore            | **N** walk / hoverboard / drone / ride a pod / ride the Aeroline (**Tab** next, **Esc** back) · **J** photo mode (**P** saves a PNG); or the ◇ view-mode menu at the end of the top bar |
 | Time               | **Space** pause · **1 / 2 / 3** speed                                                              |
 | Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** / **⌘L** (Ctrl on Windows/Linux)                                         |
 | Remember a view    | **Alt+1–4** store · **Shift+1–4** recall                                                           |
@@ -122,6 +122,9 @@ is and the exact instructions (system prompts) her model gets each turn, plus th
 with a readable id such as `LIV-0042` or `HWY-118.204`. Search by name, id or district, or filter with `issue:power`,
 `status:critical`, `district:westbrook`; pick a row to inspect it and **Locate** to fly there. The inspector shows
 the id of whatever you select; click it to open the inventory.
+
+**Wind power:** Breeze Turbines (☀ energy category) are cheap, clean and the cheapest power to run. The founding
+city already runs on them: a wind farm fills Windward Isle in the north-east and rows line the waterfront.
 
 **Settings** (⚙ in the top bar): graphics quality, and a power mode (Battery 30 fps · Balanced 60 fps · Max) that
 keeps laptops cool. The game idles at a lower frame rate when nothing moves.

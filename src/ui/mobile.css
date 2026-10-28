@@ -59,8 +59,7 @@ body.compact {
 .compact .actions {
   padding: 2px;
 }
-.compact .actions .opt,
-.compact .ai-launch {
+.compact .actions .opt {
   display: none;
 }
 .compact .actions .icon-btn {
@@ -297,7 +296,7 @@ body.compact {
 
 /* Desktop-only instruments. */
 .compact .readout,
-.compact .explore-bar {
+.compact .xp-drop {
   display: none;
 }
 
@@ -362,24 +361,10 @@ body.compact .ai.panel.max {
     max-height: none;
   }
 }
-/* Flora on phones: an orb beside the toolbar (the top bar has no room), full-screen console. */
+/* Flora on phones: her orb beside the toolbar (styled in assistant.css), full-screen console. */
 .compact .dock-row .toolbar {
   flex: 1;
   min-width: 0;
-}
-.compact .ai-fab {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 52px;
-  padding: 0;
-}
-.compact .ai-fab .ai-sigil {
-  width: 32px;
-  height: 32px;
-}
-.compact .ai-fab .ai-sigil .s-orbit {
-  animation: ai-orbit 6s linear infinite;
 }
 body.compact .ai.panel .ai-body,
 body.compact .ai.panel.max .ai-body {

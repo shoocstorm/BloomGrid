@@ -465,3 +465,23 @@ glowing sigil; the profile's large sigil turns only while that tab is visible. O
 console is full-screen without the telemetry rail or maximize, the HUD beneath hidden (`body.flora-open`), the
 model list capped, no auto-focus (it would raise the keyboard), 16 px input (iOS zooms smaller inputs).
 
+## D-047 — Desktop HUD merges, and wind power for the founding city (2026-10-28)
+
+**HUD.** Fewer floating pieces on desktop: the telemetry strip (SIM / POS / HDG / ALT / FPS) sits under the City
+Pulse header (`hud.readout`, adopted by the pulse panel, so it stays visible when the panel folds); the explore
+bar became a **view-mode dropdown** at the end of the top bar's actions (the top bar is the one HUD part kept while
+exploring; the menu hangs off the top bar because the actions panel's chamfer clip-path would clip it). Flora's
+launcher moved from the top bar to the orb beside the build toolbar on every screen size (`hud.dockRow`), with the
+unread badge. Below 1700 px the dropdown shows only its glyph, and below 1600 px the harmony meter hides, so the
+stats row isn't clipped.
+**Wind.** New `wind-turbine` (Breeze Turbine, 2×2, 55 energy, cost 700, upkeep 0.07/s: the cheapest power to run
+per unit, to steer players to it). The recipe draws plinth and tower; `modules/wind` mounts a nacelle on every
+turbine facing one prevailing wind (not the lot's rotation) and spins the rotors on the CPU from `U.clock` (two
+instanced meshes, ≈1 matrix per turbine per frame, no shadows since the shadow map is cached). The founding city
+gets Windward Isle (the north-east islet: three road spines off the bridge landing) and sea-breeze rows along the
+longest waterfront streets, capped at 90 turbines (≈half the city's power, staggered 9 tiles so rotors never
+cross; every turbine touches a highway). The Foundry Islet now pairs its bioreactors with Phyto Gardens. Default
+seed: clean energy 74% → 99%, power margin unchanged (≈9%), budget unchanged (income 178 / upkeep 153 per s);
+unpaired polluters 36 → 1. Draw calls: +0 at overview, 156 near the farm. `?stress=1500` overview measures 302
+with or without the farm (pre-existing).
+

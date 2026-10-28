@@ -211,7 +211,9 @@ The city is a system that can run well or badly.
 - [x] Touch devices default to Medium quality; viewport fit, safe-area insets, no double-tap zoom
 - [x] Flora on phones: orb beside the toolbar, full-screen console (D-046)
 - [x] Flora's dossier (D-046): Console · Profile (directive stack = the exact system prompts, live context feed, protocols) · Tools (every agent tool as a card with effect, policy, parameters, keywords, usage; run or compose from it)
-- [ ] Deferred: explore modes on touch (virtual stick), a phone-sized Flora model, PWA install
+- [x] Desktop HUD merges (D-047): telemetry strip inside City Pulse, explore bar → view-mode dropdown in the top bar, Flora's orb beside the toolbar on every screen
+- [x] Wind power (D-047): Breeze Turbine building with spinning rotors (`modules/wind`), Windward Isle wind farm and waterfront rows in the founding city; clean energy 74% → 99%
+- [ ] Deferred: explore modes on touch (virtual stick), a phone-sized Flora model, PWA install, wind strength varying with weather
 - **Accept:** ✅ `tests/touch.test.ts` (tap, gesture cancels the press, pinch/twist deltas, tilt lock); `bun run snap -- --mobile --eval @scripts/scenes/mobile.js` (portrait and `--size 844x390`, WebGPU and WebGL); desktop HUD unchanged.
 
 ---

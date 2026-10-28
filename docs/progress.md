@@ -8,10 +8,10 @@ sections whenever you stop working** (see AGENTS.md §6).
 |             |                                                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Branch      | `main` (uncommitted: phone support), remote `origin` (github.com/shoocstorm/BloomGrid); releases are `vX.Y.Z` tags deployed to Firebase Hosting (AGENTS.md §10) |
-| Last change | Flora's Profile/Tools dossier and Flora on phones (D-046); playable on phones: compact HUD with chip sheets, touch gestures, tap-to-confirm building (D-045); before that Flora's 29 tools and console (D-044) |
+| Last change | Desktop HUD merges and wind power: Breeze Turbines, Windward Isle farm, clean energy 99% (D-047); Flora's Profile/Tools dossier and Flora on phones (D-046); playable on phones: compact HUD with chip sheets, touch gestures, tap-to-confirm building (D-045); before that Flora's 29 tools and console (D-044) |
 | Phases done | **All roadmap phases 0–15** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
-| Tests       | 99 passing (`bun run test`), 31 Rust (`bun run test:rust`); `bun run check` clean                                                                                                              |
+| Tests       | 101 passing (`bun run test`), 31 Rust (`bun run test:rust`); `bun run check` clean                                                                                                              |
 | Save format | v7 (building serials + named districts; migrations from v1–v6 in `src/sim/save.ts`)                                                                           |
 | Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈2 000 buildings on one grid, ≈25k residents, water Strained (≈95%) |
 

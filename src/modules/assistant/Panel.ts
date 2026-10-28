@@ -290,28 +290,14 @@ export class AssistantPanel {
         side,
       ),
     );
+    // Flora's orb sits beside the build toolbar (desktop and phone), with the unread badge.
     this.launcher = h(
       'button',
-      { class: 'icon-btn ai-launch', title: 'Flora, city assistant (U)', onClick: () => this.toggle() },
-      '✿',
+      { class: 'ai-fab ai-launch panel', title: 'Flora, city assistant (U)', 'aria-label': 'Open Flora', onClick: () => this.toggle() },
+      sigil(),
       this.badge,
     ) as HTMLButtonElement;
-    ctx.services.get('hud').actions.prepend(this.launcher);
-    // Phones have no room in the top bar: Flora gets a button beside the toolbar instead.
-    ctx.services
-      .get('hud')
-      .dockRow.append(
-        h(
-          'button',
-          {
-            class: 'ai-fab panel',
-            title: 'Flora, city assistant',
-            'aria-label': 'Open Flora',
-            onClick: () => this.toggle(),
-          },
-          sigil(),
-        ),
-      );
+    ctx.services.get('hud').dockRow.append(this.launcher);
     ctx.hud.append(this.el);
     engine.onChange((s) => this.sync(s));
     this.sync(engine.state);

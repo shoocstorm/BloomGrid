@@ -218,6 +218,12 @@ button {
 .dock > * {
   pointer-events: auto;
 }
+.dock-row {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
 .tray {
   display: flex;
   gap: 8px;
@@ -503,11 +509,9 @@ button {
     padding: 2px 7px;
     gap: 4px;
   }
-  .stat .k {
+  .stat .k,
+  .stat .meter {
     display: none;
-  }
-  .meter {
-    width: 36px;
   }
 }
 

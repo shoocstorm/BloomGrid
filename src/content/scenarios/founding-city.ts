@@ -283,10 +283,12 @@ export default defineScenario({
         }
     }
     // Waterfront streets: the outer streets run on until the shore.
+    const shoreRoads: [x: number, z: number, dx: number, dz: number, n: number][] = [];
     const toShore = (x: number, z: number, dx: number, dz: number) => {
       let n = 0;
       while (n < 90 && b.isLand(x + dx * (n + 1), z + dz * (n + 1))) n++;
       if (n > 0) b.road(x, z, x + dx * n, z + dz * n);
+      shoreRoads.push([x, z, dx, dz, n]);
     };
     for (const t of TOWNS) {
       const [i0, j0, i1, j1] = t.blocks;
@@ -336,8 +338,40 @@ export default defineScenario({
           fillRect(tiles([i, j, i, j]), weights, density);
         }
     }
-    // Industrial islet: power and work.
-    district(b, 0.05, 0.6, 0.15, 0.72, 4, { bioreactor: 3, 'solar-spire': 2, 'greenhouse-hub': 1 }, 0.7);
+    // Industrial islet: power and work. Its bioreactors come with phyto-gardens, so most are paired (clean).
+    district(b, 0.05, 0.6, 0.15, 0.72, 4, { bioreactor: 2, 'phyto-garden': 2, 'solar-spire': 1, 'greenhouse-hub': 1 }, 0.7);
+
+    // Wind (D-047): turbines both sides of a road, staggered about a rotor's width apart so blades never cross.
+    // Each road joins the highway network, so the farms feed the city grid.
+    // About half the founding city's power; the solar sweep below tops up the rest with the usual thin margin.
+    const ROTOR_GAP = 9;
+    const WIND_TURBINES = 90;
+    let turbines = 0;
+    const turbine = (x: number, z: number) => turbines < WIND_TURBINES && b.building('wind-turbine', x, z) && turbines++;
+    /** Turbines beside road tiles `from`..`to` (steps from x, z along dx, dz); both stay beside the road. */
+    const windAlong = (x: number, z: number, dx: number, dz: number, from: number, to: number) => {
+      for (let k = from; k + 5 <= to; k += ROTOR_GAP) {
+        const [ax, az] = [x + dx * k, z + dz * k];
+        const [bx, bz] = [x + dx * (k + 4), z + dz * (k + 4)];
+        const [ox, oz] = dz === 0 ? [0, 1] : [1, 0];
+        turbine(ax - 2 * ox, az - 2 * oz);
+        turbine(bx + ox, bz + oz);
+      }
+    };
+    // Windward Isle: the north-east islet becomes a wind farm, three spines off the bridge landing.
+    const [wx, wz] = P(0.84, 0.2);
+    const isle: Rect = [wx - 38, wz - 15, wx + 36, wz + 16];
+    b.road(wx, isle[1] + 5, wx, isle[3] - 5);
+    for (const dz of [-9, 0, 9]) {
+      let [w, e] = [0, 0];
+      while (w < 40 && b.isLand(wx - w - 1, wz + dz)) w++;
+      while (e < 40 && b.isLand(wx + e + 1, wz + dz)) e++;
+      if (w + e < 8) continue;
+      b.road(wx - w + 2, wz + dz, wx + e - 2, wz + dz);
+      windAlong(wx - w + 2, wz + dz, 1, 0, 1, w + e - 4);
+    }
+    // Sea-breeze rows along the longest waterfront streets, past the last town block.
+    for (const [x, z, dx, dz, n] of [...shoreRoads].sort((p, q) => q[4] - p[4])) if (n >= 16) windAlong(x, z, dx, dz, 8, n);
     const islet = fit(S, 0.05, 0.6, 0.15, 0.72).map((v) => Math.round(v * S)) as Rect;
 
     // Balance: jobs for most of the labour force, power with a thin margin; water and food left short. Utilities go
@@ -376,5 +410,6 @@ export default defineScenario({
     if (park) b.nameArea('Bloomtopia', park[0], park[1], park[0] + b.footprint('bloomtopia')[0] - 1, park[1] + b.footprint('bloomtopia')[1] - 1);
     for (const t of all) b.nameArea(t.name, ...streets(t.blocks));
     b.nameArea('Foundry Islet', ...islet);
+    b.nameArea('Windward Isle', ...isle);
   },
 });

@@ -1,37 +1,4 @@
-/* Explore modes: a compact mode switcher, an in-mode hint, a crosshair and photo-mode framing. */
-.explore-bar {
-  position: fixed;
-  right: 16px;
-  bottom: 84px; /* above the build toolbar, which now spans most of the bottom edge */
-  display: flex;
-  gap: 2px;
-  padding: 4px;
-  /* Below the HUD layer (z 10) so the dashboard and modals cover it. */
-  z-index: 9;
-}
-.explore-bar.hidden {
-  display: none;
-}
-.explore-bar .xp {
-  padding: 5px 9px;
-  border-radius: 9px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-.explore-bar .xp:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-.night .explore-bar .xp:hover {
-  background: rgba(127, 247, 230, 0.12);
-}
-.explore-bar .xp.on {
-  background: var(--ink);
-  color: #f3fff8;
-}
-.night .explore-bar .xp.on {
-  background: var(--glow);
-  color: #0d2622;
-}
+/* Explore modes (the switcher is a top-bar dropdown, styled in ui/theme.css): an in-mode hint, a crosshair and photo-mode framing. */
 .explore-hint {
   position: fixed;
   left: 50%;

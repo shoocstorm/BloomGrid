@@ -177,6 +177,8 @@ export class PulsePanel {
 
     body.append(health, bloomSec, demand, budget, harmony, trends);
     ctx.hud.append(this.el);
+    // The telemetry strip lives under the header, so it stays visible when the panel is folded.
+    this.el.insertBefore(ctx.services.get('hud').readout, body);
     ctx.services.get('hud').sheet(this.el);
     ctx.input.onKey((e) => {
       if (e.code === 'KeyP' && !e.metaKey && !e.ctrlKey) {

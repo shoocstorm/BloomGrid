@@ -10,6 +10,14 @@ import './explore.css';
 export type ExploreMode = 'city' | 'walk' | 'board' | 'drone' | 'follow' | 'train';
 const CYCLE: ExploreMode[] = ['city', 'walk', 'board', 'drone', 'follow', 'train'];
 const LABELS: Record<ExploreMode, string> = { city: 'City view', walk: 'Walk', board: 'Hoverboard', drone: 'Drone', follow: 'Ride a pod', train: 'Aeroline' };
+const MENU: Record<ExploreMode, [glyph: string, note: string]> = {
+  city: ['◇', 'Steward’s overview: build and manage'],
+  walk: ['⚲', 'First person on the streets'],
+  board: ['≈', 'Glide along the living highways'],
+  drone: ['✦', 'Free flight over the island'],
+  follow: ['⇶', 'Ride a pod along the sky-lanes'],
+  train: ['═', 'Ride the Aeroline maglev loop'],
+};
 const HINTS: Record<ExploreMode, string> = {
   city: '',
   walk: 'WASD walk · Shift run · Space jump · drag or click-to-lock to look · N next mode · Esc city view',
@@ -34,7 +42,7 @@ const GRAVITY = 6;
  */
 export const exploreModule: GameModule = {
   id: 'explore',
-  deps: ['world', 'construction'],
+  deps: ['world', 'construction', 'hud'],
   init(ctx) {
     const { camera, cameraCtl, city, input } = ctx;
     let mode: ExploreMode = 'city';
@@ -80,18 +88,42 @@ export const exploreModule: GameModule = {
     ctx.scene.add(avatar);
 
     // ── HUD ───────────────────────────────────────────────────────────────────
+    // A view-mode dropdown in the top bar's actions (the top bar is the one HUD part kept while exploring).
+    // The menu hangs off the top bar itself: the actions panel's chamfer clip-path would cut it off.
     const buttons = new Map<ExploreMode, HTMLElement>();
-    const bar = h('div', { class: 'explore-bar panel' });
+    const dropGlyph = h('span', { class: 'g' }, MENU.city[0]);
+    const dropLabel = h('span', { class: 'l' }, LABELS.city);
+    const drop = h('button', { class: 'icon-btn xp-drop', title: 'View mode (N cycles · J photo)', 'aria-haspopup': 'menu', onClick: () => openMenu(menu.classList.contains('hidden')) }, dropGlyph, dropLabel, h('span', { class: 'caret' }, '▾'));
+    const item = (glyph: string, label: string, note: string, key: string, onClick: () => void) =>
+      h('button', { class: 'xp-item', role: 'menuitem', onClick: () => (openMenu(false), onClick()) }, h('span', { class: 'g' }, glyph), h('span', { class: 'xp-t' }, h('b', {}, label), h('i', {}, note)), h('kbd', {}, key));
+    const menu = h('div', { class: 'xp-menu panel hidden', role: 'menu' }, h('div', { class: 'xp-h' }, 'View mode'));
     for (const m of CYCLE) {
-      const b = h('button', { class: 'xp', title: m === 'city' ? 'Back to the city view (Esc)' : `${LABELS[m]} (N cycles)`, onClick: () => setMode(m) }, LABELS[m]);
+      const b = item(MENU[m][0], LABELS[m], MENU[m][1], m === 'city' ? 'Esc' : 'N', () => setMode(m));
       buttons.set(m, b);
-      bar.append(b);
+      menu.append(b);
     }
-    bar.append(h('button', { class: 'xp photo', title: 'Photo mode (J)', onClick: () => setPhoto(!photo) }, '◉ Photo'));
+    menu.append(h('div', { class: 'xp-sep' }), item('◉', 'Photo mode', 'Frame a shot, P saves a PNG', 'J', () => setPhoto(!photo)));
+    buttons.get('city')!.classList.add('on');
+    const actions = ctx.services.get('hud').actions;
+    actions.append(drop);
+    actions.parentElement!.append(menu);
+    function openMenu(open: boolean): void {
+      menu.classList.toggle('hidden', !open);
+      drop.classList.toggle('on', open);
+      if (!open) return;
+      const r = drop.getBoundingClientRect();
+      const top = actions.parentElement!.getBoundingClientRect();
+      menu.style.top = `${r.bottom - top.top + 6}px`;
+      menu.style.right = `${top.right - r.right}px`;
+    }
+    document.addEventListener('pointerdown', (e) => {
+      const t = e.target as Node;
+      if (!menu.classList.contains('hidden') && !menu.contains(t) && !drop.contains(t)) openMenu(false);
+    });
     const hint = h('div', { class: 'explore-hint hidden' });
     const cross = h('div', { class: 'explore-cross hidden' });
     const photoUi = h('div', { class: 'photo-ui hidden' }, h('div', { class: 'photo-bar top' }), h('div', { class: 'photo-bar bottom' }), h('div', { class: 'photo-hint' }, 'Photo mode · drag to look · P save PNG · J exit'));
-    document.body.append(bar, hint, cross, photoUi);
+    document.body.append(hint, cross, photoUi);
     const hud = document.getElementById('hud');
 
     const spawnNear = (x: number, z: number) => {
@@ -145,6 +177,9 @@ export const exploreModule: GameModule = {
       cross.classList.toggle('hidden', next !== 'walk' && next !== 'drone');
       setText(hint, HINTS[next]);
       for (const [m, b] of buttons) b.classList.toggle('on', m === next);
+      setText(dropGlyph, MENU[next][0]);
+      setText(dropLabel, LABELS[next]);
+      drop.classList.toggle('active', exploring);
       if (!exploring) {
         if (document.pointerLockElement) document.exitPointerLock();
         // Land the city camera over where the player was; it glides back out to the saved zoom.
@@ -157,7 +192,6 @@ export const exploreModule: GameModule = {
       photo = on;
       ctx.tools.suspended = on || mode !== 'city';
       hud?.classList.toggle('photo', on);
-      bar.classList.toggle('hidden', on);
       hint.classList.toggle('hidden', on || mode === 'city');
       photoUi.classList.toggle('hidden', !on);
       cross.classList.toggle('hidden', on || (mode !== 'walk' && mode !== 'drone'));
