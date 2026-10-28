@@ -450,3 +450,18 @@ second tap on the preview. Touch slop is 12 px (6 for a mouse).
 **Quality.** Touch devices default to Medium (pixel ratio 1, no MSAA); Settings can raise it. Rejected: a
 separate mobile HUD (two UIs to keep in sync with every module).
 
+## D-046 — Flora's dossier: Profile and Tools tabs, and Flora on phones (2026-10-28)
+
+**Tabs.** The console has Console · Profile · Tools tabs (`modules/assistant/Dossier.ts`). Profile shows
+identity and model core, session tiles, the **directive stack** (the three system prompts of a turn, read from
+`PROMPTS` in `ai/agent.ts` so the view can never drift from what the model is sent), the live context feed
+(`cityBrief`, resampled on demand) and the loop's protocols. Tools lists every registered agent tool as a card
+(effect: Sense / Guide / Act, default policy, core, parameters with enums and "manual" for non-`llmArgs` fields,
+trigger keywords, calls this session); filter by effect, search, and Run (`/name`) or Compose (`/name key=` in
+the input) from a card. Both views are rebuilt when their tab opens, never per frame, and read the registry then.
+**Look.** One-shot boot sequence on first open, message entrance, a header waveform while Flora works,
+glowing sigil; the profile's large sigil turns only while that tab is visible. Opacity/transform only (§7½).
+**Phones.** Supersedes D-045's hidden launcher: Flora gets an orb beside the toolbar (`hud.dockRow`), and the
+console is full-screen without the telemetry rail or maximize, the HUD beneath hidden (`body.flora-open`), the
+model list capped, no auto-focus (it would raise the keyboard), 16 px input (iOS zooms smaller inputs).
+

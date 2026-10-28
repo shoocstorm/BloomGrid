@@ -362,3 +362,73 @@ body.compact .ai.panel.max {
     max-height: none;
   }
 }
+/* Flora on phones: an orb beside the toolbar (the top bar has no room), full-screen console. */
+.compact .dock-row .toolbar {
+  flex: 1;
+  min-width: 0;
+}
+.compact .ai-fab {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 52px;
+  padding: 0;
+}
+.compact .ai-fab .ai-sigil {
+  width: 32px;
+  height: 32px;
+}
+.compact .ai-fab .ai-sigil .s-orbit {
+  animation: ai-orbit 6s linear infinite;
+}
+body.compact .ai.panel .ai-body,
+body.compact .ai.panel.max .ai-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+body.compact .ai.panel .ai-rail,
+.compact .ai-head .ai-hbtn[title^='Maximize'],
+.compact .ai-head .ai-hbtn[title^='Restore'],
+.compact .ai-sub {
+  display: none;
+}
+.compact .ai-head {
+  padding-top: 8px;
+}
+.compact .ai-link {
+  max-width: 34vw;
+}
+.compact .ai-tabs {
+  padding: 0 6px;
+}
+.compact .ai-tab {
+  flex: 1;
+  justify-content: center;
+  padding: 10px 6px 9px;
+}
+.compact .ai-main {
+  padding: 8px 10px calc(var(--bot) + 6px);
+}
+.compact .ai-input {
+  font-size: 16px; /* below 16px iOS zooms the page on focus */
+}
+.compact .ai-hero {
+  gap: 10px;
+}
+.compact .ai-hero-orb {
+  width: 76px;
+  height: 76px;
+}
+.compact .ai-hero-id > b {
+  font-size: 22px;
+}
+.compact .ai-tgrid {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* The console is full-screen: hide the HUD beneath it, and keep the model list from taking it over. */
+body.compact.flora-open #hud > :not(.ai) {
+  visibility: hidden;
+}
+.compact .ai-models {
+  max-height: 36dvh;
+  overflow-y: auto;
+}

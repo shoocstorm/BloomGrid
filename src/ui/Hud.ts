@@ -48,6 +48,8 @@ class Hud {
   private cards = new Map<string, HTMLElement>();
   private tray!: HTMLElement;
   private dock!: HTMLElement;
+  /** The toolbar's row; modules may add a button beside it (Flora's, on phones). */
+  dockRow!: HTMLElement;
   private category: BuildingCategory | null = null;
   private info!: HTMLElement;
   private infoBody!: HTMLElement;
@@ -292,7 +294,8 @@ class Hud {
       }
       return false;
     });
-    this.dock = h('div', { class: 'dock' }, this.tray, toolbar);
+    this.dockRow = h('div', { class: 'dock-row' }, toolbar);
+    this.dock = h('div', { class: 'dock' }, this.tray, this.dockRow);
     this.root.append(this.dock);
   }
 
@@ -508,6 +511,8 @@ export interface HudService {
   right: HTMLElement;
   /** Top-bar action buttons. */
   actions: HTMLElement;
+  /** The toolbar's row, for a button beside it. */
+  dockRow: HTMLElement;
   /** Register a panel that folds with a `collapsed` class; phones show these as exclusive sheets. */
   sheet(el: HTMLElement): void;
 }
@@ -523,7 +528,7 @@ export const hudModule: GameModule = {
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
-    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, sheet: (el) => hud.sheet(el) });
+    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, dockRow: hud.dockRow, sheet: (el) => hud.sheet(el) });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

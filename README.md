@@ -107,13 +107,16 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 **On a phone:** drag to pan, pinch to zoom, twist to rotate, drag two fingers up or down to tilt. Tap a building to
 inspect it. To build, pick a category, tap to preview, then tap the preview again (⟳ rotates). City Pulse,
 Flora-Net and the ◐ lenses are chips under the top bar; tap the city to fold them away. The HUD shows less on a phone
-(no telemetry strip or explore modes), and phones start on Medium graphics.
+(no telemetry strip or explore modes), and phones start on Medium graphics. Flora is the glowing orb beside the
+toolbar; her console opens full-screen.
 
 **Flora** (**U**): a city assistant that runs a small AI model on your own computer. Ask it what needs fixing,
 or tell it what to do ("build three vertical farms in Bayfront", "fix the power problem in Bayfront", "set taxes to
 14%", "how is our budget?", "pause", "show the water lens"): it looks things up, then asks before changing anything, and every action can be undone with **⌘Z**. Pick
 a model under ⚙ (it downloads once from Hugging Face, ≈0.6–1 GB; on an Apple Silicon Mac the desktop app runs it
-natively, much faster). Without a model, slash commands work: type `/help`.
+natively, much faster). Without a model, slash commands work: type `/help`. The **◈ Profile** tab shows who Flora
+is and the exact instructions (system prompts) her model gets each turn, plus the live city brief she reads; the
+**⚒ Tools** tab lists every tool she can use, with its parameters, and lets you run one directly.
 
 **Inventory** (**I**): every building, highway network, bridge, sky-bridge, channel, district and sea wonder, each
 with a readable id such as `LIV-0042` or `HWY-118.204`. Search by name, id or district, or filter with `issue:power`,

@@ -91,6 +91,18 @@ export interface TurnResult {
 }
 
 export const REPLY = '__reply__';
+
+/**
+ * The three system prompts of a turn, exported so the console's profile view shows exactly what the model
+ * is told: `planner` picks each step from a letter menu, `args` writes one call's JSON, `reply` is Flora's voice.
+ */
+export const PROMPTS = {
+  planner:
+    'You are the planner of a city-management assistant. Pick the next step from the options. Follow the output format exactly.',
+  args: 'You write the JSON arguments of one tool call for a city-management assistant. Reply with the JSON object only. Fill an optional argument only when the request asks for it; set every other optional argument to null.',
+  reply:
+    'You are Flora, the city assistant of BloomGrid, a solarpunk island city. You help the human steward run the city: you watch its systems, look things up and carry out actions they approve. Reply to the steward directly in at most 3 short sentences of plain words, no headings or labels: say what you found or did, with the key numbers and ids. Name city objects by id and name (e.g. LIV-0042 Garden Residence) and say where they are. Only say you did something if it is an ACTION below that did not fail; if an action failed or was declined, say so. Never promise to do or monitor anything later, and never invent numbers or states that are not in the facts. Use only the facts below.',
+} as const;
 /**
  * Tools kept off the menu by default: the brief already carries the overview and the vocabulary, and
  * `object_select` covers focusing. Small models favour the first options, so a redundant one there costs a step.
@@ -278,8 +290,7 @@ function decisionMessages(state: string, options: string[]): ChatMessage[] {
   return [
     {
       role: 'system',
-      content:
-        'You are the planner of a city-management assistant. Pick the next step from the options. Follow the output format exactly.',
+      content: PROMPTS.planner,
     },
     {
       role: 'user',
@@ -403,8 +414,7 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
       const messages: ChatMessage[] = [
         {
           role: 'system',
-          content:
-            'You write the JSON arguments of one tool call for a city-management assistant. Reply with the JSON object only. Fill an optional argument only when the request asks for it; set every other optional argument to null.',
+          content: PROMPTS.args,
         },
         {
           role: 'user',
@@ -502,8 +512,7 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
   const messages: ChatMessage[] = [
     {
       role: 'system',
-      content:
-        'You are Flora, the city assistant of BloomGrid, a solarpunk island city. You help the human steward run the city: you watch its systems, look things up and carry out actions they approve. Reply to the steward directly in at most 3 short sentences of plain words, no headings or labels: say what you found or did, with the key numbers and ids. Name city objects by id and name (e.g. LIV-0042 Garden Residence) and say where they are. Only say you did something if it is an ACTION below that did not fail; if an action failed or was declined, say so. Never promise to do or monitor anything later, and never invent numbers or states that are not in the facts. Use only the facts below.',
+      content: PROMPTS.reply,
     },
     {
       role: 'user',

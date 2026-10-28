@@ -98,6 +98,7 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Symbiotic pair           | `symbiosis: { partners, radius, pollutionMul, outputMul, label }` on a building definition                        |
 | Spatial field            | deposit + `boxBlur` (`sim/blur.ts`), computed on its own pulse phase                                              |
 | Right-hand HUD panel     | append to `ctx.services.get('hud').right`                                                                         |
+| Button beside the toolbar | append to `ctx.services.get('hud').dockRow` (Flora's phone orb; hide it on desktop if it is phone-only)        |
 | Foldable HUD panel       | toggle a `collapsed` class and register it with `ctx.services.get('hud').sheet(el)`: on phones it becomes an exclusive sheet (D-045) |
 | Phone layout             | `.compact …` rules in `ui/mobile.css` (loaded last); `isCompact()` / `isTouchDevice()` in `platform/device.ts`    |
 | Dashboard chart          | `new LineChart({ format, step })` from `modules/dashboard/LineChart.ts` (one series per chart)                    |

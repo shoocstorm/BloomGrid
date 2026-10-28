@@ -7,6 +7,7 @@ import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { getCrisis } from '@/sim/crises';
 import { listObjects, summarize } from '@/sim/inventory';
+import { Dossier } from './Dossier';
 
 const ID_SPLIT = /(\b(?:LIV|NRG|UTL|TEC|WRK|NAT|FOD|HWY|BRG|SKY|CHN|DST|LMK)-[0-9A-Z][0-9A-Z.-]*[0-9A-Z]\b)/g;
 const gb = (bytes: number) =>
@@ -24,6 +25,7 @@ const stamp = () => {
   return [d.getHours(), d.getMinutes(), d.getSeconds()].map((v) => String(v).padStart(2, '0')).join(':');
 };
 const MAX_KEY = 'bloomgrid.ai.max';
+type View = 'console' | 'profile' | 'tools';
 
 export interface PanelActions {
   send(text: string): void;
@@ -94,6 +96,13 @@ export class AssistantPanel {
   private timer = 0;
   private slowTimer = 99;
   private objects = { critical: 0, warning: 0, total: 0 };
+  private view: View = 'console';
+  private tabs = new Map<View, HTMLElement>();
+  private main!: HTMLElement;
+  private dossier: Dossier;
+  private booted = false;
+  /** Tool name → calls this session (shown on the tool cards). */
+  private uses = new Map<string, number>();
 
   constructor(
     private ctx: GameContext,
@@ -135,6 +144,34 @@ export class AssistantPanel {
       '⤢',
     ) as HTMLButtonElement;
     this.link.append(h('i', { class: 'ai-led' }), this.linkText);
+    this.dossier = new Dossier(ctx, engine, {
+      send: (text) => (this.setView('console'), this.actions.send(text)),
+      compose: (text) => {
+        this.setView('console');
+        this.input.value = text;
+        this.input.focus();
+      },
+      autoApprove: () => this.actions.autoApprove(),
+      session: () => ({ turns: this.turns, actions: this.actionsRun.length }),
+      uses: this.uses,
+    });
+    const tab = (v: View, glyph: string, label: string) => {
+      const b = h(
+        'button',
+        { class: 'ai-tab', role: 'tab', onClick: () => this.setView(v) },
+        h('span', { class: 'g' }, glyph),
+        label,
+      );
+      this.tabs.set(v, b);
+      return b;
+    };
+    const tabs = h(
+      'nav',
+      { class: 'ai-tabs', role: 'tablist' },
+      tab('console', '›_', 'Console'),
+      tab('profile', '◈', 'Profile'),
+      tab('tools', '⚒', 'Tools'),
+    );
 
     const section = (title: string, body: HTMLElement) =>
       h('div', { class: 'ai-rail-sec' }, h('div', { class: 'ai-rail-h' }, title), body);
@@ -201,6 +238,11 @@ export class AssistantPanel {
           h('b', {}, 'FLORA'),
           h('span', { class: 'ai-sub' }, 'City intelligence · local core'),
         ),
+        h(
+          'span',
+          { class: 'ai-wave', 'aria-hidden': 'true' },
+          ...Array.from({ length: 7 }, (_, i) => h('i', { style: `--i:${i}` })),
+        ),
         this.link,
         h(
           'button',
@@ -219,12 +261,15 @@ export class AssistantPanel {
         ),
       ),
       h('div', { class: 'ai-scan' }),
+      tabs,
       h(
         'div',
         { class: 'ai-body' },
-        h(
+        (this.main = h(
           'div',
-          { class: 'ai-main' },
+          { class: 'ai-main', 'data-view': 'console' },
+          this.dossier.profile,
+          this.dossier.tools,
           this.models,
           this.log,
           h(
@@ -241,7 +286,7 @@ export class AssistantPanel {
             auto,
             ' Autonomous mode: act without asking (every action stays undoable, ⌘Z)',
           ),
-        ),
+        )),
         side,
       ),
     );
@@ -252,6 +297,21 @@ export class AssistantPanel {
       this.badge,
     ) as HTMLButtonElement;
     ctx.services.get('hud').actions.prepend(this.launcher);
+    // Phones have no room in the top bar: Flora gets a button beside the toolbar instead.
+    ctx.services
+      .get('hud')
+      .dockRow.append(
+        h(
+          'button',
+          {
+            class: 'ai-fab panel',
+            title: 'Flora, city assistant',
+            'aria-label': 'Open Flora',
+            onClick: () => this.toggle(),
+          },
+          sigil(),
+        ),
+      );
     ctx.hud.append(this.el);
     engine.onChange((s) => this.sync(s));
     this.sync(engine.state);
@@ -260,8 +320,40 @@ export class AssistantPanel {
     } catch {
       /* ignore */
     }
+  }
+
+  setView(v: View): void {
+    this.view = v;
+    this.main.dataset.view = v;
+    for (const [k, b] of this.tabs) b.classList.toggle('on', k === v);
+    if (v === 'profile') this.dossier.renderProfile();
+    if (v === 'tools') this.dossier.renderTools();
+    if (v === 'console' && this.open) this.log.scrollTop = this.log.scrollHeight;
+  }
+
+  /** First open: a short boot sequence (staggered one-shot reveal), then the welcome. */
+  private boot(): void {
+    if (this.booted) return;
+    this.booted = true;
+    const c = this.dossier.census();
+    const lines: [string, string][] = [
+      ['FLORA civic intelligence', 'BG-01'],
+      ['Handshake · city grid', `${fmt(this.ctx.city.stats.population)} residents`],
+      ['Agent tools registered', `${c.all} · ${c.read} sense · ${c.view} guide · ${c.mutate} act`],
+      ['Directive stack', 'planner · argument writer · persona'],
+      ['Model core', this.engine.loaded?.name ?? 'standby (load one under ⚙)'],
+    ];
+    this.push(
+      h(
+        'div',
+        { class: 'ai-boot' },
+        ...lines.map(([k, v], i) =>
+          h('div', { class: 'ai-boot-l', style: `--i:${i}` }, h('span', {}, `› ${k}`), h('i'), h('b', {}, v)),
+        ),
+      ),
+    );
     this.system(
-      'Flora online. I watch the city with you, look things up, and build, demolish, connect, tax and more, asking before I change anything. I run on a local model core on this computer: load one under ⚙, or type /help for direct commands.',
+      'Flora online. I watch the city with you, look things up, and build, demolish, connect, tax and more, asking before I change anything. See ◈ Profile for my directives and ⚒ Tools for everything I can do; type /help for direct commands.',
     );
   }
 
@@ -273,15 +365,19 @@ export class AssistantPanel {
     this.open = open;
     this.el.classList.toggle('hidden', !open);
     this.launcher.classList.toggle('on', open);
+    document.body.classList.toggle('flora-open', open);
     this.applyMax();
     if (open) {
+      this.boot();
+      this.setView(this.view);
       this.renderModels(this.engine.state);
       this.unread = 0;
       this.badge.classList.add('hidden');
       this.log.scrollTop = this.log.scrollHeight;
       if (this.engine.state.status !== 'ready' && this.engine.state.status !== 'loading')
         this.models.classList.remove('hidden');
-      setTimeout(() => this.input.focus());
+      // Focusing would raise a phone's keyboard over the console.
+      if (!document.body.classList.contains('touch')) setTimeout(() => this.input.focus());
       this.slowTimer = 99;
       this.timer = 99;
       // wllama and the model listing load on first open, never at boot; then the last model comes back.
@@ -492,6 +588,7 @@ export class AssistantPanel {
       result: (r) => {
         const l = lines.get(r.call.step) ?? { el: line(r.call), t0: performance.now() };
         l.el.classList.add(r.ok ? 'ok' : 'bad');
+        this.uses.set(r.call.tool, (this.uses.get(r.call.tool) ?? 0) + 1);
         l.el.title = r.ok ? r.observation.slice(0, 600) : (r.error ?? '');
         l.el.append(
           h(
