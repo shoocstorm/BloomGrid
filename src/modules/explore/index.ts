@@ -166,6 +166,84 @@ export const exploreModule: GameModule = {
     const cross = h('div', { class: 'explore-cross hidden' });
     const photoUi = h('div', { class: 'photo-ui hidden' }, h('div', { class: 'photo-bar top' }), h('div', { class: 'photo-bar bottom' }), h('div', { class: 'photo-hint' }, 'Photo mode · drag to look · P save PNG · J exit'));
     document.body.append(hint, cross, photoUi);
+
+    // ── Touch pad (phones and tablets): a joystick for WASD, held buttons for up / down / boost, taps for Tab
+    // and V, and a way back to the city view. It feeds `input.keys`, so every mode's controls work unchanged.
+    const KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD'];
+    /** Keep a finger's moves on its control even off its edge (fails harmlessly if the pointer is already gone). */
+    const hold = (el: HTMLElement, id: number) => {
+      try {
+        el.setPointerCapture(id);
+      } catch {
+        /* the pointer ended before capture: nothing to follow */
+      }
+    };
+    const knob = h('i', { class: 'xp-knob' });
+    const stick = h('div', { class: 'xp-stick' }, knob);
+    let stickId = -1;
+    const steer = (e: PointerEvent) => {
+      const r = stick.getBoundingClientRect();
+      const R = r.width / 2;
+      let dx = e.clientX - (r.left + R);
+      let dy = e.clientY - (r.top + R);
+      const len = Math.hypot(dx, dy);
+      if (len > R) [dx, dy] = [(dx / len) * R, (dy / len) * R];
+      knob.style.transform = `translate(${dx}px, ${dy}px)`;
+      // Eight directions: an axis is on past a third of the radius.
+      const t = R / 3;
+      const on = { KeyW: dy < -t, KeyS: dy > t, KeyA: dx < -t, KeyD: dx > t };
+      const press = (k: string, v: boolean) => (v ? input.keys.add(k) : input.keys.delete(k));
+      for (const k of KEYS) press(k, (on as Record<string, boolean>)[k]!);
+      // Pushed to the rim: run / boost.
+      press('ShiftLeft', len > R * 0.92);
+    };
+    const release = () => {
+      stickId = -1;
+      knob.style.transform = '';
+      for (const k of [...KEYS, 'ShiftLeft']) input.keys.delete(k);
+    };
+    stick.addEventListener('pointerdown', (e) => {
+      stickId = e.pointerId;
+      hold(stick, e.pointerId);
+      steer(e);
+      e.preventDefault();
+    });
+    stick.addEventListener('pointermove', (e) => e.pointerId === stickId && steer(e));
+    for (const ev of ['pointerup', 'pointercancel'] as const) stick.addEventListener(ev, (e) => e.pointerId === stickId && release());
+    /** A button that holds `code` while pressed, or taps it (sends a keydown) when `tap`. */
+    const padBtn = (label: string, title: string, code: string, tap = false) => {
+      const b = h('button', { class: 'xp-pbtn', title }, label);
+      b.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (tap) window.dispatchEvent(new KeyboardEvent('keydown', { code }));
+        else {
+          input.keys.add(code);
+          hold(b, e.pointerId);
+        }
+      });
+      if (!tap) for (const ev of ['pointerup', 'pointercancel'] as const) b.addEventListener(ev, () => input.keys.delete(code));
+      return b;
+    };
+    const pad = {
+      up: padBtn('▲', 'Up · jump · burn', 'Space'),
+      down: padBtn('▼', 'Down · vent', 'KeyQ'),
+      next: padBtn('⇥', 'Next', 'Tab', true),
+      view: padBtn('◉', 'First person', 'KeyV', true),
+    };
+    const exit = h('button', { class: 'xp-exit panel', title: 'Back to the city view', onClick: () => setMode('city') }, '◇ City view');
+    const padEl = h('div', { class: 'xp-pad hidden' }, stick, h('div', { class: 'xp-pbtns' }, pad.up, pad.down, pad.next, pad.view), exit);
+    document.body.append(padEl);
+    /** Which pad parts each mode uses (rides have no stick: they follow their pod or train). */
+    const padFor = (m: ExploreMode) => {
+      const moves = ['walk', 'board', 'drone', 'balloon', 'roof'].includes(m);
+      stick.classList.toggle('hidden', !moves);
+      pad.up.classList.toggle('hidden', !['walk', 'board', 'drone', 'balloon'].includes(m));
+      pad.down.classList.toggle('hidden', m !== 'drone' && m !== 'balloon');
+      pad.next.classList.toggle('hidden', !['roof', 'follow', 'train'].includes(m));
+      pad.view.classList.toggle('hidden', !['walk', 'roof', 'balloon'].includes(m));
+      padEl.classList.toggle('hidden', m === 'city' || photo);
+      if (m === 'city') release();
+    };
     const hud = document.getElementById('hud');
 
     const spawnNear = (x: number, z: number) => {
@@ -261,6 +339,7 @@ export const exploreModule: GameModule = {
       if (next === 'board') person.root.visible = true;
       hud?.classList.toggle('exploring', exploring);
       hint.classList.toggle('hidden', !exploring);
+      padFor(next);
       cross.classList.toggle('hidden', !crossOn());
       setText(hint, HINTS[next]);
       for (const [m, b] of buttons) b.classList.toggle('on', m === next);
@@ -285,6 +364,7 @@ export const exploreModule: GameModule = {
       ctx.tools.suspended = on || mode !== 'city';
       hud?.classList.toggle('photo', on);
       hint.classList.toggle('hidden', on || mode === 'city');
+      padFor(mode);
       photoUi.classList.toggle('hidden', !on);
       cross.classList.toggle('hidden', on || !crossOn());
       if (on) {

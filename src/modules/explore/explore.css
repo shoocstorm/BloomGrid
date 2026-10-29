@@ -65,3 +65,73 @@
   color: rgba(243, 255, 248, 0.75);
   letter-spacing: 0.04em;
 }
+
+/* Touch pad (touch devices only): joystick bottom-left, action buttons bottom-right, and a way back to the city. */
+.xp-pad {
+  display: none;
+}
+body.touch .xp-pad:not(.hidden),
+body.compact .xp-pad:not(.hidden) {
+  display: block;
+}
+.xp-pad .hidden {
+  display: none !important;
+}
+.xp-stick {
+  position: fixed;
+  left: calc(env(safe-area-inset-left, 0px) + 22px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(127, 247, 230, 0.55);
+  background: rgba(6, 19, 21, 0.38);
+  z-index: 21;
+  touch-action: none;
+}
+.xp-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  margin: -27px 0 0 -27px;
+  border-radius: 50%;
+  background: rgba(127, 247, 230, 0.75);
+  pointer-events: none;
+}
+.xp-pbtns {
+  position: fixed;
+  right: calc(env(safe-area-inset-right, 0px) + 22px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
+  display: grid;
+  grid-template-columns: repeat(2, 56px);
+  gap: 10px;
+  z-index: 21;
+}
+.xp-pbtn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  font-size: 18px;
+  color: #eafffb;
+  border: 1.5px solid rgba(127, 247, 230, 0.55);
+  background: rgba(6, 19, 21, 0.45);
+  touch-action: none;
+}
+.xp-pbtn:active {
+  background: rgba(127, 247, 230, 0.4);
+}
+.xp-exit {
+  /* Top-left under the top bar: the thumbs own the bottom corners. */
+  position: fixed;
+  left: var(--gut, 12px);
+  top: var(--below, 120px);
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  z-index: 21;
+}

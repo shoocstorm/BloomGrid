@@ -1,8 +1,8 @@
 /*
  * Phone layout. `body.compact` (platform/device.ts) trims the HUD to what a thumb needs: clock,
  * key stats and actions on top; City Pulse, Flora-Net and lenses as chips that open one sheet at a
- * time; the inspector as a bottom sheet; a scrolling icon toolbar. Telemetry, explore modes and
- * keyboard hints are dropped. `body.touch` only removes hover/keyboard affordances.
+ * time; the inspector as a bottom sheet; a scrolling icon toolbar. Telemetry and keyboard hints are
+ * dropped; explore modes keep their top-bar switcher (glyph only) and get a touch pad (explore.css). `body.touch` only removes hover/keyboard affordances.
  * Loaded after theme.css so it wins without !important wars.
  */
 body.touch button,
@@ -295,8 +295,34 @@ body.compact {
 }
 
 /* Desktop-only instruments. */
-.compact .readout,
+.compact .readout {
+  display: none;
+}
+/* The view-mode switcher: glyph only in the top bar; its menu spans the screen under it. */
 .compact .xp-drop {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  justify-content: center;
+  font-size: 15px;
+}
+.compact .xp-drop .l,
+.compact .xp-drop .caret {
+  display: none;
+}
+.compact .xp-menu {
+  position: fixed;
+  left: var(--gut) !important;
+  right: var(--gut) !important;
+  width: auto;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+.compact .xp-item {
+  padding: 9px 8px;
+}
+.compact .xp-item kbd,
+.compact .explore-hint {
   display: none;
 }
 

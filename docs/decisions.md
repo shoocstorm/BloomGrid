@@ -672,3 +672,15 @@ count shows on the Flora-Net tab. The last tab is remembered per browser (`local
 Build lays tools and categories in two columns and the open category's cards as a list. Adopted panels drop their
 own frame inside the console. Measured: draws unchanged (245); main thread ≈ 21.8% active / 16.5% idle; style and
 layout 0.8%.
+
+## D-057 — Explore modes on phones: the switcher and a touch pad (2026-10-29)
+
+Phones hid the view-mode switcher (D-045 treated explore modes as desktop-only), so a phone had no way into them,
+and a session that entered one (keyboard `N`, a tablet with a keyboard) had no touch way back. The switcher now shows
+on `.compact` as its glyph in the top bar's actions, with a full-width menu under it (keyboard hints dropped). While
+exploring on a touch device a pad appears (`modules/explore`): a joystick bottom-left that holds W/A/S/D (eight
+directions; pushed to the rim adds Shift for run / boost), held ▲ (Space: jump, rise, burn) and ▼ (Q: sink, vent)
+buttons, taps for ⇥ (Tab: next landmark, pod or train) and ◉ (V: first person / basket), each shown only in the modes
+that use it, and a **◇ City view** button top-left under the top bar. The pad writes `input.keys`, so the modes'
+controls are unchanged; one-finger drag on the canvas already looks around. Pointer capture is guarded (it throws if
+the pointer has already ended). Desktop unchanged (the pad is touch/compact only).
