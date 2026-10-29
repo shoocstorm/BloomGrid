@@ -791,3 +791,229 @@ kbd,
 .db {
   scrollbar-color: var(--line-strong) transparent;
 }
+
+/* ── City Pulse console (D-056): one tabbed column on the left, desktops only ── */
+/* Tabs exist only on desktops (`.console`); phones show the pulse alone as their sheet. */
+.con-tabs {
+  display: none;
+}
+.con-pane {
+  display: none;
+}
+.pulse:not(.console) .con-pane.p-pulse,
+.con-pane.on {
+  display: block;
+}
+.pulse.collapsed .con-panes {
+  display: none;
+}
+.pulse.console {
+  display: flex;
+  flex-direction: column;
+  width: 304px;
+  max-height: calc(100vh - 88px);
+  overflow: hidden;
+  padding-bottom: 8px;
+}
+.pulse.console > * {
+  flex: none;
+}
+.pulse.console .con-panes {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pulse.console .con-pane.on {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  padding-right: 2px;
+}
+.pulse.console .con-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  margin: 6px 0 4px;
+  border-bottom: 1px solid var(--line);
+}
+.pulse.console.collapsed .con-tabs {
+  display: none;
+}
+.con-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 2px 6px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.con-tab .g {
+  font-size: 14px;
+  letter-spacing: 0;
+}
+.con-tab:hover {
+  color: var(--ink);
+  background: var(--bg-hover);
+}
+.con-tab.on {
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.con-badge {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  min-width: 14px;
+  padding: 0 3px;
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+  color: #10201c;
+  background: var(--accent);
+}
+.con-badge:empty {
+  display: none;
+}
+.con-badge.warn {
+  background: var(--warn);
+}
+.con-badge.crit {
+  background: var(--crit);
+  color: #fff;
+}
+
+/* Adopted panels drop their own frame: the console is the frame. */
+.con-pane > .panel {
+  position: static;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  clip-path: none;
+  background: none;
+  transform: none;
+}
+
+/* Build: tools in two columns, then categories, then the open category's cards as a list. */
+.con-pane .toolbar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  overflow: visible;
+}
+.con-pane .toolbar .sep {
+  grid-column: 1 / -1;
+  width: auto;
+  height: 1px;
+  margin: 6px 0;
+}
+.con-pane .tool {
+  justify-content: flex-start;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  min-width: 0;
+}
+.con-pane .tool span.l {
+  display: inline !important;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.con-pane .tool kbd {
+  display: inline;
+}
+.con-pane .tray {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--line);
+  overflow: visible;
+}
+.con-pane .tray.hidden {
+  display: none;
+}
+.con-pane .card {
+  width: auto;
+  padding: 8px 10px;
+}
+.con-pane .card:hover {
+  transform: translateX(2px);
+}
+.con-pane .card.rotate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+}
+.con-pane .card.rotate .c {
+  margin: 0;
+}
+
+/* Lenses: one per row, label always shown, the cycle key at the foot. */
+.con-pane .lens-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+}
+.con-pane .lens {
+  justify-content: flex-start;
+  padding: 6px 8px;
+  border-radius: 0;
+  font-size: 12.5px;
+}
+.con-pane .lens .l {
+  display: inline !important;
+}
+.con-pane .lens.on {
+  color: var(--accent);
+  background: var(--bg-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.con-pane .lens-bar kbd {
+  align-self: flex-start;
+  margin: 8px 8px 2px;
+}
+.con-pane .lens-bar kbd::after {
+  content: ' cycles lenses';
+  font-family: var(--mono);
+}
+
+/* Flora-Net: its title is the tab; Now / Log stay as sub-tabs; never folded inside the console. */
+.con-pane .adv-title {
+  display: none;
+}
+.con-pane .adv-head {
+  justify-content: flex-end;
+}
+.con-pane .advisor.collapsed .adv-list {
+  display: block;
+}
+.con-pane .adv-list {
+  max-height: none;
+}
+
+/* Desktops: with the toolbar in the console, the dock holds only Flora's orb, bottom-right. */
+body:not(.compact) .dock {
+  left: auto;
+  right: 14px;
+  transform: none;
+  align-items: flex-end;
+}
+/* The lens legend stays at the top while a lens is on (its list is in the console). */
+.lens-legend b {
+  font-weight: 600;
+  margin-right: 4px;
+}

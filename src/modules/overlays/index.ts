@@ -30,11 +30,12 @@ const HIGH = new Color(0x3ccf8e);
 /**
  * Data lenses: colour the whole city by a metric (power, water, pollution, ecology,
  * desirability, highway access). Values come from `sim/overlays.ts` and are uploaded to a
- * per-tile texture that every material samples; the blend is animated.
+ * per-tile texture that every material samples; the blend is animated. The lens list is a tab of the City
+ * Pulse console on desktops (a top-centre sheet on phones); the legend, with the lens name, stays up top.
  */
 export const overlaysModule: GameModule = {
   id: 'overlays',
-  deps: ['hud'],
+  deps: ['hud', 'pulse'],
   init(ctx) {
     const { city } = ctx;
     let active: string | null = null;
@@ -68,7 +69,8 @@ export const overlaysModule: GameModule = {
     const legendLo = h('span');
     const legendHi = h('span');
     const legendBar = h('i');
-    const legend = h('div', { class: 'lens-legend' }, legendLo, legendBar, legendHi);
+    const legendName = h('b');
+    const legend = h('div', { class: 'lens-legend' }, legendName, legendLo, legendBar, legendHi);
     const bar = h('div', { class: 'lens-bar panel' });
     for (const o of allOverlays()) {
       const b = h('button', { class: 'lens', title: `${o.label} lens`, onClick: () => service.set(active === o.id ? null : o.id) }, h('span', { class: 'g' }, o.icon), h('span', { class: 'l' }, o.label));
@@ -82,6 +84,8 @@ export const overlaysModule: GameModule = {
     wrap.append(toggle, bar, legend);
     ctx.hud.append(wrap);
     ctx.services.get('hud').sheet(wrap);
+    // Desktops: the lenses live in the City Pulse console (D-056); the legend stays up top while one is on.
+    ctx.services.get('pulse').addTab('lens', 'Lenses', '◐', bar);
 
     const service: OverlayService = {
       get active() {
@@ -98,6 +102,7 @@ export const overlaysModule: GameModule = {
           U.ovLow.value.copy(spec.invert ? HIGH : LOW);
           U.ovMid.value.copy(MID);
           U.ovHigh.value.copy(spec.invert ? LOW : HIGH);
+          legendName.textContent = `${spec.icon} ${spec.label}`;
           legendLo.textContent = spec.legend[0];
           legendHi.textContent = spec.legend[1];
           legendBar.style.background = `linear-gradient(90deg, #${U.ovLow.value.getHexString()}, #${MID.getHexString()}, #${U.ovHigh.value.getHexString()})`;

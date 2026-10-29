@@ -49,7 +49,9 @@ class Hud {
   private speedBtns: HTMLButtonElement[] = [];
   private toolBtns = new Map<string, HTMLElement>();
   private cards = new Map<string, HTMLElement>();
-  private tray!: HTMLElement;
+  /** Building cards of the open category, and the tool/category bar (a console may adopt both). */
+  tray!: HTMLElement;
+  toolbar!: HTMLElement;
   private dock!: HTMLElement;
   /** The toolbar's row; modules may add a button beside it (Flora's, on phones). */
   dockRow!: HTMLElement;
@@ -298,7 +300,7 @@ class Hud {
     const { ctx } = this;
     const construction = ctx.services.get('construction');
     this.tray = h('div', { class: 'tray panel hidden' });
-    const toolbar = h('div', { class: 'toolbar panel' });
+    const toolbar = (this.toolbar = h('div', { class: 'toolbar panel' }));
     const toolBtn = (id: string, glyph: string, label: string, key: string | undefined, onClick: () => void) => {
       const b = h('button', { class: 'tool', title: label, onClick }, h('span', { class: 'g' }, glyph), h('span', { class: 'l' }, label), key ? h('kbd', {}, key) : null);
       this.toolBtns.set(id, b);
@@ -597,6 +599,9 @@ export interface HudService {
   stats: HTMLElement;
   /** Telemetry strip (sim rate, camera focus, heading, altitude, fps); a panel may adopt it. */
   readout: HTMLElement;
+  /** Build tools and categories, and the open category's cards: the City Pulse console adopts them on desktops. */
+  toolbar: HTMLElement;
+  tray: HTMLElement;
   /** Register a panel that folds with a `collapsed` class; phones show these as exclusive sheets. */
   sheet(el: HTMLElement): void;
 }
@@ -612,7 +617,7 @@ export const hudModule: GameModule = {
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
-    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, sheet: (el) => hud.sheet(el) });
+    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, toolbar: hud.toolbar, tray: hud.tray, sheet: (el) => hud.sheet(el) });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

@@ -100,7 +100,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Build              | **4–0** building categories · **R** rotate · **X** bulldoze                                        |
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **B** Bloom Retrofit · **M** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
-| Watch your city    | **P** City Pulse · **L** data lenses · **F** advisor · **K** dashboard · **I** inventory · **O** overview · **Y** city map (⌗ MAP in the top bar: every district named; click one to fly there) |
+| Watch your city    | **P** folds the City Pulse console (tabs: Pulse, Build, Lenses, Flora-Net; on phones, separate sheets) · **L** data lenses · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **Y** city map (⌗ MAP in the top bar: every district named; click one to fly there) |
 | Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console (the glowing orb beside the toolbar, **✿ Ask** on any selected object) |
 | Explore            | **N** walk / hoverboard / drone / balloon / rooftop / ride a pod / ride the Aeroline (**Tab** next pod, train or landmark; **V** first person or the balloon's basket view; **Esc** back) · **J** photo mode (**P** saves a PNG); or the ◇ view-mode menu at the end of the top bar |
 | Find a fire        | **.** fly to the next fire (⌖ Next in the fire panel) · click a 🔥 pin, an alert toast or a map pin |

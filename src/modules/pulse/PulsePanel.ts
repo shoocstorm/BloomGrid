@@ -2,6 +2,33 @@ import { SYSTEMS, TAX_MAX, TAX_MIN, TIERS, type HistoryMetric, type SystemKey } 
 import type { GameContext } from '@/game/context';
 import { h, setText } from '@/ui/dom';
 import { LOAN_SIZES, creditLimit, totalDebt } from '@/sim/finance';
+import { isCompact, onCompactChange } from '@/platform/device';
+
+/** A console tab's handle: bring it forward, or mark its button (e.g. Flora-Net's urgent count). */
+export interface ConsoleTab {
+  select(): void;
+  setBadge(text: string, tone?: 'warn' | 'crit' | ''): void;
+  readonly selected: boolean;
+}
+
+export interface PulseService {
+  /**
+   * Adds a tab to the City Pulse console (desktops). The elements move into the tab from wherever they were
+   * appended (their phone home), and go back there on phones, where the console shows only the pulse.
+   */
+  addTab(id: string, label: string, glyph: string, ...els: HTMLElement[]): ConsoleTab;
+  /** Folded to its header? */
+  readonly collapsed: boolean;
+  fold(folded: boolean): void;
+}
+
+declare module '@/core/Services' {
+  interface GameServices {
+    pulse: PulseService;
+  }
+}
+
+const TAB_KEY = 'bloomgrid.console.tab';
 
 export const SYSTEM_LABELS: Record<SystemKey, string> = {
   energy: 'Energy grid',
@@ -50,8 +77,12 @@ function sparkline(canvas: HTMLCanvasElement, data: number[], color: string): vo
 }
 
 /**
- * City Pulse panel: system health tiers, demand meters, budget with tax control, harmony
- * breakdown and trend sparklines. Updates are throttled and text-diffed.
+ * City Pulse console: the steward's one panel on desktops (D-056), a full-height column on the left with tabs.
+ * Pulse (system health tiers, demand meters, budget with tax control, harmony breakdown, trend sparklines) is its
+ * own; other modules add theirs through the `pulse` service (Build: the HUD's tools and building cards; Lenses;
+ * Flora-Net), so the bottom toolbar, the lens bar and the advisor no longer cover the city. Phones keep their chips
+ * and sheets: there the console shows only the pulse, and adopted elements go back to their own places. Updates
+ * are throttled and text-diffed.
  */
 export class PulsePanel {
   readonly el: HTMLElement;
@@ -72,6 +103,10 @@ export class PulsePanel {
   private loanBtns: [number, HTMLButtonElement][] = [];
   private repayBtn!: HTMLButtonElement;
   private timer = 0;
+  private tabsEl = h('div', { class: 'con-tabs', role: 'tablist' });
+  private panes = h('div', { class: 'con-panes' });
+  private tabs: { id: string; btn: HTMLElement; pane: HTMLElement; els: { el: HTMLElement; home: HTMLElement; next: Node | null }[] }[] = [];
+  private current = 'pulse';
 
   constructor(private ctx: GameContext) {
     const body = h('div', { class: 'pulse-body' });
@@ -79,8 +114,16 @@ export class PulsePanel {
       'section',
       { class: 'pulse panel' },
       h('button', { class: 'pulse-head', onClick: () => this.el.classList.toggle('collapsed'), title: 'Toggle (P)' }, h('span', { class: 'pulse-orb' }), 'City Pulse'),
-      body,
+      this.tabsEl,
+      this.panes,
     );
+    this.addTab('pulse', 'Pulse', '◉', body);
+    try {
+      this.current = localStorage.getItem(TAB_KEY) ?? 'pulse';
+    } catch {
+      /* storage blocked: start on the pulse */
+    }
+    onCompactChange(() => this.place());
 
     this.bloomEl = h('b');
     this.cleanEl = h('b');
@@ -178,7 +221,7 @@ export class PulsePanel {
     body.append(health, bloomSec, demand, budget, harmony, trends);
     ctx.hud.append(this.el);
     // The telemetry strip lives under the header, so it stays visible when the panel is folded.
-    this.el.insertBefore(ctx.services.get('hud').readout, body);
+    this.el.insertBefore(ctx.services.get('hud').readout, this.tabsEl);
     ctx.services.get('hud').sheet(this.el);
     ctx.input.onKey((e) => {
       if (e.code === 'KeyP' && !e.metaKey && !e.ctrlKey) {
@@ -188,6 +231,78 @@ export class PulsePanel {
       return false;
     });
     this.refresh();
+  }
+
+  /** See `PulseService.addTab`. The pulse tab's own body has no other home. */
+  addTab(id: string, label: string, glyph: string, ...els: HTMLElement[]): ConsoleTab {
+    const pane = h('div', { class: `con-pane p-${id}`, role: 'tabpanel' });
+    const badge = h('span', { class: 'con-badge' });
+    const btn = h(
+      'button',
+      { class: 'con-tab', role: 'tab', title: label, onClick: () => this.select(id, true) },
+      h('span', { class: 'g' }, glyph),
+      h('span', { class: 'l' }, label),
+      badge,
+    );
+    this.tabsEl.append(btn);
+    this.panes.append(pane);
+    const tab = { id, btn, pane, els: els.map((el) => ({ el, home: el.parentElement ?? this.ctx.hud, next: el.nextSibling })) };
+    this.tabs.push(tab);
+    this.place();
+    const isOn = () => this.current === id && !this.collapsed && !isCompact();
+    return {
+      select: () => this.select(id, true),
+      setBadge: (text, tone = '') => {
+        setText(badge, text);
+        badge.className = `con-badge ${tone}`;
+      },
+      get selected() {
+        return isOn();
+      },
+    };
+  }
+
+  get collapsed(): boolean {
+    return this.el.classList.contains('collapsed');
+  }
+
+  /**
+   * Shows tab `id`; `open` also unfolds the console. `remember` keeps it as the desktop tab (phones show the pulse
+   * without forgetting it).
+   */
+  select(id: string, open = false, remember = true): void {
+    if (!this.tabs.some((t) => t.id === id)) id = 'pulse';
+    if (remember) {
+      this.current = id;
+      try {
+        localStorage.setItem(TAB_KEY, id);
+      } catch {
+        /* storage blocked: the choice lasts the session */
+      }
+    }
+    if (open) this.el.classList.remove('collapsed');
+    for (const t of this.tabs) {
+      const on = t.id === id;
+      t.btn.classList.toggle('on', on);
+      t.btn.setAttribute('aria-selected', String(on));
+      t.pane.classList.toggle('on', on);
+    }
+    if (id === 'pulse' && this.rows.size) this.refresh();
+  }
+
+  /** Puts adopted elements in their tabs (desktop) or back in their own places (phones). */
+  private place(): void {
+    const compact = isCompact();
+    for (const t of this.tabs)
+      for (const e of t.els) {
+        if (t.id === 'pulse') {
+          if (e.el.parentElement !== t.pane) t.pane.append(e.el);
+        } else if (compact) {
+          if (e.el.parentElement === t.pane) e.home.insertBefore(e.el, e.next && e.next.parentNode === e.home ? e.next : null);
+        } else if (e.el.parentElement !== t.pane) t.pane.append(e.el);
+      }
+    this.el.classList.toggle('console', !compact);
+    this.select(compact ? 'pulse' : this.current, false, false);
   }
 
   /** Repays loans (oldest first) while the treasury can afford them. */
@@ -262,7 +377,7 @@ export class PulsePanel {
       setText(el, `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`);
       el.className = v >= 0 ? 'good' : 'bad';
     }
-    if (!this.el.classList.contains('collapsed')) {
+    if (!this.el.classList.contains('collapsed') && this.current === 'pulse') {
       for (const sp of this.sparks) {
         const data = p.history[sp.metric];
         sparkline(sp.canvas, data, sp.color);

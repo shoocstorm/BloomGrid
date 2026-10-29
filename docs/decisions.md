@@ -656,3 +656,19 @@ avatar out to their spot and stop short of the first wall (snap in, ease out). P
 lanes (D-053). Cost: ≈ 0.02 ms for a frame's queries downtown; ≈ 6 ms to build a downtown block's colliders on first
 touch. Tests: `tests/explore.test.ts` (walls, parks, decks, flying balls, camera sweep, trees). Tests that build
 colliders call `initPieces()` first (the collider reads piece geometry).
+
+## D-056 — One steward's console: City Pulse with Build, Lenses and Flora-Net tabs (2026-10-29)
+
+Desktops had four HUD blocks over the city: City Pulse (left), the lens bar (top centre), Flora-Net (right) and the
+build toolbar with its card tray (bottom centre). They are now one full-height console on the left (`PulsePanel`,
+304 px) with tabs **Pulse · Build · Lenses · Flora-Net**; the top bar, the inspector, toasts and the Welcome help
+stay where they were, and Flora's orb moves to the bottom-right. Extension point: `services.get('pulse').addTab(id,
+label, glyph, ...els)` moves existing elements into a tab and returns a handle (`select`, `setBadge`, `selected`);
+`fold()` folds the console. Elements keep their phone home: on `.compact` they go back where they were appended and
+the console shows the pulse alone, so phone sheets and chips are unchanged (D-045). Behaviour: opening a building
+category (click or 4–0) brings the Build tab forward; L still cycles lenses, and the lens legend (now with the lens
+name) stays at the top while one is on; F brings Flora-Net forward (again folds the console); P folds it; the urgent
+count shows on the Flora-Net tab. The last tab is remembered per browser (`localStorage`, per-viewer convenience).
+Build lays tools and categories in two columns and the open category's cards as a list. Adopted panels drop their
+own frame inside the console. Measured: draws unchanged (245); main thread ≈ 21.8% active / 16.5% idle; style and
+layout 0.8%.
