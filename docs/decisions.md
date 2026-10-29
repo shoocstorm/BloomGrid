@@ -636,3 +636,23 @@ trunks) erodes to ≥ 0.6 sq units, at least 1.2 above the base (lower is a plaz
 axis, so the steward slides along the parapet; Tab steps to the next landmark by distance. Founding city: 30 of 44
 landmarks have a roof (≈ 10 ms each, solved on arrival). Rejected: raycasting the instanced scene (hundreds of
 thousands of instances).
+
+## D-055 — Explore physics: piece-level colliders, flying bodies and cameras that respect them (2026-10-29)
+
+The explore collider was one inset box per building (domes, spires, wings, petals and trees were air, and some
+plazas were walls), and only walkers used it: the drone flew through towers, the balloon only checked a floor, and
+every chase camera passed through walls. Now (`modules/explore/collider.ts`) each building's colliders are its recipe
+pieces in world space, cached per building: boxes, upright cylinders (drums, trunks, ribs, cones) and ellipsoids
+(domes, canopies, pods), plus the terrain plinth; ground cover, flowers, ivy and hollow rings stay passable. Queries
+look through the buildings within 5 tiles (pieces overhang their lots). Wild trees come from the flora (trunk
+cylinder + crown sphere per tree, recorded per tile in `world/Flora.ts`). API: `hits(x, y, z, r)` (a ball touches
+something), `groundAt` (highest piece top within a step), `blocked` (one ball just above the step height covers the
+0.22-tall steward), `reach(from, to, r)` (how far a ball sweeps before touching).
+**Bodies.** Walker and board: walls stop them, heads bump ceilings on a jump. Drone: a 0.15 ball moved axis by
+axis, so it slides along walls and settles on roofs. Balloon: two balls (envelope 1.15 at 2.1 up, basket 0.22),
+same sliding; neutral buoyancy when idle (it used to sink toward a floor 1.5 over the rooftops). A body that starts
+inside something rises out instead of freezing. **Cameras.** Every chase view and the pod ride camera sweep from the
+avatar out to their spot and stop short of the first wall (snap in, ease out). Pods already clear rooftops on their
+lanes (D-053). Cost: ≈ 0.02 ms for a frame's queries downtown; ≈ 6 ms to build a downtown block's colliders on first
+touch. Tests: `tests/explore.test.ts` (walls, parks, decks, flying balls, camera sweep, trees). Tests that build
+colliders call `initPieces()` first (the collider reads piece geometry).

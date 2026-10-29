@@ -2,7 +2,7 @@ import { Group, MathUtils, Vector3 } from 'three/webgpu';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { h, setText } from '@/ui/dom';
-import { STEP, createCollider } from './collider';
+import { BODY, STEP, createCollider } from './collider';
 import { createBalloon, createBoard, createDrone, createPerson, showOnly } from './avatars';
 import { findRoof, roofAt, rooftopCandidates, type Roof } from './roof';
 import './explore.css';
@@ -74,10 +74,31 @@ export const exploreModule: GameModule = {
     let capture = false;
 
     // ── Collision ──────────────────────────────────────────────────────────────
-    const collider = createCollider(city);
+    const collider = createCollider(city, (t) => ctx.services.tryGet('world')?.flora.treesAt(t));
     for (const ev of ['building:added', 'building:removed', 'city:reset', 'terrain:changed'] as const) ctx.bus.on(ev, () => collider.clear());
     const g = () => city.grid;
     const groundAt = (x: number, z: number, feet: number) => collider.groundAt(x, z, feet);
+    /** Moves a ball (drone, balloon parts) by (dx, dy, dz), axis by axis, refusing any axis that would touch. */
+    const DRONE_R = 0.15;
+    /** The balloon as two balls: the envelope (centre 2.1 above the basket) and the basket. */
+    const BALLOON: [dy: number, r: number][] = [
+      [2.1, 1.15],
+      [0.12, 0.22],
+    ];
+    const clear = (x: number, y: number, z: number, balls: [number, number][]) => balls.every(([dy, r]) => !collider.hits(x, y + dy, z, r));
+    const fly = (dx: number, dy: number, dz: number, balls: [number, number][]) => {
+      // Spawned or rebuilt into something: rise out of it rather than freeze.
+      if (!clear(pos.x, pos.y, pos.z, balls)) {
+        pos.y += 0.05;
+        return;
+      }
+      if (clear(pos.x + dx, pos.y, pos.z, balls)) pos.x += dx;
+      else vel.x *= -0.2;
+      if (clear(pos.x, pos.y, pos.z + dz, balls)) pos.z += dz;
+      else vel.z *= -0.2;
+      if (clear(pos.x, pos.y + dy, pos.z, balls)) pos.y += dy;
+      else vel.y = 0;
+    };
     /** Moves with per-axis sliding against walls. */
     const slide = (dx: number, dz: number, feet: number, swim: boolean) => {
       const w = U.waterLevel.value;
@@ -328,12 +349,21 @@ export const exploreModule: GameModule = {
       chase(dt, tmp.copy(pos).setY(pos.y + 0.13), dist, 0.25, floor + 0.04);
     };
     const _chase = new Vector3();
-    /** Orbits the camera `dist` behind `target` (drag pitches it), smoothing toward the spot, above `floor`. */
-    const chase = (dt: number, target: Vector3, dist: number, tilt: number, floor: number) => {
+    const _from = new Vector3();
+    /**
+     * Orbits the camera `dist` behind `target` (drag pitches it), smoothing toward the spot, above `floor`. The
+     * camera never enters a building or tree: it pulls in along the line to the target, starting `skip` out
+     * (past the avatar itself), and snaps in at once when a wall cuts in (it only eases back out).
+     */
+    const chase = (dt: number, target: Vector3, dist: number, tilt: number, floor: number, skip = 0.12) => {
       const p = MathUtils.clamp(tilt - pitch, -0.35, 1.3);
       _chase.set(Math.sin(yaw) * Math.cos(p), Math.sin(p), Math.cos(yaw) * Math.cos(p)).multiplyScalar(dist).add(target);
       _chase.y = Math.max(_chase.y, floor);
-      camera.position.lerp(_chase, 1 - Math.exp(-dt * 10));
+      _from.copy(_chase).sub(target).setLength(Math.min(skip, dist * 0.5)).add(target);
+      const k = collider.reach(_from, _chase, 0.035);
+      if (k < 1) _chase.lerpVectors(_from, _chase, Math.max(0, k - 0.02));
+      const nearer = _chase.distanceToSquared(target) < camera.position.distanceToSquared(target);
+      camera.position.lerp(_chase, k < 1 && nearer ? 1 : 1 - Math.exp(-dt * 10));
       camera.lookAt(target);
     };
 
@@ -371,6 +401,8 @@ export const exploreModule: GameModule = {
           }
           vel.y -= GRAVITY * dt;
           slide(vel.x * dt, vel.z * dt, pos.y, false);
+          // Heads bump ceilings (balconies, arches) instead of passing through them.
+          if (vel.y > 0 && collider.hits(pos.x, pos.y + BODY + vel.y * dt, pos.z, 0.04)) vel.y = 0;
           pos.y += vel.y * dt;
           const gy = groundAt(pos.x, pos.z, pos.y);
           if (pos.y <= gy) {
@@ -419,6 +451,7 @@ export const exploreModule: GameModule = {
             grounded = false;
           }
           vel.y -= GRAVITY * dt;
+          if (vel.y > 0 && collider.hits(pos.x, pos.y + BODY + vel.y * dt, pos.z, 0.04)) vel.y = 0;
           pos.y += vel.y * dt;
           if (pos.y <= hover) {
             pos.y = MathUtils.lerp(pos.y, hover, 1 - Math.exp(-dt * 20));
@@ -434,17 +467,15 @@ export const exploreModule: GameModule = {
           boardRig.position.set(pos.x, pos.y + Math.sin(U.clock.value * 3) * 0.004, pos.z);
           board.thrust(Math.min(1, (ix || iz ? 0.35 : 0) + sp / 7 + (fast && (ix || iz) ? 0.4 : 0)));
           person.pose(U.clock.value * 1.5, 0.05, 1);
-          fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
-          const camPos = tmp.copy(pos).addScaledVector(fwd, -1.1).setY(pos.y + 0.5 - pitch * 0.6);
-          camPos.y = Math.max(camPos.y, groundAt(camPos.x, camPos.z, 99) + 0.08);
-          camera.position.lerp(camPos, 1 - Math.exp(-dt * 8));
-          camera.lookAt(look.copy(pos).setY(pos.y + 0.15).addScaledVector(fwd, 1.4));
+          chase(dt, tmp.copy(pos).setY(pos.y + 0.15), 1.15, 0.38, groundAt(camera.position.x, camera.position.z, 99) + 0.08, 0.2);
         } else if (mode === 'drone') {
           const speed = fast ? 9 : 3.5;
           const up = (k.has('KeyE') || k.has('Space') ? 1 : 0) - (k.has('KeyQ') ? 1 : 0);
           vel.lerp(tmp.set(wishX * speed, up * speed * 0.6, wishZ * speed), 1 - Math.exp(-dt * 4));
-          slide(vel.x * dt, vel.z * dt, pos.y, true);
-          pos.y = Math.min(140, Math.max(Math.max(groundAt(pos.x, pos.z, pos.y), U.waterLevel.value) + 0.2, pos.y + vel.y * dt));
+          // A ball the drone's size: it slides along walls and rooftops, and never dips into them.
+          const edge = pos.x + vel.x * dt < 0.5 || pos.z + vel.z * dt < 0.5 || pos.x + vel.x * dt > g().w - 0.5 || pos.z + vel.z * dt > g().h - 0.5;
+          if (!edge) fly(vel.x * dt, vel.y * dt, vel.z * dt, [[0, DRONE_R]]);
+          pos.y = Math.min(140, Math.max(Math.max(g().heightAt(pos.x, pos.z), U.waterLevel.value) + DRONE_R + 0.05, pos.y));
           // The quadcopter faces where the camera looks, pitching into its speed and rolling into strafes.
           const fwdSpeed = -vel.x * Math.sin(yaw) - vel.z * Math.cos(yaw);
           const sideSpeed = vel.x * Math.cos(yaw) - vel.z * Math.sin(yaw);
@@ -453,7 +484,7 @@ export const exploreModule: GameModule = {
           drone.root.rotation.x = MathUtils.lerp(drone.root.rotation.x, sideSpeed * 0.05, 1 - Math.exp(-dt * 6));
           drone.root.position.set(pos.x, pos.y + Math.sin(U.clock.value * 2.1) * 0.01, pos.z);
           drone.spin(dt, Math.min(1, Math.hypot(vel.x, vel.z) / 6 + Math.abs(vel.y) / 4));
-          chase(dt, drone.root.position, 1.4, 0.05, groundAt(camera.position.x, camera.position.z, 99) + 0.1);
+          chase(dt, drone.root.position, 1.4, 0.05, groundAt(camera.position.x, camera.position.z, 99) + 0.1, DRONE_R + 0.05);
         } else if (mode === 'balloon') {
           // Slow drift where you steer plus a light prevailing wind; the burner lifts, venting sinks.
           const burn = k.has('KeyE') || k.has('Space');
@@ -461,14 +492,14 @@ export const exploreModule: GameModule = {
           const drift = fast ? 3 : 1.4;
           vel.x = MathUtils.lerp(vel.x, wishX * drift + 0.25, 1 - Math.exp(-dt * 0.8));
           vel.z = MathUtils.lerp(vel.z, wishZ * drift + 0.12, 1 - Math.exp(-dt * 0.8));
-          vel.y = MathUtils.lerp(vel.y, burn ? 2.2 : vent ? -2.2 : -0.08, 1 - Math.exp(-dt * 0.9));
-          pos.x = MathUtils.clamp(pos.x + vel.x * dt, 2, g().w - 2);
-          pos.z = MathUtils.clamp(pos.z + vel.z * dt, 2, g().h - 2);
-          // Keep the whole envelope clear of rooftops round it.
-          let floor = U.waterLevel.value;
-          for (const [ox, oz] of [[0, 0], [1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]] as const)
-            floor = Math.max(floor, groundAt(pos.x + ox, pos.z + oz, 999));
-          pos.y = MathUtils.clamp(pos.y + vel.y * dt, floor + 1.5, 95);
+          // Neutral buoyancy when idle: it holds its height until you burn or vent.
+          vel.y = MathUtils.lerp(vel.y, burn ? 2.2 : vent ? -2.2 : 0, 1 - Math.exp(-dt * 0.9));
+          // Envelope and basket are solid: the balloon bumps along towers and settles on roofs, not through them.
+          const dx = MathUtils.clamp(pos.x + vel.x * dt, 2, g().w - 2) - pos.x;
+          const dz = MathUtils.clamp(pos.z + vel.z * dt, 2, g().h - 2) - pos.z;
+          fly(dx, Math.min(vel.y * dt, 95 - pos.y), dz, BALLOON);
+          const floor = Math.max(U.waterLevel.value, g().heightAt(pos.x, pos.z));
+          pos.y = Math.max(pos.y, floor + 0.15);
           balloon.root.position.copy(pos);
           balloon.root.rotation.z = Math.sin(U.clock.value * 0.7) * 0.03;
           balloon.root.rotation.x = Math.sin(U.clock.value * 0.53) * 0.025;
@@ -478,7 +509,7 @@ export const exploreModule: GameModule = {
             camera.position.set(pos.x, pos.y + 0.3, pos.z);
             look.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
             camera.lookAt(tmp.copy(camera.position).add(look));
-          } else chase(dt, tmp.copy(pos).setY(pos.y + 1.6), 7.5, 0.15, floor + 0.5);
+          } else chase(dt, tmp.copy(pos).setY(pos.y + 1.6), 7.5, 0.15, floor + 0.5, 1.3);
         } else if (mode === 'follow') {
           const lanes = ctx.services.tryGet('skylanes');
           if (!lanes?.pods) return setMode('city');
@@ -491,7 +522,11 @@ export const exploreModule: GameModule = {
           }
           // Trail a little behind and above the pod so it sits low in the frame, the lane ahead.
           const behind = tmp.set(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(1.9);
-          camera.position.copy(pos).add(behind).setY(pos.y + 0.75);
+          _chase.copy(pos).add(behind).setY(pos.y + 0.75);
+          // Pull in rather than look through a tower the lane passes close to.
+          _from.copy(_chase).sub(pos).setLength(0.35).add(pos);
+          const k = collider.reach(_from, _chase, 0.035);
+          camera.position.copy(k < 1 ? _from.lerp(_chase, Math.max(0, k - 0.02)) : _chase);
           const p0 = pitch - 0.28;
           look.set(-Math.sin(yaw) * Math.cos(p0), Math.sin(p0), -Math.cos(yaw) * Math.cos(p0));
           camera.lookAt(fwd.copy(camera.position).add(look));

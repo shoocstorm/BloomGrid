@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { createCollider } from '@/modules/explore/collider';
+import { Vector3 } from 'three/webgpu';
+import { createCollider, TREE_STRIDE } from '@/modules/explore/collider';
 import { findRoof, roofAt } from '@/modules/explore/roof';
 import { initPieces } from '@/assets/kit/pieces';
 import { BRIDGE_DECK } from '@/sim/City';
 import { findLandRow, makeSim } from './helpers';
 
 describe('explore collider', () => {
+  initPieces();
   it('towers are walls, parks are walkable, highways are open', () => {
     const s = makeSim(42);
     s.city.credits = 1e6;
@@ -52,7 +54,6 @@ describe('explore collider', () => {
   });
 
   it('a landmark roof is found above the street, and movement is held to it', () => {
-    initPieces();
     const s = makeSim(42);
     s.city.credits = 1e7;
     const { x0, z } = findLandRow(s.city, 30);
@@ -67,6 +68,36 @@ describe('explore collider', () => {
     expect(roofAt(roof, roof.spawn.x, roof.spawn.z)).toBeCloseTo(roof.spawn.y, 5);
     // Off the building (the street in front) is not roof.
     expect(roofAt(roof, x0 + 0.5, z + 0.5)).toBeNull();
+  });
+
+  it('flying bodies and cameras respect building volumes and wild trees (D-055)', () => {
+    const s = makeSim(42);
+    s.city.credits = 1e6;
+    const { x0, z } = findLandRow(s.city, 30);
+    const g = s.city.grid;
+    expect(s.commands.execute('road', { tiles: Array.from({ length: 20 }, (_, i) => g.index(x0 + i, z)) })).toBe(true);
+    expect(s.commands.execute('build', { def: 'canopy-tower', x: x0, z: z - 3, rot: 0 })).toBe(true);
+    // One wild tree in the open, two tiles along the street.
+    const tile = g.index(x0 + 12, z + 2);
+    const ty = g.heightAt(x0 + 12.5, z + 2.5);
+    const tree = [x0 + 12.5, z + 2.5, ty, 0.8, 0.04, ty + 0.9, 0.3];
+    expect(tree.length).toBe(TREE_STRIDE);
+    const c = createCollider(s.city, (t) => (t === tile ? tree : undefined));
+    const top = c.groundAt(x0 + 1.5, z - 1.5, 999);
+    const street = g.heightAt(x0 + 1.5, z + 0.5);
+    expect(top).toBeGreaterThan(street + 1);
+    // A drone-sized ball inside the tower hits; clear above its roof garden, or over the street, it is free.
+    expect(c.hits(x0 + 1.5, street + 0.6, z - 1.5, 0.15)).toBe(true);
+    expect(c.hits(x0 + 1.5, top + 1.5, z - 1.5, 0.15)).toBe(false);
+    expect(c.hits(x0 + 1.5, street + 0.6, z + 0.5, 0.15)).toBe(false);
+    // A chase camera sweeping from the street into the tower stops short of its wall.
+    const k = c.reach(new Vector3(x0 + 1.5, street + 0.6, z + 0.6), new Vector3(x0 + 1.5, street + 0.6, z - 2.5), 0.035);
+    expect(k).toBeGreaterThan(0);
+    expect(k).toBeLessThan(0.6);
+    // Wild trees: the trunk stops a walker, the crown stops a drone, the air beside them is free.
+    expect(c.blocked(x0 + 12.5, z + 2.5, ty, false, -10)).toBe(true);
+    expect(c.hits(x0 + 12.5, ty + 0.9, z + 2.5, 0.15)).toBe(true);
+    expect(c.hits(x0 + 13.4, ty + 0.9, z + 2.5, 0.15)).toBe(false);
   });
 });
 

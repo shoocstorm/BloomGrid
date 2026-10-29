@@ -18,6 +18,8 @@ const params = new Float32Array(4);
  */
 export class Flora {
   private tiles = new Map<number, InstanceHandle[]>();
+  /** Wild trees per tile for explore collisions: [x, z, ground, trunk h, trunk r, canopy y, canopy r] each. */
+  private trees = new Map<number, number[]>();
   density = 1;
 
   constructor(
@@ -58,6 +60,7 @@ export class Flora {
     if (!hs) return;
     for (const h of hs) this.instancer.remove(h);
     this.tiles.delete(idx);
+    this.trees.delete(idx);
   }
 
   showTile(idx: number, animate = true): void {
@@ -99,6 +102,8 @@ export class Flora {
         const oz = k ? rng.range(0.55, 0.9) : rng.range(0.15, 0.6);
         const h = size * rng.range(1.1, 1.8);
         add('trunk', ox, oz, _s.set(size * 0.12, h, size * 0.12), PALETTE.bark, 0, 0);
+        const ty = _p.y;
+        let crown = 0;
         const blobs = high ? 3 : 1 + rng.int(0, 2);
         for (let i = 0; i < blobs; i++) {
           const r = high ? size * (1.1 - i * 0.3) : size * rng.range(0.85, 1.15);
@@ -106,7 +111,12 @@ export class Flora {
           const tint = high ? 0x3f7a4f : rng.pick(PALETTE.leaves);
           const glow = rng.next() < 0.12 ? rng.range(0.4, 0.9) : 0;
           add('canopy', ox + rng.range(-0.1, 0.1), oz + rng.range(-0.1, 0.1), s, tint, glow, 1 + i, h * 0.55 + i * r * (high ? 0.5 : 0.25));
+          crown = Math.max(crown, r);
         }
+        // Collision: the trunk (the piece is 0.5 wide at its foot) and one sphere for the crown.
+        let list = this.trees.get(idx);
+        if (!list) this.trees.set(idx, (list = []));
+        list.push(x + ox, z + oz, ty, h, size * 0.06, ty + h * 0.55 + crown * 0.5, crown * 0.42);
       }
     } else if (rng.next() < 0.07) {
       add('bush', rng.next(), rng.next(), _s.setScalar(rng.range(0.25, 0.45)), rng.pick(PALETTE.leaves), 0, 0);
@@ -128,6 +138,11 @@ export class Flora {
       }
     }
     if (handles.length) this.tiles.set(idx, handles);
+  }
+
+  /** Wild trees on a tile (see `trees`), for explore collisions. */
+  treesAt(idx: number): readonly number[] | undefined {
+    return this.trees.get(idx);
   }
 
   get instanceCount(): number {
