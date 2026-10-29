@@ -601,3 +601,18 @@ against the height they were built with; an estimate until then).
 of its tiles so woods still close at the new scale: flora instances 103k → 111k (+8%). Draws unchanged (245/291 on
 the perf path); headless GPU time swung 2.6–11 ms between identical runs, too noisy to compare. Recipe trees
 (`kit.tree`) were left alone: they are sized per building already.
+
+## D-053 — Sky-lanes clear the buildings beneath them (2026-10-29)
+
+Lane arcs were sized by length alone, so many ran straight through towers (and pods with them). Now each lane is
+**lifted** by whole tiles until it keeps 1.2 of air over every rooftop between its ends (sampled every half tile;
+the buildings under either end, a dock or hub, don't count; the first and last 7% are the approach). Rooftops come
+from a per-tile map of each building's placed base + template height (`modules/mobility`, rebuilt when buildings or
+terrain change). Lanes that set down at a job centre land on the tallest rooftop beside their final approach
+(a rooftop pad) instead of squeezing down to the street between towers. The arc profile changed from a parabola to
+climb–cruise–descend (`1 − (2t − 1)⁴`): it reaches 59% of its crest 10% along (a parabola 36%), so a tower near an
+end needs a modest lift rather than a towering loop. Cap 90 (the Wellspring Spire). Pods use the same lifts: one per
+leg, packed into the integer parts of the info vec4 (seed + lift1, speed + 4 × lift2; `podInfo`), since the pod is
+at WebGPU's eight vertex buffers. `skylanes.clearance()` reports lanes, lifted and still clipping (founding city:
+221 lanes, 60 lifted, 0 clipping; was 16 clipping at an end and 3 mid-span before rooftop landings and the new
+profile). Tests: `tests/skypath.test.ts` (arc symmetry, lift, packing, a pod on its lifted lane).

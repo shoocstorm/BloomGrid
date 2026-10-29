@@ -45,13 +45,17 @@ import { buildings } from '@/content';
 import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
 import { mobilityLayers } from '@/sim/mobility';
 import { hash2 } from '@/sim/random';
+import { Building } from '@/ecs/components';
+import { placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { podGeometry } from './podModel';
-import { orientNode, podPathAt, podPathNode } from './skypath';
+import { arcProfile, arcProfileNode, arcY, orientNode, podInfo as packPodInfo, podPathAt, podPathNode } from './skypath';
 
 /** Ride-a-pod camera hook (explore mode): pose of pod i at a clock, mirroring the pod shader. */
 export interface SkylanesService {
   readonly pods: number;
   podAt(i: number, clock: number, out: Vector3, ahead?: Vector3): Vector3;
+  /** Lanes built, lifted over buildings, and still clipping a rooftop (outside their end approaches). */
+  clearance(): { lanes: number; lifted: number; clipped: number; clippedEnds: number };
 }
 
 declare module '@/core/Services' {
@@ -75,6 +79,15 @@ const LANE_SPOKE = 1;
 const LANE_TRUNK = 2;
 const LANE_EGRESS = 3;
 const LANE_RAIL = 4;
+/**
+ * Lanes keep this much air over every rooftop between their ends (D-053), checked every `CLEAR_STEP` tiles; the
+ * last `CLEAR_ENDS` of each end is left to the approach (a lane has to come down to its dock or street).
+ */
+const CLEARANCE = 1.2;
+const CLEAR_STEP = 0.5;
+const CLEAR_ENDS = 0.07;
+/** Highest a lane is lifted to clear something: enough to arc over the Wellspring Spire. */
+const MAX_LIFT = 90;
 /** Pods set down beside an Aeroline platform this far above its deck (riders change to the trains there). */
 const RAIL_Y = 1.6;
 const MAX_RUN = 8;
@@ -204,7 +217,8 @@ export const mobilityModule: GameModule = {
       const width = mix(mix(mix(float(0.3), float(0.24), isSpoke), float(0.6), isTrunk), float(0.55), isRail).mul(zoom);
       const side = positionGeometry.z.mul(width);
       const flat = mix(route.xy, route.zw, t);
-      const y = mix(info.x, info.y, t).add(t.mul(float(1).sub(t)).mul(4).mul(len.mul(0.06).add(1.5)));
+      // info.z: whole-tile lift that carries the lane over the buildings beneath (same arc as the pods, skypath.ts).
+      const y = mix(info.x, info.y, t).add(arcProfileNode(t).mul(len.mul(0.06).add(1.5).add(info.z)));
       lm.positionNode = vec3(flat.x.add(dir.y.negate().mul(side)), y, flat.y.add(dir.x.mul(side)));
       const flow = mix(mix(float(0.9), float(2.2), isTrunk), float(1.6), isRail);
       const dash = smoothstep(0.55, 1, fract(t.mul(len).mul(0.35).sub(time.mul(flow))));
@@ -360,11 +374,109 @@ export const mobilityModule: GameModule = {
       buildSkylanes();
     };
 
+    // Rooftop heights per tile (world y of each building's top), rebuilt lazily when buildings or terrain change.
+    let tops = new Float32Array(0);
+    let owner = new Int32Array(0);
+    let topsDirty = true;
+    for (const ev of ['building:added', 'building:removed', 'terrain:changed', 'city:reset'] as const)
+      ctx.bus.on(ev, () => (topsDirty = true));
+    const refreshTops = () => {
+      const n = g.w * g.h;
+      if (tops.length !== n) {
+        tops = new Float32Array(n);
+        owner = new Int32Array(n);
+      }
+      tops.fill(0);
+      owner.fill(-1);
+      for (const eid of city.buildingEntities()) {
+        const rec = city.buildingRecord(eid);
+        const p = placeBuilding(g, city.buildingDef(eid), rec.x, rec.z, rec.rot);
+        const top = p.base.elements[13]! + p.template.height;
+        const [x0, z0] = [Building.x[eid]!, Building.z[eid]!];
+        for (let z = z0; z < z0 + Building.d[eid]!; z++)
+          for (let x = x0; x < x0 + Building.w[eid]!; x++) {
+            if (!g.inBounds(x, z)) continue;
+            tops[z * g.w + x] = top;
+            owner[z * g.w + x] = eid;
+          }
+      }
+      topsDirty = false;
+    };
+    /**
+     * Whole tiles to raise the arc from (ax, az, ya) to (bx, bz, yb) so it keeps `CLEARANCE` over every rooftop in
+     * between; the buildings under either end (the dock, the hub) don't count. Symmetric in its ends.
+     */
+    const liftCache = new Map<string, number>();
+    const liftOf = (ax: number, az: number, ya: number, bx: number, bz: number, yb: number) => {
+      const key = ax < bx || (ax === bx && az <= bz) ? `${ax},${az},${ya},${bx},${bz},${yb}` : `${bx},${bz},${yb},${ax},${az},${ya}`;
+      const hit = liftCache.get(key);
+      if (hit !== undefined) return hit;
+      const len = Math.max(0.01, Math.hypot(bx - ax, bz - az));
+      const tileOf = (x: number, z: number) => (g.inBounds(Math.floor(x), Math.floor(z)) ? Math.floor(z) * g.w + Math.floor(x) : -1);
+      const ta = tileOf(ax, az);
+      const tb = tileOf(bx, bz);
+      const skipA = ta >= 0 ? owner[ta]! : -1;
+      const skipB = tb >= 0 ? owner[tb]! : -1;
+      let need = 0;
+      const steps = Math.ceil(len / CLEAR_STEP);
+      for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        if (t < CLEAR_ENDS || t > 1 - CLEAR_ENDS) continue;
+        const k = tileOf(ax + (bx - ax) * t, az + (bz - az) * t);
+        if (k < 0 || owner[k]! < 0 || owner[k] === skipA || owner[k] === skipB) continue;
+        const gap = tops[k]! + CLEARANCE - arcY(ya, yb, t, len);
+        if (gap > 0) need = Math.max(need, gap / arcProfile(t));
+      }
+      const lift = Math.min(MAX_LIFT, Math.ceil(need));
+      liftCache.set(key, lift);
+      return lift;
+    };
+    /**
+     * Where a pod sets down at a job centre (x, z) arriving from (fx, fz): street level, or, when the last stretch
+     * of the approach crosses taller buildings, on top of the tallest of them (a rooftop pad) so the descent clears.
+     */
+    const landingY = (fx: number, fz: number, x: number, z: number) => {
+      let top = ground(x, z) + STREET_Y;
+      const len = Math.hypot(x - fx, z - fz);
+      const steps = Math.ceil((len * CLEAR_ENDS * 1.5) / CLEAR_STEP);
+      for (let i = 0; i <= steps; i++) {
+        const t = 1 - (i / Math.max(1, steps)) * CLEAR_ENDS * 1.5;
+        for (const [ox, oz] of [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.7], [0, -0.7]] as const) {
+          const px = Math.floor(fx + (x - fx) * t + ox);
+          const pz = Math.floor(fz + (z - fz) * t + oz);
+          if (g.inBounds(px, pz) && owner[pz * g.w + px]! >= 0) top = Math.max(top, tops[pz * g.w + px]! + 0.4);
+        }
+      }
+      return top;
+    };
+    const ground = (x: number, z: number) => Math.max(0, g.heightAt(x, z));
+    /** Diagnostic: does the lifted arc still pass under a rooftop, in the middle or in its end approaches? */
+    const clips = (ax: number, az: number, ya: number, bx: number, bz: number, yb: number, lift: number) => {
+      const len = Math.max(0.01, Math.hypot(bx - ax, bz - az));
+      const tileOf = (x: number, z: number) => (g.inBounds(Math.floor(x), Math.floor(z)) ? Math.floor(z) * g.w + Math.floor(x) : -1);
+      const own = [tileOf(ax, az), tileOf(bx, bz)].map((k) => (k >= 0 ? owner[k]! : -1));
+      let mid = false;
+      let ends = false;
+      const steps = Math.ceil(len / CLEAR_STEP);
+      for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        const k = tileOf(ax + (bx - ax) * t, az + (bz - az) * t);
+        if (k < 0 || owner[k]! < 0 || own.includes(owner[k]!)) continue;
+        if (arcY(ya, yb, t, len, lift) >= tops[k]!) continue;
+        if (t < CLEAR_ENDS || t > 1 - CLEAR_ENDS) ends = true;
+        else mid = true;
+      }
+      return { mid, ends };
+    };
+    const stats = { lanes: 0, lifted: 0, clipped: 0, clippedEnds: 0 };
+
     /** Aeroline deck height the lanes were last built with (0 = line not built yet). */
     let railDeck = 0;
     /** Lanes, pods, rings and shafts from the latest network and pod routes. */
     const buildSkylanes = () => {
-      const ground = (x: number, z: number) => Math.max(0, g.heightAt(x, z));
+      if (topsDirty) refreshTops();
+      liftCache.clear();
+      Object.assign(stats, { lanes: 0, lifted: 0, clipped: 0, clippedEnds: 0 });
       const pr = podRoute.array as Float32Array;
       const pv = podVia.array as Float32Array;
       const pi = podInfo.array as Float32Array;
@@ -374,15 +486,36 @@ export const mobilityModule: GameModule = {
       let nl = 0;
       const lane = (ax: number, az: number, ya: number, bx: number, bz: number, yb: number, kind: number) => {
         if (nl >= LANES) return;
+        const lift = liftOf(ax, az, ya, bx, bz, yb);
         lr.set([ax, az, bx, bz], nl * 4);
-        li.set([ya, yb, 0, kind], nl * 4);
+        li.set([ya, yb, lift, kind], nl * 4);
         nl++;
+        const c = clips(ax, az, ya, bx, bz, yb, lift);
+        stats.lanes++;
+        if (lift > 0) stats.lifted++;
+        if (c.mid) stats.clipped++;
+        if (c.ends) stats.clippedEnds++;
       };
-      const pod = (route: number[], via: number[], info: number[]) => {
+      const NO_VIA = [0, 0, 0, 0];
+      /** A pod from A (height ya) to B (yb), through the hub ring `via` if given; legs lifted like their lanes. */
+      const pod = (A: readonly number[], B: readonly number[], via: number[], ya: number, yb: number, seed: number, speed: number) => {
         if (np >= PODS) return;
-        pr.set(route, np * 4);
+        let lift1: number;
+        let lift2 = 0;
+        if (via[3]! > 0) {
+          const [vx, vz, vy, r] = via as [number, number, number, number];
+          const toRing = (x: number, z: number) => {
+            const l = Math.max(0.001, Math.hypot(x - vx, z - vz));
+            return [vx + ((x - vx) / l) * r, vz + ((z - vz) / l) * r] as const;
+          };
+          const [e1x, e1z] = toRing(A[0]!, A[1]!);
+          const [e2x, e2z] = toRing(B[0]!, B[1]!);
+          lift1 = liftOf(A[0]!, A[1]!, ya, e1x, e1z, vy);
+          lift2 = liftOf(e2x, e2z, vy, B[0]!, B[1]!, yb);
+        } else lift1 = liftOf(A[0]!, A[1]!, ya, B[0]!, B[1]!, yb);
+        pr.set([A[0]!, A[1]!, B[0]!, B[1]!], np * 4);
         pv.set(via, np * 4);
-        pi.set(info, np * 4);
+        pi.set(packPodInfo(ya, yb, seed, speed, lift1, lift2), np * 4);
         np++;
       };
 
@@ -412,7 +545,7 @@ export const mobilityModule: GameModule = {
           lane(ex, ez, hubs[l.b]!.y, l.ax, l.az, py, LANE_RAIL);
           // Transfer shuttles between the hub and the platform.
           for (let i = 0; i < 2; i++)
-            pod([ex, ez, l.ax, l.az], [0, 0, 0, 0], [hubs[l.b]!.y, py, i * 0.5 + hash2(l.b, 7, i) * 0.2, 1.2]);
+            pod([ex, ez], [l.ax, l.az], NO_VIA, hubs[l.b]!.y, py, i * 0.5 + hash2(l.b, 7, i) * 0.2, 1.2);
         } else if (l.kind === 'spoke') {
           stationsOf[l.b]!.push([l.ax, l.az]);
           hubOfStation.set(`${l.ax},${l.az}`, l.b);
@@ -426,7 +559,7 @@ export const mobilityModule: GameModule = {
           lane(ax, az, hubs[l.a]!.y, bx, bz, hubs[l.b]!.y, LANE_TRUNK);
           // Express pods along each trunk.
           for (let i = 0; i < 2; i++)
-            pod([ax, az, bx, bz], [0, 0, 0, 0], [hubs[l.a]!.y, hubs[l.b]!.y, i * 0.5 + hash2(l.a, l.b, i) * 0.2, 1.5]);
+            pod([ax, az], [bx, bz], NO_VIA, hubs[l.a]!.y, hubs[l.b]!.y, i * 0.5 + hash2(l.a, l.b, i) * 0.2, 1.5);
         }
       }
 
@@ -436,13 +569,14 @@ export const mobilityModule: GameModule = {
       const egress = new Set<string>();
       for (const r of city.pulse.podRoutes) {
         const ya = ground(r.ax, r.az) + DOCK_Y;
-        const yj = ground(r.bx, r.bz) + STREET_Y;
         const hk = hubOfStation.get(`${r.ax},${r.az}`);
+        // The landing depends on the approach: from the dock itself, or from the hub (same for all its docks).
+        const yj = hk === undefined ? landingY(r.ax, r.az, r.bx, r.bz) : landingY(hubs[hk]!.x, hubs[hk]!.z, r.bx, r.bz);
         if (hk === undefined) {
           lane(r.ax, r.az, ya, r.bx, r.bz, yj, LANE_DIRECT);
           const k = Math.max(1, Math.min(6, Math.round(r.riders / 60)));
           for (let i = 0; i < k; i++)
-            pod([r.ax, r.az, r.bx, r.bz], [0, 0, 0, 0], [ya, yj, i / k + hash2(Math.floor(r.ax), Math.floor(r.az), i) * 0.1, 1]);
+            pod([r.ax, r.az], [r.bx, r.bz], NO_VIA, ya, yj, i / k + hash2(Math.floor(r.ax), Math.floor(r.az), i) * 0.1, 1);
           continue;
         }
         const h = hubs[hk]!;
@@ -462,17 +596,17 @@ export const mobilityModule: GameModule = {
           const pick = (i + Math.floor(r.ax + r.az)) % 4;
           if (pick === 3 && trains.length) {
             const [tx, tz, ty] = trains[i % trains.length]!;
-            pod([r.ax, r.az, tx, tz], via, [ya, ty, seed, 1]);
+            pod([r.ax, r.az], [tx, tz], via, ya, ty, seed, 1);
           } else if (pick === 1 && mates.length > 1) {
             let m = (Math.floor(r.ax * 7 + r.az * 13) + i * 5) % mates.length;
             if (mates[m]![0] === r.ax && mates[m]![1] === r.az) m = (m + 1) % mates.length;
             const [mx, mz] = mates[m]!;
-            pod([r.ax, r.az, mx, mz], via, [ya, ground(mx, mz) + DOCK_Y, seed, 1]);
+            pod([r.ax, r.az], [mx, mz], via, ya, ground(mx, mz) + DOCK_Y, seed, 1);
           } else if (pick === 2 && near.length) {
             const o = near[(Math.floor(r.ax + r.az * 3) + i) % near.length]!;
             const [bx, bz] = ringAt(o, h.x, h.z);
-            pod([r.ax, r.az, bx, bz], via, [ya, hubs[o]!.y, seed, 1]);
-          } else pod([r.ax, r.az, r.bx, r.bz], via, [ya, yj, seed, 1]);
+            pod([r.ax, r.az], [bx, bz], via, ya, hubs[o]!.y, seed, 1);
+          } else pod([r.ax, r.az], [r.bx, r.bz], via, ya, yj, seed, 1);
         }
       }
 
@@ -521,6 +655,7 @@ export const mobilityModule: GameModule = {
       get pods() {
         return pods.count;
       },
+      clearance: () => ({ ...stats }),
       podAt: (i, clock, out, ahead) =>
         podPathAt(podRoute.array as Float32Array, podVia.array as Float32Array, podInfo.array as Float32Array, i, clock, out, ahead),
     });
