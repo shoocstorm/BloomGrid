@@ -616,3 +616,23 @@ leg, packed into the integer parts of the info vec4 (seed + lift1, speed + 4 × 
 at WebGPU's eight vertex buffers. `skylanes.clearance()` reports lanes, lifted and still clipping (founding city:
 221 lanes, 60 lifted, 0 clipping; was 16 clipping at an end and 3 mid-span before rooftop landings and the new
 profile). Tests: `tests/skypath.test.ts` (arc symmetry, lift, packing, a pod on its lifted lane).
+
+## D-054 — Explore avatars, a balloon and landmark rooftops (2026-10-29)
+
+**Avatars** (`modules/explore/avatars.ts`): a chibi steward (big head, sprout, backpack; limbs pivot for a walk
+cycle and a riding crouch), a jet hoverboard (pearl deck, glow strips, twin nozzles with additive flames that
+lengthen with speed and boost; the steward rides it side-on), a quadcopter (canopy, gimbal camera, nav lights,
+spinning rotors with blur discs; pitches into speed, rolls into strafes) and a hot-air balloon (16 gores in cream,
+sage, coral and gold, a solar-fabric belt, wicker basket with lanterns, burner flame). Merged `GeoBuilder` meshes on
+the shared `scenery` material; moving parts are their own meshes; one rig visible at a time (≈ 6–10 draws, explore
+modes only); no shadows (cached shadow map). Walk, rooftop, board and drone are now third-person chase views
+(V gives first person on foot, the basket view in the balloon); walk speed dropped to 0.65 / 1.7 tiles/s to suit a
+0.2-tall steward.
+**Balloon**: WASD drifts (with a light prevailing wind), E/Space burns to rise, Q vents to sink; the envelope keeps
+1.5 above the rooftops round it, ≤ 95. **Rooftop** (`roof.ts`): landmarks are the hero district, the landmark and
+other single-variant buildings ≥ 6 tiles. Their flat solid pieces are projected onto a 0.08 grid; the roof is the
+highest level whose connected flat area (after removing cells with anything else at body height: cones, petals,
+trunks) erodes to ≥ 0.6 sq units, at least 1.2 above the base (lower is a plaza). Movement is held to those cells per
+axis, so the steward slides along the parapet; Tab steps to the next landmark by distance. Founding city: 30 of 44
+landmarks have a roof (≈ 10 ms each, solved on arrival). Rejected: raycasting the instanced scene (hundreds of
+thousands of instances).

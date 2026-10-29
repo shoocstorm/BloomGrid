@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCollider } from '@/modules/explore/collider';
+import { findRoof, roofAt } from '@/modules/explore/roof';
+import { initPieces } from '@/assets/kit/pieces';
 import { BRIDGE_DECK } from '@/sim/City';
 import { findLandRow, makeSim } from './helpers';
 
@@ -48,4 +50,23 @@ describe('explore collider', () => {
       }
     throw new Error('no bridge spot');
   });
+
+  it('a landmark roof is found above the street, and movement is held to it', () => {
+    initPieces();
+    const s = makeSim(42);
+    s.city.credits = 1e7;
+    const { x0, z } = findLandRow(s.city, 30);
+    const g = s.city.grid;
+    expect(s.commands.execute('road', { tiles: Array.from({ length: 24 }, (_, i) => g.index(x0 + i, z)) })).toBe(true);
+    expect(s.commands.execute('build', { def: 'sky-ark', x: x0, z: z - 8, rot: 0 })).toBe(true);
+    const eid = s.city.buildingEntities().find((e) => s.city.buildingDef(e).id === 'sky-ark')!;
+    const roof = findRoof(s.city, eid)!;
+    expect(roof).not.toBeNull();
+    const ground = g.heightAt(roof.spawn.x, roof.spawn.z);
+    expect(roof.spawn.y - ground).toBeGreaterThan(1.2);
+    expect(roofAt(roof, roof.spawn.x, roof.spawn.z)).toBeCloseTo(roof.spawn.y, 5);
+    // Off the building (the street in front) is not roof.
+    expect(roofAt(roof, x0 + 0.5, z + 0.5)).toBeNull();
+  });
 });
+

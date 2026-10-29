@@ -1,27 +1,41 @@
-import { CapsuleGeometry, BoxGeometry, Group, MathUtils, Mesh, MeshStandardNodeMaterial, Vector3 } from 'three/webgpu';
-import { color } from 'three/tsl';
+import { Group, MathUtils, Vector3 } from 'three/webgpu';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { h, setText } from '@/ui/dom';
 import { STEP, createCollider } from './collider';
+import { createBalloon, createBoard, createDrone, createPerson, showOnly } from './avatars';
+import { findRoof, roofAt, rooftopCandidates, type Roof } from './roof';
 import './explore.css';
 
-export type ExploreMode = 'city' | 'walk' | 'board' | 'drone' | 'follow' | 'train';
-const CYCLE: ExploreMode[] = ['city', 'walk', 'board', 'drone', 'follow', 'train'];
-const LABELS: Record<ExploreMode, string> = { city: 'City view', walk: 'Walk', board: 'Hoverboard', drone: 'Drone', follow: 'Ride a pod', train: 'Aeroline' };
+export type ExploreMode = 'city' | 'walk' | 'board' | 'drone' | 'balloon' | 'roof' | 'follow' | 'train';
+const CYCLE: ExploreMode[] = ['city', 'walk', 'board', 'drone', 'balloon', 'roof', 'follow', 'train'];
+const LABELS: Record<ExploreMode, string> = {
+  city: 'City view',
+  walk: 'Walk',
+  board: 'Hoverboard',
+  drone: 'Drone',
+  balloon: 'Balloon',
+  roof: 'Rooftop',
+  follow: 'Ride a pod',
+  train: 'Aeroline',
+};
 const MENU: Record<ExploreMode, [glyph: string, note: string]> = {
   city: ['◇', 'Steward’s overview: build and manage'],
-  walk: ['⚲', 'First person on the streets'],
-  board: ['≈', 'Glide along the living highways'],
-  drone: ['✦', 'Free flight over the island'],
+  walk: ['⚲', 'Stroll the streets as the steward'],
+  board: ['≈', 'Jet along the living highways'],
+  drone: ['✦', 'Fly a quadcopter over the island'],
+  balloon: ['◓', 'Drift over the island in a hot-air balloon'],
+  roof: ['▣', 'Stand on top of a landmark'],
   follow: ['⇶', 'Ride a pod along the sky-lanes'],
   train: ['═', 'Ride the Aeroline maglev loop'],
 };
 const HINTS: Record<ExploreMode, string> = {
   city: '',
-  walk: 'WASD walk · Shift run · Space jump · drag or click-to-lock to look · N next mode · Esc city view',
+  walk: 'WASD walk · Shift run · Space jump · drag to look · V first person · N next mode · Esc city view',
   board: 'WASD ride · Shift boost · Space hop · glides over water · N next mode · Esc city view',
-  drone: 'WASD fly · E up · Q down · Shift fast · N next mode · Esc city view',
+  drone: 'WASD fly · E up · Q down · Shift fast · drag to look · N next mode · Esc city view',
+  balloon: 'WASD drift · E or Space burn (rise) · Q vent (sink) · drag to look · V basket view · Esc city view',
+  roof: 'WASD stroll the roof · drag to look · V first person · Tab next landmark · Esc city view',
   follow: 'Riding a commuter pod along its sky-lane · Tab next pod · drag to look · Esc city view',
   train: 'Riding the Aeroline maglev round the island · Tab next train · drag to look · Esc city view',
 };
@@ -32,8 +46,9 @@ const GRAVITY = 6;
 
 
 /**
- * Explore modes (Phase 11): first-person walking, a third-person hoverboard, free drone flight
- * and a follow-cam that rides commuter pods along their sky-lanes; plus photo mode (J). A small
+ * Explore modes (Phase 11, D-054): walking as the chibi steward (third person, V for first person), a jet
+ * hoverboard, a quadcopter drone, a hot-air balloon, a stroll on a landmark's roof (held to its walkable area),
+ * and follow-cams on commuter pods and the Aeroline; plus photo mode (J). A small
  * kinematic controller collides with the terrain, water, bridge decks and building volumes
  * (solid bounds from the cached recipe templates, so parks and plazas stay walkable). While
  * exploring, `cameraCtl.target` / `distance` track the player, so shadows, fog, pollen and agents
@@ -72,19 +87,26 @@ export const exploreModule: GameModule = {
       else vel.z *= -0.2;
     };
 
-    // ── Hoverboard avatar (third person) ───────────────────────────────────────
-    const avatar = new Group();
-    const body = new Mesh(new CapsuleGeometry(0.03, 0.08, 3, 8), new MeshStandardNodeMaterial({ roughness: 0.6 }));
-    (body.material as MeshStandardNodeMaterial).colorNode = color(0xf3efe4);
-    body.position.y = 0.09;
-    const board = new Mesh(new BoxGeometry(0.2, 0.012, 0.07), new MeshStandardNodeMaterial({ roughness: 0.3, metalness: 0.3 }));
-    (board.material as MeshStandardNodeMaterial).colorNode = color(0x2f6f78);
-    (board.material as MeshStandardNodeMaterial).emissiveNode = color(0x7ff7e6).mul(U.night.mul(1.2).add(0.4));
-    board.position.y = 0.01;
-    avatar.add(body, board);
-    avatar.visible = false;
-    avatar.traverse((o) => ((o as Mesh).castShadow = true));
-    ctx.scene.add(avatar);
+    // ── Avatars (avatars.ts): the steward rides the board, so it moves between the scene and the board rig ──
+    const person = createPerson();
+    const board = createBoard();
+    const boardRig = new Group();
+    boardRig.add(board.root);
+    const drone = createDrone();
+    const balloon = createBalloon();
+    const rigs = [person.root, boardRig, drone.root, balloon.root];
+    for (const r of rigs) {
+      r.visible = false;
+      ctx.scene.add(r);
+    }
+    drone.root.rotation.order = 'YXZ';
+    boardRig.rotation.order = 'YXZ';
+    let stride = 0;
+    let facing = 0;
+    /** First person (V) in walk and on rooftops; the basket view in the balloon. */
+    let firstPerson = false;
+    let roof: Roof | null = null;
+    let roofList: number[] = [];
 
     // ── HUD ───────────────────────────────────────────────────────────────────
     // A view-mode dropdown in the top bar's actions (the top bar is the one HUD part kept while exploring).
@@ -139,6 +161,21 @@ export const exploreModule: GameModule = {
       return pos.set(x, 0, z);
     };
 
+    /** Puts the steward on the first landmark from `from` (in `roofList` order) with a roof to stand on. */
+    const pickRoof = (from: number): boolean => {
+      for (let k = 0; k < roofList.length; k++) {
+        const i = (((from + k) % roofList.length) + roofList.length) % roofList.length;
+        const r = findRoof(city, roofList[i]!);
+        if (!r) continue;
+        roof = r;
+        followIdx = i;
+        pos.copy(r.spawn);
+        ctx.bus.emit('toast', { text: `On the roof of ${r.name}`, tone: 'info' });
+        return true;
+      }
+      return false;
+    };
+
     function setMode(next: ExploreMode): void {
       if (next === 'follow' && !city.pulse.podRoutes.length) {
         ctx.bus.emit('toast', { text: 'No sky-lanes yet: build a Green Pod Dock first', tone: 'bad' });
@@ -149,16 +186,39 @@ export const exploreModule: GameModule = {
         next = 'city';
       }
       if (next === mode) return;
+      if (next === 'roof') {
+        // Landmarks nearest the view first; Tab walks on through the list.
+        const at = mode === 'city' ? cameraCtl.target : pos;
+        roofList = rooftopCandidates(city).sort((a, b) => {
+          const [ra, rb] = [city.buildingRecord(a), city.buildingRecord(b)];
+          return (ra.x - at.x) ** 2 + (ra.z - at.z) ** 2 - ((rb.x - at.x) ** 2 + (rb.z - at.z) ** 2);
+        });
+        if (mode === 'city') savedView = cameraCtl.getView();
+        if (!pickRoof(0)) {
+          ctx.bus.emit('toast', { text: 'No landmark roof to stand on: build a hero building first', tone: 'bad' });
+          next = 'city';
+          if (mode === 'city') return;
+        }
+      }
       const from = mode;
       mode = next;
-      if (from === 'city') {
+      if (from === 'city' && next !== 'roof') {
         savedView = cameraCtl.getView();
         spawnNear(cameraCtl.target.x, cameraCtl.target.z);
         pos.y = groundAt(pos.x, pos.z, 99);
+      }
+      if (from === 'city') {
         yaw = cameraCtl.yaw + Math.PI;
         pitch = -0.05;
+        firstPerson = false;
+      }
+      if (from === 'roof' && next !== 'roof') {
+        // Leaving a roof: come down to the street beside it.
+        spawnNear(pos.x, pos.z);
+        pos.y = groundAt(pos.x, pos.z, 99);
       }
       if (next === 'drone') pos.y = Math.max(pos.y + 2, groundAt(pos.x, pos.z, 99) + 2);
+      if (next === 'balloon') pos.y = Math.max(pos.y + 10, groundAt(pos.x, pos.z, 999) + 10);
       vel.set(0, 0, 0);
       const exploring = next !== 'city';
       cameraCtl.enabled = !exploring;
@@ -170,10 +230,17 @@ export const exploreModule: GameModule = {
       camera.far = exploring ? 900 : 4000;
       camera.updateProjectionMatrix();
       ctx.services.get('world').atmosphere.sky.scale.setScalar(exploring ? 800 : 1800);
-      avatar.visible = next === 'board';
+      // The steward stands alone when walking or on a roof, and rides the board.
+      if (next === 'board') boardRig.add(person.root);
+      else ctx.scene.add(person.root);
+      person.root.position.set(0, next === 'board' ? 0.026 : 0, 0);
+      person.root.rotation.set(0, 0, 0);
+      const rig = { walk: person.root, roof: person.root, board: boardRig, drone: drone.root, balloon: balloon.root } as Partial<Record<ExploreMode, Group>>;
+      showOnly(rigs, rig[next]);
+      if (next === 'board') person.root.visible = true;
       hud?.classList.toggle('exploring', exploring);
       hint.classList.toggle('hidden', !exploring);
-      cross.classList.toggle('hidden', next !== 'walk' && next !== 'drone');
+      cross.classList.toggle('hidden', !crossOn());
       setText(hint, HINTS[next]);
       for (const [m, b] of buttons) b.classList.toggle('on', m === next);
       setText(dropGlyph, MENU[next][0]);
@@ -187,13 +254,18 @@ export const exploreModule: GameModule = {
       ctx.bus.emit('explore:mode', { mode: next });
     }
 
+    /** The crosshair only makes sense looking through the steward's eyes. */
+    function crossOn(): boolean {
+      return firstPerson && (mode === 'walk' || mode === 'roof');
+    }
+
     function setPhoto(on: boolean): void {
       photo = on;
       ctx.tools.suspended = on || mode !== 'city';
       hud?.classList.toggle('photo', on);
       hint.classList.toggle('hidden', on || mode === 'city');
       photoUi.classList.toggle('hidden', !on);
-      cross.classList.toggle('hidden', on || (mode !== 'walk' && mode !== 'drone'));
+      cross.classList.toggle('hidden', on || !crossOn());
       if (on) {
         photoSpeed = ctx.engine.speed;
         ctx.engine.speed = 0;
@@ -203,7 +275,7 @@ export const exploreModule: GameModule = {
     // Mouse look: pointer lock when the canvas is clicked in walk / drone, or drag anywhere.
     const canvas = ctx.renderer.domElement;
     canvas.addEventListener('click', () => {
-      if ((mode === 'walk' || mode === 'drone') && !document.pointerLockElement) void canvas.requestPointerLock?.();
+      if (['walk', 'drone', 'roof', 'balloon'].includes(mode) && !document.pointerLockElement) void canvas.requestPointerLock?.();
     });
     window.addEventListener('mousemove', (e) => {
       if (document.pointerLockElement !== canvas) return;
@@ -220,6 +292,12 @@ export const exploreModule: GameModule = {
       if (mode === 'city') return false;
       if (e.code === 'Escape') return setMode('city'), true;
       if ((mode === 'follow' || mode === 'train') && e.code === 'Tab') return (followIdx++, true);
+      if (mode === 'roof' && e.code === 'Tab') return (pickRoof(followIdx + 1), true);
+      if (e.code === 'KeyV' && (mode === 'walk' || mode === 'roof' || mode === 'balloon')) {
+        firstPerson = !firstPerson;
+        cross.classList.toggle('hidden', photo || !crossOn());
+        return true;
+      }
       // Swallow keys the city view would otherwise act on (tool hotkeys, Space pause…).
       return ['Space', 'KeyQ', 'KeyE', 'Tab'].includes(e.code) || e.code.startsWith('Key');
     });
@@ -228,6 +306,37 @@ export const exploreModule: GameModule = {
     const fwd = new Vector3();
     const look = new Vector3();
     const tmp = new Vector3();
+    const lerpAngle = (a: number, b: number, t: number) => a + (Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t);
+    /** Poses the steward at `pos`, turning toward where they walk and swinging their limbs with the stride. */
+    const stroll = (dt: number, speed: number, fast: boolean) => {
+      if (speed > 0.01) facing = lerpAngle(facing, Math.atan2(vel.x || 1e-6, vel.z), 1 - Math.exp(-dt * 12));
+      else if (mode === 'roof') facing = lerpAngle(facing, yaw + Math.PI, 1 - Math.exp(-dt * 2));
+      stride += dt * (speed > 0.01 ? (fast ? 26 : 16) : 0);
+      person.root.position.copy(pos);
+      person.root.rotation.y = facing;
+      person.root.visible = !firstPerson;
+      person.pose(speed > 0.01 ? stride : U.clock.value * 2, speed > 0.01 ? 1 : 0);
+    };
+    /** Camera for the steward: eyes in first person, else a chase view behind and above, never under `floor`. */
+    const view = (dt: number, dist: number, floor: number) => {
+      if (firstPerson) {
+        camera.position.set(pos.x, pos.y + EYE, pos.z);
+        look.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+        camera.lookAt(tmp.copy(camera.position).add(look));
+        return;
+      }
+      chase(dt, tmp.copy(pos).setY(pos.y + 0.13), dist, 0.25, floor + 0.04);
+    };
+    const _chase = new Vector3();
+    /** Orbits the camera `dist` behind `target` (drag pitches it), smoothing toward the spot, above `floor`. */
+    const chase = (dt: number, target: Vector3, dist: number, tilt: number, floor: number) => {
+      const p = MathUtils.clamp(tilt - pitch, -0.35, 1.3);
+      _chase.set(Math.sin(yaw) * Math.cos(p), Math.sin(p), Math.cos(yaw) * Math.cos(p)).multiplyScalar(dist).add(target);
+      _chase.y = Math.max(_chase.y, floor);
+      camera.position.lerp(_chase, 1 - Math.exp(-dt * 10));
+      camera.lookAt(target);
+    };
+
     ctx.systems.add({
       id: 'explore.control',
       phase: 'input',
@@ -251,7 +360,8 @@ export const exploreModule: GameModule = {
         const fast = k.has('ShiftLeft') || k.has('ShiftRight');
 
         if (mode === 'walk') {
-          const speed = (fast ? 2.8 : 1.1) * (ix || iz ? 1 : 0);
+          const moving = ix || iz ? 1 : 0;
+          const speed = (fast ? 1.7 : 0.65) * moving;
           const len = Math.hypot(wishX, wishZ) || 1;
           vel.x = (wishX / len) * speed;
           vel.z = (wishZ / len) * speed;
@@ -270,9 +380,24 @@ export const exploreModule: GameModule = {
             vel.y = 0;
             grounded = true;
           } else if (pos.y - gy < 0.02) grounded = true;
-          camera.position.set(pos.x, pos.y + EYE + (ix || iz ? Math.sin(U.clock.value * 9) * 0.004 : 0), pos.z);
-          look.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
-          camera.lookAt(tmp.copy(camera.position).add(look));
+          stroll(dt, speed, fast);
+          const floor = groundAt(camera.position.x, camera.position.z, 99);
+          view(dt, 0.95, floor);
+        } else if (mode === 'roof') {
+          // Held to the roof's walkable cells: each axis moves only onto roof (slides along the parapet).
+          const moving = ix || iz ? 1 : 0;
+          const speed = (fast ? 1.2 : 0.5) * moving;
+          const len = Math.hypot(wishX, wishZ) || 1;
+          const dx = (wishX / len) * speed * dt;
+          const dz = (wishZ / len) * speed * dt;
+          if (roof) {
+            if (roofAt(roof, pos.x + dx, pos.z) !== null) pos.x += dx;
+            if (roofAt(roof, pos.x, pos.z + dz) !== null) pos.z += dz;
+            const y = roofAt(roof, pos.x, pos.z);
+            if (y !== null) pos.y = MathUtils.lerp(pos.y, y, 1 - Math.exp(-dt * 20));
+          }
+          stroll(dt, speed, fast);
+          view(dt, 1.1, pos.y - 0.02);
         } else if (mode === 'board') {
           // Momentum, boost, hover over land and water.
           const accel = fast ? 9 : 5;
@@ -288,7 +413,7 @@ export const exploreModule: GameModule = {
           vel.x *= drag;
           vel.z *= drag;
           slide(vel.x * dt, vel.z * dt, pos.y, true);
-          const hover = Math.max(groundAt(pos.x, pos.z, pos.y), U.waterLevel.value) + 0.08;
+          const hover = Math.max(groundAt(pos.x, pos.z, pos.y), U.waterLevel.value) + 0.06;
           if (grounded && k.has('Space')) {
             vel.y = 2.2;
             grounded = false;
@@ -300,13 +425,15 @@ export const exploreModule: GameModule = {
             vel.y = Math.max(0, vel.y);
             grounded = true;
           }
-          // Steer the avatar toward its motion; camera trails behind.
+          // Nose along the motion (the deck runs along +X), banking into turns; the rider crouches.
           if (sp > 0.05) {
-            const heading = Math.atan2(vel.x, vel.z);
-            avatar.rotation.y = heading + Math.PI / 2;
-            avatar.rotation.z = MathUtils.clamp(-(wishX * Math.cos(heading) - wishZ * Math.sin(heading)) * 0.25, -0.3, 0.3);
+            const heading = Math.atan2(vel.x, vel.z) - Math.PI / 2;
+            boardRig.rotation.y = lerpAngle(boardRig.rotation.y, heading, 1 - Math.exp(-dt * 10));
+            boardRig.rotation.x = MathUtils.lerp(boardRig.rotation.x, MathUtils.clamp((wishX * Math.cos(yaw) - wishZ * Math.sin(yaw)) * 0.25, -0.3, 0.3), 1 - Math.exp(-dt * 6));
           }
-          avatar.position.set(pos.x, pos.y + Math.sin(U.clock.value * 3) * 0.005, pos.z);
+          boardRig.position.set(pos.x, pos.y + Math.sin(U.clock.value * 3) * 0.004, pos.z);
+          board.thrust(Math.min(1, (ix || iz ? 0.35 : 0) + sp / 7 + (fast && (ix || iz) ? 0.4 : 0)));
+          person.pose(U.clock.value * 1.5, 0.05, 1);
           fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
           const camPos = tmp.copy(pos).addScaledVector(fwd, -1.1).setY(pos.y + 0.5 - pitch * 0.6);
           camPos.y = Math.max(camPos.y, groundAt(camPos.x, camPos.z, 99) + 0.08);
@@ -318,9 +445,40 @@ export const exploreModule: GameModule = {
           vel.lerp(tmp.set(wishX * speed, up * speed * 0.6, wishZ * speed), 1 - Math.exp(-dt * 4));
           slide(vel.x * dt, vel.z * dt, pos.y, true);
           pos.y = Math.min(140, Math.max(Math.max(groundAt(pos.x, pos.z, pos.y), U.waterLevel.value) + 0.2, pos.y + vel.y * dt));
-          camera.position.copy(pos).setY(pos.y + Math.sin(U.clock.value * 2.1) * 0.01);
-          look.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
-          camera.lookAt(tmp.copy(camera.position).add(look));
+          // The quadcopter faces where the camera looks, pitching into its speed and rolling into strafes.
+          const fwdSpeed = -vel.x * Math.sin(yaw) - vel.z * Math.cos(yaw);
+          const sideSpeed = vel.x * Math.cos(yaw) - vel.z * Math.sin(yaw);
+          drone.root.rotation.y = yaw + Math.PI / 2;
+          drone.root.rotation.z = MathUtils.lerp(drone.root.rotation.z, -fwdSpeed * 0.05, 1 - Math.exp(-dt * 6));
+          drone.root.rotation.x = MathUtils.lerp(drone.root.rotation.x, sideSpeed * 0.05, 1 - Math.exp(-dt * 6));
+          drone.root.position.set(pos.x, pos.y + Math.sin(U.clock.value * 2.1) * 0.01, pos.z);
+          drone.spin(dt, Math.min(1, Math.hypot(vel.x, vel.z) / 6 + Math.abs(vel.y) / 4));
+          chase(dt, drone.root.position, 1.4, 0.05, groundAt(camera.position.x, camera.position.z, 99) + 0.1);
+        } else if (mode === 'balloon') {
+          // Slow drift where you steer plus a light prevailing wind; the burner lifts, venting sinks.
+          const burn = k.has('KeyE') || k.has('Space');
+          const vent = k.has('KeyQ');
+          const drift = fast ? 3 : 1.4;
+          vel.x = MathUtils.lerp(vel.x, wishX * drift + 0.25, 1 - Math.exp(-dt * 0.8));
+          vel.z = MathUtils.lerp(vel.z, wishZ * drift + 0.12, 1 - Math.exp(-dt * 0.8));
+          vel.y = MathUtils.lerp(vel.y, burn ? 2.2 : vent ? -2.2 : -0.08, 1 - Math.exp(-dt * 0.9));
+          pos.x = MathUtils.clamp(pos.x + vel.x * dt, 2, g().w - 2);
+          pos.z = MathUtils.clamp(pos.z + vel.z * dt, 2, g().h - 2);
+          // Keep the whole envelope clear of rooftops round it.
+          let floor = U.waterLevel.value;
+          for (const [ox, oz] of [[0, 0], [1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]] as const)
+            floor = Math.max(floor, groundAt(pos.x + ox, pos.z + oz, 999));
+          pos.y = MathUtils.clamp(pos.y + vel.y * dt, floor + 1.5, 95);
+          balloon.root.position.copy(pos);
+          balloon.root.rotation.z = Math.sin(U.clock.value * 0.7) * 0.03;
+          balloon.root.rotation.x = Math.sin(U.clock.value * 0.53) * 0.025;
+          balloon.burn(burn ? 1 : 0.12);
+          if (firstPerson) {
+            // From the basket: eyes just above the rim.
+            camera.position.set(pos.x, pos.y + 0.3, pos.z);
+            look.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+            camera.lookAt(tmp.copy(camera.position).add(look));
+          } else chase(dt, tmp.copy(pos).setY(pos.y + 1.6), 7.5, 0.15, floor + 0.5);
         } else if (mode === 'follow') {
           const lanes = ctx.services.tryGet('skylanes');
           if (!lanes?.pods) return setMode('city');
@@ -351,7 +509,7 @@ export const exploreModule: GameModule = {
         }
         // Everything that focuses on the camera target (shadows, fog, pollen, agents) follows the player.
         cameraCtl.target.set(pos.x, Math.max(0, g().heightAt(pos.x, pos.z)), pos.z);
-        cameraCtl.distance = mode === 'drone' || mode === 'follow' || mode === 'train' ? Math.max(8, pos.y - cameraCtl.target.y + 6) : 6;
+        cameraCtl.distance = ['drone', 'balloon', 'roof', 'follow', 'train'].includes(mode) ? Math.max(8, pos.y - cameraCtl.target.y + 6) : 6;
         cameraCtl.yaw = yaw + Math.PI;
       },
     });

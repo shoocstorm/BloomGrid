@@ -149,6 +149,7 @@ The city is a system that can run well or badly.
 ## ✅ Phase 11 — Explore Modes
 
 - [x] Explore modes (N cycles, Esc back, buttons bottom-right): first-person **Walk** (run, jump, mouse look via pointer lock or drag), third-person **Hoverboard** (momentum, boost, hop, glides over water), free **Drone** flight, and **Ride a pod** (follow-cam on a commuter pod along its sky-lane; Tab next pod)
+- [x] Explore avatars and new views (D-054): chibi steward (third person, V first person), jet hoverboard, quadcopter drone, **Balloon** (drift, burn, vent) and **Rooftop** (stroll a landmark's roof, held to its walkable area; Tab next landmark)
 - [x] Collision without a physics engine (D-025): terrain, bridge decks, water and building solid boxes from the cached recipe bounds, so towers are walls and parks/plazas are walkable (`modules/explore/collider.ts`)
 - [x] High detail near the player: the city camera's target and distance follow the player, so shadows (tight frustum), fog, pollen, agents and instancer LOD all focus on them; a street-level near plane with a shorter far plane and a smaller sky dome
 - [x] Pods animate from a shared `U.clock` so the CPU follow-cam rides exactly the pod the shader draws
