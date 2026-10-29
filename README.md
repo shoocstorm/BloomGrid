@@ -100,6 +100,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Watch your city    | **P** City Pulse · **L** data lenses · **F** advisor · **K** dashboard · **I** inventory · **O** overview · **Y** city map (⌗ MAP in the top bar: every district named; click one to fly there) |
 | Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console (the glowing orb beside the toolbar, **✿ Ask** on any selected object) |
 | Explore            | **N** walk / hoverboard / drone / ride a pod / ride the Aeroline (**Tab** next, **Esc** back) · **J** photo mode (**P** saves a PNG); or the ◇ view-mode menu at the end of the top bar |
+| Find a fire        | **.** fly to the next fire (⌖ Next in the fire panel) · click a 🔥 pin, an alert toast or a map pin |
 | Time               | **Space** pause · **1 / 2 / 3** speed                                                              |
 | Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** / **⌘L** (Ctrl on Windows/Linux)                                         |
 | Remember a view    | **Alt+1–4** store · **Shift+1–4** recall                                                           |
@@ -132,7 +133,10 @@ last two build categories. Pod Interchanges in the living towns fly commuters to
 lightning, heatwaves and factories) that spread if nobody fights them. Ember Watch Stations put out fires within
 reach on their own; elsewhere, dispatch crews from the fire panel or the inspector (◈150 a fire), or ask Flora
 ("put out the fires", "what is burning?"). Burned-out buildings become ruins until you rebuild them. Every crisis
-and fire is recorded with its losses in the dashboard's **Incidents** tab (**K**, then Incidents).
+and fire is recorded with its losses in the dashboard's **Incidents** tab (**K**, then Incidents). Every fire
+raises a beam of light and pulsing rings you can see from across the island, and a 🔥 pin that slides to the screen
+edge (pointing at it) when the fire is out of view; click a pin, an alert toast or a fire on the city map (**Y**) to
+fly there, or press **.** to step through the fires, hottest first.
 
 **Wind power:** Breeze Turbines (☀ energy category) are cheap, clean and the cheapest power to run. The founding
 city already runs on them: a wind farm fills Windward Isle in the north-east and rows line the waterfront.

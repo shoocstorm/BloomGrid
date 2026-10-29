@@ -350,3 +350,29 @@
   font-size: 10.5px;
   color: var(--ink-faint);
 }
+/* Fires (D-050) over the labels, under the camera marker. */
+.cmap-fires {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.cmap-fire {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  pointer-events: auto;
+  background: rgba(28, 8, 6, 0.85);
+  border: 1px solid #ff6a4a;
+  border-radius: 50%;
+  animation: cmap-fire 1s steps(2) infinite;
+}
+@keyframes cmap-fire {
+  50% {
+    border-color: #ffc94a;
+  }
+}

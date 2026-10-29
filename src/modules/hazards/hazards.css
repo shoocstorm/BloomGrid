@@ -134,3 +134,71 @@
   color: #ffb08a;
   border: 1px solid rgba(255, 138, 90, 0.5);
 }
+/* Screen pins over fires; off screen they sit on the edge with an arrow pointing at the fire. */
+#hud > .hz-pins {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+.hz-pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  line-height: 1;
+  pointer-events: auto;
+  background: rgba(28, 8, 6, 0.82);
+  border: 1px solid #ff6a4a;
+  border-radius: 50%;
+  will-change: transform;
+}
+.hz-pin.hidden {
+  display: none;
+}
+.hz-pin:hover {
+  background: rgba(70, 20, 10, 0.95);
+}
+.hz-pin::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border: 2px solid #ff6a4a;
+  border-radius: 50%;
+  animation: hz-ping 1.4s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes hz-ping {
+  from {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+.hz-pin-arrow {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+.hz-pin.off .hz-pin-arrow {
+  display: block;
+}
+/* A small triangle just outside the circle, rotated (by the parent) to point at the fire. */
+.hz-pin-arrow::before {
+  content: '';
+  position: absolute;
+  left: calc(100% + 2px);
+  top: 50%;
+  margin-top: -6px;
+  border: 6px solid transparent;
+  border-left: 8px solid #ff6a4a;
+  border-right: 0;
+}

@@ -64,6 +64,9 @@ class CityMap {
   private legend = h('div', { class: 'cmap-legend' });
   private cam = h('div', { class: 'cmap-cam' }, h('i'));
   private readout = h('div', { class: 'cmap-readout' });
+  /** Burning buildings (D-050), refreshed with the camera marker; click to fly there. */
+  private fires = h('div', { class: 'cmap-fires' });
+  private fireKey = '';
   private stage: HTMLElement;
   private areas: Area[] = [];
   private owner = new Int16Array(0);
@@ -87,6 +90,7 @@ class CityMap {
       this.canvas,
       h('div', { class: 'cmap-grid' }),
       this.labels,
+      this.fires,
       this.cam,
       h('div', { class: 'cmap-compass', 'aria-hidden': 'true' }, h('b', {}, 'N'), h('i')),
     );
@@ -153,6 +157,7 @@ class CityMap {
     this.el.classList.toggle('hidden', !open);
     if (open) {
       this.paint();
+      this.fireKey = '-';
       this.timer = 99;
       this.update(0);
     }
@@ -403,6 +408,28 @@ class CityMap {
     this.cam.style.left = `${((t.x - v.x) / v.size) * 100}%`;
     this.cam.style.top = `${((t.z - v.z) / v.size) * 100}%`;
     this.cam.style.transform = `translate(-50%, -50%) rotate(${heading + Math.PI / 2}rad)`;
+    const fires = this.ctx.city.steward.fires;
+    const key = fires.map((f) => f.id).join(',');
+    if (key === this.fireKey) return;
+    this.fireKey = key;
+    this.fires.replaceChildren(
+      ...fires.map((f) =>
+        h(
+          'button',
+          {
+            class: 'cmap-fire',
+            title: 'Fire: fly there',
+            style: `left:${((f.x - v.x) / v.size) * 100}%;top:${((f.z - v.z) / v.size) * 100}%`,
+            onClick: (e: Event) => (
+              e.stopPropagation(),
+              this.ctx.cameraCtl.flyTo(f.x, f.z, 32),
+              this.toggle(false)
+            ),
+          },
+          '🔥',
+        ),
+      ),
+    );
   }
 }
 

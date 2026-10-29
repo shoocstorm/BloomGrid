@@ -14,7 +14,8 @@ declare module '@/core/EventBus' {
   interface GameEvents {
     /** A building (eid) or, with `road`, the highway network containing that tile. */
     'selection:changed': { eid: number | null; road?: number };
-    toast: { text: string; tone?: 'ok' | 'bad' | 'info' };
+    /** With `at` (tile coordinates), the toast is a button that flies the camera there. */
+    toast: { text: string; tone?: 'ok' | 'bad' | 'info'; at?: { x: number; z: number } };
   }
 }
 

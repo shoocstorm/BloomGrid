@@ -488,6 +488,25 @@ kbd,
 .toast.ok {
   border-left-color: var(--accent-2);
 }
+/* Incident toasts fly to the place on click (the toast stack itself ignores the pointer). */
+.toast.go {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+  cursor: pointer;
+  animation-duration: 5.3s;
+}
+.toast-go {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.toast.go:hover .toast-go {
+  text-decoration: underline;
+}
 
 /* ── Inspector, help ──────────────────────────────────────────────────────── */
 .info h3 {

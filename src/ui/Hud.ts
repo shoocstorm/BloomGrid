@@ -131,7 +131,7 @@ class Hud {
         this.tooltip.classList.toggle('bad', tone === 'bad');
       }
     });
-    bus.on('toast', ({ text, tone }) => this.toast(text, tone));
+    bus.on('toast', ({ text, tone, at }) => this.toast(text, tone, at));
     bus.on('selection:changed', ({ eid, road }) => (road !== undefined ? this.selectNetwork(road) : this.select(eid)));
     bus.on('building:removed', ({ eid }) => eid === this.selected && this.select(null));
     bus.on('save:done', () => this.toast('City saved', 'ok'));
@@ -177,10 +177,22 @@ class Hud {
     }).observe(el, { attributes: true, attributeFilter: ['class'] });
   }
 
-  private toast(text: string, tone: 'ok' | 'bad' | 'info' = 'info'): void {
-    const t = h('div', { class: `toast panel ${tone}` }, text);
+  private toast(text: string, tone: 'ok' | 'bad' | 'info' = 'info', at?: { x: number; z: number }): void {
+    // Located toasts (incidents) are buttons that fly there, and stay a little longer to be clicked.
+    const t = at
+      ? h(
+          'button',
+          {
+            class: `toast panel ${tone} go`,
+            title: 'Show me',
+            onClick: () => (this.ctx.cameraCtl.flyTo(at.x, at.z, 36), t.remove()),
+          },
+          text,
+          h('span', { class: 'toast-go' }, '⌖ Show'),
+        )
+      : h('div', { class: `toast panel ${tone}` }, text);
     this.toasts.append(t);
-    setTimeout(() => t.remove(), 2900);
+    setTimeout(() => t.remove(), at ? 5400 : 2900);
     while (this.toasts.children.length > 3) this.toasts.firstChild!.remove();
   }
 
