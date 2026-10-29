@@ -22,7 +22,7 @@ export default defineBuilding({
     upkeep: 0.2,
   },
   growthTime: 110,
-  transit: { radius: 22, riders: 1600 },
+  transit: { radius: 22, riders: 1600, hub: { reach: 45, ring: 8.4, radius: 2.6 } },
   variants: 1,
   recipe(b) {
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [3.9, 0.12, 3.9] });

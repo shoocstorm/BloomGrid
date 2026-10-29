@@ -118,6 +118,8 @@ The city is a system that can run well or badly.
 - [x] Congestion: load / `TILE_CAPACITY` per highway tile; jammed tiles slow trips → flow quality; new **Mobility** health tier, "Traffic" harmony factor (up to −12), Traffic lens (⇶), advisor rule with a one-click Pod Dock
 - [x] Green Pod Dock (`content/buildings/pod-dock.ts`): flies up to 420 commuters from homes within 12 tiles off the highways; inspector shows riders; two in the founding city
 - [x] Sky-lanes: pods shuttle on arcs from each dock to the busiest job hub it serves, marked by flowing light ribbons
+- [x] Sky-lane network (D-051): hubs (Pod Interchange, Dragonfly Skyport, central **Skylane Nexus**) link docks by spokes and each other by trunks; pods route dock → hub ring → another lane; linked docks carry +20–35% riders; hub rings and light shafts; new procedural pod with canopy and windows
+- [x] Pod ↔ Aeroline transfers (D-052): each station links to its nearest hub; pods land beside the platform so riders change to the trains; linked stations +25% riders, their networks +10%
 - [x] Hover-commuter agents: up to 8192 instances on straight runs of the flow field, GPU-animated from static data rebuilt every ~5 s; denser and slower and warm white → amber → coral as lanes jam; morning flows to work, evening home, fewer at night
 - [ ] Deferred to a later phase: canopy greenways, hyperloop under the hills and to the islets, ferries, player-drawn sky-lanes, vehicle follow-cam
 - **Accept:** ✅ `tests/mobility.test.ts` (flow field direction and load, more commuters → lower flow, a Pod Dock relieves the highway and opens a sky-lane, founding city flows ≥ 75%, advisory, determinism). Drill: `scripts/scenes/mobility.js` (`window.NIGHT`, `window.LENS`, `window.NEAR`).

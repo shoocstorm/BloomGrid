@@ -38,7 +38,7 @@ export const [GRID_W, GRID_N, GRID_S] = [4, 4, 3];
  */
 const QUARTERS: { name: string; zone: ZoneKind; blocks: [number, number, number, number]; heroes: (string | [string, string])[] }[] = [
   // Civic ring around the spire plaza.
-  { name: 'Civic Ring', zone: 'civic', blocks: [-1, -1, 1, 1], heroes: ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes', 'quartz-spire', 'nautilus-library', 'harmony-gate'] },
+  { name: 'Civic Ring', zone: 'civic', blocks: [-1, -1, 1, 1], heroes: ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes', 'quartz-spire', 'nautilus-library', 'harmony-gate', 'skylane-nexus'] },
   // Skyline hill (north-east): towers, homes and the skyport.
   { name: 'Skyline Hill', zone: 'living', blocks: [1, -4, 4, 0], heroes: ['dragonfly-port', ['glass-pine', 'vertical-forest'], 'moss-monolith', 'coral-arcology', 'lotus-pagoda', 'rain-vortex', 'bloom-eye', 'fog-harp'] },
   // The exchange (south-east), toward downtown: trade, science and the algae works.
@@ -509,7 +509,9 @@ export default defineScenario({
     // Sub-zones before their towns, so their tiles take the more specific name.
     for (const t of all) for (const z of t.zones ?? []) b.nameArea(z.name, ...streets(z.blocks), z.zone);
     for (const t of all) b.nameArea(t.name, ...streets(t.blocks), t.zone);
-    b.nameArea('Foundry Islet', ...islet, 'industry');
+    // Lots fill from their north-west tile, so a factory on the islet's east or south edge overhangs the rect:
+    // the name covers the overhang (the islet is ringed by sea, so nothing else is there).
+    b.nameArea('Foundry Islet', islet[0], islet[1], islet[2] + 5, islet[3] + 5, 'industry');
     b.nameArea('Windward Isle', ...isle, 'utility');
   },
 });

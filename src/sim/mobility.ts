@@ -3,6 +3,7 @@ import { Building, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { City } from './City';
 import { LABOUR_SHARE } from './pulseConst';
+import { buildSkyNet } from './skylanes';
 
 /** Commuters a highway tile carries per pulse before it starts to jam. */
 export const TILE_CAPACITY = 55;
@@ -134,6 +135,10 @@ export function computeMobility(city: City): void {
       jobsLeft[at] += st.jobs / k;
     }
   }
+
+  // The sky-lane network: linked docks fly riders anywhere on it, so they carry more.
+  const net = buildSkyNet(docks);
+  for (const dk of docks) dk.left = dk.cap;
 
   // Commuters per home; pods first (within reach of a dock), the rest by highway.
   const employed = 1 - city.pulse.unemployment;
@@ -283,4 +288,5 @@ export function computeMobility(city: City): void {
   // Flow quality: 1 = free-flowing; 0.5 = trips take twice as long as they would on empty highways.
   p.flow = free > 0 ? Math.min(1, free / actual) : 1;
   p.podRoutes = routes;
+  p.skylanes = net;
 }

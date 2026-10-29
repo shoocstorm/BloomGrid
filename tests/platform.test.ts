@@ -82,7 +82,7 @@ describe('central landmark', () => {
     expect(s.city.terrainEdits.size).toBeGreaterThan(200);
     // The hero district around it: every hero placed, each with highway access, and empty graded lots left
     // on the grid for future heroes.
-    expect(HERO_IDS.length).toBe(39);
+    expect(HERO_IDS.length).toBe(40);
     for (const id of HERO_IDS) {
       const e = s.city.buildingEntities().find((b) => buildings.at(Building.def[b]!).id === id);
       expect(e, id).toBeDefined();

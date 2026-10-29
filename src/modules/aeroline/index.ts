@@ -24,6 +24,7 @@ export const aerolineModule: GameModule = {
     const { city } = ctx;
     let trains: Trains | null = null;
     let movers: Movers | null = null;
+    let deckY = 0;
     const route = aerolineRoute(city.size);
     const path = new LoopPath(route.corners, route.radius);
 
@@ -37,6 +38,7 @@ export const aerolineModule: GameModule = {
         top = Math.max(top, ground(p.x, p.z));
       }
       const deck = Math.max(MIN_DECK, top + CLEARANCE);
+      deckY = deck;
       const L = path.length;
       const centre = route.corners.reduce(
         (a, c) => [a[0] + c[0] / route.corners.length, a[1] + c[1] / route.corners.length],
@@ -78,6 +80,9 @@ export const aerolineModule: GameModule = {
       get trains() {
         return trains?.count ?? 0;
       },
+      get deck() {
+        return deckY;
+      },
       ride(i: number, eye: Vector3, look: Vector3): void {
         if (!trains) return;
         const { u, dir } = trains.head(i % trains.count, U.clock.value);
@@ -94,6 +99,8 @@ declare module '@/core/Services' {
     aeroline: {
       /** Trains running (0 until a station exists). */
       readonly trains: number;
+      /** Platform deck height (0 until the line is built): sky-lane pods land beside it (D-052). */
+      readonly deck: number;
       /** Camera eye and look-at for riding train `i`'s cab. */
       ride(i: number, eye: Vector3, look: Vector3): void;
     };

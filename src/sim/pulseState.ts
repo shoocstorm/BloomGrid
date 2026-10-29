@@ -1,4 +1,5 @@
 import type { PodRoute } from './mobility';
+import type { SkyNet } from './skylanes';
 import type { DroneJob } from './floranet';
 
 /**
@@ -70,6 +71,8 @@ export interface PulseState {
   avgCommute: number;
   /** Sky-lanes flown by commuter pods (for rendering). */
   podRoutes: PodRoute[];
+  /** Sky-lane network: hubs, spokes and trunks (D-051; for rendering and the inspector). */
+  skylanes: SkyNet;
   /** Flora-Net (derived each pass): share of built zones with healthy soil, dry built zones. */
   soilHealth: number;
   dryZones: number;
@@ -108,6 +111,7 @@ export function createPulseState(): PulseState {
     podRiders: 0,
     avgCommute: 0,
     podRoutes: [],
+    skylanes: { hubs: [], links: [] },
     soilHealth: 1,
     dryZones: 0,
     drones: [],

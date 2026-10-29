@@ -69,7 +69,10 @@ reclaim or defend.</td>
   bloom season peaks, and a **Bloom Retrofit** sends a wave of sunflower crowns and courtyard waterfalls through a
   district.
 - **Commuters and traffic.** Residents travel to real jobs along your highways, and busy lanes jam. Green **Pod Docks**
-  lift commuters over the traffic on glowing sky-lanes.
+  lift commuters over the traffic on glowing sky-lanes. **Pod Interchanges** and the central **Skylane Nexus** are
+  hubs: they link nearby docks into one network, pods circle each hub's ring and route on to any lane, and docks on
+  the network carry more riders. Hubs near an **Aeroline station** fly riders to its platform to change to the
+  trains, which lifts the whole network again.
 - **Living soil (Flora-Net).** Gardens dry out and farms exhaust their soil. Mist dry zones, dig channels, or build a
   **Drone Hive** whose hummingbird drones pollinate, harvest and trim the jungle back.
 - **Crises.** Monsoons, king tides, heatwaves, algal blooms, grid failures and blight are forecast before they hit,

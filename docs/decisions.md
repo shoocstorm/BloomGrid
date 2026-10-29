@@ -548,3 +548,56 @@ monitor notices for fires, ruins and quakes. Visuals (`modules/hazards`): flame 
 ruin plumes, a lightning bolt and flash, quake shake (sync phase, so it lands in the frame); no shadows; two
 instanced meshes posed only while something burns or smoulders.
 
+
+## D-051 — The sky-lane network: hubs, spokes, trunks and a new commuter pod (2026-10-29)
+
+**Network.** A transit building with `transit.hub` (`reach`, ring height and radius, `central`) is a sky-lane hub:
+Pod Interchanges (reach 45), the Dragonfly Skyport (60) and the new **Skylane Nexus** (central, reach 110; 6×6,
+placed in the Civic Ring beside the spire). `sim/skylanes.ts` builds the network on every mobility pass from the
+operating docks alone: each Pod Dock links by a **spoke** to the nearest hub whose reach covers it; hubs link by
+**trunks**, a minimum spanning tree over hubs within 150 tiles (a link to a central hub costs half, so the Nexus
+becomes the backbone) plus a star from each central hub to the hubs in its reach. Deterministic (entity order, ties to
+the lower index), derived, never saved (`pulse.skylanes`, like `podRoutes`). **Gameplay:** a linked dock or hub
+carries +20% riders on a network of two or more hubs, +15% more when it has a central hub (applied before riders
+are taken). Founding city: 13 hubs in one network, 164 docks linked; flow unchanged within noise (≈0.95).
+**Pods route.** A networked dock's pods fly up its spoke into the hub, circle the transfer ring and leave on another
+lane: to the dock's job centre (an egress lane), to another dock on the hub, or along a trunk to the next hub;
+express pods run the trunks. A turn round the ring shorter than 0.8 rad loops the whole ring instead (it reads as
+routing). One path function (`modules/mobility/skypath.ts`) poses pods in the vertex shader from three static vec4s
+(route, via, info) and mirrors on the CPU for the ride camera; legs are the lanes' own arcs, so pods ride their
+ribbons. The ease never stops (min 20% speed), so the heading from finite differences stays defined. Rejected:
+per-frame CPU posing (uploads every frame, AGENTS §7½).
+**Look.** Lane ribbons by kind (dock lane teal → pink, spokes cyan → blue, trunks broad gold ↔ violet with a centre
+line and edge rails); saturated colours by day, neon at night; lanes and rings thicken with camera distance. Each hub
+wears three counter-rotating dashed rings (six for a central hub, gold) and a light shaft; normal blending for the
+rings (additive vanished against the sunlit city). +2 draw calls (rings, shafts).
+**Pod model.** The optional `commuter-pod.glb` is no longer loaded: a procedural pod (`podModel.ts`, ≈1.3k vertices
+since the shader evaluates the path per vertex) with a smoked-glass canopy split by frames, three cabin windows a
+side, a waist light line, a ring thruster, swept fins and a hover pad. Glass is marked by `aGlow = −1` (an `aGlass`
+attribute took the pod to nine vertex buffers; WebGPU allows eight) and shaded with a Fresnel sky reflection, a sun
+glint and a warm cabin at night. Normals turn with the body, lit by `skyShade`. Kit `pod` pieces (berthed in
+buildings) are unchanged.
+**Measured** (headless, founding city, High): draws 242/288 → 245/291 on the same perf path; main thread ≈21–22%
+both; GPU 2.7–3.8 ms → 2.9–4.2 ms (within the noted headless noise); boot unchanged (WebGL warm-up ≈2.5 s both).
+**Scenario note:** the Nexus's jobs shift the job sweep, so one more factory reaches the Foundry Islet's east edge;
+the islet's name now covers the overhang of lots on its edge (`zoning.test.ts` caught the factory outside its zone).
+
+## D-052 — Pod ↔ Aeroline transfers; wild trees at street scale (2026-10-29)
+
+**Transfers.** Aeroline stations (`transit.rail`) join the sky-lane network (D-051) as transfer points: each links by
+a **rail** link to the nearest hub within the hub's reach + `RAIL_REACH` (20), so riders fly in by pod and change
+to the trains. Gameplay: a linked station carries +25% riders (`RAIL_FEED`: pods bring them from beyond its walking
+radius), and every dock and hub on a network that reaches a station +10% more (`RAIL_BONUS`, on top of the network
+and central bonuses). Founding city: all four stations link to their town's Pod Interchange; tests still pass the
+zoning balance unchanged. Inspector lines for hubs (transfers count) and stations (linked hub or how to link).
+**Render.** A rose → amber transfer lane from the hub ring to the station, two shuttle pods on it, a quarter of
+each networked dock's pods routed dock → hub ring → station, and two rose landing rings over the station. Pods set
+down `RAIL_Y` (1.6) above the platform deck; the deck height comes from the Aeroline service (`aeroline.deck`).
+The Aeroline module initialises after mobility, so the lanes re-land once the deck is known (checked per frame
+against the height they were built with; an estimate until then).
+**Trees.** Wild trees (`world/Flora.ts`) were up to ≈4 units tall with canopies 2.2 tiles wide: 11–12 floors
+(FLOOR 0.32) beside 3–6-floor homes. Now size 0.42–0.82 (was 0.7–1.5) and round canopies 0.85–1.15× size (was
+1.0–1.45×): about 4–7 floors, under a tile wide. Dense forest (field > 0.35) packs a second, smaller tree into 60%
+of its tiles so woods still close at the new scale: flora instances 103k → 111k (+8%). Draws unchanged (245/291 on
+the perf path); headless GPU time swung 2.6–11 ms between identical runs, too noisy to compare. Recipe trees
+(`kit.tree`) were left alone: they are sized per building already.

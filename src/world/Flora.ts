@@ -87,21 +87,26 @@ export class Flora {
     };
 
     const high = min > 7;
-    // Trees: dense where the forest field is high; sparse elsewhere.
+    // Trees: dense where the forest field is high; sparse elsewhere. Sized against the buildings (a floor is
+    // 0.32): a grown tree stands about 4–7 floors and spreads under a tile, so a street tree doesn't dwarf a home.
     const treeChance = forest > 0.2 ? 0.28 + forest * 0.3 : 0.015;
     if (slope < 2.5 && rng.next() < treeChance) {
-      const size = rng.range(0.7, 1.5) * (high ? 0.8 : 1);
-      const ox = rng.range(0.25, 0.75);
-      const oz = rng.range(0.25, 0.75);
-      const h = size * rng.range(1.1, 1.8);
-      add('trunk', ox, oz, _s.set(size * 0.12, h, size * 0.12), PALETTE.bark, 0, 0);
-      const blobs = high ? 3 : 1 + rng.int(0, 2);
-      for (let i = 0; i < blobs; i++) {
-        const r = high ? size * (1.1 - i * 0.3) : size * rng.range(1.0, 1.45);
-        const s = high ? _s.set(r * 0.8, r * 1.3, r * 0.8) : _s.setScalar(r);
-        const tint = high ? 0x3f7a4f : rng.pick(PALETTE.leaves);
-        const glow = rng.next() < 0.12 ? rng.range(0.4, 0.9) : 0;
-        add('canopy', ox + rng.range(-0.15, 0.15), oz + rng.range(-0.15, 0.15), s, tint, glow, 1 + i, h * 0.55 + i * r * (high ? 0.5 : 0.25));
+      // Dense forest packs a second, smaller tree into the tile so the canopy still closes at street scale.
+      const trees = forest > 0.35 && rng.next() < 0.6 ? 2 : 1;
+      for (let k = 0; k < trees; k++) {
+        const size = rng.range(0.42, 0.82) * (high ? 0.85 : 1) * (k ? 0.8 : 1);
+        const ox = k ? rng.range(0.1, 0.4) : rng.range(0.45, 0.85);
+        const oz = k ? rng.range(0.55, 0.9) : rng.range(0.15, 0.6);
+        const h = size * rng.range(1.1, 1.8);
+        add('trunk', ox, oz, _s.set(size * 0.12, h, size * 0.12), PALETTE.bark, 0, 0);
+        const blobs = high ? 3 : 1 + rng.int(0, 2);
+        for (let i = 0; i < blobs; i++) {
+          const r = high ? size * (1.1 - i * 0.3) : size * rng.range(0.85, 1.15);
+          const s = high ? _s.set(r * 0.8, r * 1.3, r * 0.8) : _s.setScalar(r);
+          const tint = high ? 0x3f7a4f : rng.pick(PALETTE.leaves);
+          const glow = rng.next() < 0.12 ? rng.range(0.4, 0.9) : 0;
+          add('canopy', ox + rng.range(-0.1, 0.1), oz + rng.range(-0.1, 0.1), s, tint, glow, 1 + i, h * 0.55 + i * r * (high ? 0.5 : 0.25));
+        }
       }
     } else if (rng.next() < 0.07) {
       add('bush', rng.next(), rng.next(), _s.setScalar(rng.range(0.25, 0.45)), rng.pick(PALETTE.leaves), 0, 0);

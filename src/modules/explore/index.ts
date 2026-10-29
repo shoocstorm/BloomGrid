@@ -1,7 +1,6 @@
 import { CapsuleGeometry, BoxGeometry, Group, MathUtils, Mesh, MeshStandardNodeMaterial, Vector3 } from 'three/webgpu';
 import { color } from 'three/tsl';
 import type { GameModule } from '@/game/context';
-import { hash2 } from '@/sim/random';
 import { U } from '@/render/uniforms';
 import { h, setText } from '@/ui/dom';
 import { STEP, createCollider } from './collider';
@@ -323,22 +322,10 @@ export const exploreModule: GameModule = {
           look.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
           camera.lookAt(tmp.copy(camera.position).add(look));
         } else if (mode === 'follow') {
-          const routes = city.pulse.podRoutes;
-          if (!routes.length) return setMode('city');
-          const r = routes[followIdx % routes.length]!;
-          // Same arc and shuttle timing as the mobility shader (pod 0 of the route).
-          const grid = g();
-          const ya = Math.max(0, grid.heightAt(r.ax, r.az)) + 3.2;
-          const yb = Math.max(0, grid.heightAt(r.bx, r.bz)) + 1.2;
-          const len = Math.max(1, Math.hypot(r.bx - r.ax, r.bz - r.az));
-          const peak = 3 + Math.hypot(r.bx - r.ax, r.bz - r.az) * 0.08;
-          const seed = hash2(Math.floor(r.ax), Math.floor(r.az), 0) * 0.1;
-          const at = (clock: number, out: Vector3) => {
-            const t = 0.5 - 0.5 * Math.cos(clock * (4 / Math.sqrt(len)) + seed * 6.283);
-            return out.set(r.ax + (r.bx - r.ax) * t, ya + (yb - ya) * t + t * (1 - t) * 4 * peak, r.az + (r.bz - r.az) * t);
-          };
-          at(U.clock.value, pos);
-          at(U.clock.value + 0.15, fwd);
+          const lanes = ctx.services.tryGet('skylanes');
+          if (!lanes?.pods) return setMode('city');
+          // Same flight as the pod shader (skypath.ts): pods spread over the network, Tab for the next.
+          lanes.podAt((followIdx * 37) % lanes.pods, U.clock.value, pos, fwd);
           fwd.sub(pos);
           if (fwd.lengthSq() > 1e-6) {
             fwd.normalize();

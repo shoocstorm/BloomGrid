@@ -73,6 +73,52 @@ describe('mobility', () => {
     expect(r.bx).toBeGreaterThan(r.ax + 8);
   });
 
+  it('a hub links nearby docks into the sky-lane network, and linked docks carry more riders', () => {
+    const { s, x0, z } = commuterRow(9);
+    expect(s.commands.execute('build', { def: 'pod-dock', x: x0 + 12, z: z + 1, rot: 0 })).toBe(true);
+    fillHomes(s);
+    expect(s.city.pulse.skylanes.hubs.length).toBe(0);
+    const alone = s.city.pulse.podRiders;
+    // Two hubs: the dock links to the nearer by a spoke, the hubs to each other by a trunk.
+    expect(s.commands.execute('build', { def: 'pod-interchange', x: x0 + 15, z: z + 1, rot: 0 })).toBe(true);
+    expect(s.commands.execute('build', { def: 'skylane-nexus', x: x0 + 2, z: z + 1, rot: 0 })).toBe(true);
+    fillHomes(s);
+    const net = s.city.pulse.skylanes;
+    expect(net.hubs.length).toBe(2);
+    expect(net.hubs.some((h) => h.central)).toBe(true);
+    expect(net.links.filter((l) => l.kind === 'trunk').length).toBe(1);
+    const spoke = net.links.find((l) => l.kind === 'spoke');
+    expect(spoke).toBeDefined();
+    expect(net.hubs[spoke!.b]!.def).toBe('pod-interchange');
+    expect(s.city.pulse.podRiders).toBeGreaterThan(alone);
+  });
+
+  it('an Aeroline station links to the nearest hub as a transfer, and the network carries more', () => {
+    const { s, x0, z } = commuterRow(9);
+    expect(s.commands.execute('build', { def: 'pod-dock', x: x0 + 12, z: z + 1, rot: 0 })).toBe(true);
+    expect(s.commands.execute('build', { def: 'pod-interchange', x: x0 + 15, z: z + 1, rot: 0 })).toBe(true);
+    fillHomes(s);
+    const noRail = s.city.pulse.podRiders;
+    expect(s.commands.execute('build', { def: 'aeroline-station', x: x0 + 4, z: z + 1, rot: 0 })).toBe(true);
+    fillHomes(s);
+    const net = s.city.pulse.skylanes;
+    const rail = net.links.filter((l) => l.kind === 'rail');
+    expect(rail.length).toBe(1);
+    expect(net.hubs[rail[0]!.b]!.rail).toBe(1);
+    expect(s.city.pulse.podRiders).toBeGreaterThan(noRail);
+  });
+
+  it("the founding city's hubs form one network round the Skylane Nexus", () => {
+    const s = founded();
+    const net = s.city.pulse.skylanes;
+    expect(net.hubs.filter((h) => h.central).length).toBe(1);
+    expect(net.hubs.length).toBeGreaterThan(5);
+    expect(new Set(net.hubs.map((h) => h.net)).size).toBe(1);
+    expect(net.links.filter((l) => l.kind === 'spoke').length).toBeGreaterThan(100);
+    // Every Aeroline station is a transfer point.
+    expect(net.links.filter((l) => l.kind === 'rail').length).toBe(4);
+  });
+
   it('the founding city flows; the pulse runs the pass; jams raise an advisory', () => {
     const s = founded();
     expect(s.city.pulse.commuters).toBeGreaterThan(5000);

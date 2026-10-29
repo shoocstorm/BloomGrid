@@ -13,7 +13,7 @@ export default defineBuilding({
   footprint: [8, 8],
   stats: { cost: 3900, energy: -30, eco: 4, happiness: 10, population: 0, jobs: 40, pollution: 0 },
   growthTime: 160,
-  transit: { radius: 26, riders: 1400 },
+  transit: { radius: 26, riders: 1400, hub: { reach: 60, ring: 24.6, radius: 2.8 } },
   variants: 1,
   style: 'verdigris',
   recipe(b) {

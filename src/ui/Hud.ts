@@ -177,6 +177,28 @@ class Hud {
     }).observe(el, { attributes: true, attributeFilter: ['class'] });
   }
 
+  /** Where a stop sits on the sky-lane network (D-051): a hub's reach, or the hub a dock is linked to. */
+  private skylaneLine(eid: number): string {
+    const net = this.ctx.city.pulse.skylanes;
+    const hub = net.hubs.findIndex((hh) => hh.eid === eid);
+    if (hub >= 0) {
+      const h = net.hubs[hub]!;
+      const trunks = net.links.filter((l) => l.kind === 'trunk' && (l.a === hub || l.b === hub)).length;
+      const rail = h.rail ? `, ${h.rail} Aeroline transfer${h.rail === 1 ? '' : 's'}` : '';
+      return `⌬ Sky-lane ${h.central ? 'central hub' : 'hub'}: ${h.stations} dock${h.stations === 1 ? '' : 's'} linked, ${trunks} trunk${trunks === 1 ? '' : 's'} to other hubs${rail}`;
+    }
+    if (this.ctx.city.buildingDef(eid).transit?.rail) {
+      const link = net.links.find((l) => l.kind === 'rail' && l.eid === eid);
+      return link
+        ? `⌬ Pod transfer: sky-lane pods from the ${this.ctx.city.buildingDef(net.hubs[link.b]!.eid).name} set riders down for the trains`
+        : '⌬ No pod transfer: build a Pod Interchange or Skylane Nexus nearby so pod riders can change to the trains';
+    }
+    const spoke = net.links.find((l) => l.kind === 'spoke' && l.eid === eid);
+    if (!spoke) return '⌬ Off the sky-lane network: build a Pod Interchange or Skylane Nexus nearby to link it (more riders)';
+    const h = net.hubs[spoke.b]!;
+    return `⌬ Linked to the ${this.ctx.city.buildingDef(h.eid).name}: pods route anywhere on the network`;
+  }
+
   private toast(text: string, tone: 'ok' | 'bad' | 'info' = 'info', at?: { x: number; z: number }): void {
     // Located toasts (incidents) are buttons that fly there, and stay a little longer to be clicked.
     const t = at
@@ -480,6 +502,7 @@ class Hud {
       const extra = [
         Building.level[eid] ? '✾ Bloom Retrofit: flowering façade, sunflower crown (eco ×1.5, uses less power and water)' : '',
         def.transit ? `⇶ Pod Dock: flying ${Math.round(Service.riders[eid]!)} of up to ${def.transit.riders} commuters from homes within ${def.transit.radius} tiles` : '',
+        def.transit ? this.skylaneLine(eid) : '',
         sym ? (Service.paired[eid] ? `✓ Symbiosis: ${sym.label}` : `✗ Unpaired: place a ${sym.partners.map((p) => buildings.get(p).name).join(' or ')} within ${sym.radius} tiles`) : '',
         `Bloom ${Math.round(Service.bloom[eid]! * 100)}% · Condition ${Math.round(Service.condition[eid]! * 100)}%`,
       ].filter(Boolean);

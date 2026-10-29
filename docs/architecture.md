@@ -56,7 +56,7 @@ Desktop: `src-tauri/src/{llm,models}/`, `mlx.rs` (`llm_*` commands; Apple Silico
 | Coast & weaver    | `sim/coast.ts`, `sim/weaver.ts`                              | Terrain edits + derived refresh, sea rise, seawalls; sky-bridges and banyan level → `modules/weaver`, world rebuilds (D-024)   |
 | Assets & platform | `assets/AssetManager.ts`, `platform/`, `src-tauri/`          | GLB pieces/geometry with node materials and fallbacks; web (IndexedDB) or Tauri (JSON files) storage (D-026)                   |
 | Explore (render)  | `modules/explore/`                                           | Walk / board / drone / pod follow-cam and photo mode over `CityCamera` (disabled while exploring), collider (D-025)            |
-| Mobility          | `sim/mobility.ts`                                            | Commute flow field + congestion + pod routes (pulse phase 1) → `modules/mobility` GPU-animated agents, pods, sky-lanes (D-022) |
+| Mobility          | `sim/mobility.ts`                                            | Commute flow field + congestion + pod routes + sky-lane network (`sim/skylanes.ts`, pulse phase 1) → `modules/mobility` GPU-animated agents, pods (`skypath.ts`, shared with the ride camera), sky-lanes, hub rings (D-022, D-051) |
 | Finance & upkeep  | `sim/finance.ts`, `sim/upkeep.ts`                            | Loans, austerity funding, building condition, highway overgrowth (D-016)                                                       |
 | Stewardship       | `sim/steward.ts`, `sim/difficulty.ts`, `sim/stewardState.ts` | Fail clock, difficulty presets, saved steward state (D-017)                                                                    |
 
