@@ -52,6 +52,8 @@ async function boot() {
     await screen.finish(() => ctx.cameraCtl.intro(v.x, v.z, v.distance, 6, v));
     hud.style.transition = 'opacity 1s';
     hud.style.opacity = '1';
+    // HUD entrance animations (the welcome card) wait for this so they play in view.
+    document.body.classList.add('booted');
   } catch (e) {
     console.error(e);
     screen.fail((e as Error).message);

@@ -41,7 +41,7 @@
   flex-direction: column;
   padding: 0;
   font-size: 12.5px;
-  border: 1px solid var(--line-strong);
+  border: none;
   background:
     radial-gradient(120% 60% at 0% 0%, rgba(95, 242, 218, 0.1), transparent 60%),
     radial-gradient(80% 50% at 100% 100%, rgba(142, 240, 122, 0.06), transparent 70%),
@@ -359,7 +359,6 @@ body.flora-max .help {
 /* ── Buttons: rounded, mono ───────────────────────────────────────────── */
 .ai-op,
 .ai-chip,
-.ai-send,
 .ai-auth {
   font: inherit;
   font-family: var(--mono);
@@ -374,8 +373,7 @@ body.flora-max .help {
   border-radius: var(--r-sm);
 }
 .ai-op:hover,
-.ai-chip:hover,
-.ai-send:hover {
+.ai-chip:hover {
   background: var(--bg-hover);
   border-color: var(--line-strong);
   color: var(--accent);
@@ -754,24 +752,175 @@ body.flora-max .help {
 .ai.max .ai-input {
   font-size: 14px;
 }
+/* Send: a luminous key that becomes a stop square (with a turning ring) while Flora works. */
 .ai-send {
-  color: var(--accent);
-  border-color: var(--line-strong);
+  position: relative;
+  flex: none;
+  align-self: flex-end;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(220, 245, 238, 0.35);
+  border-radius: var(--r-sm);
+  color: #062a26;
+  background: linear-gradient(140deg, var(--accent) 0%, var(--accent-2) 100%);
+  box-shadow:
+    0 0 14px rgba(95, 242, 218, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition:
+    transform 0.14s ease,
+    filter 0.14s ease;
+}
+.ai-send .ico {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2.1;
+  transition: transform 0.18s ease;
+}
+.ai-send:hover {
+  filter: brightness(1.1);
+}
+.ai-send:hover .ico-send {
+  transform: translate(1.5px, -1.5px);
+}
+.ai-send:active {
+  transform: scale(0.93);
+}
+.ai-send:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 .ai.busy .ai-send {
   color: var(--crit);
-  border-color: var(--crit);
+  background: rgba(255, 90, 110, 0.12);
+  border-color: rgba(255, 90, 110, 0.55);
+  box-shadow: none;
 }
+.ai.busy .ai-send:hover {
+  background: rgba(255, 90, 110, 0.2);
+}
+.ai.busy .ai-send::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: var(--crit);
+  border-right-color: rgba(255, 90, 110, 0.35);
+  animation: ai-spin 0.9s linear infinite;
+}
+@keyframes ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Autonomous mode: a toggle switch on a small card that lights up when Flora may act alone. */
 .ai-auto {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   align-items: center;
   margin-top: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+.ai-auto:hover {
+  border-color: var(--line-strong);
+}
+.ai-auto:has(:checked) {
+  border-color: rgba(142, 240, 122, 0.5);
+  background: rgba(142, 240, 122, 0.07);
+}
+.ai-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 19px;
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
+  background: rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+.ai-switch::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  transition:
+    transform 0.22s cubic-bezier(0.3, 1.5, 0.5, 1),
+    background-color 0.18s ease;
+}
+.ai-switch:checked {
+  border-color: var(--accent-2);
+  background-color: rgba(142, 240, 122, 0.28);
+}
+.ai-switch:checked::before {
+  transform: translateX(15px);
+  background: var(--accent-2);
+  box-shadow: 0 0 7px rgba(142, 240, 122, 0.8);
+}
+.ai-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.ai-auto-t {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.ai-auto-t b {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.ai-auto-t span {
   font-size: 10.5px;
   color: var(--ink-soft);
 }
-.ai-auto input {
-  accent-color: var(--accent);
+.ai-auto-s {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border-radius: var(--pill);
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+}
+.ai-auto-s::before {
+  content: 'ASK';
+}
+.ai-auto:has(:checked) .ai-auto-s {
+  color: var(--accent-2);
+  border-color: rgba(142, 240, 122, 0.5);
+}
+.ai-auto:has(:checked) .ai-auto-s::before {
+  content: 'AUTO';
 }
 .ai-result {
   display: grid;

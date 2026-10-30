@@ -125,11 +125,18 @@ export class AssistantPanel {
     }) as HTMLTextAreaElement;
     this.sendBtn = h(
       'button',
-      { class: 'ai-send', onClick: () => (this.busy ? this.actions.stop() : this.submit()) },
-      'Transmit',
+      {
+        class: 'ai-send',
+        title: 'Transmit (Enter)',
+        'aria-label': 'Transmit',
+        onClick: () => (this.busy ? this.actions.stop() : this.submit()),
+      },
+      icon('send'),
     ) as HTMLButtonElement;
     const auto = h('input', {
       type: 'checkbox',
+      class: 'ai-switch',
+      role: 'switch',
       onChange: (e: Event) => this.actions.setAutoApprove((e.target as HTMLInputElement).checked),
     }) as HTMLInputElement;
     auto.checked = this.actions.autoApprove();
@@ -285,7 +292,13 @@ export class AssistantPanel {
             'label',
             { class: 'ai-auto' },
             auto,
-            ' Autonomous mode: act without asking (every action stays undoable, ⌘Z)',
+            h(
+              'span',
+              { class: 'ai-auto-t' },
+              h('b', {}, 'Autonomous mode'),
+              h('span', {}, 'Act without asking · every action stays undoable (⌘Z)'),
+            ),
+            h('span', { class: 'ai-auto-s', 'aria-hidden': 'true' }),
           ),
         )),
         side,
@@ -399,7 +412,9 @@ export class AssistantPanel {
   setBusy(on: boolean): void {
     this.busy = on;
     this.el.classList.toggle('busy', on);
-    setText(this.sendBtn, on ? 'Abort' : 'Transmit');
+    this.sendBtn.replaceChildren(icon(on ? 'stop' : 'send'));
+    this.sendBtn.title = on ? 'Abort (stop Flora)' : 'Transmit (Enter)';
+    this.sendBtn.setAttribute('aria-label', on ? 'Abort' : 'Transmit');
     if (on) this.turns++;
   }
 

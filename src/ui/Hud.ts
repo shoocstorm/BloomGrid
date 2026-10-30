@@ -79,37 +79,7 @@ class Hud {
     this.buildInfo();
     this.tooltip = h('div', { class: 'tooltip panel hidden' });
     this.toasts = h('div', { class: 'toasts' });
-    this.help = isTouchDevice() ? this.touchHelp() : h(
-      'div',
-      { class: 'help panel' },
-      h('b', {}, 'Welcome to BloomGrid'),
-      h('br'),
-      'Pan ',
-      h('kbd', {}, 'WASD'),
-      ' / drag · Orbit ',
-      h('kbd', {}, 'right-drag'),
-      ' ',
-      h('kbd', {}, 'Q E'),
-      h('br'),
-      'Zoom ',
-      h('kbd', {}, 'wheel'),
-      ' · Rotate ',
-      h('kbd', {}, 'R'),
-      ' · Undo ',
-      h('kbd', {}, '⌘Z'),
-      h('br'),
-      'Pause ',
-      h('kbd', {}, 'Space'),
-      ' · Speed ',
-      h('kbd', {}, '1 2 3'),
-      ' · Perf ',
-      h('kbd', {}, 'F3'),
-      h('br'),
-      'Debug ',
-      h('kbd', {}, '`'),
-      ' · Hide this ',
-      h('kbd', {}, 'H'),
-    );
+    this.help = this.welcome();
     this.right = h('div', { class: 'rightcol' });
     this.root.append(this.tooltip, this.toasts, this.right);
     this.right.append(this.info, this.help);
@@ -151,18 +121,60 @@ class Hud {
     this.syncUndo();
   }
 
-  private touchHelp(): HTMLElement {
-    const row = (k: string, v: string) => h('div', { class: 'help-row' }, h('b', {}, k), h('span', {}, v));
+  /**
+   * The welcome card: a one-shot "steward link" reveal (emblem, title, staggered controls) so the first
+   * seconds feel like taking the helm. Animations run once on transform/opacity only (§7½).
+   */
+  private welcome(): HTMLElement {
+    const touch = isTouchDevice();
+    const keys = (...k: string[]) => h('span', { class: 'wc-keys' }, ...k.map((x) => h('kbd', {}, x)));
+    const row = (ico: string, label: string, hint: Node) =>
+      h('div', { class: 'wc-row' }, icon(ico), h('span', { class: 'wc-label' }, label), hint);
+    const say = (s: string) => h('span', { class: 'wc-hint' }, s);
+    const rows = touch
+      ? [
+          row('select', 'Pan', say('drag')),
+          row('rotate', 'Zoom · rotate', say('pinch · twist')),
+          row('up', 'Tilt', say('two fingers')),
+          row('eye', 'Inspect', say('tap')),
+          row('build', 'Build', say('tap, tap again')),
+        ]
+      : [
+          row('select', 'Pan', keys('WASD', 'drag')),
+          row('rotate', 'Orbit', keys('Q', 'E', 'right-drag')),
+          row('search', 'Zoom', keys('wheel')),
+          row('undo', 'Undo', keys('⌘Z')),
+          row('pause', 'Pause', keys('Space')),
+          row('fast', 'Speed', keys('1', '2', '3')),
+          row('chip', 'Perf · Debug', keys('F3', '`')),
+        ];
+    rows.forEach((r, i) => r.style.setProperty('--i', String(i)));
+    const dismiss = () => this.help.classList.add('hidden');
     return h(
       'div',
-      { class: 'help panel' },
-      h('b', {}, 'Welcome to BloomGrid'),
-      row('Drag', 'pan the island'),
-      row('Pinch · twist', 'zoom · rotate'),
-      row('Two fingers ↕', 'tilt the view'),
-      row('Tap', 'inspect a building or highway'),
-      row('Build', 'tap to preview, tap again to place'),
-      h('button', { class: 'icon-btn help-ok', onClick: () => this.help.classList.add('hidden') }, 'Got it'),
+      { class: 'help panel welcome' },
+      h('div', { class: 'wc-aura' }),
+      h('div', { class: 'wc-sheen' }),
+      h(
+        'div',
+        { class: 'wc-head' },
+        h('div', { class: 'wc-emblem' }, h('span', { class: 'wc-ring' }), h('span', { class: 'wc-gem' })),
+        h(
+          'div',
+          {},
+          h('div', { class: 'wc-eyebrow' }, h('i', { class: 'wc-led' }), 'Steward link · online'),
+          h('div', { class: 'wc-title' }, 'BloomGrid'),
+          h('div', { class: 'wc-tag' }, 'An island city that breathes. Keep it blooming.'),
+        ),
+      ),
+      h('div', { class: 'wc-rule' }, h('span', {}, '01'), h('i'), h('span', {}, 'Controls')),
+      h('div', { class: 'wc-rows' }, ...rows),
+      h(
+        'div',
+        { class: 'wc-foot' },
+        touch ? h('span') : h('span', { class: 'wc-hint' }, 'Hide ', h('kbd', {}, 'H')),
+        h('button', { class: 'wc-go', onClick: dismiss }, 'Take the helm', icon('next')),
+      ),
     );
   }
 

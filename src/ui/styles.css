@@ -54,7 +54,7 @@ body {
   background: var(--glass);
   /* No backdrop-filter: blurring a canvas that changes every frame forces the compositor to
      re-blur every panel every frame (a measurable GPU and power cost). Opaque-ish glass instead. */
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  border: none;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }

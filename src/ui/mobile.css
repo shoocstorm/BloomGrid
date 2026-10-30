@@ -286,23 +286,6 @@ body.compact {
   width: min(340px, calc(100vw - 2 * var(--gut)));
   z-index: 20;
 }
-.help-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-.help-row b {
-  color: var(--accent);
-  font-weight: 500;
-}
-.help-ok {
-  display: block;
-  margin: 8px auto 0;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--pill);
-  color: var(--accent);
-}
-
 /* Toasts under the chips: the bottom belongs to the inspector and the build tray. */
 .compact .toasts {
   top: var(--below);

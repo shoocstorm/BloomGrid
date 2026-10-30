@@ -51,7 +51,6 @@
   align-items: center;
   gap: 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
 }
 .cmap-code {
   padding: 3px 7px;
@@ -99,7 +98,6 @@
   width: min(100%, calc(100vh - 170px));
   aspect-ratio: 1;
   cursor: crosshair;
-  border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
   background: #04191e;
   overflow: hidden;
