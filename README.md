@@ -11,7 +11,7 @@
   <a href="#-how-to-play">How to play</a>
 </p>
 
-![A Singapore-inspired solarpunk city of garden towers along a river at sunrise](docs/images/hero.jpg)
+![The hero district: the Wellspring Spire and landmark towers along an arched-bridge river, with the Aeroline viaduct behind](docs/images/hero.jpg)
 
 You are the **steward** of a Singapore-inspired island where high-tech architecture and wild nature grow together.
 Lay living highways, raise garden towers and supertrees, and keep a city of 25,000 people powered, watered, fed and
@@ -22,8 +22,8 @@ Neglect it and the gardens wilt, the lights go out and the jungle takes the high
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/night.jpg" alt="The downtown at night: towers with glowing veins, lit streets and waterfalls"></td>
-<td width="50%"><img src="docs/images/supertree.jpg" alt="The Supertree Grove rising above a forest beside garden towers"></td>
+<td width="50%"><img src="docs/images/night.jpg" alt="The hero district at night: towers lit window by window, glowing rings and sky-lanes over the river"></td>
+<td width="50%"><img src="docs/images/supertree.jpg" alt="The Supertree Grove and solar kites rising above a forest between garden towers"></td>
 </tr>
 <tr>
 <td><b>A city that glows with life.</b> At night, flowers, fungi paths and building veins light up wherever people
@@ -32,8 +32,8 @@ are out, so busy districts shine and quiet ones dim to embers.</td>
 harvests, and every rooftop is a garden.</td>
 </tr>
 <tr>
-<td><img src="docs/images/lotus.jpg" alt="The Lotus Arts Pavilion on the coast beside a bridge and garden towers"></td>
-<td><img src="docs/images/island.jpg" alt="The whole island from above, with districts, lakes, a river and bridged islets"></td>
+<td><img src="docs/images/bloomtopia.jpg" alt="Bloomtopia, the amusement park islet, with its neon gate, wheel and coaster beside a suspension bridge"></td>
+<td><img src="docs/images/island.jpg" alt="The whole island from above: the Aeroline loop, districts, river, bridged islets, a wind farm and sea wonders"></td>
 </tr>
 <tr>
 <td><b>Landmarks worth visiting.</b> The whole island is one planned city: Bayfront down the river to the bay,
@@ -83,7 +83,7 @@ reclaim or defend.</td>
 
 ### 📊 Read your city like an instrument
 
-![The management view: City Pulse health panel, data lenses and the Flora-Net advisor over the city](docs/images/hud.jpg)
+![The management view: the City Pulse console with system health, bloom, demand and budget over the hero district](docs/images/hud.jpg)
 
 The **City Pulse** tracks energy, water, food, jobs, mobility, ecology and harmony. **Data lenses** recolour the
 whole island by power, pollution, desirability, traffic, soil or flood risk. The **Flora-Net advisor** points at
