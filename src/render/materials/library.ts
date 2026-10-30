@@ -346,16 +346,15 @@ export function initMaterials(): void {
     return m;
   }, { vitality: true });
 
-  // Solar petals: deep iridescent cells with a faint cyan circuit glow at night.
-  // Solar petals: sea-green photovoltaic cells with a slow amber-bronze sheen and champagne-gold busbars, so the
-  // crowns read as living foliage beside the gardens (silicon blue clashed with the greens and warm creams).
+  // Solar petals: soft sage-to-mint photovoltaic cells with a pearl sheen and white busbars, so the crowns read as
+  // light foliage beside the gardens (silicon blue, then teal-bronze, read too dark and busy against the greens).
   define('solar', () => {
-    const m = new MeshStandardNodeMaterial({ roughness: 0.3, metalness: 0.55, side: DoubleSide });
+    const m = new MeshStandardNodeMaterial({ roughness: 0.35, metalness: 0.2, side: DoubleSide });
     const g = uv();
     const cells = max(step(0.9, fract(g.x.mul(8))), step(0.85, fract(g.y.mul(3))));
     const irid = sin(positionWorld.x.add(positionWorld.z).mul(3).add(time.mul(0.3))).mul(0.5).add(0.5);
-    m.colorNode = mix(mix(color(0x2c6e5d), color(0xb7853f), irid.mul(0.65)), color(0xeedca2), cells);
-    m.emissiveNode = color(0xffd58a).mul(cells).mul(U.night).mul(0.45);
+    m.colorNode = mix(mix(color(0x5f9f7e), color(0xbfe2cc), irid.mul(0.5)), color(0xf8f6ee), cells);
+    m.emissiveNode = color(0xfff1d0).mul(cells).mul(U.night).mul(0.4);
     return m;
   });
 

@@ -239,6 +239,8 @@ own `requestAnimationFrame` loops.
 - Founding-city balance is sensitive: after changing a scenario mix, measure settled (≈400 ticks) flow,
   unemployment, power margin and budget on seed 20261024 (`tests/zoning.test.ts` guards them). For traffic, list
   the jammed tiles (`mobilityLayers(city).traffic` > 0.8) per district before adding transit.
+- `.info` is the inspector panel (a bottom sheet on phones): never use `info` as a modifier class (advisor tips use `note`,
+  toasts `tone-info`), or the element is pulled out of its layout.
 - Phones (D-045): a new HUD panel needs a `.compact` rule in `ui/mobile.css` or it will overlap at 390 px; a new tool
   that acts on a single tap should preview first when `e.touch` (no hover on touch), and a drag-drawing tool should
   implement `cancel` (a second finger turns the press into a camera gesture).

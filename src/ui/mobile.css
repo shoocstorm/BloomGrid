@@ -53,8 +53,22 @@ body.compact {
   white-space: nowrap;
 }
 .compact .seg button {
-  padding: 5px 6px;
+  padding: 5px 5px;
   font-size: 10.5px;
+}
+/* Portrait phones have no room for the season chip beside the speed control (it ran under the actions pill);
+   City Pulse's Seasonal bloom section carries it. Landscape keeps it. */
+@media (max-width: 699px) {
+  .compact .clock .season {
+    display: none;
+  }
+}
+/* Small screens over a busy scene: every panel is fully opaque, so chips under an open sheet never show through. */
+body.compact {
+  --bg-strong: rgb(7, 20, 22);
+}
+.compact .panel {
+  --bg: var(--bg-strong);
 }
 .compact .actions {
   padding: 2px;
@@ -130,6 +144,19 @@ body.compact {
 }
 .compact .advisor.collapsed .adv-tabs {
   display: none;
+}
+/* Open Flora-Net takes the full height down to the toolbar; the header stays, the list scrolls. */
+.compact .advisor:not(.collapsed) {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--chips) - var(--bot) - 70px);
+  overflow: hidden;
+}
+.compact .advisor:not(.collapsed) .adv-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overscroll-behavior: contain;
 }
 .compact .adv-title {
   font-size: 11px;
@@ -334,6 +361,14 @@ body.compact {
   height: 100dvh;
   padding: calc(var(--top) + 6px) 12px calc(var(--bot) + 12px);
 }
+/* Edge to edge: no rounded corners, frame or shadow. */
+.compact .db,
+body.compact .ai.panel,
+body.compact .ai.panel.max {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
 body.compact .ai.panel,
 body.compact .ai.panel.max {
   inset: 0;
@@ -380,6 +415,15 @@ body.compact .ai.panel.max {
   .compact .stats {
     order: 0;
     flex: 1 1 0;
+  }
+  /* Sheets keep a readable width instead of stretching across the landscape screen. */
+  .compact .pulse:not(.collapsed) {
+    right: auto;
+    width: min(380px, 45vw);
+  }
+  .compact .advisor:not(.collapsed) {
+    left: auto;
+    width: min(380px, 45vw);
   }
   .compact .info {
     left: auto;
@@ -443,4 +487,26 @@ body.compact.flora-open #hud > :not(.ai) {
 .compact .ai-models {
   max-height: 36dvh;
   overflow-y: auto;
+}
+
+/* Exploring on a phone: the view is the point, so even the top bar goes (toasts stay); the only control left
+   besides the touch pad is a round ◇ icon back to the city view, in the top bar's corner. */
+.compact #hud.exploring > .topbar {
+  display: none;
+}
+.compact .xp-exit {
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 18px;
+  display: grid;
+  place-items: center;
+}
+.compact .xp-exit .l {
+  display: none;
+}
+.compact #hud.exploring .toasts {
+  top: calc(env(safe-area-inset-top, 0px) + 62px);
 }

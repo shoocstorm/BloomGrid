@@ -443,7 +443,7 @@ button {
   font-size: 14px;
   animation: toast 2.8s forwards;
 }
-.toast.bad {
+.toast.tone-bad {
   color: var(--bad);
 }
 @keyframes toast {

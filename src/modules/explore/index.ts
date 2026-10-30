@@ -230,7 +230,7 @@ export const exploreModule: GameModule = {
       next: padBtn('⇥', 'Next', 'Tab', true),
       view: padBtn('◉', 'First person', 'KeyV', true),
     };
-    const exit = h('button', { class: 'xp-exit panel', title: 'Back to the city view', onClick: () => setMode('city') }, '◇ City view');
+    const exit = h('button', { class: 'xp-exit panel', title: 'Back to the city view', 'aria-label': 'Back to the city view', onClick: () => setMode('city') }, h('span', { class: 'g' }, '◇'), h('span', { class: 'l' }, ' City view'));
     const padEl = h('div', { class: 'xp-pad hidden' }, stick, h('div', { class: 'xp-pbtns' }, pad.up, pad.down, pad.next, pad.view), exit);
     document.body.append(padEl);
     /** Which pad parts each mode uses (rides have no stick: they follow their pod or train). */

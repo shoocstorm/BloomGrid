@@ -14,7 +14,8 @@ interface LogEntry {
 }
 
 const LOG_LIMIT = 120;
-const SEVERITY_CLASS = ['info', 'warn', 'crit'] as const;
+// Not 'info': that is the inspector panel's class, and phones pin `.info` as a bottom sheet (it pulled tips out of the list).
+const SEVERITY_CLASS = ['note', 'warn', 'crit'] as const;
 
 function stamp(ctx: GameContext): string {
   const m = Math.floor(ctx.city.timeOfDay * 1440);
@@ -92,7 +93,7 @@ export const advisorModule: GameModule = {
             h(
               'div',
               { class: 'adv-actions' },
-              a.focus ? h('button', { onClick: () => show(a) }, '⌖ Show me') : null,
+              a.focus ? h('button', { onClick: () => show(a) }, '⌖ Locate') : null,
               a.build
                 ? h(
                     'button',

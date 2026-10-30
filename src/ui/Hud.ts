@@ -202,19 +202,20 @@ class Hud {
   }
 
   private toast(text: string, tone: 'ok' | 'bad' | 'info' = 'info', at?: { x: number; z: number }): void {
+    // Tones are prefixed: a bare `info` class would pick up the inspector's `.info` layout (a bottom sheet on phones).
     // Located toasts (incidents) are buttons that fly there, and stay a little longer to be clicked.
     const t = at
       ? h(
           'button',
           {
-            class: `toast panel ${tone} go`,
+            class: `toast panel tone-${tone} go`,
             title: 'Show me',
             onClick: () => (this.ctx.cameraCtl.flyTo(at.x, at.z, 36), t.remove()),
           },
           text,
           h('span', { class: 'toast-go' }, '⌖ Show'),
         )
-      : h('div', { class: `toast panel ${tone}` }, text);
+      : h('div', { class: `toast panel tone-${tone}` }, text);
     this.toasts.append(t);
     setTimeout(() => t.remove(), at ? 5400 : 2900);
     while (this.toasts.children.length > 3) this.toasts.firstChild!.remove();

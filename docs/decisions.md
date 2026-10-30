@@ -704,3 +704,12 @@ dark instrument palette, mono numerals and coded titles, but panels are rounded 
 shadow instead of clip-path chamfers, corner brackets and the scan texture. LEDs are round and active states are soft
 fills rather than hard underlines. Flora's orb (`.ai-fab`) drops its panel plate: the sigil stands alone with heavier
 strokes, filled petals and a dark halo so it reads over the scene. New panels should use the radius tokens, not literal radii.
+
+## D-060 — Flora docked right; full-window maximize; phone HUD fixes (2026-10-30)
+
+Flora's console no longer floats mid-screen (`right: 314px`): it docks to the right edge, from under the top bar down
+to just above her orb, and the right column (inspector, help) steps left while she is open (hidden under 1100px).
+Maximize fills the window (`inset: 10px`, above the HUD). Phones: every panel is fully opaque (`--bg-strong` is a solid
+colour under `.compact`) so chips never ghost through open sheets; full-screen surfaces (Flora, dashboard) drop their
+radius and frame; the season chip is hidden on portrait (it overflowed the clock pill under the actions pill, and City
+Pulse shows the season); landscape sheets keep a readable width (`min(380px, 45vw)`) clear of the centre lens chip.

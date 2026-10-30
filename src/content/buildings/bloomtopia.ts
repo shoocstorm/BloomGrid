@@ -152,7 +152,7 @@ export default defineBuilding({
         b.add({ piece: 'solarLeaf', p: [s * GATE_X, G + 9.8, gz], s: [1.6, 1, 0.9], r: (k / 8) * TAU, rz: -0.5, growAt: 0.3 });
       b.add({ piece: 'spireCone', p: [s * GATE_X, G + 9.8, gz], s: [0.5, 2.2, 0.5], tint: PALETTE.glassWarm, glow: 0.5 });
     }
-    b.add({ piece: 'slab', p: [0, G + 6.2, gz], s: [GATE_X * 2 - 1.4, 2.6, 0.4], tint: 0x4b2f8f });
+    b.add({ piece: 'slab', p: [0, G + 6.2, gz], s: [GATE_X * 2 - 1.4, 2.6, 0.4], tint: 0xc24a78 });
     b.add({ piece: 'slab', p: [0, G + 8.8, gz], s: [GATE_X * 2 - 1.0, 0.18, 0.6], tint: 0xf6f2ea });
     b.add({ piece: 'slab', p: [0, G + 6.05, gz], s: [GATE_X * 2 - 1.0, 0.18, 0.6], tint: 0xf6f2ea });
     sign(b, 0, G + 7.5, gz - 0.25, 0.28);

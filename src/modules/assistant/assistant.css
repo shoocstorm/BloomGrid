@@ -27,14 +27,16 @@
 }
 
 /* ── Frame ─────────────────────────────────────────────────────────────── */
+/* Docked to the right edge: under the top bar, ending just above her orb (bottom-right). The right column
+   (inspector, help) steps left while she is open. */
 .ai.panel,
 .night .ai.panel {
   position: absolute;
-  right: 314px;
+  right: 14px;
   top: 74px;
+  bottom: 84px;
   z-index: 16;
-  width: min(420px, calc(100vw - 32px));
-  height: min(640px, calc(100vh - 200px));
+  width: min(430px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -48,20 +50,20 @@
     repeating-linear-gradient(0deg, rgba(95, 242, 218, 0.035) 0 1px, transparent 1px 28px),
     rgba(4, 14, 16, 0.96);
 }
-.ai.panel.max {
-  left: 296px;
-  right: 12px;
+/* Maximized: the whole window, over the rest of the HUD. */
+.ai.panel.max,
+.night .ai.panel.max {
+  inset: 10px;
+  z-index: 30;
   width: auto;
-  bottom: 124px;
   height: auto;
 }
+body.flora-open:not(.compact):not(.flora-max) .rightcol {
+  right: 456px;
+}
 @media (max-width: 1100px) {
-  .ai.panel,
-  .night .ai.panel {
-    right: 12px;
-  }
-  .ai.panel.max {
-    left: 12px;
+  body.flora-open:not(.compact) .rightcol {
+    display: none;
   }
 }
 /* Closed: must outrank the frame rules above (`.night .ai.panel` sets display: flex). */
@@ -143,7 +145,6 @@ body.flora-max .help {
   text-transform: uppercase;
   color: var(--ink-soft);
   padding: 3px 8px;
-  border: 1px solid var(--line);
   border-radius: var(--r-sm);
   overflow: hidden;
 }
@@ -367,7 +368,6 @@ body.flora-max .help {
   text-transform: uppercase;
   color: var(--ink);
   background: rgba(95, 242, 218, 0.06);
-  border: 1px solid var(--line);
   padding: 5px 8px;
   cursor: pointer;
   white-space: nowrap;
@@ -798,7 +798,6 @@ body.flora-max .help {
   display: flex;
   gap: 2px;
   padding: 0 12px;
-  border-bottom: 1px solid var(--line);
 }
 .ai-tab {
   position: relative;
@@ -1202,7 +1201,6 @@ body.flora-max .help {
   top: 0;
   z-index: 3;
   padding-bottom: 8px;
-  background: #040e10;
 }
 .ai-thead-t {
   display: flex;
@@ -1358,7 +1356,6 @@ body.flora-max .help {
 .ai-eff,
 .ai-pol {
   padding: 1px 5px;
-  border: 1px solid currentColor;
   border-radius: var(--pill);
 }
 .ai-eff.read {
