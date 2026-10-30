@@ -684,3 +684,14 @@ buttons, taps for ⇥ (Tab: next landmark, pod or train) and ◉ (V: first perso
 that use it, and a **◇ City view** button top-left under the top bar. The pad writes `input.keys`, so the modes'
 controls are unchanged; one-finger drag on the canvas already looks around. Pointer capture is guarded (it throws if
 the pointer has already ended). Desktop unchanged (the pad is touch/compact only).
+
+## D-058 — macOS installers on every release (2026-10-30)
+
+The release workflow's `macos` job (after the web release passes `bun run check`) builds two DMGs on `macos-15` and
+attaches them to the GitHub Release: **aarch64** natively with `tauri:build:mac-arm64` (MLX + `mlx.metallib`, so the
+native assistant works) and **x64** cross-compiled with `--target x86_64-apple-darwin` (no MLX; the assistant runs in
+wllama). No universal binary: MLX is arm64-only, and a lipo'd app would need the Intel half to skip it anyway. Builds
+are ad-hoc signed (`APPLE_SIGNING_IDENTITY=-`) unless the repo secrets `APPLE_CERTIFICATE`,
+`APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY` (and for notarization `APPLE_ID`, `APPLE_PASSWORD`,
+`APPLE_TEAM_ID`) exist; ad-hoc apps need **Open Anyway** in Privacy & Security on first launch, which the release
+notes explain. Unsigned (not even ad-hoc) bundles are rejected as "damaged" on Apple Silicon, hence the ad-hoc default.

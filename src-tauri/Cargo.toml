@@ -48,3 +48,8 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
+
+# Stripping a proc-macro dylib (tauri-macros) drops the symbols rustc loads it by: "can't find crate for
+# `tauri_macros`" on native release builds (no --target). Strip the app only.
+[profile.release.build-override]
+strip = false

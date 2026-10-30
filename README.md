@@ -160,6 +160,10 @@ bun install
 bun run dev        # then open http://localhost:5173
 ```
 
+**macOS app:** download the `.dmg` from the latest [GitHub Release](https://github.com/shoocstorm/BloomGrid/releases/latest)
+(`aarch64` for Apple Silicon, `x64` for Intel) and drag BloomGrid to Applications. If macOS blocks the first launch,
+click **Open Anyway** in System Settings → Privacy & Security.
+
 **Desktop app:** `bun run tauri:dev` opens BloomGrid in a native window (Tauri v2), and `bun run tauri:build`
 packages it. Saves are JSON files in the app data folder, and ⚙ → Window toggles fullscreen (F11).
 

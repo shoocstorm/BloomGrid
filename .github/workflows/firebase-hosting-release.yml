@@ -52,4 +52,84 @@ jobs:
       - name: GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --generate-notes --title "BloomGrid $TAG"
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --generate-notes \
+            --title "BloomGrid $TAG" --notes "$(cat <<'EOF'
+          **Play in the browser:** https://bloomgrid-7ae90.web.app
+
+          **macOS app:** download `BloomGrid_*_aarch64.dmg` (Apple Silicon, M1 or later; includes the native city assistant)
+          or `BloomGrid_*_x64.dmg` (Intel), open it and drag BloomGrid to Applications. If macOS says the app
+          can't be opened or is damaged, open **System Settings → Privacy & Security** and click **Open Anyway**, or run
+          `xattr -dr com.apple.quarantine /Applications/BloomGrid.app` once.
+          EOF
+          )"
+
+  # macOS installers (.dmg), attached to the GitHub Release once the web release has passed `bun run check`.
+  # Apple Silicon builds natively with MLX (tauri:build:mac-arm64, D-058); Intel cross-compiles without it.
+  # Builds are ad-hoc signed unless the APPLE_* secrets below exist, in which case Tauri signs with the
+  # Developer ID certificate and notarizes, so Gatekeeper opens the app without a warning.
+  macos:
+    needs: release
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: aarch64
+            target: aarch64-apple-darwin
+            build: bun run tauri:build:mac-arm64 --bundles app,dmg
+          - arch: x64
+            target: x86_64-apple-darwin
+            build: bun run tauri build --target x86_64-apple-darwin --bundles app,dmg
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.TAG }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+      - run: bun install --frozen-lockfile
+      # MLX compiles Metal shaders; Xcode 26+ ships the Metal toolchain separately (`xcrun -f metal` finds a stub).
+      - name: Metal toolchain
+        if: matrix.arch == 'aarch64'
+        run: xcrun -sdk macosx metal --version || xcodebuild -downloadComponent MetalToolchain
+      # Only export signing variables that are set: Tauri tries to import APPLE_CERTIFICATE even when empty.
+      - name: Signing identity
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_SIGNING_IDENTITY" ]; then
+            for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+              [ -n "${!v}" ] && { echo "$v<<__EOF__"; echo "${!v}"; echo "__EOF__"; } >> "$GITHUB_ENV"
+            done
+            echo "Signing with Developer ID${APPLE_ID:+ and notarizing}"
+          else
+            echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+            echo "::warning::No Apple signing secrets: the macOS app is ad-hoc signed (Gatekeeper will warn on first open)"
+          fi
+      - name: Build
+        run: ${{ matrix.build }}
+      - name: Upload to the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DMG=$(find src-tauri/target -path '*/release/bundle/dmg/*.dmg' -print -quit)
+          [ -n "$DMG" ] || { echo "::error::no .dmg produced"; exit 1; }
+          gh release upload "$TAG" "$DMG" --clobber

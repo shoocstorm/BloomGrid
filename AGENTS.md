@@ -275,3 +275,5 @@ checks the tag matches `package.json`, runs `bun run check`, deploys `dist/` to 
 - Interactive prompt by default; agents pass `--yes` only after the user said go. Pick `patch` unless the user says otherwise.
 - A failed run deploys nothing: fix on `main` and release the next patch (don't move or delete published tags).
 - CI needs the repo secret `FIREBASE_SERVICE_ACCOUNT_BLOOMGRID_7AE90` (set up by `firebase init hosting:github`).
+- The same run's `macos` job attaches `BloomGrid_X.Y.Z_aarch64.dmg` (MLX) and `_x64.dmg` to the Release (D-058).
+  They are ad-hoc signed unless the `APPLE_*` signing/notarization secrets are set; a failed mac build does not undo the web deploy.
