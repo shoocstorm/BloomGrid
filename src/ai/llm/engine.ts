@@ -81,6 +81,22 @@ function setVerified(url: string, sha256: string | null): void {
   }
 }
 
+/** How long a model may take to load into wllama before the attempt is abandoned. */
+const WARM_MS = 120_000;
+
+class WarmTimeout extends Error {
+  constructor(name: string) {
+    super(`${name} did not finish warming up in ${WARM_MS / 1000} s. Try a smaller model, or reload the page.`);
+  }
+}
+
+/** iPhone, iPod or iPad (iPadOS reports a Mac user agent but has touch points); Tauri's macOS webview has none. */
+function appleMobile(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
+
 export const isAbort = (e: unknown) =>
   e instanceof Error && (e.name === 'AbortError' || e.name === 'WllamaAbortError');
 
@@ -168,20 +184,30 @@ export class LlmEngine {
         this.set({ info: { backend: `MLX · Metal (native, ${loaded.bits}-bit)`, context: loaded.nCtx } });
       } else {
         const model = await this.openVerified(def);
-        let gpu: { layers: number; total: number } | null = null;
-        const w = await this.newWllama((g) => (gpu = g));
-        await w.loadModel(model, { n_ctx: def.n_ctx, reasoning_format: 'none' } as Parameters<
-          Wllama['loadModel']
-        >[1]);
+        // On iOS, llama.cpp's WebGPU warm-up in the compat build can stall forever, so phones and tablets run
+        // on the CPU; elsewhere a GPU warm-up that stalls falls back to the CPU instead of spinning forever.
+        let cpu = appleMobile();
+        let loaded: { w: Wllama; gpu: { layers: number; total: number } | null } | null = null;
+        while (!loaded) {
+          try {
+            loaded = await this.warm(model, def, cpu);
+          } catch (e) {
+            if (cpu || !(e instanceof WarmTimeout)) throw e;
+            console.warn('[ai] GPU warm-up stalled; retrying on the CPU');
+            cpu = true;
+          }
+        }
+        const { w, gpu: g } = loaded;
         this.wllama = w;
-        const g = gpu as { layers: number; total: number } | null;
-        const backend = g
-          ? g.layers > 0
-            ? `WebGPU · ${g.layers}/${g.total} layers`
-            : 'WASM · CPU (no GPU adapter)'
-          : w.isSupportWebGPU()
-            ? 'WebGPU'
-            : 'WASM · CPU';
+        const backend = cpu
+          ? 'WASM · CPU'
+          : g
+            ? g.layers > 0
+              ? `WebGPU · ${g.layers}/${g.total} layers`
+              : 'WASM · CPU (no GPU adapter)'
+            : w.isSupportWebGPU()
+              ? 'WebGPU'
+              : 'WASM · CPU';
         this.set({
           info: {
             backend: `${backend} · ${w.isMultithread() ? `${w.getNumThreads()} threads` : '1 thread'}`,
@@ -302,6 +328,35 @@ export class LlmEngine {
     } finally {
       this.set({ generating: false });
     }
+  }
+
+  /** Starts a wllama worker and loads the model into it, giving up (and freeing the worker) after `WARM_MS`. */
+  private async warm(
+    model: Awaited<ReturnType<LlmEngine['openVerified']>>,
+    def: WllamaDef,
+    cpu: boolean,
+  ): Promise<{ w: Wllama; gpu: { layers: number; total: number } | null }> {
+    let gpu: { layers: number; total: number } | null = null;
+    const w = await this.newWllama((g) => (gpu = g));
+    let timer = 0;
+    try {
+      await Promise.race([
+        w.loadModel(model, {
+          n_ctx: def.n_ctx,
+          reasoning_format: 'none',
+          ...(cpu ? { n_gpu_layers: 0 } : {}),
+        } as Parameters<Wllama['loadModel']>[1]),
+        new Promise<never>((_, reject) => {
+          timer = window.setTimeout(() => reject(new WarmTimeout(def.name)), WARM_MS);
+        }),
+      ]);
+    } catch (e) {
+      await w.exit().catch(() => {});
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+    return { w, gpu };
   }
 
   private async newWllama(onGpu: (gpu: { layers: number; total: number }) => void): Promise<Wllama> {

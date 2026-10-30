@@ -723,3 +723,11 @@ inline; the HUD maps a glyph (or a context key such as `lens:hydration`, `kind:s
 things) to an icon where it stands alone, and unknown glyphs stay text. Inline glyphs in sentences (toasts, zone and
 crisis names, the live `Dispatch · ◈n` labels) are left as text. On phones, explore modes also hide the top bar: only
 the touch pad and a round city-view icon (top-left) remain.
+
+## D-062 — wllama runs on the CPU on iOS; stalled warm-ups time out (2026-10-30)
+
+On iPhone, Safari has no JSPI, so wllama uses its Asyncify compat build, and loading a model (even Qwen3 0.6B) with
+every layer on WebGPU stayed on "Warming up…" forever. Nothing in wllama times out a load, and a crashed worker's error
+is only logged. `LlmEngine.load` now passes `n_gpu_layers: 0` on iPhone, iPod and iPad (an iPadOS Mac user agent
+with touch points; Tauri's macOS webview has none). Elsewhere, a load that takes longer than `WARM_MS` (120 s)
+frees the worker and retries on the CPU. A CPU load that also takes longer fails with an error instead of spinning.
