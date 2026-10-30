@@ -118,7 +118,7 @@ toolbar; her console opens full-screen.
 or tell it what to do ("build three vertical farms in Bayfront", "fix the power problem in Bayfront", "set taxes to
 14%", "how is our budget?", "pause", "show the water lens"): it looks things up, then asks before changing anything, and every action can be undone with **⌘Z**. Pick
 a model under ⚙ (it downloads once from Hugging Face, ≈0.6–1 GB; on an Apple Silicon Mac the desktop app runs it
-natively, much faster). Without a model, slash commands work: type `/help`. The **◈ Profile** tab shows who Flora
+natively, much faster). Without a model, slash commands work: type `/help`. The **Autonomous mode** switch in the Profile tab lets her act without asking. Clear the chat with the eraser in her header (or `/clear`): earlier messages are then no longer sent to the model. The log keeps the latest 40 entries; older ones fade away. The **◈ Profile** tab shows who Flora
 is and the exact instructions (system prompts) her model gets each turn, plus the live city brief she reads; the
 **⚒ Tools** tab lists every tool she can use, with its parameters, and lets you run one directly.
 

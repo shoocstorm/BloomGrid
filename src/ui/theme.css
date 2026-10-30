@@ -45,7 +45,7 @@
 .panel,
 .night .panel {
   color: var(--ink);
-  border: 1px solid var(--line);
+  border: none;
   border-radius: var(--radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
   background:

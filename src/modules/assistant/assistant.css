@@ -146,34 +146,41 @@ body.flora-max .help {
   color: var(--ink-soft);
   padding: 3px 8px;
   border-radius: var(--r-sm);
-  overflow: hidden;
 }
 .ai-link span {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .ai-led {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
+  display: inline-flex;
   flex-shrink: 0;
-  background: var(--ink-faint);
+  color: var(--ink-faint);
+}
+.ai-led .ico {
+  width: 12px;
+  height: 12px;
+  vertical-align: 0;
+  stroke-width: 2.2;
+}
+/* The loading ring turns (only while a core loads). */
+.ai-led .ico-st-busy {
+  animation: ai-spin 1s linear infinite;
 }
 .ai-link.ready {
   color: var(--accent-2);
   border-color: rgba(142, 240, 122, 0.4);
 }
 .ai-link.ready .ai-led {
-  background: var(--accent-2);
+  color: var(--accent-2);
 }
 .ai-link.loading .ai-led {
-  background: var(--warn);
+  color: var(--warn);
 }
 .ai-link.error {
   color: var(--crit);
 }
 .ai-link.error .ai-led {
-  background: var(--crit);
+  color: var(--crit);
 }
 .ai-hbtn {
   color: var(--ink-soft);
@@ -270,20 +277,20 @@ body.flora-max .help {
   color: var(--ink-soft);
 }
 .ai-sys-row.t0 .ai-led {
-  background: var(--accent-2);
+  color: var(--accent-2);
 }
 .ai-sys-row.t1 .ai-led {
-  background: var(--accent);
+  color: var(--accent);
 }
 .ai-sys-row.t2 .ai-led {
-  background: var(--warn);
+  color: var(--warn);
 }
 .ai-sys-row.t2 b {
   color: var(--warn);
 }
 .ai-sys-row.t3 .ai-led,
 .ai-sys-row.t4 .ai-led {
-  background: var(--crit);
+  color: var(--crit);
 }
 .ai-sys-row.t3 b,
 .ai-sys-row.t4 b {
@@ -486,6 +493,12 @@ body.flora-max .help {
   gap: 10px;
   padding: 4px 2px 8px;
   scrollbar-color: var(--line-strong) transparent;
+  /* Older entries dissolve into the top edge as they scroll away. */
+  mask-image: linear-gradient(to bottom, transparent 0, #000 22px);
+}
+.ai-hbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 .ai.max .ai-log {
   padding: 4px 8px 8px;
@@ -818,16 +831,17 @@ body.flora-max .help {
   }
 }
 
-/* Autonomous mode: a toggle switch on a small card that lights up when Flora may act alone. */
+/* Autonomous mode (Profile tab): a card with the switch; its ASK / AUTO tag and frame light green when on. */
 .ai-auto {
   display: flex;
   gap: 10px;
   align-items: center;
-  margin-top: 6px;
-  padding: 7px 10px;
+  margin: 8px 0 2px;
+  padding: 9px 12px;
   border: 1px solid var(--line);
+  border-left: 2px solid var(--line-strong);
   border-radius: var(--r-md);
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--bg-raise);
   cursor: pointer;
   user-select: none;
   transition:
@@ -838,8 +852,42 @@ body.flora-max .help {
   border-color: var(--line-strong);
 }
 .ai-auto:has(:checked) {
-  border-color: rgba(142, 240, 122, 0.5);
+  border-color: rgba(142, 240, 122, 0.45);
+  border-left-color: var(--accent-2);
   background: rgba(142, 240, 122, 0.07);
+}
+.ai-auto-i {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+.ai-auto:has(:checked) .ai-auto-i {
+  color: var(--accent-2);
+  border-color: rgba(142, 240, 122, 0.45);
+}
+.ai-auto-t {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.ai-auto-t b {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.ai-auto-t span {
+  font-size: 11px;
+  color: var(--ink-soft);
 }
 .ai-switch {
   appearance: none;
@@ -883,31 +931,13 @@ body.flora-max .help {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.ai-auto-t {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 1;
-}
-.ai-auto-t b {
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-.ai-auto-t span {
-  font-size: 10.5px;
-  color: var(--ink-soft);
-}
 .ai-auto-s {
   flex: none;
   font-family: var(--mono);
   font-size: 9px;
-  letter-spacing: 0.1em;
-  padding: 2px 6px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  padding: 2px 7px;
   border-radius: var(--pill);
   border: 1px solid var(--line);
   color: var(--ink-faint);
@@ -917,7 +947,7 @@ body.flora-max .help {
 }
 .ai-auto:has(:checked) .ai-auto-s {
   color: var(--accent-2);
-  border-color: rgba(142, 240, 122, 0.5);
+  border-color: rgba(142, 240, 122, 0.45);
 }
 .ai-auto:has(:checked) .ai-auto-s::before {
   content: 'AUTO';
@@ -1076,6 +1106,17 @@ body.flora-max .help {
 .ai-msg {
   animation: ai-in 0.25s ease-out;
 }
+/* Oldest entries (past the cap, or on /clear) fade up and away before they are removed. */
+.ai-log > .ai-fade {
+  animation: ai-out 0.45s ease-in forwards;
+  pointer-events: none;
+}
+@keyframes ai-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
 @keyframes ai-in {
   from {
     opacity: 0;
@@ -1182,8 +1223,14 @@ body.flora-max .help {
   color: var(--accent-2);
 }
 .ai-hero-core.ready .ai-led {
-  background: var(--accent-2);
-  box-shadow: 0 0 6px var(--accent-2);
+  color: var(--accent-2);
+  filter: drop-shadow(0 0 3px rgba(142, 240, 122, 0.7));
+}
+.ai-hero-core.loading .ai-led {
+  color: var(--warn);
+}
+.ai-hero-core.error .ai-led {
+  color: var(--crit);
 }
 .ai-ptiles {
   display: grid;
@@ -1283,7 +1330,6 @@ body.flora-max .help {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--accent);
-  border: 1px solid var(--line-strong);
   clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
   background: rgba(95, 242, 218, 0.08);
 }

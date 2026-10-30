@@ -28,6 +28,8 @@ export interface AssistantService {
   maximize(on: boolean): void;
   /** Sends a request as if the steward typed it; resolves with the answer. */
   ask(text: string): Promise<string>;
+  /** Turns Autonomous mode (act without asking) on or off, as the Profile tab's switch does. */
+  autonomous(on: boolean): void;
   readonly engine: LlmEngine;
 }
 
@@ -50,17 +52,20 @@ class Assistant {
     this.panel = new AssistantPanel(ctx, this.engine, {
       send: (text) => void this.ask(text),
       stop: () => this.busy?.abort(),
-      setAutoApprove: (on) => {
-        this.autoApprove = on;
-        try {
-          localStorage.setItem(AUTO_KEY, on ? '1' : '0');
-        } catch {
-          /* ignore */
-        }
-      },
+      clear: () => this.clear(),
+      setAutoApprove: (on) => this.setAutoApprove(on),
       autoApprove: () => this.autoApprove,
     });
     this.watch();
+  }
+
+  setAutoApprove(on: boolean): void {
+    this.autoApprove = on;
+    try {
+      localStorage.setItem(AUTO_KEY, on ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
   }
 
   /** Notices from the city's own events: no model needed, throttled per topic. */
@@ -164,9 +169,17 @@ class Assistant {
     return p === 'ask' && this.autoApprove ? 'auto' : p;
   };
 
+  /** Forgets the conversation: the log and the history the next turn would send to the model. */
+  clear(): void {
+    if (this.busy) return;
+    this.history = [];
+    this.panel.clear();
+  }
+
   async ask(text: string): Promise<string> {
     const request = text.trim();
     if (!request || this.busy) return '';
+    if (request.toLowerCase() === '/clear') return (this.clear(), '');
     this.panel.user(request);
     if (request.startsWith('/')) return this.slash(request);
     if (this.engine.state.status !== 'ready') {
@@ -230,7 +243,7 @@ class Assistant {
               : ''
           }  ${t.option ?? ''}`,
       );
-      const msg = `Slash commands run a tool directly:\n${lines.join('\n')}\n\nExample: /build type=water-works district=Westbrook`;
+      const msg = `Slash commands run a tool directly:\n${lines.join('\n')}\n\n/clear  forget this conversation (the model starts fresh)\n\nExample: /build type=water-works district=Westbrook`;
       bubble.finish(msg);
       return msg;
     }
@@ -386,6 +399,7 @@ export const assistantModule: GameModule = {
       toggle: (open) => a.panel.toggle(open),
       maximize: (on) => a.panel.setMax(on),
       ask: (text) => a.ask(text),
+      autonomous: (on) => a.setAutoApprove(on),
       engine: a.engine,
     });
     ctx.input.onKey((e) => {

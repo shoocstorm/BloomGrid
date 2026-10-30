@@ -52,7 +52,7 @@ const load = await page.evaluate(
     const a = window.bloomgrid.services.get('assistant');
     if (max) a.maximize(true);
     else a.toggle(true);
-    if (auto) document.querySelector('.ai-auto input')?.click();
+    if (auto) a.autonomous(true);
     const t = performance.now();
     await a.engine.load(id);
     const s = a.engine.state;

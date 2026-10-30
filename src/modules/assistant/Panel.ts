@@ -8,7 +8,7 @@ import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { getCrisis } from '@/sim/crises';
 import { listObjects, summarize } from '@/sim/inventory';
-import { Dossier } from './Dossier';
+import { Dossier, STATUS_ICON, led } from './Dossier';
 
 const ID_SPLIT = /(\b(?:LIV|NRG|UTL|TEC|WRK|IND|SPT|NAT|FOD|HWY|BRG|SKY|CHN|DST|LMK)-[0-9A-Z][0-9A-Z.-]*[0-9A-Z]\b)/g;
 const gb = (bytes: number) =>
@@ -21,16 +21,23 @@ const PHASES: Record<string, string> = {
   answering: 'Transmitting reply',
 };
 const TOOL_ICON: Record<string, string> = { read: 'search', view: 'locate', mutate: 'wrench' };
+/** Status indicators: an icon per state (its colour comes from the row's state class). */
+const TIER_ICON = ['st-ok', 'st-steady', 'st-warn', 'st-crit', 'st-fail'];
 const stamp = () => {
   const d = new Date();
   return [d.getHours(), d.getMinutes(), d.getSeconds()].map((v) => String(v).padStart(2, '0')).join(':');
 };
 const MAX_KEY = 'bloomgrid.ai.max';
+/** Log entries kept on screen; older ones fade out (the model only ever sees the last few turns anyway). */
+const LOG_KEEP = 40;
+const FADE_MS = 450;
 type View = 'console' | 'profile' | 'tools';
 
 export interface PanelActions {
   send(text: string): void;
   stop(): void;
+  /** Forgets the conversation: the next turn is sent to the model without earlier messages. */
+  clear(): void;
   setAutoApprove(on: boolean): void;
   autoApprove(): boolean;
 }
@@ -80,8 +87,10 @@ export class AssistantPanel {
   private log = h('div', { class: 'ai-log', role: 'log', 'aria-live': 'polite' });
   private input: HTMLTextAreaElement;
   private sendBtn: HTMLButtonElement;
+  private clearBtn: HTMLButtonElement;
   private link = h('span', { class: 'ai-link' });
   private linkText = h('span', {});
+  private linkLed = led('st-off');
   private models = h('div', { class: 'ai-models hidden' });
   private badge = h('span', { class: 'ai-badge hidden' });
   private launcher: HTMLButtonElement;
@@ -114,7 +123,7 @@ export class AssistantPanel {
       class: 'ai-input',
       rows: 2,
       placeholder:
-        'Transmit to Flora… “what needs fixing?”, “build 3 pocket parks in Hillcrest”, “pause”, or /help',
+        'Transmit to Flora… “what needs fixing?”, “build 3 pocket parks in Hillcrest”, or /help',
       'aria-label': 'Message the city assistant',
       onKeydown: (e: KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -133,13 +142,15 @@ export class AssistantPanel {
       },
       icon('send'),
     ) as HTMLButtonElement;
-    const auto = h('input', {
-      type: 'checkbox',
-      class: 'ai-switch',
-      role: 'switch',
-      onChange: (e: Event) => this.actions.setAutoApprove((e.target as HTMLInputElement).checked),
-    }) as HTMLInputElement;
-    auto.checked = this.actions.autoApprove();
+    this.clearBtn = h(
+      'button',
+      {
+        class: 'icon-btn ai-hbtn',
+        title: 'Clear conversation (/clear): Flora forgets earlier messages',
+        onClick: () => this.actions.clear(),
+      },
+      icon('eraser'),
+    ) as HTMLButtonElement;
     const quick = (label: string, text: string) =>
       h('button', { class: 'ai-chip', onClick: () => this.actions.send(text) }, label);
     this.maxBtn = h(
@@ -151,7 +162,7 @@ export class AssistantPanel {
       },
       icon('maximize'),
     ) as HTMLButtonElement;
-    this.link.append(h('i', { class: 'ai-led' }), this.linkText);
+    this.link.append(this.linkLed, this.linkText);
     this.dossier = new Dossier(ctx, engine, {
       send: (text) => (this.setView('console'), this.actions.send(text)),
       compose: (text) => {
@@ -160,6 +171,10 @@ export class AssistantPanel {
         this.input.focus();
       },
       autoApprove: () => this.actions.autoApprove(),
+      setAutoApprove: (on) => {
+        this.actions.setAutoApprove(on);
+        this.timer = 99;
+      },
       session: () => ({ turns: this.turns, actions: this.actionsRun.length }),
       uses: this.uses,
     });
@@ -261,6 +276,7 @@ export class AssistantPanel {
           },
           icon('chip'),
         ),
+        this.clearBtn,
         this.maxBtn,
         h(
           'button',
@@ -287,18 +303,12 @@ export class AssistantPanel {
             quick('What needs fixing?', 'What are the most urgent problems, and where?'),
             quick('Fix the worst', 'Find the most critical problem and fix it.'),
           ),
-          h('div', { class: 'ai-compose' }, h('span', { class: 'ai-prompt' }, '›'), this.input, this.sendBtn),
           h(
-            'label',
-            { class: 'ai-auto' },
-            auto,
-            h(
-              'span',
-              { class: 'ai-auto-t' },
-              h('b', {}, 'Autonomous mode'),
-              h('span', {}, 'Act without asking · every action stays undoable (⌘Z)'),
-            ),
-            h('span', { class: 'ai-auto-s', 'aria-hidden': 'true' }),
+            'div',
+            { class: 'ai-compose' },
+            h('span', { class: 'ai-prompt' }, '›'),
+            this.input,
+            this.sendBtn,
           ),
         )),
         side,
@@ -415,6 +425,7 @@ export class AssistantPanel {
     this.sendBtn.replaceChildren(icon(on ? 'stop' : 'send'));
     this.sendBtn.title = on ? 'Abort (stop Flora)' : 'Transmit (Enter)';
     this.sendBtn.setAttribute('aria-label', on ? 'Abort' : 'Transmit');
+    this.clearBtn.disabled = on;
     if (on) this.turns++;
   }
 
@@ -433,7 +444,7 @@ export class AssistantPanel {
         h(
           'div',
           { class: `ai-sys-row t${p.tiers[k]}` },
-          h('i', { class: 'ai-led' }),
+          led(TIER_ICON[p.tiers[k]]!),
           h('span', {}, SYSTEM_LABELS[k]),
           h('b', {}, TIERS[p.tiers[k]]),
         ),
@@ -497,9 +508,37 @@ export class AssistantPanel {
     this.actions.send(text);
   }
 
+  /** Empties the log (entries fade out first), then notes the fresh start. */
+  clear(): void {
+    for (const el of Array.from(this.log.children)) this.fade(el as HTMLElement);
+    this.unread = 0;
+    this.badge.classList.add('hidden');
+    setTimeout(
+      () => this.system('Conversation cleared. Earlier messages are no longer sent to the model.'),
+      this.open ? FADE_MS : 0,
+    );
+  }
+
+  /** Fades an entry out, then removes it; a closed panel removes at once (nothing to see, no timer kept). */
+  private fade(el: HTMLElement): void {
+    if (el.classList.contains('ai-fade')) return;
+    if (!this.open) return el.remove();
+    el.classList.add('ai-fade');
+    setTimeout(() => el.remove(), FADE_MS);
+  }
+
   private push(el: HTMLElement): void {
     this.log.append(el);
-    while (this.log.children.length > 150) this.log.firstElementChild!.remove();
+    // Oldest entries beyond the cap fade away (ones already fading don't count).
+    let live = this.log.querySelectorAll(':scope > :not(.ai-fade)').length;
+    for (let c = this.log.firstElementChild; c && live > LOG_KEEP; ) {
+      const next = c.nextElementSibling;
+      if (!c.classList.contains('ai-fade')) {
+        this.fade(c as HTMLElement);
+        live--;
+      }
+      c = next;
+    }
     // Reading scrollHeight forces layout: only while visible (the welcome message is pushed at boot).
     if (this.open) this.log.scrollTop = this.log.scrollHeight;
     else if (this.log.children.length > 1) {
@@ -725,6 +764,7 @@ export class AssistantPanel {
             : 'No core loaded',
     );
     this.link.className = `ai-link ${s.status}`;
+    this.linkLed.replaceChildren(icon(STATUS_ICON[s.status]));
     if (this.open) this.renderModels(s);
   }
 

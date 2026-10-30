@@ -4,7 +4,7 @@ import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { CORE_TOOLS, PROMPTS, defaultPolicy } from '@/ai/agent';
 import { cityBrief } from '@/ai/brief';
-import type { LlmEngine } from '@/ai/llm/engine';
+import type { EngineState, LlmEngine } from '@/ai/llm/engine';
 
 const EFFECT: Record<ToolEffect, { icon: string; label: string; note: string }> = {
   read: { icon: 'search', label: 'Sense', note: 'reads the city, changes nothing' },
@@ -12,6 +12,15 @@ const EFFECT: Record<ToolEffect, { icon: string; label: string; note: string }> 
   mutate: { icon: 'wrench', label: 'Act', note: 'changes the city: undoable, asks first' },
 };
 const POLICY: Record<string, string> = { auto: 'Autonomous', ask: 'Asks first', off: 'Standby' };
+
+/** Status indicator icon per model-core state (colour comes from the state class around it). */
+export const STATUS_ICON: Record<EngineState['status'], string> = {
+  idle: 'st-off',
+  loading: 'st-busy',
+  ready: 'st-link',
+  error: 'st-crit',
+};
+export const led = (name: string) => h('span', { class: 'ai-led', 'aria-hidden': 'true' }, icon(name));
 
 /** Rough token count of a prompt (≈4 characters per token for English). */
 const tokens = (text: string) => Math.round(text.length / 4);
@@ -22,6 +31,7 @@ export interface DossierHost {
   /** Puts text in the console's input and switches to it. */
   compose(text: string): void;
   autoApprove(): boolean;
+  setAutoApprove(on: boolean): void;
   /** Turns and actions this session. */
   session(): { turns: number; actions: number };
   /** Tool name → calls this session. */
@@ -60,6 +70,31 @@ export class Dossier {
       out[t.effect]++;
     }
     return out;
+  }
+
+  /** Autonomous mode: may Flora run city-changing tools without the steward authorizing each one? */
+  private authorization(): HTMLElement {
+    const sw = h('input', {
+      type: 'checkbox',
+      class: 'ai-switch',
+      role: 'switch',
+      'aria-label': 'Autonomous mode',
+      onChange: () => this.host.setAutoApprove(sw.checked),
+    }) as HTMLInputElement;
+    sw.checked = this.host.autoApprove();
+    return h(
+      'label',
+      { class: 'ai-auto' },
+      h('span', { class: 'ai-auto-i' }, icon('wrench')),
+      h(
+        'span',
+        { class: 'ai-auto-t' },
+        h('b', {}, 'Autonomous mode'),
+        h('span', {}, 'Run city-changing actions without asking first. Every action stays undoable (⌘Z).'),
+      ),
+      h('span', { class: 'ai-auto-s', 'aria-hidden': 'true' }),
+      sw,
+    );
   }
 
   renderProfile(): void {
@@ -111,7 +146,7 @@ export class Dossier {
           h(
             'div',
             { class: `ai-hero-core ${st.status}` },
-            h('i', { class: 'ai-led' }),
+            led(STATUS_ICON[st.status]),
             core
               ? `${core.name} · ${st.info?.backend ?? core.engine}`
               : 'No model core loaded: slash commands only',
@@ -122,11 +157,11 @@ export class Dossier {
         'div',
         { class: 'ai-ptiles' },
         tile('Tools', String(c.all), `${c.read} sense · ${c.view} guide · ${c.mutate} act`),
-        tile('Mode', this.host.autoApprove() ? 'Autonomous' : 'Ask first', 'for city-changing actions'),
         tile('Turns', String(s.turns), 'this session'),
         tile('Actions', String(s.actions), 'all undoable'),
         tile('Throughput', st.tokPerSec ? `${Math.round(st.tokPerSec)}` : '—', 'tokens / s'),
       ),
+      this.authorization(),
       section('01', 'Directive stack', 'The exact system prompts of every turn, in order'),
       h(
         'div',
