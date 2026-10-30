@@ -1,6 +1,7 @@
 import { SYSTEMS, TAX_MAX, TAX_MIN, TIERS, type HistoryMetric, type SystemKey } from '@/sim/pulseState';
 import type { GameContext } from '@/game/context';
 import { h, setText } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import { LOAN_SIZES, creditLimit, totalDebt } from '@/sim/finance';
 import { isCompact, onCompactChange } from '@/platform/device';
 
@@ -240,7 +241,7 @@ export class PulsePanel {
     const btn = h(
       'button',
       { class: 'con-tab', role: 'tab', title: label, onClick: () => this.select(id, true) },
-      h('span', { class: 'g' }, glyph),
+      h('span', { class: 'g' }, icon(glyph)),
       h('span', { class: 'l' }, label),
       badge,
     );

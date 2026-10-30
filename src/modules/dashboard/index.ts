@@ -5,6 +5,7 @@ import { buildings } from '@/content';
 import { CATEGORY_LABELS, type BuildingCategory } from '@/content/types';
 import { SYSTEMS, TIERS, type HistoryMetric } from '@/sim/pulseState';
 import { h, setText } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { INCOME_SCALE } from '@/sim/pulse';
 import { LineChart } from './LineChart';
@@ -107,7 +108,7 @@ class Dashboard {
       h(
         'section',
         { class: 'db panel', role: 'dialog', 'aria-label': 'City dashboard' },
-        h('header', { class: 'db-head' }, h('h2', {}, 'City Dashboard'), tabBar, h('span', { class: 'db-hint' }, 'Esc to close'), h('button', { class: 'icon-btn', onClick: () => this.toggle(false) }, '✕')),
+        h('header', { class: 'db-head' }, h('h2', {}, 'City Dashboard'), tabBar, h('span', { class: 'db-hint' }, 'Esc to close'), h('button', { class: 'icon-btn', 'aria-label': 'Close', onClick: () => this.toggle(false) }, icon('close'))),
         ...[...this.tabs.values()].map((t) => t.pane),
       ),
     );

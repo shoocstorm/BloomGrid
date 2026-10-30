@@ -4,6 +4,7 @@ import { NO_ENTITY } from '@/sim/Grid';
 import type { District } from '@/sim/City';
 import { ZONES, type ZoneKind } from '@/content/types';
 import { h, setText } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import './citymap.css';
 
 export interface CityMapService {
@@ -124,7 +125,7 @@ class CityMap {
             }),
           ),
           h('kbd', { class: 'cmap-key' }, 'Y'),
-          h('button', { class: 'icon-btn', title: 'Close (Esc)', onClick: () => this.toggle(false) }, '✕'),
+          h('button', { class: 'icon-btn', title: 'Close (Esc)', 'aria-label': 'Close', onClick: () => this.toggle(false) }, icon('close')),
         ),
         h(
           'div',
@@ -447,7 +448,7 @@ export const cityMapModule: GameModule = {
           'aria-label': 'Open the city map',
           onClick: () => map.toggle(),
         },
-        h('span', { class: 'g' }, '⌗'),
+        h('span', { class: 'g' }, icon('map')),
         h('span', { class: 'l' }, 'Map'),
       ),
     );

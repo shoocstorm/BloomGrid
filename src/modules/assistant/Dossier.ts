@@ -1,14 +1,15 @@
 import type { GameContext } from '@/game/context';
 import type { AgentTool, JsonSchema, ToolEffect } from '@/core/AgentTools';
 import { h, setText } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import { CORE_TOOLS, PROMPTS, defaultPolicy } from '@/ai/agent';
 import { cityBrief } from '@/ai/brief';
 import type { LlmEngine } from '@/ai/llm/engine';
 
 const EFFECT: Record<ToolEffect, { icon: string; label: string; note: string }> = {
-  read: { icon: '◎', label: 'Sense', note: 'reads the city, changes nothing' },
-  view: { icon: '⌖', label: 'Guide', note: 'moves the camera or the HUD' },
-  mutate: { icon: '⚒', label: 'Act', note: 'changes the city: undoable, asks first' },
+  read: { icon: 'search', label: 'Sense', note: 'reads the city, changes nothing' },
+  view: { icon: 'locate', label: 'Guide', note: 'moves the camera or the HUD' },
+  mutate: { icon: 'wrench', label: 'Act', note: 'changes the city: undoable, asks first' },
 };
 const POLICY: Record<string, string> = { auto: 'Autonomous', ask: 'Asks first', off: 'Standby' };
 
@@ -172,7 +173,7 @@ export class Dossier {
               this.renderTools();
             },
           },
-          f === 'all' ? 'All' : `${EFFECT[f].icon} ${EFFECT[f].label}`,
+          ...(f === 'all' ? ['All'] : [icon(EFFECT[f].icon), EFFECT[f].label]),
           h('span', {}, String(c[f])),
         ),
       ),
@@ -197,7 +198,7 @@ export class Dossier {
           {},
           'Every function Flora can call. ',
           ...(['read', 'view', 'mutate'] as const).flatMap((e) => [
-            h('span', { class: `ai-eff ${e}` }, `${EFFECT[e].icon} ${EFFECT[e].label}`),
+            h('span', { class: `ai-eff ${e}` }, icon(EFFECT[e].icon), EFFECT[e].label),
             ` ${EFFECT[e].note}. `,
           ]),
         ),
@@ -293,7 +294,7 @@ export class Dossier {
       h(
         'header',
         {},
-        h('span', { class: 'ai-thex' }, EFFECT[t.effect].icon),
+        h('span', { class: 'ai-thex' }, icon(EFFECT[t.effect].icon)),
         h(
           'div',
           { class: 'ai-tname' },

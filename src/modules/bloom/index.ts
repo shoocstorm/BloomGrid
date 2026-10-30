@@ -6,7 +6,8 @@ import { U } from '@/render/uniforms';
 import { bloomLayers } from '@/sim/bloom';
 import { activityLayer } from '@/sim/nightlife';
 import { SEASONS, seasonAt } from '@/sim/seasons';
-import { h, setText } from '@/ui/dom';
+import { h } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import './bloom.css';
 
 /** Kept sparse on purpose: a few motes catch the light; a blizzard reads as noise (user feedback). */
@@ -124,7 +125,11 @@ export const bloomModule: GameModule = {
         hudTimer += f.dt;
         if (hudTimer > 0.5) {
           hudTimer = 0;
-          setText(chip, `${season.icon} ${season.name}`);
+          // Rebuilt only when the season turns (the chip holds an icon now, not just text).
+          if (chip.dataset.season !== season.id) {
+            chip.dataset.season = season.id;
+            chip.replaceChildren(icon(season.icon), ` ${season.name}`);
+          }
           bar.style.transform = `scaleX(${progress})`;
           wrap.title = `${season.name}: ${season.description}`;
         }

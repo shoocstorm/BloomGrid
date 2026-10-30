@@ -5,6 +5,7 @@ import { FAIL_SECONDS } from '@/sim/steward';
 import { foundCity } from '@/game/newCity';
 import { openingView } from '@/game/opening';
 import { h, setText } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import { Weather } from './Weather';
 import './crises.css';
 
@@ -98,7 +99,7 @@ export const crisesModule: GameModule = {
           const el = h(
             'div',
             { class: 'crisis panel' },
-            h('div', { class: 'cr-head' }, h('span', { class: 'cr-icon' }, d.icon), h('b', {}, d.name), status),
+            h('div', { class: 'cr-head' }, h('span', { class: 'cr-icon' }, icon(d.icon)), h('b', {}, d.name), status),
             h('div', { class: 'cr-bar' }, bar),
             h('div', { class: 'cr-text' }),
             c.x !== undefined || c.def === 'grid-failure' || c.def === 'blight'
@@ -166,7 +167,7 @@ export const crisesModule: GameModule = {
         h(
           'section',
           { class: 'modal panel over', role: 'alertdialog', 'aria-label': 'Steward replaced' },
-          h('div', { class: 'over-icon' }, '❦'),
+          h('div', { class: 'over-icon' }, icon('leaf')),
           h('h2', {}, 'The council has replaced you'),
           h('p', { class: 'modal-sub' }, `After ${day} day${day === 1 ? '' : 's'} of stewardship the city fell into collapse for too long.`),
           h('div', { class: 'over-stats' }, h('div', {}, h('b', {}, peakPopulation.toLocaleString()), h('span', {}, 'peak residents')), h('div', {}, h('b', {}, String(day)), h('span', {}, 'days'))),

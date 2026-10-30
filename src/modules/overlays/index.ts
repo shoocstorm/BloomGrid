@@ -4,6 +4,7 @@ import { allOverlays, getOverlay } from '@/sim/overlays';
 import { overlayTexture, setOverlaySmooth } from '@/render/materials/overlay';
 import { U } from '@/render/uniforms';
 import { h } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import './overlays.css';
 
 export interface OverlayService {
@@ -73,14 +74,14 @@ export const overlaysModule: GameModule = {
     const legend = h('div', { class: 'lens-legend' }, legendName, legendLo, legendBar, legendHi);
     const bar = h('div', { class: 'lens-bar panel' });
     for (const o of allOverlays()) {
-      const b = h('button', { class: 'lens', title: `${o.label} lens`, onClick: () => service.set(active === o.id ? null : o.id) }, h('span', { class: 'g' }, o.icon), h('span', { class: 'l' }, o.label));
+      const b = h('button', { class: 'lens', title: `${o.label} lens`, onClick: () => service.set(active === o.id ? null : o.id) }, h('span', { class: 'g' }, icon(`lens:${o.id}`, o.icon)), h('span', { class: 'l' }, o.label));
       buttons.set(o.id, b);
       bar.append(b);
     }
     bar.append(h('kbd', { title: 'Cycle lenses' }, 'L'));
     // Phones fold the lens bar behind a toggle (a HUD sheet); desktops hide the toggle.
     const wrap = h('div', { class: 'lens-wrap' });
-    const toggle = h('button', { class: 'lens-toggle panel', title: 'Data lenses', onClick: () => wrap.classList.toggle('collapsed') }, h('span', { class: 'g' }, '◐'), h('span', { class: 'l' }, 'Lens'));
+    const toggle = h('button', { class: 'lens-toggle panel', title: 'Data lenses', onClick: () => wrap.classList.toggle('collapsed') }, h('span', { class: 'g' }, icon('lens')), h('span', { class: 'l' }, 'Lens'));
     wrap.append(toggle, bar, legend);
     ctx.hud.append(wrap);
     ctx.services.get('hud').sheet(wrap);

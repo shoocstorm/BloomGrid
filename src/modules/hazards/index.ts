@@ -19,6 +19,7 @@ import { U } from '@/render/uniforms';
 import { RESPONSE_COST, eidOfUid } from '@/sim/hazards';
 import { placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { h, setText } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import './hazards.css';
 
 /** Flame and smoke instances per fire (scaled by intensity), and smoke for each ruin. */
@@ -350,7 +351,7 @@ export const hazardsModule: GameModule = {
             h(
               'button',
               { class: 'hz-go', title: 'Show it', onClick: () => ctx.cameraCtl.flyTo(f.x, f.z, 32) },
-              '⌖',
+              icon('locate'),
             ),
             h(
               'div',

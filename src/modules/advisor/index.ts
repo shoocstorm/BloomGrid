@@ -3,6 +3,7 @@ import { evaluateAdvisor, type Advisory, type Severity } from '@/sim/advisor';
 import { TIERS } from '@/sim/pulseState';
 import { buildings } from '@/content';
 import { h, setText } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { isCompact } from '@/platform/device';
 import './advisor.css';
@@ -46,7 +47,7 @@ export const advisorModule: GameModule = {
       h(
         'div',
         { class: 'adv-head' },
-        h('button', { class: 'adv-title', onClick: () => panel.classList.toggle('collapsed'), title: 'Toggle (F)' }, h('span', { class: 'adv-leaf' }, '❦'), 'Flora-Net', badge),
+        h('button', { class: 'adv-title', onClick: () => panel.classList.toggle('collapsed'), title: 'Toggle (F)' }, h('span', { class: 'adv-leaf' }, icon('leaf')), 'Flora-Net', badge),
         h('div', { class: 'adv-tabs' }, tabNow, tabLog),
       ),
       list,

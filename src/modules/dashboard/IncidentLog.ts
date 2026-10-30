@@ -4,6 +4,7 @@ import { RESPONSE_COST, clockLabel, eidOfUid, repairCost } from '@/sim/hazards';
 import { buildingId } from '@/sim/inventory';
 import type { IncidentRecord } from '@/sim/stewardState';
 import { h } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 
 type Filter = 'all' | 'fire' | 'quake' | 'storm' | 'water' | 'other';
 const FILTERS: [Filter, string][] = [
@@ -77,7 +78,7 @@ export class IncidentLog {
               `${city.districtAt(Math.floor(f.x), Math.floor(f.z)) ?? 'Outskirts'} · ${Math.round(f.intensity * 100)}% · ${f.crew ? 'crews on it' : f.cause}`,
             ),
           ),
-          h('button', { class: 'il-go', onClick: () => this.fly(f.x, f.z) }, '⌖'),
+          h('button', { class: 'il-go', onClick: () => this.fly(f.x, f.z) }, icon('locate')),
           f.crew
             ? null
             : h(
@@ -102,14 +103,14 @@ export class IncidentLog {
         h(
           'div',
           { class: 'il-now ruin' },
-          h('span', { class: 'il-ico' }, '▨'),
+          h('span', { class: 'il-ico' }, icon('ruin')),
           h(
             'div',
             {},
             h('b', {}, `Ruin: ${city.buildingDef(eid).name} · ${buildingId(city, eid)}`),
             h('span', {}, city.districtAt(Math.floor(x), Math.floor(z)) ?? 'Outskirts'),
           ),
-          h('button', { class: 'il-go', onClick: () => this.fly(x, z) }, '⌖'),
+          h('button', { class: 'il-go', onClick: () => this.fly(x, z) }, icon('locate')),
           h(
             'button',
             {
@@ -219,7 +220,7 @@ export class IncidentLog {
       h(
         'header',
         { onClick: () => (open ? this.open.delete(r.id) : this.open.add(r.id), this.render()) },
-        h('span', { class: 'il-ico' }, r.icon),
+        h('span', { class: 'il-ico' }, icon(r.icon)),
         h(
           'div',
           { class: 'il-main' },
@@ -239,7 +240,7 @@ export class IncidentLog {
                 title: 'Show where',
                 onClick: (e: Event) => (e.stopPropagation(), this.fly(r.x!, r.z!)),
               },
-              '⌖',
+              icon('locate'),
             )
           : null,
       ),

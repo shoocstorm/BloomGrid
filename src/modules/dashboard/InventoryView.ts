@@ -9,6 +9,7 @@ import {
   type ObjectStatus,
 } from '@/sim/inventory';
 import { h, setText } from '@/ui/dom';
+import { icon as ico } from '@/ui/icons';
 import './inventory.css';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -278,14 +279,14 @@ export class InventoryView {
 
   private renderSummary(): void {
     const s = this.summary!;
-    const kindTile = (kind: string, icon: string, name: string, count: number, warn: number, crit: number) =>
+    const kindTile = (kind: string, glyph: string, name: string, count: number, warn: number, crit: number) =>
       h(
         'button',
         {
           class: `db-tile inv-kind${this.q.kind === kind ? ' on' : ''}`,
           onClick: () => this.set({ kind: this.q.kind === kind ? '' : kind }),
         },
-        h('div', { class: 'db-tile-k' }, `${icon} ${name}`),
+        h('div', { class: 'db-tile-k' }, ico(`kind:${kind}`, glyph), ` ${name}`),
         h('div', { class: 'db-tile-v' }, fmt(count)),
         h(
           'div',

@@ -7,6 +7,7 @@ import { RESPONSE_COST, fireAt, isRuined, repairCost } from '@/sim/hazards';
 import type { GameContext, GameModule } from '@/game/context';
 import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from './dom';
+import { icon } from './icons';
 import './styles.css';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -21,16 +22,16 @@ function timeLabel(t: number, day: number, short: boolean): string {
 function tags(def: BuildingDef): HTMLElement {
   const s = def.stats;
   const t = h('div', { class: 'tags' });
-  const add = (label: string, v: number, invert = false) => {
+  const add = (name: string, v: number, invert = false) => {
     if (!v) return;
-    t.append(h('span', { class: `tag ${(invert ? v > 0 : v < 0) ? 'neg' : ''}` }, `${label} ${v > 0 ? '+' : ''}${v}`));
+    t.append(h('span', { class: `tag ${(invert ? v > 0 : v < 0) ? 'neg' : ''}` }, icon(name), `${v > 0 ? '+' : ''}${v}`));
   };
-  add('⚡', s.energy);
-  add('🌿', s.eco);
-  add('☺', s.happiness);
-  add('👥', s.population);
-  add('⚒', s.jobs);
-  add('☁', s.pollution, true);
+  add('energy', s.energy);
+  add('eco', s.eco);
+  add('happy', s.happiness);
+  add('people', s.population);
+  add('jobs', s.jobs);
+  add('pollution', s.pollution, true);
   return t;
 }
 
@@ -226,12 +227,12 @@ class Hud {
     this.timeEl = h('span', { class: 'time' });
     const seg = h('div', { class: 'seg' });
     [
-      ['❚❚', 0],
-      ['▶', 1],
-      ['▶▶', 3],
-      ['▶▶▶', 8],
-    ].forEach(([label, speed]) => {
-      const b = h('button', { title: `Speed ${speed}x`, onClick: () => (ctx.engine.speed = speed as number) }, label as string);
+      ['pause', 0],
+      ['play', 1],
+      ['fast', 3],
+      ['fastest', 8],
+    ].forEach(([name, speed]) => {
+      const b = h('button', { title: speed ? `Speed ${speed}x` : 'Pause', 'aria-label': speed ? `Speed ${speed}x` : 'Pause', onClick: () => (ctx.engine.speed = speed as number) }, icon(name as string));
       this.speedBtns.push(b);
       seg.append(b);
     });
@@ -240,31 +241,31 @@ class Hud {
       const v = h('span');
       // Secondary part of the value (rate, capacity) that phones drop.
       const sub = h('span', { class: 'sub' });
-      // "◈ Credits" → icon + label; the label collapses on narrow screens, the icon and tooltip stay.
-      const [icon, ...rest] = key.split(' ');
+      // "credits Credits" → icon + label; the label collapses on narrow screens, the icon and tooltip stay.
+      const [name, ...rest] = key.split(' ');
       const label = rest.join(' ');
-      const el = h('div', { class: `stat stat-${id}`, title: label }, h('span', { class: 'ki' }, icon!), h('span', { class: 'k' }, label), h('span', { class: 'v' }, v, sub), extra ?? null);
+      const el = h('div', { class: `stat stat-${id}`, title: label }, h('span', { class: 'ki' }, icon(name!)), h('span', { class: 'k' }, label), h('span', { class: 'v' }, v, sub), extra ?? null);
       this.statEls.set(id, { el, v, sub });
       stats.append(el);
     };
-    stat('credits', '◈ Credits');
-    stat('pop', '👥 Residents');
-    stat('energy', '⚡ Energy');
-    stat('water', '💧 Water');
-    stat('eco', '🌿 Eco');
+    stat('credits', 'credits Credits');
+    stat('pop', 'people Residents');
+    stat('energy', 'energy Energy');
+    stat('water', 'water Water');
+    stat('eco', 'eco Eco');
     this.happyMeter = h('i');
-    stat('happy', '☺ Harmony', h('div', { class: 'meter' }, this.happyMeter));
+    stat('happy', 'happy Harmony', h('div', { class: 'meter' }, this.happyMeter));
 
     const save = ctx.services.get('save');
-    this.undoBtn = h('button', { class: 'icon-btn', title: 'Undo (⌘Z)', onClick: () => ctx.commands.undo() }, '↶');
-    this.redoBtn = h('button', { class: 'icon-btn opt', title: 'Redo (⇧⌘Z)', onClick: () => ctx.commands.redo() }, '↷');
+    this.undoBtn = h('button', { class: 'icon-btn', title: 'Undo (⌘Z)', 'aria-label': 'Undo', onClick: () => ctx.commands.undo() }, icon('undo'));
+    this.redoBtn = h('button', { class: 'icon-btn opt', title: 'Redo (⇧⌘Z)', 'aria-label': 'Redo', onClick: () => ctx.commands.redo() }, icon('redo'));
     const actions = (this.actions = h(
       'div',
       { class: 'actions panel' },
       this.undoBtn,
       this.redoBtn,
-      h('button', { class: 'icon-btn', title: 'City dashboard (K)', onClick: () => ctx.services.get('dashboard').toggle() }, '▤'),
-      h('button', { class: 'icon-btn opt', title: 'Overview (O) · bookmarks: Alt+1–4 store, Shift+1–4 recall', onClick: () => ctx.cameraCtl.overview() }, '⌖'),
+      h('button', { class: 'icon-btn', title: 'City dashboard (K)', 'aria-label': 'City dashboard', onClick: () => ctx.services.get('dashboard').toggle() }, icon('dashboard')),
+      h('button', { class: 'icon-btn opt', title: 'Overview (O) · bookmarks: Alt+1–4 store, Shift+1–4 recall', 'aria-label': 'Overview', onClick: () => ctx.cameraCtl.overview() }, icon('overview')),
       h('button', { class: 'icon-btn', title: 'Save (⌘S)', onClick: () => void save.save() }, 'Save'),
       h('button', { class: 'icon-btn opt', title: 'Load (⌘L)', onClick: () => void save.load().then((ok) => ok || this.toast('No save yet', 'bad')) }, 'Load'),
     ));
@@ -303,7 +304,7 @@ class Hud {
     this.tray = h('div', { class: 'tray panel hidden' });
     const toolbar = (this.toolbar = h('div', { class: 'toolbar panel' }));
     const toolBtn = (id: string, glyph: string, label: string, key: string | undefined, onClick: () => void) => {
-      const b = h('button', { class: 'tool', title: label, onClick }, h('span', { class: 'g' }, glyph), h('span', { class: 'l' }, label), key ? h('kbd', {}, key) : null);
+      const b = h('button', { class: 'tool', title: label, onClick }, h('span', { class: 'g' }, icon(id, glyph)), h('span', { class: 'l' }, label), key ? h('kbd', {}, key) : null);
       this.toolBtns.set(id, b);
       toolbar.append(b);
     };
@@ -354,14 +355,14 @@ class Hud {
     const construction = ctx.services.get('construction');
     // Rotation without a keyboard (R still works).
     this.tray.append(
-      h('button', { class: 'card rotate', title: 'Rotate (R)', onClick: () => (construction.state.rot = (construction.state.rot + 1) % 4) }, h('div', { class: 'n' }, '⟳'), h('div', { class: 'c' }, 'Rotate')),
+      h('button', { class: 'card rotate', title: 'Rotate (R)', onClick: () => (construction.state.rot = (construction.state.rot + 1) % 4) }, h('div', { class: 'n' }, icon('rotate')), h('div', { class: 'c' }, 'Rotate')),
     );
     for (const def of buildings.all().filter((b) => b.category === this.category)) {
       const card = h(
         'button',
         { class: 'card', title: def.description, onClick: () => construction.startBuilding(def.id) },
         h('div', { class: 'n' }, def.name),
-        h('div', { class: 'c' }, `◈ ${fmt(def.stats.cost)} · ${def.footprint[0]}×${def.footprint[1]}`),
+        h('div', { class: 'c' }, icon('credits'), ` ${fmt(def.stats.cost)} · ${def.footprint[0]}×${def.footprint[1]}`),
         tags(def),
       );
       this.cards.set(def.id, card);
@@ -403,7 +404,7 @@ class Hud {
     this.info = h(
       'div',
       { class: 'info panel hidden' },
-      h('button', { class: 'icon-btn', style: 'float:right;margin:-8px -8px 0 0', onClick: () => this.select(null) }, '✕'),
+      h('button', { class: 'icon-btn', style: 'float:right;margin:-8px -8px 0 0', 'aria-label': 'Close', onClick: () => this.select(null) }, icon('close')),
       this.infoBody,
     );
   }
@@ -474,7 +475,7 @@ class Hud {
       row('Residents', s.population),
       row('Jobs', s.jobs),
       row('Pollution', s.pollution),
-      h('button', { class: 'tool', style: 'margin-top:10px', onClick: () => this.ctx.tools.setActive('bulldoze') }, h('span', { class: 'g' }, '⌫'), 'Return to nature'),
+      h('button', { class: 'tool', style: 'margin-top:10px', onClick: () => this.ctx.tools.setActive('bulldoze') }, h('span', { class: 'g' }, icon('bulldoze')), 'Return to nature'),
     );
     this.updateInfo();
   }
@@ -540,9 +541,9 @@ class Hud {
     const btn = fire
       ? fire.crew
         ? h('span', { class: 'info-hz-note' }, '🚒 Crews are fighting the fire')
-        : h('button', { class: 'tool info-hz-btn', onClick: () => run('respond', { id: fire.id }) }, `🚒 Dispatch crews · ◈${RESPONSE_COST}`)
+        : h('button', { class: 'tool info-hz-btn', onClick: () => run('respond', { id: fire.id }) }, icon('fire'), ' Dispatch crews · ', icon('credits'), String(RESPONSE_COST))
       : ruined
-        ? h('button', { class: 'tool info-hz-btn', onClick: () => run('repair', at) }, `⚒ Rebuild · ◈${repairCost(city, eid).toLocaleString()}`)
+        ? h('button', { class: 'tool info-hz-btn', onClick: () => run('repair', at) }, icon('wrench'), ' Rebuild · ', icon('credits'), repairCost(city, eid).toLocaleString())
         : cond < 0.95
           ? h('button', { class: 'tool info-hz-btn', onClick: () => run('repair', at) }, `⚒ Repair ${Math.round(cond * 100)}% → 100% · ◈${repairCost(city, eid).toLocaleString()}`)
           : null;

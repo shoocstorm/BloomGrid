@@ -1,5 +1,6 @@
 import type { GameContext } from '@/game/context';
 import { h, setText } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import { stripThink, type StepRecord, type ToolCall } from '@/ai/agent';
 import type { EngineState, LlmEngine } from '@/ai/llm/engine';
 import { availableModels, memoryFit, recommendedModel, type ModelDef } from '@/ai/llm/models';
@@ -19,7 +20,7 @@ const PHASES: Record<string, string> = {
   running: 'Executing',
   answering: 'Transmitting reply',
 };
-const TOOL_ICON: Record<string, string> = { read: '⌕', view: '⌖', mutate: '⚒' };
+const TOOL_ICON: Record<string, string> = { read: 'search', view: 'locate', mutate: 'wrench' };
 const stamp = () => {
   const d = new Date();
   return [d.getHours(), d.getMinutes(), d.getSeconds()].map((v) => String(v).padStart(2, '0')).join(':');
@@ -141,7 +142,7 @@ export class AssistantPanel {
         title: 'Maximize console (Shift+U)',
         onClick: () => this.setMax(!this.max),
       },
-      '⤢',
+      icon('maximize'),
     ) as HTMLButtonElement;
     this.link.append(h('i', { class: 'ai-led' }), this.linkText);
     this.dossier = new Dossier(ctx, engine, {
@@ -159,7 +160,7 @@ export class AssistantPanel {
       const b = h(
         'button',
         { class: 'ai-tab', role: 'tab', onClick: () => this.setView(v) },
-        h('span', { class: 'g' }, glyph),
+        h('span', { class: 'g' }, icon(glyph)),
         label,
       );
       this.tabs.set(v, b);
@@ -168,9 +169,9 @@ export class AssistantPanel {
     const tabs = h(
       'nav',
       { class: 'ai-tabs', role: 'tablist' },
-      tab('console', '›_', 'Console'),
-      tab('profile', '◈', 'Profile'),
-      tab('tools', '⚒', 'Tools'),
+      tab('console', 'console', 'Console'),
+      tab('profile', 'profile', 'Profile'),
+      tab('tools', 'wrench', 'Tools'),
     );
 
     const section = (title: string, body: HTMLElement) =>
@@ -251,13 +252,13 @@ export class AssistantPanel {
             title: 'Model core',
             onClick: () => this.models.classList.toggle('hidden'),
           },
-          '⚙',
+          icon('chip'),
         ),
         this.maxBtn,
         h(
           'button',
           { class: 'icon-btn ai-hbtn', title: 'Close (U)', onClick: () => this.toggle(false) },
-          '✕',
+          icon('close'),
         ),
       ),
       h('div', { class: 'ai-scan' }),
@@ -390,7 +391,7 @@ export class AssistantPanel {
     const on = this.max && this.open;
     this.el.classList.toggle('max', on);
     document.body.classList.toggle('flora-max', on);
-    setText(this.maxBtn, on ? '⤡' : '⤢');
+    this.maxBtn.replaceChildren(icon(on ? 'restore' : 'maximize'));
     this.maxBtn.title = on ? 'Restore (Shift+U)' : 'Maximize console (Shift+U)';
     if (this.open) this.log.scrollTop = this.log.scrollHeight;
   }
@@ -560,7 +561,7 @@ export class AssistantPanel {
         'div',
         { class: `ai-tool ${c.effect}` },
         h('time', {}, stamp()),
-        h('span', { class: 'ai-tool-i' }, TOOL_ICON[c.effect] ?? '·'),
+        h('span', { class: 'ai-tool-i' }, icon(TOOL_ICON[c.effect] ?? '·')),
         h('b', {}, c.tool),
         h('code', {}, JSON.stringify(c.args)),
       );

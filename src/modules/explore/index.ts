@@ -2,6 +2,7 @@ import { Group, MathUtils, Vector3 } from 'three/webgpu';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { h, setText } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import { BODY, STEP, createCollider } from './collider';
 import { createBalloon, createBoard, createDrone, createPerson, showOnly } from './avatars';
 import { findRoof, roofAt, rooftopCandidates, type Roof } from './roof';
@@ -19,15 +20,16 @@ const LABELS: Record<ExploreMode, string> = {
   follow: 'Ride a pod',
   train: 'Aeroline',
 };
-const MENU: Record<ExploreMode, [glyph: string, note: string]> = {
-  city: ['◇', 'Steward’s overview: build and manage'],
-  walk: ['⚲', 'Stroll the streets as the steward'],
-  board: ['≈', 'Jet along the living highways'],
-  drone: ['✦', 'Fly a quadcopter over the island'],
-  balloon: ['◓', 'Drift over the island in a hot-air balloon'],
-  roof: ['▣', 'Stand on top of a landmark'],
-  follow: ['⇶', 'Ride a pod along the sky-lanes'],
-  train: ['═', 'Ride the Aeroline maglev loop'],
+/** Icon (`ui/icons.ts`) and menu note per mode. */
+const MENU: Record<ExploreMode, [icon: string, note: string]> = {
+  city: ['city', 'Steward’s overview: build and manage'],
+  walk: ['walk', 'Stroll the streets as the steward'],
+  board: ['board', 'Jet along the living highways'],
+  drone: ['drone', 'Fly a quadcopter over the island'],
+  balloon: ['balloon', 'Drift over the island in a hot-air balloon'],
+  roof: ['roof', 'Stand on top of a landmark'],
+  follow: ['pod', 'Ride a pod along the sky-lanes'],
+  train: ['train', 'Ride the Aeroline maglev loop'],
 };
 const HINTS: Record<ExploreMode, string> = {
   city: '',
@@ -133,18 +135,18 @@ export const exploreModule: GameModule = {
     // A view-mode dropdown in the top bar's actions (the top bar is the one HUD part kept while exploring).
     // The menu hangs off the top bar itself: the actions panel's chamfer clip-path would cut it off.
     const buttons = new Map<ExploreMode, HTMLElement>();
-    const dropGlyph = h('span', { class: 'g' }, MENU.city[0]);
+    const dropGlyph = h('span', { class: 'g' }, icon(MENU.city[0]));
     const dropLabel = h('span', { class: 'l' }, LABELS.city);
-    const drop = h('button', { class: 'icon-btn xp-drop', title: 'View mode (N cycles · J photo)', 'aria-haspopup': 'menu', onClick: () => openMenu(menu.classList.contains('hidden')) }, dropGlyph, dropLabel, h('span', { class: 'caret' }, '▾'));
-    const item = (glyph: string, label: string, note: string, key: string, onClick: () => void) =>
-      h('button', { class: 'xp-item', role: 'menuitem', onClick: () => (openMenu(false), onClick()) }, h('span', { class: 'g' }, glyph), h('span', { class: 'xp-t' }, h('b', {}, label), h('i', {}, note)), h('kbd', {}, key));
+    const drop = h('button', { class: 'icon-btn xp-drop', title: 'View mode (N cycles · J photo)', 'aria-haspopup': 'menu', onClick: () => openMenu(menu.classList.contains('hidden')) }, dropGlyph, dropLabel, h('span', { class: 'caret' }, icon('caret')));
+    const item = (name: string, label: string, note: string, key: string, onClick: () => void) =>
+      h('button', { class: 'xp-item', role: 'menuitem', onClick: () => (openMenu(false), onClick()) }, h('span', { class: 'g' }, icon(name)), h('span', { class: 'xp-t' }, h('b', {}, label), h('i', {}, note)), h('kbd', {}, key));
     const menu = h('div', { class: 'xp-menu panel hidden', role: 'menu' }, h('div', { class: 'xp-h' }, 'View mode'));
     for (const m of CYCLE) {
       const b = item(MENU[m][0], LABELS[m], MENU[m][1], m === 'city' ? 'Esc' : 'N', () => setMode(m));
       buttons.set(m, b);
       menu.append(b);
     }
-    menu.append(h('div', { class: 'xp-sep' }), item('◉', 'Photo mode', 'Frame a shot, P saves a PNG', 'J', () => setPhoto(!photo)));
+    menu.append(h('div', { class: 'xp-sep' }), item('photo', 'Photo mode', 'Frame a shot, P saves a PNG', 'J', () => setPhoto(!photo)));
     buttons.get('city')!.classList.add('on');
     const actions = ctx.services.get('hud').actions;
     actions.append(drop);
@@ -211,8 +213,8 @@ export const exploreModule: GameModule = {
     stick.addEventListener('pointermove', (e) => e.pointerId === stickId && steer(e));
     for (const ev of ['pointerup', 'pointercancel'] as const) stick.addEventListener(ev, (e) => e.pointerId === stickId && release());
     /** A button that holds `code` while pressed, or taps it (sends a keydown) when `tap`. */
-    const padBtn = (label: string, title: string, code: string, tap = false) => {
-      const b = h('button', { class: 'xp-pbtn', title }, label);
+    const padBtn = (name: string, title: string, code: string, tap = false) => {
+      const b = h('button', { class: 'xp-pbtn', title, 'aria-label': title }, icon(name));
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         if (tap) window.dispatchEvent(new KeyboardEvent('keydown', { code }));
@@ -225,12 +227,12 @@ export const exploreModule: GameModule = {
       return b;
     };
     const pad = {
-      up: padBtn('▲', 'Up · jump · burn', 'Space'),
-      down: padBtn('▼', 'Down · vent', 'KeyQ'),
-      next: padBtn('⇥', 'Next', 'Tab', true),
-      view: padBtn('◉', 'First person', 'KeyV', true),
+      up: padBtn('up', 'Up · jump · burn', 'Space'),
+      down: padBtn('down', 'Down · vent', 'KeyQ'),
+      next: padBtn('next', 'Next', 'Tab', true),
+      view: padBtn('eye', 'First person', 'KeyV', true),
     };
-    const exit = h('button', { class: 'xp-exit panel', title: 'Back to the city view', 'aria-label': 'Back to the city view', onClick: () => setMode('city') }, h('span', { class: 'g' }, '◇'), h('span', { class: 'l' }, ' City view'));
+    const exit = h('button', { class: 'xp-exit panel', title: 'Back to the city view', 'aria-label': 'Back to the city view', onClick: () => setMode('city') }, h('span', { class: 'g' }, icon('city')), h('span', { class: 'l' }, 'City view'));
     const padEl = h('div', { class: 'xp-pad hidden' }, stick, h('div', { class: 'xp-pbtns' }, pad.up, pad.down, pad.next, pad.view), exit);
     document.body.append(padEl);
     /** Which pad parts each mode uses (rides have no stick: they follow their pod or train). */
@@ -343,7 +345,7 @@ export const exploreModule: GameModule = {
       cross.classList.toggle('hidden', !crossOn());
       setText(hint, HINTS[next]);
       for (const [m, b] of buttons) b.classList.toggle('on', m === next);
-      setText(dropGlyph, MENU[next][0]);
+      dropGlyph.replaceChildren(icon(MENU[next][0]));
       setText(dropLabel, LABELS[next]);
       drop.classList.toggle('active', exploring);
       if (!exploring) {

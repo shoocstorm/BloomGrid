@@ -2,6 +2,7 @@ import type { GameModule } from '@/game/context';
 import { QUALITY_TIERS, type QualityTier } from '@/render/Quality';
 import { POWER_MODES, type PowerMode } from '@/render/Power';
 import { h } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import './settings.css';
 
 const QUALITY_LABELS: Record<QualityTier, string> = {
@@ -79,7 +80,7 @@ export const settingsModule: GameModule = {
       h('h4', {}, 'City'),
       h('button', { class: 'set-new', onClick: () => (pop.classList.add('hidden'), ctx.services.get('crises').newCity()) }, '✦ Found a new city…'),
     );
-    const btn = h('button', { class: 'icon-btn', title: 'Settings', onClick: () => pop.classList.toggle('hidden') }, '⚙');
+    const btn = h('button', { class: 'icon-btn', title: 'Settings', 'aria-label': 'Settings', onClick: () => pop.classList.toggle('hidden') }, icon('settings'));
     document.querySelector('.topbar .actions')?.append(btn);
     ctx.hud.append(pop);
     window.addEventListener('pointerdown', (e) => {

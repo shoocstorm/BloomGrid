@@ -713,3 +713,13 @@ Maximize fills the window (`inset: 10px`, above the HUD). Phones: every panel is
 colour under `.compact`) so chips never ghost through open sheets; full-screen surfaces (Flora, dashboard) drop their
 radius and frame; the season chip is hidden on portrait (it overflowed the clock pill under the actions pill, and City
 Pulse shows the season); landscape sheets keep a readable width (`min(380px, 45vw)`) clear of the centre lens chip.
+
+## D-061 — HUD line icons instead of Unicode glyphs; phones explore with one exit icon (2026-10-30)
+
+Unicode symbols and emoji rendered differently per platform and mixed styles (emoji stats next to text symbols).
+The HUD now draws one stroke family from `ui/icons.ts` (`icon(key, glyph)`: 24-unit SVG, `currentColor`, sized
+`1.15em` by `.ico` in `ui/theme.css`). Content and sim data keep their glyph strings, since toasts and labels show them
+inline; the HUD maps a glyph (or a context key such as `lens:hydration`, `kind:skybridge`, for glyphs that mean two
+things) to an icon where it stands alone, and unknown glyphs stay text. Inline glyphs in sentences (toasts, zone and
+crisis names, the live `Dispatch · ◈n` labels) are left as text. On phones, explore modes also hide the top bar: only
+the touch pad and a round city-view icon (top-left) remain.

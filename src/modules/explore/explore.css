@@ -134,4 +134,7 @@ body.compact .xp-pad:not(.hidden) {
   text-transform: uppercase;
   color: var(--accent);
   z-index: 21;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
