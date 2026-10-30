@@ -17,6 +17,7 @@
   color: var(--ink-soft);
   background: transparent;
   border: 1px solid transparent;
+  border-radius: var(--r-sm);
   padding: 5px 10px;
   cursor: pointer;
 }
@@ -133,7 +134,7 @@
   color: var(--ink);
   background: var(--bg-raise);
   border: 1px solid var(--line);
-  border-radius: 0;
+  border-radius: var(--r-sm);
   padding: 6px 8px;
 }
 .inv-sel option {
@@ -164,6 +165,7 @@
   max-height: 46vh;
   overflow: auto;
   border: 1px solid var(--line);
+  border-radius: var(--r-md);
 }
 .inv-table {
   width: 100%;
@@ -225,6 +227,7 @@
 }
 .inv-detail {
   border: 1px solid var(--line);
+  border-radius: var(--r-md);
   padding: 10px 12px;
   font-size: 12px;
   max-height: 46vh;

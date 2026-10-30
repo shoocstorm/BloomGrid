@@ -695,3 +695,12 @@ are ad-hoc signed (`APPLE_SIGNING_IDENTITY=-`) unless the repo secrets `APPLE_CE
 `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY` (and for notarization `APPLE_ID`, `APPLE_PASSWORD`,
 `APPLE_TEAM_ID`) exist; ad-hoc apps need **Open Anyway** in Privacy & Security on first launch, which the release
 notes explain. Unsigned (not even ad-hoc) bundles are rejected as "damaged" on Apple Silicon, hence the ad-hoc default.
+
+## D-059 — Rounded instrument HUD; frameless Flora orb (2026-10-30)
+
+Supersedes D-027's frame shape: the user found the chamfered, square HUD sharp and uncomfortable. `theme.css` keeps the
+dark instrument palette, mono numerals and coded titles, but panels are rounded (`--radius` 16px, with `--r-md` 11px,
+`--r-sm` 8px, `--r-xs` 6px and `--pill` tokens for cards, controls and meters) with a faint top sheen and a static drop
+shadow instead of clip-path chamfers, corner brackets and the scan texture. LEDs are round and active states are soft
+fills rather than hard underlines. Flora's orb (`.ai-fab`) drops its panel plate: the sigil stands alone with heavier
+strokes, filled petals and a dark halo so it reads over the scene. New panels should use the radius tokens, not literal radii.

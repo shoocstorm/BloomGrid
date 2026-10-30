@@ -133,6 +133,7 @@
   text-transform: uppercase;
   color: #ffb08a;
   border: 1px solid rgba(255, 138, 90, 0.5);
+  border-radius: var(--r-md);
 }
 /* Screen pins over fires; off screen they sit on the edge with an arrow pointing at the fire. */
 #hud > .hz-pins {

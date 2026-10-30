@@ -61,6 +61,7 @@
   letter-spacing: 0.2em;
   color: var(--accent);
   border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
 }
 .cmap-title {
   display: flex;
@@ -100,6 +101,7 @@
   aspect-ratio: 1;
   cursor: crosshair;
   border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
   background: #04191e;
   overflow: hidden;
 }
@@ -133,6 +135,7 @@
   text-align: center;
   background: rgba(2, 12, 14, 0.62);
   border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  border-radius: var(--r-sm);
   border-left: 2px solid var(--c);
   transition:
     background 0.12s,
@@ -242,6 +245,7 @@
   padding: 5px 7px;
   text-align: left;
   border: 1px solid transparent;
+  border-radius: var(--r-sm);
   border-left: 2px solid var(--c);
   background: var(--bg-raise);
 }
@@ -318,6 +322,7 @@
 .cmap-mode {
   display: flex;
   border: 1px solid var(--line);
+  border-radius: var(--r-sm);
 }
 .cmap-mode-b {
   padding: 4px 10px;

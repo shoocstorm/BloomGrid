@@ -3,9 +3,8 @@
  * Imported last (see main.ts) so it can restyle module stylesheets from one place.
  *
  * Look: dark translucent instrument panels (same by day and night, so they read over any sky),
- * hairline cyan frames with chamfered corners and corner brackets, a faint static scan texture,
- * a technical sans for labels and a monospace face for every number, coded section labels,
- * LED tier indicators and segmented meters.
+ * soft rounded hairline frames with a static drop shadow, pill meters and round LEDs,
+ * a technical sans for labels and a monospace face for every number, coded section labels.
  *
  * Power rules (AGENTS.md §7½) still apply: no backdrop-filter, no continuous animation of
  * box-shadow or layout; textures are static gradients painted once.
@@ -26,8 +25,11 @@
   --ink-faint: #56776e;
   --ui: 'Space Grotesk', 'Outfit', system-ui, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --cut: 9px;
-  --radius: 0px;
+  --radius: 16px;
+  --r-md: 11px;
+  --r-sm: 8px;
+  --r-xs: 6px;
+  --pill: 999px;
   --glass: var(--bg);
   --glass-strong: var(--bg-strong);
   --glass-dark: var(--bg);
@@ -39,29 +41,27 @@
   --ink-soft: #86aaa0;
 }
 
-/* ── Panels: chamfered frame, corner brackets, scan texture ───────────────── */
+/* ── Panels: soft rounded frame, a faint top sheen, a static shadow ───────── */
 .panel,
 .night .panel {
   color: var(--ink);
   border: 1px solid var(--line);
-  border-radius: 0;
-  clip-path: polygon(
-    var(--cut) 0,
-    100% 0,
-    100% calc(100% - var(--cut)),
-    calc(100% - var(--cut)) 100%,
-    0 100%,
-    0 var(--cut)
-  );
-  box-shadow: none;
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
   background:
-    linear-gradient(var(--accent), var(--accent)) right top / 12px 1px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) right top / 1px 12px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) left bottom / 12px 1px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) left bottom / 1px 12px no-repeat,
-    repeating-linear-gradient(0deg, rgba(95, 242, 218, 0.022) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 120px),
     var(--bg);
-  background-origin: border-box;
+}
+/* Flora's orb: the sigil alone, no frame (a small static shadow keeps it legible over the sky). */
+.ai-fab.panel,
+.night .ai-fab.panel {
+  border: 0;
+  background: none;
+  box-shadow: none;
+  filter: drop-shadow(0 0 2px rgba(4, 20, 22, 0.9)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+.ai-fab.on .ai-sigil {
+  filter: drop-shadow(0 0 7px rgba(95, 242, 218, 0.8));
 }
 /* Monospace for every number-bearing readout. */
 .stat .v,
@@ -135,19 +135,18 @@ kbd,
   gap: 1px;
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 0;
+  border-radius: var(--r-sm);
   padding: 1px;
 }
 .seg button {
-  border-radius: 0;
+  border-radius: var(--r-xs);
   padding: 3px 8px;
   font-size: 11px;
   color: var(--ink-soft);
 }
 .seg button.on {
-  background: var(--bg-hover);
+  background: rgba(95, 242, 218, 0.16);
   color: var(--accent);
-  box-shadow: inset 0 -2px 0 var(--accent);
 }
 /* Monospace digits are wider: keep the stat strip compact so values never clip. */
 .stats {
@@ -180,21 +179,21 @@ kbd,
 .stat.bad .v {
   color: var(--crit);
 }
-/* Segmented meter: hard ticks instead of a soft pill. */
+/* Segmented meter in a rounded pill. */
 .meter,
 .info .grow .meter {
   height: 6px;
-  border-radius: 0;
+  border-radius: var(--pill);
   background: rgba(95, 242, 218, 0.1);
 }
 .meter i {
-  border-radius: 0;
+  border-radius: var(--pill);
   background: linear-gradient(90deg, var(--warn), var(--accent-2), var(--accent));
   -webkit-mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 5px);
   mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 5px);
 }
 .icon-btn {
-  border-radius: 0;
+  border-radius: var(--r-sm);
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -215,7 +214,7 @@ kbd,
   background: var(--line);
 }
 .tool {
-  border-radius: 0;
+  border-radius: var(--r-sm);
   color: var(--ink-soft);
   padding: 7px 10px;
 }
@@ -228,13 +227,11 @@ kbd,
 .night .tool.on {
   background: var(--bg-hover);
   color: var(--accent);
-  box-shadow:
-    inset 0 0 0 1px var(--line-strong),
-    inset 0 -2px 0 var(--accent);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 .card,
 .night .card {
-  border-radius: 0;
+  border-radius: var(--r-md);
   background: var(--bg-raise);
   border: 1px solid var(--line);
 }
@@ -255,7 +252,7 @@ kbd,
   font-size: 11px;
 }
 .tag {
-  border-radius: 0;
+  border-radius: var(--pill);
   font-family: var(--mono);
   font-size: 10px;
   background: rgba(142, 240, 122, 0.12);
@@ -313,11 +310,11 @@ kbd,
   text-transform: uppercase;
 }
 
-/* ── LED tier indicators (square, dark-theme palette) ─────────────────────── */
+/* ── LED tier indicators (round, dark-theme palette) ──────────────────────── */
 .tier-dot {
   width: 8px;
   height: 8px;
-  border-radius: 0;
+  border-radius: 50%;
 }
 .t0,
 .night .t0 {
@@ -342,7 +339,7 @@ kbd,
   text-transform: uppercase;
 }
 .demand-bar {
-  border-radius: 0;
+  border-radius: var(--pill);
   background: rgba(95, 242, 218, 0.08);
 }
 .demand-bar b {
@@ -367,7 +364,7 @@ kbd,
 .cr-show,
 .set-new,
 .btn.ghost {
-  border-radius: 0;
+  border-radius: var(--r-sm);
   background: transparent;
   border: 1px solid var(--line);
   color: var(--ink);
@@ -385,7 +382,7 @@ kbd,
   color: var(--accent);
 }
 .btn {
-  border-radius: 0;
+  border-radius: var(--r-sm);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-size: 12px;
@@ -401,17 +398,17 @@ kbd,
   color: var(--accent);
 }
 .adv-badge {
-  border-radius: 0;
+  border-radius: var(--pill);
   font-size: 10px;
 }
 .adv-tabs {
-  border-radius: 0;
+  border-radius: var(--r-sm);
   background: transparent;
   border: 1px solid var(--line);
   padding: 1px;
 }
 .adv-tab {
-  border-radius: 0;
+  border-radius: var(--r-xs);
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.1em;
@@ -424,7 +421,7 @@ kbd,
 }
 .adv-card,
 .night .adv-card {
-  border-radius: 0;
+  border-radius: var(--r-md);
   background: var(--bg-raise);
   border-left-width: 2px;
   border-left-color: var(--accent);
@@ -446,7 +443,7 @@ kbd,
 
 /* ── Lenses, legend, tooltip, toasts ──────────────────────────────────────── */
 .lens {
-  border-radius: 0;
+  border-radius: var(--r-sm);
   color: var(--ink-soft);
 }
 .lens:hover,
@@ -456,13 +453,12 @@ kbd,
 }
 .lens.on,
 .night .lens.on {
-  background: var(--bg-hover);
+  background: rgba(95, 242, 218, 0.16);
   color: var(--accent);
-  box-shadow: inset 0 -2px 0 var(--accent);
 }
 .lens-legend,
 .night .lens-legend {
-  border-radius: 0;
+  border-radius: var(--pill);
   background: var(--bg-strong);
   border: 1px solid var(--line);
   font-family: var(--mono);
@@ -471,11 +467,11 @@ kbd,
   text-transform: uppercase;
 }
 .lens-legend i {
-  border-radius: 0;
+  border-radius: var(--pill);
 }
 .tooltip {
   font-size: 11.5px;
-  border-radius: 0;
+  border-radius: var(--r-sm);
 }
 .toast {
   font-size: 12.5px;
@@ -518,7 +514,7 @@ kbd,
   border-bottom: 1px dashed rgba(95, 242, 218, 0.1);
 }
 .info .svc {
-  border-radius: 0;
+  border-radius: var(--r-sm);
   font-family: var(--mono);
   font-size: 11px;
   background: var(--bg-raise);
@@ -535,11 +531,11 @@ kbd,
   border-left-width: 2px;
 }
 .cr-bar {
-  border-radius: 0;
+  border-radius: var(--pill);
   background: rgba(95, 242, 218, 0.1);
 }
 .fail-warn {
-  border-radius: 0;
+  border-radius: var(--r-md);
   background: rgba(255, 90, 110, 0.9);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -554,10 +550,7 @@ kbd,
 .settings,
 .night .settings {
   background:
-    linear-gradient(var(--accent), var(--accent)) right top / 12px 1px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) right top / 1px 12px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) left bottom / 12px 1px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) left bottom / 1px 12px no-repeat,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 120px),
     var(--bg-strong);
 }
 .modal h2,
@@ -568,17 +561,17 @@ kbd,
   font-size: 16px;
 }
 .nc-diff {
-  border-radius: 0;
+  border-radius: var(--r-sm);
 }
 .nc-diff:hover,
 .set-opt:hover {
   background: var(--bg-hover);
 }
 .set-opt {
-  border-radius: 0;
+  border-radius: var(--r-sm);
 }
 .nc-seed {
-  border-radius: 0;
+  border-radius: var(--r-sm);
   border-color: var(--line);
   font-family: var(--mono);
 }
@@ -589,16 +582,12 @@ kbd,
   --lc-line: #5ff2da;
   --lc-surface: #061315;
   background:
-    linear-gradient(var(--accent), var(--accent)) right top / 14px 1px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) right top / 1px 14px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) left bottom / 14px 1px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) left bottom / 1px 14px no-repeat,
-    repeating-linear-gradient(0deg, rgba(95, 242, 218, 0.02) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 120px),
     var(--bg-strong);
 }
 .db-tile,
 .night .db-tile {
-  border-radius: 0;
+  border-radius: var(--r-md);
   background: var(--bg-raise);
   border: 1px solid var(--line);
 }
@@ -621,17 +610,17 @@ kbd,
   color: var(--ink-soft);
 }
 .lc-tip {
-  border-radius: 0;
+  border-radius: var(--r-sm);
   background: var(--bg-strong);
   color: var(--ink);
   border: 1px solid var(--line-strong);
   box-shadow: none;
 }
 .db-bar-t i {
-  border-radius: 0;
+  border-radius: var(--pill);
 }
 .season-bar {
-  border-radius: 0;
+  border-radius: var(--pill);
   background: rgba(95, 242, 218, 0.12);
 }
 
@@ -691,7 +680,7 @@ kbd,
   width: 100%;
   padding: 6px 8px;
   text-align: left;
-  border-left: 2px solid transparent;
+  border-radius: var(--r-sm);
 }
 .xp-item .g {
   color: var(--ink-soft);
@@ -715,8 +704,7 @@ kbd,
   background: var(--bg-hover);
 }
 .xp-item.on {
-  border-left-color: var(--accent);
-  background: var(--bg-raise);
+  background: rgba(95, 242, 218, 0.14);
 }
 .xp-item.on .g,
 .xp-item.on b {
@@ -728,7 +716,7 @@ kbd,
   background: var(--line);
 }
 .explore-hint {
-  border-radius: 0;
+  border-radius: var(--pill);
   font-family: var(--mono);
   font-size: 10.5px;
   letter-spacing: 0.06em;
@@ -769,6 +757,7 @@ kbd,
   width: 6px;
   height: 6px;
   margin-right: 5px;
+  border-radius: 50%;
   background: var(--accent-2);
   vertical-align: 1px;
 }
@@ -849,6 +838,7 @@ kbd,
   align-items: center;
   gap: 1px;
   padding: 5px 2px 6px;
+  border-radius: var(--r-sm);
   color: var(--ink-soft);
   font-family: var(--mono);
   font-size: 9.5px;
@@ -865,7 +855,7 @@ kbd,
 }
 .con-tab.on {
   color: var(--accent);
-  box-shadow: inset 0 -2px 0 var(--accent);
+  background: rgba(95, 242, 218, 0.14);
 }
 .con-badge {
   position: absolute;
@@ -876,6 +866,7 @@ kbd,
   font-size: 9px;
   line-height: 14px;
   text-align: center;
+  border-radius: var(--pill);
   color: #10201c;
   background: var(--accent);
 }
@@ -898,7 +889,8 @@ kbd,
   margin: 0;
   padding: 0;
   border: 0;
-  clip-path: none;
+  border-radius: 0;
+  box-shadow: none;
   background: none;
   transform: none;
 }
@@ -971,7 +963,7 @@ kbd,
 .con-pane .lens {
   justify-content: flex-start;
   padding: 6px 8px;
-  border-radius: 0;
+  border-radius: var(--r-sm);
   font-size: 12.5px;
 }
 .con-pane .lens .l {
@@ -979,8 +971,7 @@ kbd,
 }
 .con-pane .lens.on {
   color: var(--accent);
-  background: var(--bg-hover);
-  box-shadow: inset 2px 0 0 var(--accent);
+  background: rgba(95, 242, 218, 0.16);
 }
 .con-pane .lens-bar kbd {
   align-self: flex-start;

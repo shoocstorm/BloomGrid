@@ -272,6 +272,7 @@ body.compact {
   display: block;
   margin: 8px auto 0;
   border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
   color: var(--accent);
 }
 

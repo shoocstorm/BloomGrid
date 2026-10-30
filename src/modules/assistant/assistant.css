@@ -41,10 +41,6 @@
   font-size: 12.5px;
   border: 1px solid var(--line-strong);
   background:
-    linear-gradient(var(--accent), var(--accent)) left top / 18px 2px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) left top / 2px 18px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) right bottom / 18px 2px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) right bottom / 2px 18px no-repeat,
     radial-gradient(120% 60% at 0% 0%, rgba(95, 242, 218, 0.1), transparent 60%),
     radial-gradient(80% 50% at 100% 100%, rgba(142, 240, 122, 0.06), transparent 70%),
     repeating-linear-gradient(0deg, rgba(95, 242, 218, 0.025) 0 1px, transparent 1px 3px),
@@ -148,6 +144,7 @@ body.flora-max .help {
   color: var(--ink-soft);
   padding: 3px 8px;
   border: 1px solid var(--line);
+  border-radius: var(--r-sm);
   overflow: hidden;
 }
 .ai-link span {
@@ -358,7 +355,7 @@ body.flora-max .help {
   gap: 4px;
 }
 
-/* ── Buttons: chamfered, mono ──────────────────────────────────────────── */
+/* ── Buttons: rounded, mono ───────────────────────────────────────────── */
 .ai-op,
 .ai-chip,
 .ai-send,
@@ -374,7 +371,7 @@ body.flora-max .help {
   padding: 5px 8px;
   cursor: pointer;
   white-space: nowrap;
-  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  border-radius: var(--r-sm);
 }
 .ai-op:hover,
 .ai-chip:hover,
@@ -396,6 +393,7 @@ body.flora-max .help {
   margin-bottom: 8px;
   padding: 8px 10px;
   border: 1px solid var(--line);
+  border-radius: var(--r-md);
   background: rgba(95, 242, 218, 0.03);
   max-height: 48%;
   overflow: auto;
@@ -431,6 +429,7 @@ body.flora-max .help {
   text-transform: uppercase;
   padding: 0 4px;
   border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
   color: var(--accent);
 }
 .ai-pill.dim {
@@ -463,6 +462,7 @@ body.flora-max .help {
   position: relative;
   height: 18px;
   border: 1px solid var(--line);
+  border-radius: var(--pill);
   background: repeating-linear-gradient(90deg, rgba(95, 242, 218, 0.05) 0 6px, transparent 6px 8px);
 }
 .ai-progress i {
@@ -540,6 +540,7 @@ body.flora-max .help {
   padding: 6px 10px;
   background: rgba(95, 242, 218, 0.06);
   border: 1px solid var(--line);
+  border-radius: var(--r-md);
   border-right: 2px solid var(--ink-soft);
 }
 .ai-msg.user .ai-tag {
@@ -655,6 +656,7 @@ body.flora-max .help {
   padding: 8px 10px;
   white-space: normal;
   border: 1px solid rgba(255, 207, 106, 0.6);
+  border-radius: var(--r-md);
   background:
     repeating-linear-gradient(135deg, rgba(255, 207, 106, 0.06) 0 6px, transparent 6px 12px),
     rgba(20, 16, 4, 0.5);
@@ -726,6 +728,7 @@ body.flora-max .help {
   align-items: stretch;
   margin-top: 4px;
   border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
   background: rgba(0, 0, 0, 0.28);
   padding: 4px;
 }
@@ -895,6 +898,7 @@ body.flora-max .help {
   gap: 2px;
   padding: 8px 10px;
   border: 1px solid var(--line);
+  border-radius: var(--r-md);
   background: repeating-linear-gradient(0deg, rgba(95, 242, 218, 0.03) 0 1px, transparent 1px 3px);
   font-family: var(--mono);
   font-size: 10.5px;
@@ -947,7 +951,7 @@ body.flora-max .help {
     radial-gradient(60% 120% at 12% 50%, rgba(95, 242, 218, 0.16), transparent 70%),
     repeating-linear-gradient(90deg, rgba(95, 242, 218, 0.04) 0 1px, transparent 1px 18px),
     repeating-linear-gradient(0deg, rgba(95, 242, 218, 0.04) 0 1px, transparent 1px 18px);
-  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  border-radius: var(--r-md);
 }
 .ai-hero-orb {
   width: 104px;
@@ -1044,6 +1048,7 @@ body.flora-max .help {
   flex-direction: column;
   padding: 7px 9px;
   border: 1px solid var(--line);
+  border-radius: var(--r-md);
   border-top: 2px solid var(--accent);
   background: var(--bg-raise);
 }
@@ -1096,6 +1101,7 @@ body.flora-max .help {
 }
 .ai-directive {
   border: 1px solid var(--line);
+  border-radius: var(--r-md);
   border-left: 2px solid var(--accent);
   background: rgba(2, 10, 12, 0.6);
 }
@@ -1156,6 +1162,7 @@ body.flora-max .help {
 }
 .ai-feed-w {
   border: 1px solid var(--line);
+  border-radius: var(--r-md);
   background: rgba(2, 10, 12, 0.6);
 }
 .ai-feed {
@@ -1233,6 +1240,7 @@ body.flora-max .help {
   gap: 6px;
   padding: 4px 9px;
   border: 1px solid var(--line);
+  border-radius: var(--r-sm);
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.1em;
@@ -1254,6 +1262,7 @@ body.flora-max .help {
   color: var(--ink);
   background: rgba(2, 10, 12, 0.7);
   border: 1px solid var(--line);
+  border-radius: var(--r-sm);
   outline: none;
 }
 .ai-tsearch:focus {
@@ -1270,6 +1279,7 @@ body.flora-max .help {
   position: relative;
   padding: 9px 10px;
   border: 1px solid var(--line);
+  border-radius: var(--r-md);
   border-left: 2px solid var(--fx);
   background:
     linear-gradient(var(--fx), var(--fx)) right top / 10px 1px no-repeat,
@@ -1349,6 +1359,7 @@ body.flora-max .help {
 .ai-pol {
   padding: 1px 5px;
   border: 1px solid currentColor;
+  border-radius: var(--pill);
 }
 .ai-eff.read {
   color: var(--accent);
@@ -1398,6 +1409,7 @@ body.flora-max .help {
 .ai-param {
   padding: 5px 7px;
   border: 1px solid var(--line);
+  border-radius: var(--r-sm);
   background: rgba(95, 242, 218, 0.03);
 }
 .ai-param.req {
@@ -1473,9 +1485,14 @@ body.flora-max .help {
   padding: 0;
   pointer-events: auto;
 }
+/* Frameless (theme.css drops the panel plate), so the sigil carries itself: heavier strokes, filled petals. */
 .ai-fab .ai-sigil {
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
+  stroke-width: 1.6;
+}
+.ai-fab .ai-sigil .s-petals ellipse {
+  fill: rgba(95, 242, 218, 0.38);
 }
 .ai-fab .ai-sigil .s-orbit {
   animation: ai-orbit 6s linear infinite;
