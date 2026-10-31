@@ -431,10 +431,40 @@ class Hud {
       id ? h('button', { class: 'info-id-btn', title: 'Show in the inventory (I)', onClick: () => this.ctx.services.get('dashboard').openInventory(id) }, id) : null,
       h('span', {}, district ?? 'Outskirts'),
       z ? h('span', { class: 'info-zone', style: `--c:#${z.color.toString(16).padStart(6, '0')}`, title: z.note }, `${z.icon} ${z.label}`) : null,
-      id && this.ctx.services.tryGet('assistant')
-        ? h('button', { class: 'info-id-btn info-ask', title: 'Ask the city assistant about it (U)', onClick: () => this.askAbout(id) }, '✿ Ask')
-        : null,
     );
+  }
+
+  /**
+   * Inspector header in the welcome card's idiom: an emblem (pulsing ring around the object's icon),
+   * the id/district eyebrow with a status LED, then the title. Entrance animations replay per selection.
+   */
+  private infoHead(glyph: Node, tag: HTMLElement, title: string, desc: string): HTMLElement[] {
+    tag.prepend(h('i', { class: 'ix-led', 'data-led': '1', title: 'Status' }));
+    return [
+      h('div', { class: 'ix-aura' }),
+      h('div', { class: 'ix-sheen' }),
+      h(
+        'div',
+        { class: 'ix-head' },
+        h('div', { class: 'ix-emblem' }, h('span', { class: 'ix-ring' }), h('span', { class: 'ix-gem' }, glyph)),
+        h('div', { class: 'ix-titles' }, tag, h('h3', {}, title)),
+      ),
+      h('p', { class: 'ix-desc' }, desc),
+    ];
+  }
+
+  /** Action row at the foot of the inspector: the object's own actions, then "Ask Flora". */
+  private infoActions(id: string | null, ...actions: HTMLElement[]): HTMLElement {
+    const ask =
+      id && this.ctx.services.tryGet('assistant')
+        ? h('button', { class: 'tool ix-ask', title: 'Ask the city assistant about it (U)', onClick: () => this.askAbout(id) }, h('span', { class: 'g' }, icon('sparkle')), 'Ask Flora')
+        : null;
+    return h('div', { class: 'ix-actions' }, ...actions, ask);
+  }
+
+  /** One vital as a tile: icon, mono value, label; `tone` colours it good or bad. */
+  private vital(ico: string, label: string, value: string, tone: '' | 'good' | 'bad' = ''): HTMLElement {
+    return h('div', { class: `ix-vital ${tone}` }, icon(ico), h('b', {}, value), h('span', {}, label));
   }
 
   private askAbout(id: string): void {
@@ -455,15 +485,26 @@ class Hud {
     for (let i = 0; i < city.networks.comp.length; i++) if (city.networks.comp[i] === id) tiles++;
     const ratio = (p: number, u: number) => (u > 0 ? `${Math.round((p / u) * 100)}%` : '—');
     const row = (k: string, v: string | number) => h('div', { class: 'row' }, h('span', {}, k), h('b', {}, String(v)));
+    const objId = idForSelection(city, { road });
     this.infoBody.replaceChildren(
-      this.idTag(idForSelection(city, { road }), city.districtAt(road % city.grid.w, (road / city.grid.w) | 0)),
-      h('h3', {}, 'Highway network'),
-      h('p', {}, 'Power and water flow along connected Living Highways. Everything touching this network shares its supply.'),
-      row('Highway tiles', fmt(tiles)),
-      row('Connected buildings', fmt(n.buildings)),
-      row('Energy', `${fmt(n.energyProduced)} / ${fmt(n.energyUsed)} (${ratio(n.energyProduced, n.energyUsed)})`),
+      ...this.infoHead(
+        icon('network'),
+        this.idTag(objId, city.districtAt(road % city.grid.w, (road / city.grid.w) | 0)),
+        'Highway network',
+        'Power and water flow along connected Living Highways. Everything touching this network shares its supply.',
+      ),
+      h(
+        'div',
+        { class: 'ix-vitals' },
+        this.vital('road', 'Tiles', fmt(tiles)),
+        this.vital('house', 'Buildings', fmt(n.buildings)),
+        this.vital('energy', 'Power', ratio(n.energyProduced, n.energyUsed), n.energyProduced >= n.energyUsed ? 'good' : 'bad'),
+      ),
+      row('Energy', `${fmt(n.energyProduced)} / ${fmt(n.energyUsed)}`),
       row('Water', `${fmt(n.waterProduced)} / ${fmt(n.waterUsed)} (${ratio(n.waterProduced, n.waterUsed)})`),
+      this.infoActions(objId),
     );
+    this.info.querySelector('[data-led]')?.classList.toggle('bad', n.energyProduced < n.energyUsed || n.waterProduced < n.waterUsed);
   }
 
   private select(eid: number | null): void {
@@ -473,21 +514,32 @@ class Hud {
     if (this.selected === null) return;
     const def = this.ctx.city.buildingDef(this.selected);
     const s = def.stats;
-    const row = (k: string, v: string | number) => h('div', { class: 'row' }, h('span', {}, k), h('b', {}, String(v)));
     const [bx, bz] = [Building.x[this.selected]! + Building.w[this.selected]! / 2, Building.z[this.selected]! + Building.d[this.selected]! / 2];
+    const id = idForSelection(this.ctx.city, { eid: this.selected });
+    const signed = (v: number) => `${v > 0 ? '+' : ''}${v}`;
     this.infoBody.replaceChildren(
-      this.idTag(idForSelection(this.ctx.city, { eid: this.selected }), this.ctx.city.districtAt(Math.floor(bx), Math.floor(bz))),
-      h('h3', {}, def.name),
-      h('p', {}, def.description),
+      ...this.infoHead(
+        icon(`cat:${def.category}`, CATEGORY_ICONS[def.category]),
+        this.idTag(id, this.ctx.city.districtAt(Math.floor(bx), Math.floor(bz))),
+        def.name,
+        def.description,
+      ),
       h('div', { class: 'grow' }, h('div', { class: 'row' }, h('span', {}, 'Greenery'), h('b', { 'data-g': '1' }, '')), h('div', { class: 'meter' }, h('i', { 'data-gm': '1' }))),
+      h(
+        'div',
+        { class: 'ix-vitals' },
+        this.vital('energy', 'Energy', signed(s.energy), s.energy > 0 ? 'good' : s.energy < 0 ? 'bad' : ''),
+        this.vital('eco', 'Ecology', signed(s.eco), s.eco > 0 ? 'good' : s.eco < 0 ? 'bad' : ''),
+        this.vital('pollution', 'Pollution', String(s.pollution), s.pollution > 0 ? 'bad' : ''),
+        this.vital('people', 'Residents', fmt(s.population)),
+        this.vital('jobs', 'Jobs', fmt(s.jobs)),
+      ),
       h('div', { class: 'svc', 'data-svc': '1' }),
       h('div', { class: 'info-hz', 'data-hz': '1' }),
-      row('Energy', `${s.energy > 0 ? '+' : ''}${s.energy}`),
-      row('Ecology', s.eco),
-      row('Residents', s.population),
-      row('Jobs', s.jobs),
-      row('Pollution', s.pollution),
-      h('button', { class: 'tool', style: 'margin-top:10px', onClick: () => this.ctx.tools.setActive('bulldoze') }, h('span', { class: 'g' }, icon('bulldoze')), 'Return to nature'),
+      this.infoActions(
+        id,
+        h('button', { class: 'tool ix-raze', title: 'Bulldoze: return the lot to nature', onClick: () => this.ctx.tools.setActive('bulldoze') }, h('span', { class: 'g' }, icon('bulldoze')), 'Return to nature'),
+      ),
     );
     this.updateInfo();
   }
@@ -529,6 +581,7 @@ class Hud {
       ].filter(Boolean);
       setText(svc, [lines.join(' · '), ...extra, ...issues.map((i) => `⚠ ${i}`)].filter(Boolean).join('\n'));
       svc.classList.toggle('bad', issues.length > 0);
+      this.infoBody.querySelector('[data-led]')?.classList.toggle('bad', issues.length > 0);
       this.hazardActions(eid);
     }
   }

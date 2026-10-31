@@ -571,9 +571,6 @@ button {
 .info-id-btn:hover {
   background: var(--bg-hover);
 }
-.info-ask {
-  margin-left: auto;
-}
 /* Zone chip beside the district (D-049). */
 .info-zone {
   padding: 0 5px;
