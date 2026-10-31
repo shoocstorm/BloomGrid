@@ -782,3 +782,15 @@ Flora's input completes `/commands` from the agent tool registry (`modules/assis
 boolean values; ↑/↓, Tab/Enter, Esc, click. It only edits the text; sending is unchanged. F3 is a telemetry panel
 (FPS hero with a 12 s sparkline on a canvas redrawn at 4 Hz, tiles, draw-call meter against the 300 budget, hottest
 systems when profiling) and the ` inspector wraps Tweakpane in a holo panel, themed through its `--tp-*` tokens.
+
+## D-067 — Inspector 3D stage: the selected building on a studio turntable (2026-10-31)
+
+The inspector (380 px while a building is selected) opens with a stage: `modules/preview` draws the building alone
+(its live instances read back via `BuildingRenderer.snapshot`, at its real position so bloom/lens lookups match) on a
+studio dome and floor, turning slowly; drag orbits, wheel zooms, double-click resets. It renders with the main
+renderer into a scissored viewport after `core.render` (order 50), under the stage's transparent window; the panel's
+glass moves to the details sheet. A second renderer was rejected: a second GPU device and every material compiled
+twice. The scissor is the stage clipped by scrolling ancestors (skipping `display: contents`, the phone's right
+column) so it never paints over the city; nothing renders while the stage is hidden (≈ one extra draw per piece type
+of the selected building). The close button was a float under the content wrapper's stacking layer (clicks missed it);
+it is now an absolute button that clears the selection through `selection:changed`, which the select tool follows.

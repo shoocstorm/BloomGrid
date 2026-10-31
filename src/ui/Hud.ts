@@ -59,6 +59,7 @@ class Hud {
   private category: BuildingCategory | null = null;
   private info!: HTMLElement;
   private infoBody!: HTMLElement;
+  private stage!: HTMLElement;
   private selected: number | null = null;
   private tooltip!: HTMLElement;
   private toasts!: HTMLElement;
@@ -411,14 +412,44 @@ class Hud {
     this.redoBtn.disabled = !this.ctx.commands.canRedo;
   }
 
+  /**
+   * The inspector: a 3D stage on top (a transparent window the `preview` module draws the selected building into;
+   * drag to orbit, wheel to zoom), then the details sheet. The close button sits above both.
+   */
   private buildInfo(): void {
-    this.infoBody = h('div');
+    this.infoBody = h('div', { class: 'ix-sheet' });
+    this.stage = h(
+      'div',
+      { class: 'ix-stage', title: 'Drag to orbit · scroll to zoom · double-click to reset' },
+      h('span', { class: 'ix-stage-tag' }, h('i'), 'Live model'),
+      h('span', { class: 'ix-stage-hint' }, icon('rotate'), isTouchDevice() ? 'Drag to orbit · double-tap to reset' : 'Drag to orbit · scroll to zoom'),
+      h(
+        'button',
+        { class: 'ix-stage-reset', title: 'Reset the view', 'aria-label': 'Reset the view', onClick: () => this.ctx.services.tryGet('preview')?.reset() },
+        icon('locate'),
+      ),
+    );
     this.info = h(
       'div',
       { class: 'info panel holo hidden' },
-      h('button', { class: 'icon-btn', style: 'float:right;margin:-8px -8px 0 0', 'aria-label': 'Close', onClick: () => this.select(null) }, icon('close')),
+      h('button', { class: 'ix-close', title: 'Close', 'aria-label': 'Close the inspector', onClick: () => this.closeInfo() }, icon('close')),
+      this.stage,
       this.infoBody,
     );
+  }
+
+  /** Closes the inspector and clears the selection (the select tool drops its highlight too). */
+  private closeInfo(): void {
+    this.ctx.bus.emit('selection:changed', { eid: null });
+  }
+
+  /** Shows the 3D stage for a building, or folds it away (networks, nothing selected). */
+  private stageFor(eid: number | null): void {
+    const preview = this.ctx.services.tryGet('preview');
+    const on = eid !== null && !!preview;
+    this.info.classList.toggle('staged', on);
+    if (on) preview!.show(this.stage, eid!);
+    else preview?.hide();
   }
 
   /** Readable object id and district above the inspector title; the id opens it in the dashboard inventory. */
@@ -476,6 +507,7 @@ class Hud {
   private selectNetwork(road: number): void {
     const { city } = this.ctx;
     this.selected = null;
+    this.stageFor(null);
     const id = city.networks.comp[road]!;
     const n = city.pulse.networks[id];
     this.info.classList.toggle('hidden', !n);
@@ -510,6 +542,7 @@ class Hud {
     this.selected = eid === NO_ENTITY ? null : eid;
     this.hzKey = '';
     this.info.classList.toggle('hidden', this.selected === null);
+    this.stageFor(this.selected);
     if (this.selected === null) return;
     const def = this.ctx.city.buildingDef(this.selected);
     const s = def.stats;

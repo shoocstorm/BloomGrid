@@ -315,6 +315,27 @@ export class BuildingRenderer {
     return this.entries.size;
   }
 
+  /**
+   * The building as it is drawn now (grown pieces, GLB parts and retrofit overlay; not its alert marker): world
+   * matrices, tints and shader params read back from the instancer, for the inspector's 3D preview.
+   */
+  snapshot(eid: number): { piece: string; matrix: Matrix4; color: Color; params: number[] }[] {
+    const entry = this.entries.get(eid);
+    if (!entry) return [];
+    const out: { piece: string; matrix: Matrix4; color: Color; params: number[] }[] = [];
+    for (const h of [...entry.handles, ...entry.retro]) {
+      const b = h.batch;
+      if (!b) continue;
+      out.push({
+        piece: b.piece.id,
+        matrix: new Matrix4().fromArray(b.mesh.instanceMatrix.array as Float32Array, h.slot * 16),
+        color: new Color().fromArray(b.mesh.instanceColor!.array as Float32Array, h.slot * 3),
+        params: Array.from((b.params.array as Float32Array).subarray(h.slot * 4, h.slot * 4 + 4)),
+      });
+    }
+    return out;
+  }
+
   private add(eid: number, animate: boolean): void {
     const { city, instancer, assets } = this.ctx;
     const rec = city.buildingRecord(eid);

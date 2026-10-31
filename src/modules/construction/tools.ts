@@ -46,13 +46,22 @@ export function createTools(ghost: Ghost, build: BuildState) {
     ghost.showCursor(r.x, city.grid.rangeOver(r.x, r.z, w, d).max, r.z, w, d);
   };
 
+  let followsSelection = false;
   const select: Tool = {
     id: 'select',
     label: 'Inspect',
     icon: '◎',
     hotkey: 'Escape',
     dragPan: true,
-    activate: () => ghost.setValid(true),
+    activate(ctx) {
+      ghost.setValid(true);
+      // Follow selections made elsewhere (the inspector's close, the inventory, the advisor), so a closed
+      // inspector drops the footprint highlight.
+      if (!followsSelection) {
+        followsSelection = true;
+        ctx.bus.on('selection:changed', ({ eid }) => (selected = eid ?? null));
+      }
+    },
     deactivate: () => ghost.hideAll(),
     hover(ctx, hit) {
       ghost.setValid(true);

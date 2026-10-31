@@ -2065,3 +2065,153 @@ body:not(.booted) .holo::after {
 .insp-pane .tp-rotv {
   font-size: 11px;
 }
+
+/* ── Inspector stage: a transparent window the preview module draws the selected building into ────────
+ * The panel drops its own background while staged (the canvas must show through the stage); the details sheet
+ * below carries the holo glass instead. The stage paints only a frame and a vignette over the 3D view. */
+.rightcol:has(> .info.staged:not(.hidden)) {
+  width: 380px;
+}
+.info > .ix-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  background: rgba(3, 14, 16, 0.75);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.info > .ix-close:hover {
+  background: rgba(255, 90, 110, 0.3);
+  border-color: var(--crit);
+}
+.info > .ix-close .ico {
+  width: 15px;
+  height: 15px;
+}
+.info .ix-stage {
+  display: none;
+}
+.info.holo.staged,
+.night .info.holo.staged {
+  padding: 0;
+  background: none;
+}
+.info.staged .ix-stage {
+  position: relative;
+  display: block;
+  height: 220px;
+  cursor: grab;
+  touch-action: none;
+  border-bottom: 1px solid var(--line-strong);
+  --c: rgba(95, 242, 218, 0.75);
+  background:
+    linear-gradient(var(--c), var(--c)) left 10px top 10px / 14px 1.5px no-repeat,
+    linear-gradient(var(--c), var(--c)) left 10px top 10px / 1.5px 14px no-repeat,
+    linear-gradient(var(--c), var(--c)) right 10px bottom 10px / 14px 1.5px no-repeat,
+    linear-gradient(var(--c), var(--c)) right 10px bottom 10px / 1.5px 14px no-repeat,
+    radial-gradient(120% 95% at 50% 45%, transparent 60%, rgba(2, 9, 11, 0.55));
+}
+.info.staged .ix-stage.dragging {
+  cursor: grabbing;
+}
+.ix-stage-tag {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--pill);
+  background: rgba(3, 14, 16, 0.7);
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  pointer-events: none;
+}
+.ix-stage-tag i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  box-shadow: 0 0 6px var(--accent-2);
+}
+.ix-stage-hint {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  text-shadow: 0 1px 3px #000;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.ix-stage-hint .ico {
+  width: 12px;
+  height: 12px;
+}
+.ix-stage.dragging .ix-stage-hint {
+  opacity: 0;
+}
+.ix-stage-reset {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  background: rgba(3, 14, 16, 0.7);
+  cursor: pointer;
+}
+.ix-stage-reset:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.ix-stage-reset .ico {
+  width: 14px;
+  height: 14px;
+}
+.info.staged .ix-sheet {
+  position: relative;
+  padding: 14px 16px 16px;
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgba(95, 242, 218, 0.13), transparent 60%),
+    radial-gradient(90% 50% at 100% 100%, rgba(255, 159, 196, 0.08), transparent 65%),
+    var(--bg-strong);
+}
+.info.staged .ix-sheet .ix-aura {
+  display: none;
+}
+.info.staged .ix-head {
+  margin-right: 0;
+}
+.compact .info.staged .ix-stage {
+  height: 150px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ix-stage-hint {
+    transition: none;
+  }
+}
