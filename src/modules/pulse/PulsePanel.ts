@@ -201,6 +201,7 @@ export class PulsePanel {
       ['crises', 'Crises'],
       ['bloom', 'Bloom'],
       ['traffic', 'Traffic'],
+      ['fireworks', 'Fireworks'],
     ]) {
       const v = h('b');
       this.harmony.set(id!, v);

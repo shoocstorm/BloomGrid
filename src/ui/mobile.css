@@ -237,6 +237,36 @@ body.compact {
 .compact .card .tags {
   display: none;
 }
+/* Build (D-069): no section titles in the strip; the explanation card shrinks to name, one line and rotate. */
+.compact .tb-title {
+  display: none;
+}
+.compact .tray-list {
+  display: contents;
+}
+.compact .brief {
+  order: -1;
+  flex: none;
+  width: 230px;
+  gap: 4px;
+  padding: 7px 8px;
+}
+.compact .brief .bp-stats,
+.compact .brief .bp-abilities,
+.compact .brief .bp-row,
+.compact .brief .bp-place > span {
+  display: none;
+}
+.compact .brief .bp-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 11px;
+}
+.compact .brief .bp-head b {
+  font-size: 12.5px;
+}
 .compact .card:hover {
   transform: none;
 }

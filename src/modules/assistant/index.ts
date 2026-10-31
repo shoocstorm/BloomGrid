@@ -7,6 +7,7 @@ import { getCrisis } from '@/sim/crises';
 import { actionTools } from '@/sim/actionTools';
 import { insightTools } from '@/sim/insightTools';
 import { hazardTools } from '@/sim/hazardTools';
+import { fireworksTools } from '@/sim/fireworksTools';
 import { allOverlays, getOverlay } from '@/sim/overlays';
 import { ISSUES, inventoryKinds } from '@/sim/inventory';
 import { cityBrief } from '@/ai/brief';
@@ -445,7 +446,7 @@ export const assistantModule: GameModule = {
   deps: ['inventory', 'pulse', 'hud'],
   init(ctx) {
     const agent = ctx.services.get('agent');
-    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...gameTools()]) agent.register(t);
+    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...gameTools()]) agent.register(t);
     const a = new Assistant(ctx);
     ctx.services.provide('assistant', {
       toggle: (open) => a.panel.toggle(open),

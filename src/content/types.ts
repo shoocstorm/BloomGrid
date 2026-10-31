@@ -128,6 +128,8 @@ export interface BuildingDef {
   tower?: boolean;
   /** Emergency services (D-050): fires within `radius` tiles are fought automatically while it is powered and staffed. */
   response?: { radius: number };
+  /** Fireworks factory (D-068): makes `rate` shells per sim minute when fully staffed, keeps up to `storage`. */
+  fireworks?: { rate: number; storage: number };
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */
   variants?: number;
   /**
@@ -265,7 +267,7 @@ export const CATEGORY_LABELS: Record<BuildingCategory, string> = {
   commercial: 'Work',
   nature: 'Nature',
   food: 'Food',
-  // Last, so the older categories keep their hotkeys (4–9, 0); these two are click-only in the toolbar.
+  // Toolbar order (categories are click-only, D-069).
   industry: 'Industry',
   sports: 'Sports',
 };

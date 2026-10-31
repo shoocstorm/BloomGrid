@@ -219,6 +219,8 @@ The city is a system that can run well or badly.
 - [x] City map (D-048): ⌗ MAP in the top bar / **Y**: districts tinted, outlined and named, legend with buildings and residents, camera marker, click to fly
 - [x] Zoned founding city (D-049): living, work, industry, entertainment, sports, utility, civic and park zones (saved, on the city map and in the inspector); 5 industry + 5 sports buildings; Pod Interchanges, Skyline Hill transit and service lanes (flow 0.84 → 0.94, unemployment 8% → 0%)
 - [x] Hazards (D-050): earthquakes, thunderstorms with lightning, industrial and heat fires that spread; Ember Watch stations, crews, ruins and repairs; incident log (dashboard Incidents tab); Flora incident tools and notices
+- [x] Fireworks (D-068): Fireworks Factory, five shell kinds, nightly 21:00 show and steward launches (top-bar button, dashboard Fireworks tab, Flora); harmony afterglow vs novelty fatigue, visitor income, smoke and stray-spark fires; GPU-flown particles (one draw call during a show)
+- [x] Build tab explains itself (D-069): action tiles and click-only category chips, an explanation card for every action (what, how, cost) and building (numbers, abilities), floating 3D preview of the building; two waterfront Fireworks Factories in the founding city
 - [ ] Deferred: explore modes on touch (virtual stick), a phone-sized Flora model, PWA install, wind strength varying with weather, zone rules for player building (warnings when a factory goes in a living zone)
 - **Accept:** ✅ `tests/touch.test.ts` (tap, gesture cancels the press, pinch/twist deltas, tilt lock); `bun run snap -- --mobile --eval @scripts/scenes/mobile.js` (portrait and `--size 844x390`, WebGPU and WebGL); desktop HUD unchanged.
 

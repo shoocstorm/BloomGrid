@@ -110,6 +110,7 @@ const ICONS: Record<string, string> = {
   fallLeaf: '<path d="M6 18C6 10 11 5 19 5c0 8-5 13-13 13z"/><path d="m6 18 7-7M3 21l3-3M17 19.5l1 1.5M20 16l1.5.5"/>',
   fire: '<path d="M12 21.5c-4 0-7-2.8-7-6.5 0-4 3.5-6 4-10.5 2.5 1.5 4.5 4 4.5 6.5 1-1 1.5-2.5 1.5-3.5 2 2 4 4.5 4 7.5 0 3.7-3 6.5-7 6.5z"/><path d="M12 21.5c-1.7 0-3-1.2-3-3 0-2 2-3 2.5-5 1.5 1 3.5 3 3.5 5 0 1.8-1.3 3-3 3z"/>',
   quake: '<path d="M2 12h4l2-5 3 10 3-13 3 11 2-3h3"/>',
+  fireworks: '<path d="M12 13.5V22M12 3v3M12 9.5v.01M6.3 4.8l2 2M17.7 4.8l-2 2M4 10h3M17 10h3M7.5 14.8l1.6-1.6M16.5 14.8l-1.6-1.6"/><circle class="f" cx="12" cy="10" r="1.6"/>',
   ruin: '<path d="M3 21h18M5 21V9l4-3v15M9 11l3 2 2-3 5 2v9"/><path d="M14 16h.01M17 16h.01"/>',
 };
 
@@ -167,6 +168,7 @@ const GLYPHS: Record<string, string> = {
   '🌋': 'quake',
   '⛈': 'storm',
   '▨': 'ruin',
+  '🎆': 'fireworks',
   '◐': 'lens',
   '◉': 'pulse',
   '✚': 'build',

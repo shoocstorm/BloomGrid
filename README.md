@@ -98,7 +98,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Do this            | Keys                                                                                               |
 | ------------------ | -------------------------------------------------------------------------------------------------- |
 | Move the camera    | **WASD** / arrows · right-drag or **Q/E** orbit · wheel zoom                                       |
-| Build              | **4–0** building categories · **R** rotate · **X** bulldoze                                        |
+| Build              | City Pulse → **Build**: pick an action or a building category (click; no number keys). A card explains the action, or shows the building's 3D preview, numbers and abilities · **R** rotate · **X** bulldoze |
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **B** Bloom Retrofit · **Y** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
 | Watch your city    | **P** folds the City Pulse console (tabs: Pulse, Build, Lenses, Flora-Net; on phones, separate sheets) · **L** data lenses · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **M** city map (⌗ MAP in the top bar: every district named; click one to fly there) |
@@ -141,6 +141,14 @@ and fire is recorded with its losses in the dashboard's **Incidents** tab (**K**
 raises a beam of light and pulsing rings you can see from across the island, and a 🔥 pin that slides to the screen
 edge (pointing at it) when the fire is out of view; click a pin, an alert toast or a fire on the city map (**M**) to
 fly there, or press **.** to step through the fires, hottest first.
+
+**Fireworks:** build a Fireworks Factory (Industry ⚙). Staffed and powered, it makes peony, willow, halo ring,
+palm and crackle shells (materials cost credits) and fires a show over the city every night at 21:00. Launch one
+yourself any time with the fireworks button in the top bar (it shows the shells in stock; shift-click for a grand
+show), from the dashboard's **Fireworks** tab (**K**, then Fireworks: stock, shows so far, effects, nightly on/off),
+or ask Flora ("launch the fireworks", "how many fireworks shows have we had?"). Shows lift harmony and draw visitors,
+but the smoke adds pollution, dry nights risk a stray spark setting a roof alight, and shows fired back to back stop
+delighting residents and start to annoy them.
 
 **Wind power:** Breeze Turbines (☀ energy category) are cheap, clean and the cheapest power to run. The founding
 city already runs on them: a wind farm fills Windward Isle in the north-east and rows line the waterfront.

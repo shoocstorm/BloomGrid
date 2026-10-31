@@ -262,6 +262,7 @@ kbd,
 
 /* ── Section titles: coded, ruled, numbered per panel ─────────────────────── */
 .pulse-body,
+.con-pane,
 .db,
 .settings,
 .info {
@@ -947,6 +948,235 @@ kbd,
 }
 .con-pane .card.rotate .c {
   margin: 0;
+}
+
+/*
+ * Build tab (D-069): actions as icon tiles (four a row, label under the icon, never cut off), categories as
+ * chips (three a row), then the explanation card and the open category's buildings.
+ */
+.con-pane .toolbar {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+.con-pane .toolbar .tb-title,
+.con-pane .toolbar .sep {
+  grid-column: 1 / -1;
+}
+.con-pane .toolbar .tb-title {
+  margin: 2px 0 4px;
+}
+.con-pane .toolbar .tool {
+  position: relative;
+  grid-column: span 3;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 2px 6px;
+  font-size: 11px;
+}
+.con-pane .toolbar .tool span.l {
+  flex: none;
+  max-width: 100%;
+  text-align: center;
+  white-space: nowrap;
+}
+.con-pane .toolbar .tool .g {
+  font-size: 17px;
+}
+.con-pane .toolbar .tool kbd {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 0 3px;
+  font-size: 8.5px;
+  opacity: 0.6;
+}
+.con-pane .toolbar .tool.cat {
+  grid-column: span 4;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 7px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.con-pane .toolbar .tool.cat .g {
+  font-size: 15px;
+}
+.con-pane .tray > .tb-title {
+  margin: 2px 0 0;
+}
+/* The category's buildings as compact tiles (the explanation card below has the numbers). */
+.con-pane .tray-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.con-pane .tray-list .card {
+  padding: 6px 8px;
+}
+.con-pane .tray-list .card .n {
+  font-size: 12px;
+  line-height: 1.25;
+}
+.con-pane .tray-list .card .tags {
+  display: none;
+}
+.con-pane .tray-list .card:hover {
+  transform: none;
+  border-color: var(--line-strong);
+}
+.brief {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+}
+.con-pane .tray > .brief.panel {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+}
+/* The floating preview: a frame round a transparent window (no glass: the preview renders under it). */
+.bp-float {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  width: 300px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  pointer-events: auto;
+}
+.bp-float.hidden {
+  display: none;
+}
+.bp-float-stage {
+  height: 220px;
+  cursor: grab;
+  touch-action: none;
+}
+.bp-float-stage.dragging {
+  cursor: grabbing;
+}
+.bp-float-cap {
+  padding: 4px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-strong);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.bp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bp-head b {
+  flex: 1;
+  font-size: 14px;
+  color: var(--ink);
+}
+.bp-ico {
+  display: flex;
+  font-size: 17px;
+  color: var(--accent);
+}
+.bp-cat {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.bp-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.bp-row {
+  display: grid;
+  grid-template-columns: 3.6em minmax(0, 1fr);
+  gap: 8px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.bp-row span {
+  padding-top: 2px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.bp-row p {
+  margin: 0;
+  color: var(--ink);
+}
+.bp-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 14px;
+  font-size: 11.5px;
+}
+.bp-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid rgba(95, 242, 218, 0.08);
+}
+.bp-stat span {
+  color: var(--ink-faint);
+}
+.bp-stat b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--ink);
+}
+.bp-stat.good b {
+  color: var(--accent-2);
+}
+.bp-stat.bad b {
+  color: var(--warn);
+}
+.bp-abilities {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.bp-abilities:empty {
+  display: none;
+}
+.bp-place {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.bp-rot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  font-size: 11px;
+  color: var(--accent);
+}
+.bp-rot:hover {
+  background: var(--bg-hover);
 }
 
 /* Lenses: one per row, label always shown, the cycle key at the foot. */

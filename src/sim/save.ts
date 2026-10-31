@@ -3,8 +3,9 @@ import { Service } from '@/ecs/components';
 import type { BuildingRecord, City } from './City';
 import { createPulseState, type PulseState } from './pulseState';
 import { createStewardState, type StewardState } from './stewardState';
+import { createFireworksState, type FireworksState } from './fireworksState';
 
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 
 export interface SaveData {
   version: number;
@@ -34,6 +35,8 @@ export interface SaveData {
   terrain: [number, number][];
   /** Green Weaver sky-bridges as [ax, az, bx, bz] tower anchors. */
   bridges: [number, number, number, number][];
+  /** Fireworks stock, show and afterglow (v10+, D-068). */
+  fireworks: FireworksState;
   /** Feature modules persist their own state under their module id. */
   modules: Record<string, unknown>;
 }
@@ -92,6 +95,11 @@ export function migrateSave(data: SaveData): SaveData {
     Object.assign(data.steward, { fires: [], ruins: [], history: [], nextIncidentId: 1 });
     data.version = 9;
   }
+  if (data.version === 9) {
+    // Fireworks (v10): no factories built yet, so nothing in stock.
+    data.fireworks = createFireworksState();
+    data.version = 10;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -116,6 +124,7 @@ export function serializeCity(city: City): SaveData {
     overgrowth,
     pulse: { taxRate: city.pulse.taxRate, history: structuredClone(city.pulse.history), happiness: city.stats.happiness },
     steward: structuredClone(persistable(city.steward)),
+    fireworks: structuredClone(city.fireworks),
     bridges: city.weaver.bridges.map((b) => [b.ax, b.az, b.bx, b.bz]),
     terrain: [...city.terrainEdits].map(([c, h]) => [c, round3(h)]),
     soil: { hydration: [...city.soil.hydration].map(round3), nutrients: [...city.soil.nutrients].map(round3) },
@@ -135,6 +144,7 @@ export function deserializeCity(city: City, input: SaveData): void {
   city.pulse.history = structuredClone(data.pulse.history);
   city.stats.happiness = data.pulse.happiness;
   Object.assign(city.steward, structuredClone(data.steward));
+  Object.assign(city.fireworks, structuredClone(data.fireworks));
   // Terrain first: highways, channels and buildings sit on the edited ground.
   if (data.terrain.length) {
     for (const [c, h] of data.terrain) {

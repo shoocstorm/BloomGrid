@@ -16,6 +16,7 @@
 | Failure      | None                           | The city **can decline or spiral out of control**: cascading failures, crises, recovery, and an optional fail state       |
 | Presentation | —                              | Futuristic, cinematic loading experience; city-health readability everywhere                                              |
 | Assistant (2026-10-27) | — | **Flora, a local-LLM city assistant** works beside the steward: answers about the city, watches it, and carries out requested actions (build, demolish, connect, tax…) only with the steward's approval, every action undoable. Runs on the player's machine (wllama in the browser, MLX on Apple Silicon desktop); nothing leaves it. |
+| Fireworks (2026-10-31) | — | **Fireworks factories** make shells and fire a nightly show; the steward can launch one any time (top bar, dashboard, Flora). Shows lift harmony and draw visitors, cost materials, add smoke and fire risk, and wear thin if overused |
 
 ---
 
@@ -72,6 +73,7 @@ at least one lever.
 | Economy               | credits, income, upkeep, loans                            | taxes/budget sliders, upkeep levels, loans         |
 | Land value            | per-tile desirability                                     | nature proximity, services, pollution              |
 | Mobility (later)      | congestion, coverage                                      | highways, sky-lanes, transit                       |
+| Fireworks (2026-10-31) | shell stock, shows, afterglow vs novelty fatigue, smoke   | fireworks factories, launch a show, nightly on/off |
 
 ## 4. Decline, Crises & Control
 

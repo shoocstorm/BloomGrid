@@ -12,13 +12,38 @@ function fit(size: number, x0: number, z0: number, x1: number, z1: number): [num
 }
 
 /** A district: road grid over a rectangle (normalised 0..1 map coords) filled with weighted buildings. */
-function district(b: ScenarioBuilder, x0: number, z0: number, x1: number, z1: number, spacing: number, weights: Record<string, number>, density = 0.9) {
+/** A gridded district; `first` runs once its streets are down, before the lots fill (for buildings that need a pick). */
+function district(b: ScenarioBuilder, x0: number, z0: number, x1: number, z1: number, spacing: number, weights: Record<string, number>, density = 0.9, first?: () => void) {
   const S = b.size;
   [x0, z0, x1, z1] = fit(S, x0, z0, x1, z1);
   const [ax, az, bx, bz] = [x0 * S, z0 * S, x1 * S, z1 * S].map(Math.round) as [number, number, number, number];
   for (let z = az; z <= bz; z += spacing) b.road(ax, z, bx, z);
   for (let x = ax; x <= bx; x += spacing) b.road(x, az, x, bz);
+  first?.();
   return b.fill(ax, az, bx, bz, weights, density);
+}
+
+/**
+ * Places `id` on the free street-side lot in tile rect [x0, z0, x1, z1] nearest the sea (Chebyshev distance from
+ * its footprint, checked out to 8 tiles; ties go north-west first). Returns the lot's north-west tile, or null.
+ */
+function byTheSea(b: ScenarioBuilder, [x0, z0, x1, z1]: [number, number, number, number], id: string): [number, number] | null {
+  const [w, d] = b.footprint(id);
+  const R = 8;
+  const seaGap = (x: number, z: number) => {
+    for (let r = 1; r <= R; r++)
+      for (let j = z - r; j <= z + d - 1 + r; j++)
+        for (let i = x - r; i <= x + w - 1 + r; i++) {
+          if (j !== z - r && j !== z + d - 1 + r && i !== x - r && i !== x + w - 1 + r) continue;
+          if (!b.isLand(i, j)) return r;
+        }
+    return R + 1;
+  };
+  const lots: [number, number, number][] = [];
+  for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (b.isLand(x, z)) lots.push([seaGap(x, z), x, z]);
+  lots.sort((p, q) => p[0] - q[0] || p[2] - q[2] || p[1] - q[1]);
+  const lot = lots.find(([, x, z]) => b.fill(x, z, x + 1, z + 1, { [id]: 1 }, 1, 1) > 0);
+  return lot ? [lot[1], lot[2]] : null;
 }
 
 /** Street spacing of the hero district's grid: blocks of GRID - 1 tiles, the spire's footprint. */
@@ -407,6 +432,11 @@ export default defineScenario({
     }
     fillRect(tiles(down.blocks), { 'flora-hive': 1 }, 1, 1);
     fillRect(tiles(west.blocks), { 'eco-playground': 1 }, 1, 1);
+    // Fireworks (D-068): a factory on the Westport waterfront (and one on Foundry Islet below), on the lots
+    // nearest the sea, so the nightly shows go up over the water. The works' blocks sit inland, so the factory
+    // may take a lot on the waterfront streets west of them: that lot is named Westport Wharf, an industry area.
+    const [wi0, wj0, wi1, wj1] = west.zones!.find((z) => z.zone === 'industry')!.blocks;
+    const wharfLot = byTheSea(b, [lineX(wi0) - 45, lineZ(wj0) + 1, lineX(wi1 + 1) - 1, lineZ(wj1 + 1) - 1], 'fireworks-factory');
     for (const t of TOWNS) {
       const [i0, j0, i1, j1] = t.blocks;
       for (let j = j0; j <= j1; j++)
@@ -419,7 +449,10 @@ export default defineScenario({
         }
     }
     // Industrial islet: factories on lots wide enough for them, bioreactors paired with phyto-gardens (clean).
-    district(b, 0.05, 0.6, 0.15, 0.72, 7, { bioreactor: 2, 'phyto-garden': 3, 'kelp-refinery': 1, 'circular-reclaimery': 1, 'drone-fabricator': 1, 'solar-spire': 1 }, 0.75);
+    const isletRect = fit(S, 0.05, 0.6, 0.15, 0.72).map((v) => Math.round(v * S)) as Rect;
+    district(b, 0.05, 0.6, 0.15, 0.72, 7, { bioreactor: 2, 'phyto-garden': 3, 'kelp-refinery': 1, 'circular-reclaimery': 1, 'drone-fabricator': 1, 'solar-spire': 1 }, 0.75, () =>
+      byTheSea(b, isletRect, 'fireworks-factory'),
+    );
 
     // Wind (D-047): turbines both sides of a road, staggered about a rotor's width apart so blades never cross.
     // Each road joins the highway network, so the farms feed the city grid.
@@ -452,7 +485,7 @@ export default defineScenario({
     }
     // Sea-breeze rows along the longest waterfront streets, past the last town block.
     for (const [x, z, dx, dz, n] of [...shoreRoads].sort((p, q) => q[4] - p[4])) if (n >= 16) windAlong(x, z, dx, dz, 8, n);
-    const islet = fit(S, 0.05, 0.6, 0.15, 0.72).map((v) => Math.round(v * S)) as Rect;
+    const islet = isletRect;
     fillRect(islet, { 'ember-watch': 1 }, 1, 1);
 
     // Balance: jobs for most of the labour force, power with a thin margin; water and food left short. Utilities go
@@ -504,6 +537,10 @@ export default defineScenario({
 
     // Named areas for the inventory and the inspector, most specific first; their streets included.
     const streets = ([i0, j0, i1, j1]: Rect): Rect => [lineX(i0), lineZ(j0), lineX(i1 + 1), lineZ(j1 + 1)];
+    if (wharfLot) {
+      const n = Math.max(...b.footprint('fireworks-factory'));
+      b.nameArea('Westport Wharf', wharfLot[0] - 1, wharfLot[1] - 1, wharfLot[0] + n, wharfLot[1] + n, 'industry');
+    }
     if (spire) for (const q of QUARTERS) b.nameArea(q.name, ...streets(q.blocks), q.zone);
     if (park) b.nameArea('Bloomtopia', park[0], park[1], park[0] + b.footprint('bloomtopia')[0] - 1, park[1] + b.footprint('bloomtopia')[1] - 1, 'leisure');
     // Sub-zones before their towns, so their tiles take the more specific name.

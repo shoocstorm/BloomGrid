@@ -794,3 +794,40 @@ twice. The scissor is the stage clipped by scrolling ancestors (skipping `displa
 column) so it never paints over the city; nothing renders while the stage is hidden (≈ one extra draw per piece type
 of the selected building). The close button was a float under the content wrapper's stacking layer (clicks missed it);
 it is now an absolute button that clears the selection through `selection:changed`, which the select tool follows.
+
+## D-068 — Fireworks: factories, nightly shows, steward launches; particles flown by the shader (2026-10-31)
+
+A Fireworks Factory (`fireworks: { rate, storage }` on a def; industry) makes shells while staffed and powered,
+round-robin through five kinds (peony, willow, ring, palm, crackle), paying materials per shell, up to its storage.
+State lives on `city.fireworks` (`sim/fireworksState.ts`, saved as `SaveData.fireworks`, save v10, hashed); logic in
+`sim/fireworks.ts` runs once per pulse after occupancy (`updateFireworks`). At 21:00 the factories fire a 30-shell
+show if stocked (one a night, switchable); the steward launches one any time (`launchFireworks`, undoable: shells and
+crew fee come back) from the top-bar button (shift-click: grand, 60 shells), the dashboard's Fireworks tab or Flora
+(`fireworks_status`, `launch_fireworks`, `fireworks_nightly`). Effects are a new harmony factor (`harmony.fireworks`:
+an afterglow that rises with shells fired, halves every 150 s, times novelty `1 − 0.6 × fatigue`; every show adds
+0.4 fatigue, 0.45 fades a day, so a nightly show stays a treat and back-to-back shows turn into noise complaints),
+visitor income while a show runs (15% of income × novelty), smoke (`smog`, added to pollution and so to ecology),
+and stray sparks that can light a building near the yard (`ignite(…, 'fireworks')`, likelier in Haze and heatwaves,
+rare in rain; uses `city.rng`). Visuals: the sim emits `fireworks:volley` per pulse; `modules/fireworks` spreads it
+over the next second and writes each rocket, burst spark and trail copy once into a 6 144-slot ring of instance
+attributes (origin + start time, velocity + life, drag/gravity/size/crackle) with update ranges; the `firework`
+material flies them in closed form from `U.clock` and streaks them along their current velocity. One draw call, and
+the mesh is hidden between shows (no idle cost). Spark size grows with camera distance (`U.sparkScale`) so shows
+read from the island view. Rejected: CPU-posed particles (thousands of matrices per frame during a finale) and
+additive transparent sprites (sorting and overdraw; the emissive MRT already feeds bloom).
+
+## D-069 — Build tab explains itself; building preview; waterfront fireworks factories (2026-10-31)
+
+The Build tab is now: **Actions** (eight icon tiles, short labels under the icon so nothing is cut off; tool
+hotkeys kept as corner badges), **Buildings** (category chips, click-only: the 4–0 number keys are gone, a list of
+keys was one more thing to learn and 1–3 already set the speed), then the open category's buildings as compact
+tiles and an explanation card. For an action the card says what it does, how to use it and what it costs
+(`ui/buildHelp.ts`, numbers from the sim's constants so the text follows the rules); for a building, its
+description, labelled numbers (price, upkeep, lot, homes, jobs, power, water, food, ecology, harmony, pollution)
+and special abilities in sentences, with a Rotate button. Hovering an action or a building previews its card.
+The building's 3D preview (`preview.showDef`, from `BuildingRenderer.designParts`: variant 0 fully grown on its
+plinth; GLB heroes once loaded) renders in a frameless window floating beside the console: the stage must be a
+transparent hole over the canvas, and inside the console the panel glass dimmed it to a silhouette. Phones show a
+short card (name, three lines, Rotate) first in the strip, no preview. The founding city now has two Fireworks
+Factories on the lots nearest the sea (`byTheSea` in `founding-city.ts`): one on the Westport waterfront west of the
+works (its lot named Westport Wharf, an industry area, since the works' blocks sit inland) and one on Foundry Islet.

@@ -8,6 +8,7 @@ import type { GameContext, GameModule } from '@/game/context';
 import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from './dom';
 import { icon } from './icons';
+import { ACTION_HELP, buildingAbilities, buildingStats } from './buildHelp';
 import './styles.css';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -50,6 +51,14 @@ class Hud {
   private speedBtns: HTMLButtonElement[] = [];
   private toolBtns = new Map<string, HTMLElement>();
   private cards = new Map<string, HTMLElement>();
+  /** The Build tab's explanation card (see `renderBrief`). */
+  private brief = h('div', { class: 'brief' });
+  /**
+   * The building preview floats beside the console, outside its glass: the stage is a transparent window the
+   * `preview` module renders into, and the console's backdrop would dim anything drawn under it.
+   */
+  private floatStage = h('div', { class: 'bp-float-stage', title: 'Drag to turn · wheel to zoom · double-click to reset' });
+  private float = h('div', { class: 'bp-float hidden' }, this.floatStage, h('div', { class: 'bp-float-cap' }, 'Preview · drag to turn'));
   /** Building cards of the open category, and the tool/category bar (a console may adopt both). */
   tray!: HTMLElement;
   toolbar!: HTMLElement;
@@ -316,72 +325,152 @@ class Hud {
     const construction = ctx.services.get('construction');
     this.tray = h('div', { class: 'tray panel hidden' });
     const toolbar = (this.toolbar = h('div', { class: 'toolbar panel' }));
-    const toolBtn = (id: string, glyph: string, label: string, key: string | undefined, onClick: () => void) => {
-      const b = h('button', { class: 'tool', title: label, onClick }, h('span', { class: 'g' }, icon(id, glyph)), h('span', { class: 'l' }, label), key ? h('kbd', {}, key) : null);
+    const toolBtn = (id: string, glyph: string, label: string, title: string, key: string | undefined, onClick: () => void) => {
+      const b = h(
+        'button',
+        { class: id.startsWith('cat:') ? 'tool cat' : 'tool', title, 'aria-label': title, onClick },
+        h('span', { class: 'g' }, icon(id, glyph)),
+        h('span', { class: 'l' }, label),
+        key ? h('kbd', {}, key) : null,
+      );
+      // Hovering a button previews its explanation in the Build tab's card.
+      b.addEventListener('mouseenter', () => this.peek(id.startsWith('cat:') ? null : { tool: id }));
+      b.addEventListener('mouseleave', () => this.peek(null));
       this.toolBtns.set(id, b);
       toolbar.append(b);
     };
+    toolbar.append(h('div', { class: 'tb-title pulse-title' }, 'Actions'));
     for (const id of ['select', 'road', 'channel', 'bulldoze', 'retrofit', 'mist', 'weave', 'reclaim']) {
       const t = ctx.tools.get(id);
       if (!t) continue;
-      toolBtn(id, t.icon, t.label, t.hotkey?.replace('Key', '').replace('Escape', 'Esc'), () => {
+      const key = t.hotkey?.replace('Key', '').replace('Escape', 'Esc');
+      toolBtn(id, t.icon, ACTION_HELP[id]?.short ?? t.label, `${t.label}${key ? ` (${key})` : ''}`, key, () => {
         this.category = null;
-        this.renderTray();
         ctx.tools.setActive(id);
+        this.renderTray();
       });
     }
-    toolbar.append(h('div', { class: 'sep' }));
+    toolbar.append(h('div', { class: 'sep' }), h('div', { class: 'tb-title pulse-title' }, 'Buildings'));
     const present = new Set(buildings.all().map((b) => b.category));
-    const cats = (Object.keys(CATEGORY_LABELS) as BuildingCategory[]).filter((c) => present.has(c));
-    // Category hotkeys: 4–9 then 0 (1–3 set the speed); later categories are click-only.
-    const catKey = (i: number) => (i < 6 ? String(i + 4) : i === 6 ? '0' : undefined);
-    cats.forEach((cat, i) => {
-      toolBtn(`cat:${cat}`, CATEGORY_ICONS[cat], CATEGORY_LABELS[cat], catKey(i), () => {
+    // Categories are click-only (no number keys): 1–3 set the speed, and a list of keys is one more thing to learn.
+    for (const cat of (Object.keys(CATEGORY_LABELS) as BuildingCategory[]).filter((c) => present.has(c))) {
+      toolBtn(`cat:${cat}`, CATEGORY_ICONS[cat], CATEGORY_LABELS[cat], `${CATEGORY_LABELS[cat]} buildings`, undefined, () => {
         this.category = this.category === cat ? null : cat;
-        this.renderTray();
         if (this.category) {
           const first = buildings.all().find((b) => b.category === cat)!;
           construction.startBuilding(first.id);
         } else ctx.tools.setActive('select');
+        this.renderTray();
       });
-    });
-    ctx.input.onKey((e) => {
-      const i = cats.findIndex((_, k) => catKey(k) === e.key);
-      if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && i >= 0) {
-        (this.toolBtns.get(`cat:${cats[i]}`) as HTMLButtonElement).click();
-        return true;
-      }
-      return false;
-    });
+    }
     this.dockRow = h('div', { class: 'dock-row' }, toolbar);
     this.dock = h('div', { class: 'dock' }, this.tray, this.dockRow);
-    this.root.append(this.dock);
+    this.root.append(this.dock, this.float);
   }
 
+  /**
+   * The Build tab's tray: an explanation card for the active action or the building being placed (with a 3D
+   * preview of the building), then the open category's buildings. Shown while a category is open or any
+   * action other than Inspect is active.
+   */
   private renderTray(): void {
     const { ctx } = this;
+    const tool = ctx.tools.active?.id ?? 'select';
     this.tray.replaceChildren();
     this.cards.clear();
-    this.tray.classList.toggle('hidden', !this.category);
+    const open = !!this.category || (tool !== 'select' && tool !== 'build');
+    this.tray.classList.toggle('hidden', !open);
     for (const [id, b] of this.toolBtns) if (id.startsWith('cat:')) b.classList.toggle('on', id === `cat:${this.category}`);
-    if (!this.category) return;
+    if (!open) return;
     const construction = ctx.services.get('construction');
-    // Rotation without a keyboard (R still works).
-    this.tray.append(
-      h('button', { class: 'card rotate', title: 'Rotate (R)', onClick: () => (construction.state.rot = (construction.state.rot + 1) % 4) }, h('div', { class: 'n' }, icon('rotate')), h('div', { class: 'c' }, 'Rotate')),
-    );
-    for (const def of buildings.all().filter((b) => b.category === this.category)) {
-      const card = h(
-        'button',
-        { class: 'card', title: def.description, onClick: () => construction.startBuilding(def.id) },
-        h('div', { class: 'n' }, def.name),
-        h('div', { class: 'c' }, icon('credits'), ` ${fmt(def.stats.cost)} · ${def.footprint[0]}×${def.footprint[1]}`),
-        tags(def),
-      );
-      this.cards.set(def.id, card);
-      this.tray.append(card);
+    if (this.category) {
+      const list = h('div', { class: 'tray-list' });
+      this.tray.append(h('div', { class: 'tb-title pulse-title' }, `${CATEGORY_LABELS[this.category]} buildings`), list);
+      for (const def of buildings.all().filter((b) => b.category === this.category)) {
+        const card = h(
+          'button',
+          {
+            class: 'card',
+            title: def.description,
+            onClick: () => {
+              construction.startBuilding(def.id);
+              this.syncCards();
+            },
+          },
+          h('div', { class: 'n' }, def.name),
+          h('div', { class: 'c' }, icon('credits'), ` ${fmt(def.stats.cost)} · ${def.footprint[0]}×${def.footprint[1]}`),
+          tags(def),
+        );
+        card.addEventListener('mouseenter', () => this.peek({ def: def.id }));
+        card.addEventListener('mouseleave', () => this.peek(null));
+        this.cards.set(def.id, card);
+        list.append(card);
+      }
     }
+    this.tray.append(this.brief);
     this.syncCards();
+  }
+
+  /** What the explanation card shows while hovering (null = the active action or building). */
+  private peeking: { tool: string } | { def: string } | null = null;
+  private briefKey = '';
+
+  private peek(what: { tool: string } | { def: string } | null): void {
+    this.peeking = what;
+    this.renderBrief();
+  }
+
+  /** Fills the explanation card: an action's what / how / cost, or a building's preview, numbers and abilities. */
+  private renderBrief(): void {
+    if (this.tray.classList.contains('hidden')) return this.placeFloat();
+    const { ctx } = this;
+    const construction = ctx.services.get('construction');
+    const active = ctx.tools.active?.id ?? 'select';
+    const what = this.peeking ?? (active === 'build' ? { def: construction.state.def } : { tool: active });
+    const key = 'def' in what ? `d:${what.def}` : `t:${what.tool}`;
+    if (key === this.briefKey) return;
+    this.briefKey = key;
+    if ('tool' in what) {
+      const t = ctx.tools.get(what.tool);
+      const help = ACTION_HELP[what.tool];
+      if (!t || !help) return this.placeFloat();
+      const hk = t.hotkey?.replace('Key', '').replace('Escape', 'Esc');
+      this.brief.className = 'brief panel holo action';
+      this.brief.replaceChildren(
+        h('div', { class: 'bp-head' }, h('span', { class: 'bp-ico' }, icon(t.id, t.icon)), h('b', {}, t.label), hk ? h('kbd', {}, hk) : null),
+        h('p', { class: 'bp-desc' }, help.what),
+        h('div', { class: 'bp-row' }, h('span', {}, 'How'), h('p', {}, help.how)),
+        h('div', { class: 'bp-row' }, h('span', {}, 'Cost'), h('p', {}, help.cost)),
+      );
+      return this.placeFloat();
+    }
+    const def = buildings.get(what.def);
+    const abilities = buildingAbilities(def);
+    this.brief.className = 'brief panel holo building';
+    this.brief.replaceChildren(
+      h('div', { class: 'bp-head' }, h('span', { class: 'bp-ico' }, icon(`cat:${def.category}`, CATEGORY_ICONS[def.category])), h('b', {}, def.name), h('span', { class: 'bp-cat' }, CATEGORY_LABELS[def.category])),
+      h('p', { class: 'bp-desc' }, def.description),
+      h('div', { class: 'bp-stats' }, ...buildingStats(def).map((r) => h('div', { class: `bp-stat ${r.tone ?? ''}` }, h('span', {}, r.label), h('b', {}, r.value)))),
+      h('ul', { class: 'bp-abilities' }, ...abilities.map((a) => h('li', {}, a))),
+      h(
+        'div',
+        { class: 'bp-place' },
+        h('span', {}, isTouchDevice() ? 'Tap the map to preview, tap again to build.' : 'Click the map to place it · Esc to stop.'),
+        h('button', { class: 'bp-rot', title: 'Rotate (R)', onClick: () => (construction.state.rot = (construction.state.rot + 1) % 4) }, icon('rotate'), ' Rotate'),
+      ),
+    );
+    this.placeFloat();
+    ctx.services.tryGet('preview')?.showDef(this.floatStage, def.id);
+  }
+
+  /** Shows the floating preview beside the explanation card while it describes a building (desktop only). */
+  private placeFloat(): void {
+    const on = this.brief.classList.contains('building') && this.brief.offsetParent !== null && !isCompact();
+    this.float.classList.toggle('hidden', !on);
+    if (!on) return;
+    const r = this.brief.getBoundingClientRect();
+    const top = Math.max(70, Math.min(r.top, window.innerHeight - this.float.offsetHeight - 12));
+    this.float.style.transform = `translate(${Math.round(r.right + 22)}px, ${Math.round(top)}px)`;
   }
 
   private syncCards(): void {
@@ -391,19 +480,15 @@ class Hud {
       c.classList.toggle('on', building && st.def === id);
       c.classList.toggle('poor', buildings.get(id).stats.cost > this.ctx.city.credits);
     }
+    this.renderBrief();
   }
 
   private syncTools(id: string): void {
     for (const [tid, b] of this.toolBtns) if (!tid.startsWith('cat:')) b.classList.toggle('on', tid === id);
-    if (id !== 'build' && this.category) {
-      this.category = null;
-      this.renderTray();
-    }
-    if (id === 'build' && !this.category) {
-      this.category = buildings.get(this.ctx.services.get('construction').state.def).category;
-      this.renderTray();
-    }
-    this.syncCards();
+    if (id !== 'build' && this.category) this.category = null;
+    if (id === 'build' && !this.category) this.category = buildings.get(this.ctx.services.get('construction').state.def).category;
+    this.briefKey = '';
+    this.renderTray();
     this.ctx.bus.emit('tool:tooltip', { text: null });
   }
 
@@ -656,6 +741,7 @@ class Hud {
     this.timer += dt;
     if (this.timer < 0.2) return;
     this.timer = 0;
+    this.placeFloat();
     const { city, engine } = ctx;
     const s = city.stats;
     setText(this.timeEl, timeLabel(city.timeOfDay, city.day, document.body.classList.contains('compact')));

@@ -1,5 +1,7 @@
 import {
   BackSide,
+  Color,
+  Matrix4,
   Box3,
   CircleGeometry,
   DirectionalLight,
@@ -17,10 +19,13 @@ import { color, float, length, mix, positionLocal, smoothstep, uv, abs, fract } 
 import type { GameContext, GameModule } from '@/game/context';
 import { getPiece } from '@/assets/kit/pieces';
 import { ChunkedInstancer } from '@/render/Instancer';
+import { buildings } from '@/content';
 
 export interface PreviewService {
   /** Shows building `eid` on the stage `host` (an element whose box is a transparent window in the HUD). */
   show(host: HTMLElement, eid: number): void;
+  /** Shows building type `defId` as it would be built (the Build tab, D-069). */
+  showDef(host: HTMLElement, defId: string): void;
   hide(): void;
   /** Back to the framing it opened with. */
   reset(): void;
@@ -58,7 +63,9 @@ class Preview {
   private rim = new DirectionalLight(0x8ff8ec, 1.1);
   private host: HTMLElement | null = null;
   private clips: HTMLElement[] = [];
-  private eid = -1;
+  /** What is on stage (`e<eid>` or `d<def id>`) and how to read its pieces. */
+  private shown = '';
+  private parts: () => { piece: string; matrix: Matrix4; color: Color; params: number[] }[] = () => [];
   private retry = 0;
   private target = new Vector3();
   private radius = 10;
@@ -90,6 +97,16 @@ class Preview {
   }
 
   show(host: HTMLElement, eid: number): void {
+    this.open(host, `e${eid}`, () => this.ctx.services.get('construction').renderer.snapshot(eid));
+  }
+
+  showDef(host: HTMLElement, defId: string): void {
+    const def = buildings.get(defId);
+    const at = new Vector3(this.ctx.cameraCtl.target.x, 0, this.ctx.cameraCtl.target.z);
+    this.open(host, `d${defId}`, () => this.ctx.services.get('construction').renderer.designParts(def, at));
+  }
+
+  private open(host: HTMLElement, key: string, parts: Preview['parts']): void {
     if (this.host !== host) this.bind(host);
     this.host = host;
     // Clipping boxes: the stage, then every scrolling ancestor (the inspector sheet, the right column).
@@ -99,8 +116,9 @@ class Preview {
       const cs = getComputedStyle(el);
       if (cs.display !== 'contents' && /auto|scroll|hidden/.test(cs.overflowY)) this.clips.push(el);
     }
-    if (eid === this.eid) return;
-    this.eid = eid;
+    if (key === this.shown) return;
+    this.shown = key;
+    this.parts = parts;
     this.yaw = this.ctx.cameraCtl.yaw + 0.5;
     this.pitch = 0.42;
     this.home = { yaw: this.yaw, pitch: this.pitch };
@@ -122,7 +140,7 @@ class Preview {
   /** Copies the building's live pieces; GLB parts may still be loading, so an empty read retries briefly. */
   private load(): void {
     this.instancer.clear();
-    const parts = this.ctx.services.get('construction').renderer.snapshot(this.eid);
+    const parts = this.parts();
     if (!parts.length) {
       this.retry = 0.25;
       return;
@@ -241,7 +259,12 @@ export const previewModule: GameModule = {
   deps: ['construction'],
   init(ctx) {
     const p = new Preview(ctx);
-    ctx.services.provide('preview', { show: (host, eid) => p.show(host, eid), hide: () => p.hide(), reset: () => p.reset() });
+    ctx.services.provide('preview', {
+      show: (host, eid) => p.show(host, eid),
+      showDef: (host, id) => p.showDef(host, id),
+      hide: () => p.hide(),
+      reset: () => p.reset(),
+    });
     // After the city frame (core.render), so it draws over the canvas under the stage's window.
     ctx.systems.add({ id: 'preview', phase: 'render', order: 50, update: (_c, f) => p.update(f.dt) });
   },

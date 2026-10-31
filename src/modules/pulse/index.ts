@@ -24,7 +24,7 @@ export const pulseModule: GameModule = {
     });
     const hud = ctx.services.get('hud');
     const build = panel.addTab('build', 'Build', '✚', hud.toolbar, hud.tray);
-    // Opening a building category (click or 4–0) brings its cards forward in the console.
+    // Opening a building category or an action brings its cards and explanation forward in the console.
     new MutationObserver(() => {
       if (!isCompact() && !hud.tray.classList.contains('hidden')) build.select();
     }).observe(hud.tray, { attributes: true, attributeFilter: ['class'] });

@@ -10,6 +10,7 @@ import { RoadNetworks } from './networks';
 import { createPulseState, type PulseState } from './pulseState';
 import { computeShore, createFields, type Fields } from './fields';
 import { createStewardState, type StewardState } from './stewardState';
+import { FIREWORK_KINDS, createFireworksState, type FireworksState } from './fireworksState';
 import { createSoil, initSoilLand, soilChecksum, type SoilState } from './floranet';
 import type { SkyBridge } from './weaver';
 import type { DifficultyId } from './difficulty';
@@ -95,6 +96,8 @@ export class City {
   pulse!: PulseState;
   fields!: Fields;
   steward!: StewardState;
+  /** Fireworks stock, the show in the sky and the afterglow (saved, D-068). */
+  fireworks!: FireworksState;
   /** Flora-Net soil zones (saved). */
   soil!: SoilState;
   /** Corner heights changed from the generated terrain (land reclamation), saved sparsely. */
@@ -140,6 +143,7 @@ export class City {
     this.terrainEdits = new Map();
     this.weaver = { bridges: [] };
     this.steward = createStewardState(difficulty);
+    this.fireworks = createFireworksState();
     this.roadCount = 0;
     this.nextUid = 1;
     this.uids.clear();
@@ -372,12 +376,18 @@ export class City {
     return out;
   }
 
+  private fireworksHash(): string {
+    const f = this.fireworks;
+    const show = f.show ? `${f.show.id}:${f.show.fired}/${f.show.shells}@${f.show.startTick}` : '-';
+    return `${FIREWORK_KINDS.map((k) => f.stock[k]).join(',')}|${f.auto ? 1 : 0}|${f.shows}|${f.lastNight}|${show}|${f.progress.toFixed(4)}|${f.glow.toFixed(4)}|${f.fatigue.toFixed(4)}|${f.smog.toFixed(4)}`;
+  }
+
   hash(): string {
     const b = this.snapshotBuildings().map(
       (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}`,
     );
   }
 }

@@ -42,6 +42,8 @@ export const U = {
   nightlife: uniform(1),
   /** Seconds of animation clock shared with the CPU (explore follow-cam rides pods on it). */
   clock: uniform(0),
+  /** Firework spark size multiplier: grows with camera distance so bursts read from the island view (D-068). */
+  sparkScale: uniform(1),
   /** Map size in world units (for terrain-space lookups such as water depth). */
   mapSize: uniform(256),
 };

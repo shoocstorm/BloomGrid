@@ -319,6 +319,57 @@ export class BuildingRenderer {
    * The building as it is drawn now (grown pieces, GLB parts and retrofit overlay; not its alert marker): world
    * matrices, tints and shader params read back from the instancer, for the inspector's 3D preview.
    */
+  /**
+   * A building type as the Build tab's preview stage draws it (D-069): variant 0, fully grown and lit, on its
+   * plinth, standing at `at`. A GLB hero comes back empty until its model has loaded (the stage retries); if
+   * the model fails, its procedural fallback stands in.
+   */
+  designParts(def: BuildingDef, at: Vector3): { piece: string; matrix: Matrix4; color: Color; params: number[] }[] {
+    const base = new Matrix4().makeTranslation(at.x, at.y, at.z);
+    const [fw, fd] = def.footprint;
+    const out = [
+      {
+        piece: 'plinth',
+        matrix: new Matrix4().multiplyMatrices(base, new Matrix4().compose(_v.set(0, -0.4, 0), _q.identity(), _s.set(fw * 0.98, 0.42, fd * 0.98))),
+        color: new Color(0xffffff),
+        params: [1, 0.5, 0, 1],
+      },
+    ];
+    if (typeof def.recipe !== 'function') {
+      const recipe = def.recipe;
+      const glb = this.designGlbs.get(recipe.glb);
+      if (glb === undefined) {
+        this.designGlbs.set(recipe.glb, null);
+        void this.ctx.assets.loadGlbPieces(recipe.glb).then(
+          (parts) => this.designGlbs.set(recipe.glb, parts),
+          () => this.designGlbs.set(recipe.glb, 'failed'),
+        );
+      }
+      if (glb === undefined || glb === null) return [];
+      if (glb !== 'failed') {
+        const scaled = base.clone().scale(_s.setScalar(recipe.scale ?? 1));
+        for (const part of glb)
+          out.push({ piece: part.piece, matrix: new Matrix4().multiplyMatrices(scaled, part.matrix), color: new Color(0xffffff), params: [1, 0.5, 0.4, 1] });
+        return out;
+      }
+      if (!recipe.fallback) return out;
+    }
+    const style = def.style ?? 'classic';
+    for (const p of buildingTemplate(def, 0).pieces) {
+      const styled = isStyled(p.piece);
+      out.push({
+        piece: p.piece,
+        matrix: new Matrix4().multiplyMatrices(base, p.local),
+        color: new Color(styled ? restyle(p.piece, p.tint, STYLES[style], 1) : p.tint),
+        params: [1, styled ? styleIndex(style) + p.seed * 0.999 : p.seed, p.glow, 1],
+      });
+    }
+    return out;
+  }
+
+  /** GLB parts for design previews: null while loading. */
+  private designGlbs = new Map<string, Awaited<ReturnType<GameContext['assets']['loadGlbPieces']>> | null | 'failed'>();
+
   snapshot(eid: number): { piece: string; matrix: Matrix4; color: Color; params: number[] }[] {
     const entry = this.entries.get(eid);
     if (!entry) return [];

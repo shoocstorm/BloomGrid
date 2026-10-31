@@ -1,6 +1,7 @@
 import type { BuildingRecord } from './City';
 import type { SystemKey, Tier } from './pulseState';
 import type { CrisisInstance, FireIncident, IncidentRecord } from './stewardState';
+import type { FireworkKind, FireworkShow, ShowRecord } from './fireworksState';
 
 declare module '@/core/EventBus' {
   interface GameEvents {
@@ -46,6 +47,10 @@ declare module '@/core/EventBus' {
     'lightning:strike': { x: number; z: number; y: number; eid: number; fire: boolean };
     /** A crisis or fire was added to the incident log. */
     'incident:logged': { record: IncidentRecord };
+    /** Fireworks (D-068): a show started; shells went up this pulse (renderers launch them); a show ended. */
+    'fireworks:start': { show: FireworkShow };
+    'fireworks:volley': { show: FireworkShow; kinds: FireworkKind[]; finale: boolean };
+    'fireworks:end': { record: ShowRecord };
   }
 }
 export {};

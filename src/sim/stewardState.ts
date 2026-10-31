@@ -45,7 +45,7 @@ export interface FireIncident {
   startTick: number;
   /** Crews dispatched by the steward (a `respond` command). */
   crew: boolean;
-  cause: 'lightning' | 'earthquake' | 'industrial' | 'heat' | 'spread';
+  cause: 'lightning' | 'earthquake' | 'industrial' | 'heat' | 'spread' | 'fireworks';
   /** The crisis that started it, if any. */
   crisisId?: number;
   /** Credits of damage so far. */

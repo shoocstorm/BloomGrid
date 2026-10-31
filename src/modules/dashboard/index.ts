@@ -12,6 +12,7 @@ import { INCOME_SCALE } from '@/sim/pulse';
 import { LineChart } from './LineChart';
 import { InventoryView } from './InventoryView';
 import { IncidentLog } from './IncidentLog';
+import { FireworksView } from './FireworksView';
 import './dashboard.css';
 
 const HISTORY_STEP = 10; // sim seconds per history sample
@@ -24,7 +25,7 @@ interface Tile {
   sub: HTMLElement;
 }
 
-type Tab = 'overview' | 'inventory' | 'incidents';
+type Tab = 'overview' | 'inventory' | 'incidents' | 'fireworks';
 
 /**
  * City dashboard. Overview (K): headline tiles, trend small-multiples (one series per chart), budget and
@@ -44,6 +45,7 @@ class Dashboard {
   private tabs = new Map<Tab, { btn: HTMLElement; pane: HTMLElement }>();
   readonly inventory: InventoryView;
   readonly incidents: IncidentLog;
+  readonly fireworks: FireworksView;
 
   constructor(private ctx: GameContext) {
     const tiles = h('div', { class: 'db-tiles' });
@@ -93,11 +95,13 @@ class Dashboard {
     );
     this.inventory = new InventoryView(ctx, () => this.toggle(false));
     this.incidents = new IncidentLog(ctx);
+    this.fireworks = new FireworksView(ctx);
     const tabBar = h('nav', { class: 'db-tabs', role: 'tablist' });
     for (const [id, name, key, pane] of [
       ['overview', 'Overview', 'K', overview],
       ['inventory', 'Inventory', 'I', h('div', { class: 'db-pane' }, this.inventory.el)],
       ['incidents', 'Incidents', '', h('div', { class: 'db-pane' }, this.incidents.el)],
+      ['fireworks', 'Fireworks', '', h('div', { class: 'db-pane' }, this.fireworks.el)],
     ] as [Tab, string, string, HTMLElement][]) {
       const btn = h('button', { class: 'db-tab', role: 'tab', onClick: () => this.show(id) }, name, key ? h('kbd', {}, key) : null);
       tabBar.append(btn);
@@ -150,6 +154,7 @@ class Dashboard {
     if (!this.open) return;
     if (tab === 'overview') this.refresh();
     else if (tab === 'incidents') this.incidents.render();
+    else if (tab === 'fireworks') this.fireworks.render();
     else this.inventory.update(0, true);
   }
 
@@ -161,6 +166,7 @@ class Dashboard {
     this.timer = 0;
     // Live fires and ruins change every second; the log only on events, but a 1 Hz rebuild covers both.
     if (this.tab === 'incidents') this.incidents.render();
+    else if (this.tab === 'fireworks') this.fireworks.render();
     else this.refresh();
   }
 
@@ -262,6 +268,9 @@ export const dashboardModule: GameModule = {
       openIncidents() {
         if (!db.isOpen || db.activeTab !== 'incidents') db.openTab('incidents');
       },
+      openFireworks() {
+        if (!db.isOpen || db.activeTab !== 'fireworks') db.openTab('fireworks');
+      },
     });
   },
 };
@@ -274,6 +283,8 @@ declare module '@/core/Services' {
       openInventory(id?: string): void;
       /** Opens the Incidents tab: fires and ruins now, and the incident log (D-050). */
       openIncidents(): void;
+      /** Opens the Fireworks tab: stock, shows so far and their effects (D-068). */
+      openFireworks(): void;
     };
   }
 }

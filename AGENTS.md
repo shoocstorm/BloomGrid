@@ -47,7 +47,7 @@ warnings and errors plus the app's tagged logs such as `[boot] ms {…}` (it exi
 your change (`[boot] modules {…}` breaks module init down per module). `shots/` is git-ignored. Scenes in `scripts/scenes/`: `demo-city.js` (small district), `blackout.js` (night power-failure
 drill), `drought.js` (water-failure drill; buildings should visibly wilt), `retrofit.js` (channel + Bloom Retrofit
 wave), `nightlife.js` (night downtown: glow should follow activity; `window.NEAR = 12` for a close-up) and `season.js`
-(mid-Haze; prefix `window.SEASON = 1;` for a Monsoon shower), `mobility.js` (first Pod Dock at rush hour; `window.NIGHT = 1`,
+(mid-Haze; prefix `window.SEASON = 1;` for a Monsoon shower), `fireworks.js` (finds or builds a Fireworks Factory at the Westport waterfront and launches a grand night show; `window.DAY`, `window.FAR`, `window.TAB = 1` for the dashboard's Fireworks tab; use `--after 7000`), `mobility.js` (first Pod Dock at rush hour; `window.NIGHT = 1`,
 `window.LENS = 1` for the Traffic lens, `window.NEAR = 14`), `inventory.js` (dashboard Inventory tab on the worst object, plus every agent tool; `window.QUERY = 'district:westbrook'`
 pre-fills the search), `mobile.js` (with `--mobile`: phone HUD; `window.SHEET = 'info' | 'pulse' | 'advisor' | 'lens' | 'build' | 'dashboard' | 'gesture'`,
 the last returns camera distance/yaw before and after a synthetic pinch + twist), `fires.js` (three fires across the island: beacons, screen and edge pins, alert toast; `window.FAR = 1` for the
@@ -127,6 +127,8 @@ To light a fire from a snap eval: `(await import('/src/sim/hazards.ts')).ignite(
 | Phone layout / touch input         | `.compact` rules in `src/ui/mobile.css` (loaded last), `platform/device.ts` (`isCompact`, `isTouchDevice`); foldable panels register with `hud.sheet(el)`; gestures in `input/Input.ts`, tools get `cancel` and `e.touch` (D-045). Check with `bun run snap -- --mobile` |
 | Zones (living, work, industry…)    | `ZoneKind` / `ZONES` in `src/content/types.ts`; `nameArea(…, zone)` in a scenario; `District.zone` (saved, hashed); town sub-zones in `founding-city.ts` (`zones` on a `Town`) |
 | Hazards (quake, lightning, fire)   | `src/sim/hazards.ts` (crises, fires, ruins, `respond` / `repair`), log via `logIncident` in `sim/crises.ts`; visuals, fire panel and locators (beacons, screen pins, `.` next fire) `src/modules/hazards/`; a `toast` with `at: { x, z }` is a fly-to button; Incidents tab `modules/dashboard/IncidentLog.ts`; Flora tools `sim/hazardTools.ts`; stations: `response` on a def (D-050) |
+| Fireworks                          | sim `src/sim/fireworks.ts` (state in `fireworksState.ts`, `city.fireworks`; `fireworks` on a def; commands `launchFireworks`, `setFireworksAuto`), Flora tools `sim/fireworksTools.ts`; particles, top-bar button and toasts `src/modules/fireworks/` (the `firework` material flies sparks from `U.clock`: write a particle once, never re-pose); dashboard tab `modules/dashboard/FireworksView.ts` (D-068) |
+| Build tab (actions, categories)    | `buildDock` / `renderTray` / `renderBrief` in `src/ui/Hud.ts`; action explanations and building facts in `src/ui/buildHelp.ts` (`ACTION_HELP`: a new tool needs an entry; numbers come from sim constants); the building preview floats beside the console (`preview.showDef`, `BuildingRenderer.designParts`), never under panel glass (D-069) |
 | Wind turbines                      | building `src/content/buildings/wind-turbine.ts` (plinth + tower); nacelles and spinning rotors `src/modules/wind/` (one prevailing wind, CPU-posed from `U.clock`); founding-city farm placement in `founding-city.ts` (`WIND_TURBINES` cap, D-047) |
 | City map (districts)               | `src/modules/citymap/` (canvas painted on open from `city.districts`; labels fit their district); button prepended to `hud.stats`; **M** (Flora-Net mist moved to **Y**) |
 | HUD layout (desktop)               | one left console, City Pulse with tabs (D-056): add a tab with `services.get('pulse').addTab(id, label, glyph, ...els)` (elements return to their phone home on `.compact`); Build adopts `hud.toolbar` / `hud.tray`; telemetry strip in its header (`hud.readout`); explore modes are a top-bar dropdown (`explore/index.ts`); Flora's orb in `hud.dockRow` (bottom-right); console styles at the end of `ui/theme.css` |
@@ -236,8 +238,8 @@ own `requestAnimationFrame` loops.
 - Hazard damage goes through `damageBuilding` (books the credits and the log, ruins at zero); don't write
   `Service.condition` down directly for a hazard. A new crisis is logged automatically when it ends; give it
   `c.x / c.z` so the log and the map can place it.
-- Building categories feed the toolbar in `CATEGORY_LABELS` order with hotkeys 4–9, 0: add a category at the end
-  (it is click-only) and give it a `CATEGORY_CODES` prefix; the id regexes in `ai/agent.ts` and
+- Building categories feed the Build tab in `CATEGORY_LABELS` order, click-only (no number keys, D-069): add a
+  category with a `CATEGORY_CODES` prefix; the id regexes in `ai/agent.ts` and
   `modules/assistant/Panel.ts` list every prefix.
 - Founding-city balance is sensitive: after changing a scenario mix, measure settled (≈400 ticks) flow,
   unemployment, power margin and budget on seed 20261024 (`tests/zoning.test.ts` guards them). For traffic, list

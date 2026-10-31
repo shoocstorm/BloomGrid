@@ -16,7 +16,9 @@ import {
   fract,
   fwidth,
   dot,
+  exp,
   hash,
+  instanceIndex,
   length,
   materialColor,
   instanceColor,
@@ -535,6 +537,37 @@ export function initMaterials(): void {
   };
   define('scenery', scenery(false), { overlay: 'plain' });
   define('glowline', scenery(true), { overlay: 'plain' });
+
+  // Firework sparks (D-068): every particle's flight is a closed-form function of `U.clock` from its
+  // per-instance launch data, so the CPU only writes a particle once (at launch) and never re-poses it.
+  // aBurst = origin xyz + start time, aVel = velocity xyz + life, aLook = drag, gravity, size, crackle.
+  define('firework', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 1, metalness: 0 });
+    const burst = attribute('aBurst', 'vec4');
+    const vel = attribute('aVel', 'vec4');
+    const look = attribute('aLook', 'vec4');
+    const age = U.clock.sub(burst.w);
+    const life = vel.w;
+    const alive = step(0, age).mul(step(age, life));
+    const k = max(look.x, float(0.001));
+    const travel = float(1).sub(exp(age.max(0).mul(k).negate())).div(k);
+    const fall = vec3(0, look.y.mul(age.max(0)).mul(age.max(0)).mul(0.5), 0);
+    const u = age.div(life).clamp(0, 1);
+    const fade = float(1).sub(u.mul(u));
+    const crackle = mix(float(1), step(0.45, fract(hash(instanceIndex).add(age.mul(11)))), look.w);
+    const size = look.z.mul(fade).mul(alive).mul(crackle).mul(U.sparkScale);
+    // Streak each spark along its current velocity (fast sparks are long, slowing ones round up).
+    const vNow = vel.xyz.mul(exp(age.max(0).mul(k).negate())).sub(vec3(0, look.y.mul(age.max(0)), 0));
+    const speed = length(vNow);
+    const dir = vNow.div(max(speed, float(1e-3)));
+    const p = positionLocal.mul(size);
+    const streak = p.add(dir.mul(dot(p, dir)).mul(speed.mul(0.09).min(5)));
+    m.positionNode = streak.add(burst.xyz).add(vel.xyz.mul(travel)).sub(fall);
+    m.colorNode = instanceColor.mul(0.15);
+    // Bright enough for bloom at night; fainter by day (a daylight show is a modest sight).
+    m.emissiveNode = instanceColor.mul(fade.mul(fade).mul(5).add(0.6)).mul(U.night.mul(0.75).add(0.25));
+    return m;
+  }, { overlay: 'none' });
 
   define('sky', () => {
     const m = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, fog: false });

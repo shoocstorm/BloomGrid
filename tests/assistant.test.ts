@@ -19,6 +19,7 @@ import { actionTools, connectPath, findSites, resolveType, type ActionCtx } from
 import { inventoryTools } from '@/sim/inventoryTools';
 import { insightTools } from '@/sim/insightTools';
 import { hazardTools } from '@/sim/hazardTools';
+import { fireworksTools } from '@/sim/fireworksTools';
 import { getObject, queryInventory } from '@/sim/inventory';
 import { applyScenario } from '@/sim/scenario';
 import { buildings } from '@/content';
@@ -34,7 +35,7 @@ function founded() {
 function registry(s: ReturnType<typeof makeSim>) {
   const ctx: ActionCtx = { city: s.city, commands: s.commands };
   const r = new AgentToolRegistry<ActionCtx>(ctx);
-  for (const t of [...inventoryTools, ...insightTools, ...actionTools, ...hazardTools]) r.register(t);
+  for (const t of [...inventoryTools, ...insightTools, ...actionTools, ...hazardTools, ...fireworksTools]) r.register(t);
   return r;
 }
 

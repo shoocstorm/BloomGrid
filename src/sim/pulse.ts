@@ -7,6 +7,7 @@ import { HISTORY_LENGTH, HISTORY_METRICS, SYSTEMS, tierFromRatio, type SystemKey
 import { FIELD_PULSES, computeEcology, computePollution } from './fields';
 import { blightLoss, updateCrises } from './crises';
 import { updateHazards } from './hazards';
+import { updateFireworks } from './fireworks';
 import { updateFinance } from './finance';
 import { updateCondition, updateOvergrowth } from './upkeep';
 import { updateStewardship } from './steward';
@@ -248,6 +249,9 @@ export const pulseSystem: System<SimCtx> = {
       built++;
     }
 
+    const fireworks = updateFireworks(city, ents, mod, built);
+    s.pollution += fireworks.pollution;
+
     // Aggregate stats.
     s.buildings = built;
     s.capacity = capacity;
@@ -279,7 +283,8 @@ export const pulseSystem: System<SimCtx> = {
     h.bloom = clamp((pulse.bloomIndex - 0.4) * 16, -4, 6);
     // Jammed commutes wear residents down (flow 0.9+ is free; 0.5 means trips take twice as long).
     h.traffic = -clamp((0.9 - pulse.flow) * 25, 0, 12);
-    const target = clamp(h.base + h.ecology + h.services + h.jobs + h.food + h.taxes + h.amenities + h.crises + h.bloom + h.traffic, 0, 100);
+    h.fireworks = fireworks.harmony;
+    const target = clamp(h.base + h.ecology + h.services + h.jobs + h.food + h.taxes + h.amenities + h.crises + h.bloom + h.traffic + h.fireworks, 0, 100);
     pulse.avgGreenery = greenSum / per;
     s.happiness += (target - s.happiness) * 0.06;
 
