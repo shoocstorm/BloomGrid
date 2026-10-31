@@ -113,7 +113,7 @@ export class PulsePanel {
     const body = h('div', { class: 'pulse-body' });
     this.el = h(
       'section',
-      { class: 'pulse panel' },
+      { class: 'pulse panel holo' },
       h('button', { class: 'pulse-head', onClick: () => this.el.classList.toggle('collapsed'), title: 'Toggle (P)' }, h('span', { class: 'pulse-orb' }), 'City Pulse'),
       this.tabsEl,
       this.panes,

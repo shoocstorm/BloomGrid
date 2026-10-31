@@ -731,3 +731,13 @@ every layer on WebGPU stayed on "Warming up…" forever. Nothing in wllama times
 is only logged. `LlmEngine.load` now passes `n_gpu_layers: 0` on iPhone, iPod and iPad (an iPadOS Mac user agent
 with touch points; Tauri's macOS webview has none). Elsewhere, a load that takes longer than `WARM_MS` (120 s)
 frees the worker and retries on the CPU. A CPU load that also takes longer fails with an error instead of spinning.
+
+## D-063 — Holo panels: the welcome card's look shared by every dialog and console (2026-10-31)
+
+The inspector, City Pulse, dashboard, settings, city map, New City and game-over dialogs and the fire panel take the
+`.holo` class (`ui/theme.css`): glass gradient, accent glow, corner brackets and a one-shot sheen, with `.crit` for
+alerts (game over, fires). Dialog headers use `holoHead()` from `ui/holo.ts` (emblem with a ring pulse, eyebrow with a
+LED, gradient title); `rise()` staggers content in. Brackets are background layers (not a pseudo-element) so they stay
+put in scrolling panels, and a folded sheet drops them. Every animation is one-shot transform/opacity (the sheen is a
+background-position sweep that hides when done), replays when a panel is shown again, waits for `body.booted`, and is
+off under `prefers-reduced-motion` (§7½).

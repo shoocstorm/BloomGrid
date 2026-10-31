@@ -415,7 +415,7 @@ class Hud {
     this.infoBody = h('div');
     this.info = h(
       'div',
-      { class: 'info panel hidden' },
+      { class: 'info panel holo hidden' },
       h('button', { class: 'icon-btn', style: 'float:right;margin:-8px -8px 0 0', 'aria-label': 'Close', onClick: () => this.select(null) }, icon('close')),
       this.infoBody,
     );
@@ -442,7 +442,6 @@ class Hud {
     tag.prepend(h('i', { class: 'ix-led', 'data-led': '1', title: 'Status' }));
     return [
       h('div', { class: 'ix-aura' }),
-      h('div', { class: 'ix-sheen' }),
       h(
         'div',
         { class: 'ix-head' },

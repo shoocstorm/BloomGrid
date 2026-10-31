@@ -236,7 +236,7 @@ export const hazardsModule: GameModule = {
     );
     const panel = h(
       'section',
-      { class: 'hz-panel panel hidden' },
+      { class: 'hz-panel panel holo crit hidden' },
       h('header', {}, h('span', { class: 'hz-dot' }), title, allBtn, nextBtn, logBtn),
       list,
     );

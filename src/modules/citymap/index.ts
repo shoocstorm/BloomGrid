@@ -5,6 +5,7 @@ import type { District } from '@/sim/City';
 import { ZONES, type ZoneKind } from '@/content/types';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
+import { holoHead } from '@/ui/holo';
 import './citymap.css';
 
 export interface CityMapService {
@@ -100,17 +101,11 @@ class CityMap {
       { class: 'cmap-scrim hidden', onClick: (e: Event) => e.target === this.el && this.toggle(false) },
       h(
         'section',
-        { class: 'cmap panel', role: 'dialog', 'aria-label': 'City map' },
+        { class: 'cmap panel holo', role: 'dialog', 'aria-label': 'City map' },
         h(
           'header',
           { class: 'cmap-head' },
-          h('span', { class: 'cmap-code' }, 'MAP'),
-          h(
-            'div',
-            { class: 'cmap-title' },
-            h('b', {}, 'City Map'),
-            h('span', {}, 'Districts and areas · click anywhere to fly there'),
-          ),
+          holoHead(icon('map'), 'Island survey', 'City Map', 'Districts and areas · click anywhere to fly there'),
           h(
             'div',
             { class: 'cmap-mode', role: 'tablist' },

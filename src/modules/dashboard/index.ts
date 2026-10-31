@@ -6,6 +6,7 @@ import { CATEGORY_LABELS, type BuildingCategory } from '@/content/types';
 import { SYSTEMS, TIERS, type HistoryMetric } from '@/sim/pulseState';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
+import { holoHead, rise } from '@/ui/holo';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { INCOME_SCALE } from '@/sim/pulse';
 import { LineChart } from './LineChart';
@@ -107,11 +108,13 @@ class Dashboard {
       { class: 'db-scrim hidden', onClick: (e: Event) => e.target === this.el && this.toggle(false) },
       h(
         'section',
-        { class: 'db panel', role: 'dialog', 'aria-label': 'City dashboard' },
-        h('header', { class: 'db-head' }, h('h2', {}, 'City Dashboard'), tabBar, h('span', { class: 'db-hint' }, 'Esc to close'), h('button', { class: 'icon-btn', 'aria-label': 'Close', onClick: () => this.toggle(false) }, icon('close'))),
+        { class: 'db panel holo', role: 'dialog', 'aria-label': 'City dashboard' },
+        h('header', { class: 'db-head' }, holoHead(icon('dashboard'), 'Steward console · city records', 'City Dashboard'), tabBar, h('span', { class: 'db-hint' }, 'Esc to close'), h('button', { class: 'icon-btn', 'aria-label': 'Close', onClick: () => this.toggle(false) }, icon('close'))),
         ...[...this.tabs.values()].map((t) => t.pane),
       ),
     );
+    rise(tiles.children);
+    rise(charts.children, 4);
     this.show('overview');
     ctx.hud.append(this.el);
   }

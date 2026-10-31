@@ -6,6 +6,7 @@ import { foundCity } from '@/game/newCity';
 import { openingView } from '@/game/opening';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
+import { holoHead, rise } from '@/ui/holo';
 import { Weather } from './Weather';
 import './crises.css';
 
@@ -19,9 +20,13 @@ function newCityDialog(ctx: GameContext, onDone?: () => void): void {
     { class: 'modal-scrim' },
     h(
       'section',
-      { class: 'modal panel', role: 'dialog', 'aria-label': 'Found a new city' },
-      h('h2', {}, 'Found a new city'),
-      h('p', { class: 'modal-sub' }, 'A fresh island and founding districts. Your current city will be replaced (save it first if you want to keep it).'),
+      { class: 'modal panel holo', role: 'dialog', 'aria-label': 'Found a new city' },
+      holoHead(
+        icon('sparkle'),
+        'Steward console · new charter',
+        'Found a new city',
+        'A fresh island and founding districts. Your current city will be replaced (save it first if you want to keep it).',
+      ),
       h(
         'div',
         { class: 'nc-diffs' },
@@ -56,6 +61,7 @@ function newCityDialog(ctx: GameContext, onDone?: () => void): void {
       ),
     ),
   );
+  rise(scrim.querySelectorAll('.nc-diff, .nc-row, .modal-actions'));
   ctx.hud.append(scrim);
 }
 
@@ -166,11 +172,20 @@ export const crisesModule: GameModule = {
       scrim.append(
         h(
           'section',
-          { class: 'modal panel over', role: 'alertdialog', 'aria-label': 'Steward replaced' },
-          h('div', { class: 'over-icon' }, icon('leaf')),
-          h('h2', {}, 'The council has replaced you'),
-          h('p', { class: 'modal-sub' }, `After ${day} day${day === 1 ? '' : 's'} of stewardship the city fell into collapse for too long.`),
-          h('div', { class: 'over-stats' }, h('div', {}, h('b', {}, peakPopulation.toLocaleString()), h('span', {}, 'peak residents')), h('div', {}, h('b', {}, String(day)), h('span', {}, 'days'))),
+          { class: 'modal panel holo crit over', role: 'alertdialog', 'aria-label': 'Steward replaced' },
+          holoHead(
+            icon('leaf'),
+            'Council notice · steward link lost',
+            'The council has replaced you',
+            `After ${day} day${day === 1 ? '' : 's'} of stewardship the city fell into collapse for too long.`,
+            'crit',
+          ),
+          h(
+            'div',
+            { class: 'over-stats' },
+            h('div', {}, icon('people'), h('b', {}, peakPopulation.toLocaleString()), h('span', {}, 'peak residents')),
+            h('div', {}, icon('pause'), h('b', {}, String(day)), h('span', {}, day === 1 ? 'day' : 'days')),
+          ),
           h(
             'div',
             { class: 'modal-actions' },
@@ -207,6 +222,7 @@ export const crisesModule: GameModule = {
           ),
         ),
       );
+      rise(scrim.querySelectorAll('.over-stats > div, .modal-actions'));
       ctx.hud.append(scrim);
     });
   },
