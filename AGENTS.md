@@ -29,6 +29,8 @@ bun run check          # typecheck + lint + tests + production build (must pass 
 bun run test           # vitest only (NOT `bun test`: that is bun's own runner and skips the Vitest setup)
 bun run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500] [--mobile [--size 844x390]]
 bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--profile 15]   # power/perf probe (see §8)
+bun run trailer       # record a ~30s cinematic trailer to shots/trailer.mp4 (dev server + ffmpeg; --duration, --fps, --out)
+bun run trailer:feature  # ~60s feature trailer (wind farm, Bloomtopia, train ride, Flora console, dawn bloom) to shots/feature-trailer.mp4
 bun run optimize-glb -- raw.glb public/assets/x.glb --footprint 3 --height 4 [--ratio 0.5] [--yaw 90] [--tex 1024]
 bun run tauri:dev      # desktop shell (Tauri v2) against the dev server; tauri:build packages it (needs Rust)
 bun run release [patch|minor|major|X.Y.Z] [--dry-run] [--yes]   # tag + deploy to Firebase (see §10; ask first)

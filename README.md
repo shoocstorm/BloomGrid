@@ -7,6 +7,7 @@
 
 <p align="center">
   <a href="https://bloomgrid.web.app"><b>▶ Play in your browser</b></a> ·
+  <a href="https://bloomgrid.web.app/assets/feature-trailer.mp4">Watch the trailer</a> ·
   <a href="#-run-it-yourself">Run it yourself</a> ·
   <a href="#-how-to-play">How to play</a>
 </p>

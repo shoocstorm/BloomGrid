@@ -13,6 +13,8 @@
     "test": "rm -rf node_modules/.vitest-cache && vitest run",
     "format": "prettier --write .",
     "snap": "node scripts/snap.mjs",
+    "trailer": "node scripts/trailer.mjs",
+    "trailer:feature": "node scripts/feature-trailer.mjs",
     "check": "tsc --noEmit && eslint src tests && bun run test && vite build",
     "perf": "node scripts/perf.mjs",
     "tauri": "tauri",
