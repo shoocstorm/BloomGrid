@@ -12,6 +12,7 @@ import { ISSUES, inventoryKinds } from '@/sim/inventory';
 import { cityBrief } from '@/ai/brief';
 import { defaultPolicy, observe, runTurn, type Policy, type ToolCall } from '@/ai/agent';
 import { LlmEngine, isAbort, type ChatMessage } from '@/ai/llm/engine';
+import { availableModels } from '@/ai/llm/models';
 import { AssistantPanel } from './Panel';
 import './assistant.css';
 
@@ -42,6 +43,8 @@ class Assistant {
   private busy: AbortController | null = null;
   private autoApprove = false;
   private lastNotice = new Map<string, number>();
+  /** A question asked before any core was downloaded: sent as soon as one comes online. */
+  private pending: string | null = null;
 
   constructor(private ctx: GameContext) {
     try {
@@ -57,6 +60,12 @@ class Assistant {
       autoApprove: () => this.autoApprove,
     });
     this.watch();
+    this.engine.onChange((s) => {
+      if (s.status !== 'ready' || !this.pending || this.busy) return;
+      const request = this.pending;
+      this.pending = null;
+      void this.turn(request);
+    });
   }
 
   setAutoApprove(on: boolean): void {
@@ -182,17 +191,60 @@ class Assistant {
     if (request.toLowerCase() === '/clear') return (this.clear(), '');
     this.panel.user(request);
     if (request.startsWith('/')) return this.slash(request);
-    if (this.engine.state.status !== 'ready') {
-      const msg =
-        'No model is loaded yet. Pick one under ⚙ Models (it downloads once and runs on this computer), or use slash commands: type /help.';
-      this.panel.assistant().finish(msg);
-      return msg;
+    return this.turn(request);
+  }
+
+  /**
+   * Brings a model core up for a question asked before one is ready (e.g. Ask Flora from the inspector, which
+   * opens the console and asks at once): waits for a load in progress, or loads the last-used (else any)
+   * downloaded core. False when nothing is downloaded yet; downloading stays the steward's choice.
+   */
+  private async ensureCore(): Promise<boolean> {
+    const e = this.engine;
+    // Read fresh each time: the engine changes state across the awaits.
+    const status = (): string => e.state.status;
+    if (status() === 'ready') return true;
+    if (status() !== 'loading') {
+      await e.refresh();
+      if (status() !== 'loading' && status() !== 'ready') {
+        const def =
+          e.lastUsed() ?? availableModels(e.state.native.supported).find((m) => e.state.cached.has(m.id));
+        if (!def) return false;
+        void e.load(def.id);
+      }
     }
+    await new Promise<void>((done) => {
+      if (status() !== 'loading') return done();
+      const off = e.onChange((st) => st.status !== 'loading' && (off(), done()));
+    });
+    return status() === 'ready';
+  }
+
+  private async turn(request: string): Promise<string> {
+    if (this.busy) return '';
     const agent = this.ctx.services.get('agent');
     const bubble = this.panel.assistant();
     this.busy = new AbortController();
     this.panel.setBusy(true);
     try {
+      if (this.engine.state.status !== 'ready') {
+        bubble.phase('core');
+        if (!(await this.ensureCore())) {
+          if (this.engine.state.status === 'error') {
+            const msg = `The model core failed to start: ${this.engine.state.error ?? 'unknown error'}. Try another core under Model core.`;
+            bubble.finish(msg, true);
+            this.panel.showModels();
+            return msg;
+          }
+          this.pending = request;
+          const msg =
+            'I need a model core first. Pick one in Model core above: it downloads once and runs on this computer. I will answer this as soon as it is online (or type /help for direct commands).';
+          bubble.finish(msg);
+          this.panel.showModels();
+          return msg;
+        }
+        if (this.busy.signal.aborted) throw new DOMException('Stopped', 'AbortError');
+      }
       const out = await runTurn({
         llm: this.engine,
         tools: agent,
@@ -406,6 +458,9 @@ export const assistantModule: GameModule = {
       if (e.code === 'KeyU' && !e.metaKey && !e.ctrlKey)
         return (e.shiftKey ? a.panel.setMax(!a.panel.isMax) : a.panel.toggle(), true);
       if (e.code === 'Escape' && a.panel.isMax) return (a.panel.setMax(false), true);
+      // Esc closes the console, unless it should cancel an active tool first.
+      if (e.code === 'Escape' && a.panel.isOpen && (ctx.tools.active?.id ?? 'select') === 'select')
+        return (a.panel.toggle(false), true);
       return false;
     });
     ctx.systems.add({

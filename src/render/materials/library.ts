@@ -68,6 +68,21 @@ const swayed = (amp: number) => {
   return positionLocal.add(vec3(s, 0, s.mul(0.6)));
 };
 
+/**
+ * Pixel-footprint anti-aliasing (D-064): small lights pop in and out of pixels as the camera moves and bloom turns
+ * that into flashing. `pieceCover` is how much of its glow a small piece keeps: full while the piece (unit extent in
+ * its own geometry) spans `px` pixels or more, then in proportion. `stripes` is `step(edge, fract(v))` with
+ * pixel-soft edges that fades to its mean (1 - edge) once a stripe is under a pixel.
+ */
+const pieceCover = (px = 4) => min(float(1), float(1 / px).div(max(length(fwidth(positionGeometry)), float(1e-5))));
+const stripes = (v: Node<'float'>, edge: number) => {
+  const w = fwidth(v);
+  const sharp = smoothstep(float(edge).sub(w.mul(0.5)), float(edge).add(w.mul(0.5)), fract(v));
+  return mix(sharp, float(1 - edge), smoothstep(0.2, 0.6, w));
+};
+/** World units per pixel on the ground plane. */
+const groundPx = () => max(fwidth(positionWorld.x), fwidth(positionWorld.z));
+
 /** Season tint as a vec3 node (uniform colour nodes are typed as `color`). */
 const seasonTint = U.seasonTint as unknown as Node<'vec3'>;
 
@@ -240,11 +255,15 @@ export function initMaterials(): void {
     // About 40% of windows lit in the evening, thinning to ~10% in the small hours; each its own brightness and
     // tone (mostly amber lamps, a few cool screens), so façades read as rooms rather than glowing panels.
     const wh = hash(floorIdx.mul(17.0).add(col.mul(3.0)).add(iSeed.mul(91)));
-    const lit = step(U.lateNight.mul(0.3).add(0.6), wh).mul(iParams.w);
-    const tone = hash(col.mul(1.7).add(floorIdx.mul(5.3)).add(iSeed.mul(13)));
+    const cut = U.lateNight.mul(0.3).add(0.6);
+    // Once a window spans only a few pixels, its on/off pattern twinkles as the camera moves (bloom makes it a
+    // flash): blend lit share, tone and frames toward their averages so far façades glow evenly (D-064).
+    const far = smoothstep(0.2, 0.5, max(fwidth(u.mul(k)), fwidth(y.div(0.32))));
+    const lit = mix(step(cut, wh), float(1).sub(cut), far).mul(iParams.w);
+    const tone = mix(hash(col.mul(1.7).add(floorIdx.mul(5.3)).add(iSeed.mul(13))), float(0.5), far);
     const warm = mix(mix(color(0xff9f4a), color(0xffd9a0), tone), color(0xcfe4ff), step(0.88, tone));
     const level = tone.mul(0.6).add(0.25);
-    m.emissiveNode = warm.mul(lit).mul(level).mul(float(1).sub(mullion)).mul(U.night).mul(0.55).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.05));
+    m.emissiveNode = warm.mul(lit).mul(level).mul(float(1).sub(mix(mullion, float(0.25), far))).mul(U.night).mul(0.55).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.05));
     return m;
   });
 
@@ -259,7 +278,8 @@ export function initMaterials(): void {
     const mossB = color(0x8cc95a);
     const mossCol = mix(mossA, mossB, mx_noise_float(p.mul(2.7)).mul(0.5).add(0.5));
     const cells = mx_worley_noise_float(positionWorld.mul(9));
-    const blossom = step(cells, 0.07).mul(cover).mul(iGreenery);
+    // Blossom specks (~0.02 units) are sub-pixel beyond close range: fade them out instead of letting them sparkle.
+    const blossom = step(cells, 0.07).mul(cover).mul(iGreenery).mul(float(1).sub(smoothstep(0.02, 0.06, length(fwidth(positionWorld)))));
     const petal = mix(color(0xffb7d5), color(0xffe08a), hash(floor(positionWorld.mul(9)).dot(vec3(1, 7, 13))));
     m.colorNode = mix(mix(color(0xe9e4d6), mossCol, cover), petal, blossom);
     const veins = smoothstep(0.08, 0.0, abs(mx_noise_float(positionWorld.mul(1.8)))).mul(cover);
@@ -306,7 +326,7 @@ export function initMaterials(): void {
     const open = smoothstep(0.12, 0.55, bloomAt(positionWorld.x, positionWorld.z));
     const tinted = mix(vec3(1), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
     m.colorNode = mix(vec3(0.44, 0.6, 0.29).div(max(instanceColor, vec3(0.08))), tinted, open);
-    m.emissiveNode = instanceColor.mul(iGlow).mul(bioPulse()).mul(1.3).mul(open).mul(activityGlow());
+    m.emissiveNode = instanceColor.mul(iGlow).mul(bioPulse()).mul(1.3).mul(open).mul(activityGlow()).mul(pieceCover());
     return m;
   }, { vitality: true });
 
@@ -315,7 +335,7 @@ export function initMaterials(): void {
     m.positionNode = positionLocal.add(vec3(0, sin(time.mul(0.9).add(iSeed.mul(30))).mul(0.01), 0));
     const petal = smoothstep(0.03, 0.06, positionGeometry.y);
     m.colorNode = mix(vec3(0.31, 0.6, 0.23).div(max(instanceColor, vec3(0.08))), vec3(1), petal);
-    m.emissiveNode = instanceColor.mul(petal).mul(U.night).mul(0.8);
+    m.emissiveNode = instanceColor.mul(petal).mul(U.night).mul(0.8).mul(pieceCover());
     return m;
   });
 
@@ -352,7 +372,7 @@ export function initMaterials(): void {
   define('solar', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.35, metalness: 0.2, side: DoubleSide });
     const g = uv();
-    const cells = max(step(0.9, fract(g.x.mul(8))), step(0.85, fract(g.y.mul(3))));
+    const cells = max(stripes(g.x.mul(8), 0.9), stripes(g.y.mul(3), 0.85));
     const irid = sin(positionWorld.x.add(positionWorld.z).mul(3).add(time.mul(0.3))).mul(0.5).add(0.5);
     m.colorNode = mix(mix(color(0x5f9f7e), color(0xbfe2cc), irid.mul(0.5)), color(0xf8f6ee), cells);
     m.emissiveNode = color(0xfff1d0).mul(cells).mul(U.night).mul(0.4);
@@ -373,7 +393,7 @@ export function initMaterials(): void {
   define('dome', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.32, side: DoubleSide, depthWrite: false });
     const g = uv();
-    const ribs = max(step(0.95, fract(g.x.mul(16))), step(0.93, fract(g.y.mul(6))));
+    const ribs = max(stripes(g.x.mul(16), 0.95), stripes(g.y.mul(6), 0.93));
     m.colorNode = mix(color(0xffffff), color(0xf2efe2), ribs);
     m.opacityNode = mix(float(0.22), float(0.95), ribs);
     m.emissiveNode = color(0xbff7ff).mul(ribs).mul(U.night).mul(0.35);
@@ -441,7 +461,7 @@ export function initMaterials(): void {
     // flicker in and out of pixels as the camera moves, and bloom turns that into flashes. The line is drawn at
     // least about a pixel wide and dimmed as it widens (its average light stays put); dashes and turf noise fade
     // to their average once they are smaller than a pixel.
-    const px = max(fwidth(positionWorld.x), fwidth(positionWorld.z));
+    const px = groundPx();
     const hw = float(0.035);
     const drawW = max(hw, px.mul(0.7));
     const soft = max(px.mul(0.5), float(0.015));

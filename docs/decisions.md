@@ -752,3 +752,19 @@ dashes and turf noise fade to their mean once below a pixel. The viaduct uses `g
 scaled by the strip's share of a pixel). Measured with a still-night pan of 0.05 tiles per frame (only roads and
 Aeroline drawn): pixels changing by more than 48/255 between frames dropped from 0.4–0.9% to 0.04–0.09% at every zoom.
 Close-ups are unchanged. Hotkeys: the city map moved to **M** and the Flora-Net mist to **Y** (the only free letter).
+Follow-up: flowers and sunflower petals (`flower`, `lily`) keep their glow by `pieceCover()` (the piece's own
+geometry per pixel), moss blossom specks fade once sub-pixel, solar busbars and dome ribs use `stripes()`, and glass
+windows blend their lit/dark pattern, tone and frames toward the average once a window spans a few pixels. Full
+scene, same probe: 0.38 / 1.93 / 2.28% → 0.21 / 0.82 / 1.44% at island view / 220 / 120.
+
+## D-065 — Flora loads a core on demand; core ignition; header close and no orb while open (2026-10-31)
+
+Ask Flora (inspector) opens the console and asks at once, while the core the console starts loading on open is still
+idle or loading, so the question was answered with "No model is loaded". `Assistant.turn` now waits for a load in
+progress, or loads the last-used (else any) downloaded core and waits; only when nothing is downloaded does it open
+the Model core drawer and keep the question (`pending`), sent as soon as a core is online. Downloading stays the
+steward's choice. While a core loads, a "core ignition" card (reactor rings, progress arc, Link / Fetch / Verify /
+Warm steps, cycling status lines) replaces the drawer, with a one-shot "core online" shockwave; it animates only while
+loading (transforms, opacity, stroke offset). The header puts the link status under the name so a round close button
+always fits (it was pushed off the 430 px header), Esc closes the console when no tool is active, and the orb hides
+while the console is open so it reaches the bottom of the screen.

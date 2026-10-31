@@ -3,7 +3,7 @@ import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { stripThink, type StepRecord, type ToolCall } from '@/ai/agent';
 import type { EngineState, LlmEngine } from '@/ai/llm/engine';
-import { availableModels, memoryFit, recommendedModel, type ModelDef } from '@/ai/llm/models';
+import { availableModels, memoryFit, modelById, recommendedModel, type ModelDef } from '@/ai/llm/models';
 import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { getCrisis } from '@/sim/crises';
@@ -15,6 +15,7 @@ const gb = (bytes: number) =>
   bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
 const fmt = (n: number) => Math.round(n).toLocaleString();
 const PHASES: Record<string, string> = {
+  core: 'Waking the model core',
   deciding: 'Planning next step',
   filling: 'Composing the call',
   running: 'Executing',
@@ -74,6 +75,42 @@ function sigil(): SVGSVGElement {
   return svg;
 }
 
+/** Core ignition steps, matched from the engine's progress phase (web and native phrasing). */
+const IGNITION = ['Link', 'Fetch', 'Verify', 'Warm'] as const;
+const igniteStep = (phase: string) =>
+  /connect/i.test(phase) ? 0 : /download|fetch/i.test(phase) ? 1 : /verif|check/i.test(phase) ? 2 : 3;
+/** What the core is doing, in Flora's voice: cycled while a step runs. */
+const IGNITION_LINES: string[][] = [
+  ['Opening an uplink to Hugging Face', 'Resolving the pinned checkpoint'],
+  ['Streaming tensor shards', 'Caching weights on this computer', 'Laying down the neural lattice'],
+  ['Checksumming every byte', 'Matching the pinned fingerprint'],
+  ['Mapping attention heads', 'Binding the city tools', 'Warming the compute kernels', 'Tuning the persona'],
+];
+
+/** The ignition reactor: counter-turning rings, a hex shell and a core, with a progress arc (pathLength 100). */
+function reactor(): SVGSVGElement {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '-60 -60 120 120');
+  svg.setAttribute('class', 'ig-svg');
+  svg.setAttribute('aria-hidden', 'true');
+  const hex = Array.from(
+    { length: 6 },
+    (_, i) => `${(24 * Math.cos((Math.PI / 3) * i)).toFixed(2)},${(24 * Math.sin((Math.PI / 3) * i)).toFixed(2)}`,
+  ).join(' ');
+  const ticks = Array.from(
+    { length: 36 },
+    (_, i) => `<line x1="0" y1="-56" x2="0" y2="${i % 3 ? -53 : -50}" transform="rotate(${i * 10})"/>`,
+  ).join('');
+  svg.innerHTML =
+    `<g class="ig-ticks">${ticks}</g>` +
+    `<circle class="ig-r1" r="46"/><circle class="ig-r2" r="38"/>` +
+    `<circle class="ig-track" r="31" pathLength="100"/><circle class="ig-arc" r="31" pathLength="100"/>` +
+    `<g class="ig-r3"><path d="M0 -20 A20 20 0 0 1 17.3 10"/><path d="M0 20 A20 20 0 0 1 -17.3 -10"/></g>` +
+    `<polygon class="ig-hex" points="${hex}"/><circle class="ig-core" r="8"/>`;
+  return svg;
+}
+
 /**
  * Flora's console (U): docked beside the right column, or maximized (⤢, Shift+U) into a wide command console
  * with a live telemetry rail: system health LEDs, vitals, alerts, session stats, recent actions with undo,
@@ -92,6 +129,12 @@ export class AssistantPanel {
   private linkText = h('span', {});
   private linkLed = led('st-off');
   private models = h('div', { class: 'ai-models hidden' });
+  /** Core ignition display (while a model loads), and its live parts. */
+  private ignite = h('div', { class: 'ai-ignite hidden', role: 'status', 'aria-live': 'polite' });
+  private ig!: { arc: SVGCircleElement; pct: HTMLElement; name: HTMLElement; phase: HTMLElement; bar: HTMLElement; steps: HTMLElement[]; line: HTMLElement; title: HTMLElement };
+  private igTimer = 0;
+  private igLine = 0;
+  private igDone = 0;
   private badge = h('span', { class: 'ai-badge hidden' });
   private launcher: HTMLButtonElement;
   private maxBtn: HTMLButtonElement;
@@ -255,33 +298,31 @@ export class AssistantPanel {
         'header',
         { class: 'ai-head' },
         sigil(),
-        h(
-          'div',
-          { class: 'ai-title' },
-          h('b', {}, 'FLORA'),
-          h('span', { class: 'ai-sub' }, 'City intelligence · local core'),
-        ),
+        h('div', { class: 'ai-title', title: 'City intelligence · local core' }, h('b', {}, 'FLORA'), this.link),
         h(
           'span',
           { class: 'ai-wave', 'aria-hidden': 'true' },
           ...Array.from({ length: 7 }, (_, i) => h('i', { style: `--i:${i}` })),
         ),
-        this.link,
         h(
-          'button',
-          {
-            class: 'icon-btn ai-hbtn',
-            title: 'Model core',
-            onClick: () => this.models.classList.toggle('hidden'),
-          },
-          icon('chip'),
-        ),
-        this.clearBtn,
-        this.maxBtn,
-        h(
-          'button',
-          { class: 'icon-btn ai-hbtn', title: 'Close (U)', onClick: () => this.toggle(false) },
-          icon('close'),
+          'div',
+          { class: 'ai-hacts' },
+          h(
+            'button',
+            {
+              class: 'icon-btn ai-hbtn',
+              title: 'Model core: choose, download or unload Flora’s model',
+              onClick: () => this.showModels(this.models.classList.contains('hidden')),
+            },
+            icon('chip'),
+          ),
+          this.clearBtn,
+          this.maxBtn,
+          h(
+            'button',
+            { class: 'ai-close', title: 'Close Flora (U or Esc)', 'aria-label': 'Close Flora', onClick: () => this.toggle(false) },
+            icon('close'),
+          ),
         ),
       ),
       h('div', { class: 'ai-scan' }),
@@ -295,6 +336,7 @@ export class AssistantPanel {
           this.dossier.profile,
           this.dossier.tools,
           this.models,
+          this.ignite,
           this.log,
           h(
             'div',
@@ -322,6 +364,7 @@ export class AssistantPanel {
       this.badge,
     ) as HTMLButtonElement;
     ctx.services.get('hud').dockRow.append(this.launcher);
+    this.buildIgnition();
     ctx.hud.append(this.el);
     engine.onChange((s) => this.sync(s));
     this.sync(engine.state);
@@ -351,7 +394,7 @@ export class AssistantPanel {
       ['Handshake · city grid', `${fmt(this.ctx.city.stats.population)} residents`],
       ['Agent tools registered', `${c.all} · ${c.read} sense · ${c.view} guide · ${c.mutate} act`],
       ['Directive stack', 'planner · argument writer · persona'],
-      ['Model core', this.engine.loaded?.name ?? 'standby (load one under ⚙)'],
+      ['Model core', this.engine.loaded?.name ?? 'standby (pick one under Model core)'],
     ];
     this.push(
       h(
@@ -365,6 +408,19 @@ export class AssistantPanel {
     this.system(
       'Flora online. I watch the city with you, look things up, and build, demolish, connect, tax and more, asking before I change anything. See ◈ Profile for my directives and ⚒ Tools for everything I can do; type /help for direct commands.',
     );
+  }
+
+  get isOpen(): boolean {
+    return this.open;
+  }
+
+  /** Opens (or folds) the model core drawer, on the console tab. */
+  showModels(open = true): void {
+    if (open) {
+      this.setView('console');
+      this.renderModels(this.engine.state);
+    }
+    this.models.classList.toggle('hidden', !open);
   }
 
   get isMax(): boolean {
@@ -431,6 +487,7 @@ export class AssistantPanel {
 
   /** Telemetry rail refresh (2 Hz while maximized and open; the inventory roll-up every 4 s). */
   update(dt: number): void {
+    if (this.open) this.tickIgnition(dt);
     if (!this.isMax) return;
     this.timer += dt;
     this.slowTimer += dt;
@@ -749,8 +806,8 @@ export class AssistantPanel {
   }
 
   private sync(s: EngineState): void {
-    // A model just became ready: fold the model list away so the conversation has the room.
-    if (s.status === 'ready' && this.lastStatus !== 'ready') this.models.classList.add('hidden');
+    // A load started (the ignition display takes over) or a model became ready: fold the model list away.
+    if ((s.status === 'ready' || s.status === 'loading') && this.lastStatus !== s.status) this.models.classList.add('hidden');
     this.lastStatus = s.status;
     const def = this.engine.loaded;
     setText(
@@ -765,92 +822,187 @@ export class AssistantPanel {
     );
     this.link.className = `ai-link ${s.status}`;
     this.linkLed.replaceChildren(icon(STATUS_ICON[s.status]));
+    this.syncIgnition(s);
     if (this.open) this.renderModels(s);
   }
 
+  private buildIgnition(): void {
+    const svg = reactor();
+    const steps = IGNITION.map((label, i) =>
+      h('span', { class: 'ig-step' }, h('i', {}, String(i + 1)), label),
+    );
+    this.ig = {
+      arc: svg.querySelector('.ig-arc') as SVGCircleElement,
+      pct: h('b', { class: 'ig-pct' }),
+      title: h('span', {}, 'Core ignition'),
+      name: h('div', { class: 'ig-name' }),
+      phase: h('div', { class: 'ig-phase' }),
+      bar: h('i'),
+      steps,
+      line: h('div', { class: 'ig-line' }),
+    };
+    this.ignite.append(
+      h('div', { class: 'ig-grid', 'aria-hidden': 'true' }),
+      h('div', { class: 'ig-sweep', 'aria-hidden': 'true' }),
+      h('div', { class: 'ig-reactor' }, svg, this.ig.pct),
+      h(
+        'div',
+        { class: 'ig-text' },
+        h('div', { class: 'ig-eyebrow' }, h('i', { class: 'ig-led' }), this.ig.title),
+        this.ig.name,
+        this.ig.phase,
+        h('div', { class: 'ig-steps' }, ...steps),
+        h('div', { class: 'ig-bar' }, this.ig.bar),
+        this.ig.line,
+      ),
+    );
+  }
+
+  /**
+   * Core ignition while a model loads: the reactor spins up, the arc and bar fill, the four steps light in turn;
+   * on success a brief "core online" burst, then it folds away. Only progress text and transforms change.
+   */
+  private syncIgnition(s: EngineState): void {
+    const ig = this.ig;
+    if (s.status === 'loading') {
+      const p = s.progress;
+      const def = modelById(s.loadingId);
+      const step = p ? igniteStep(p.phase) : 0;
+      const frac = p && p.total ? Math.min(1, p.loaded / p.total) : 0;
+      // Overall progress: downloading fills most of the arc, the later steps the rest.
+      const overall = Math.round((step === 1 ? 0.05 + frac * 0.75 : [0.02, 0, 0.84, 0.93][step]!) * 100);
+      this.ignite.className = `ai-ignite on s${step}`;
+      setText(ig.title, 'Core ignition');
+      setText(ig.name, def?.name ?? 'Model core');
+      setText(
+        ig.phase,
+        p
+          ? step === 1
+            ? `${p.phase} · ${gb(p.loaded)} / ${gb(p.total)}${p.speed ? ` · ${gb(p.speed)}/s` : ''}`
+            : p.phase.replace(/…$/, '')
+          : 'Starting',
+      );
+      setText(ig.pct, String(overall));
+      ig.arc.style.strokeDashoffset = String(100 - overall);
+      ig.bar.style.transform = `scaleX(${overall / 100})`;
+      ig.steps.forEach((el, i) => (el.className = `ig-step${i < step ? ' done' : i === step ? ' on' : ''}`));
+      if (this.ignite.dataset.step !== String(step)) {
+        this.ignite.dataset.step = String(step);
+        this.igLine = 0;
+        this.igTimer = 99;
+      }
+      this.igDone = 0;
+    } else if (s.status === 'ready' && this.ignite.classList.contains('on')) {
+      // Online: the burst plays, then the panel folds after a beat (tickIgnition).
+      this.ignite.className = 'ai-ignite on online';
+      setText(ig.title, 'Core online');
+      setText(ig.phase, `${this.engine.loaded?.name ?? 'Model'} is linked · ${s.info?.backend ?? 'local'}`);
+      setText(ig.pct, '100');
+      ig.arc.style.strokeDashoffset = '0';
+      ig.bar.style.transform = 'scaleX(1)';
+      ig.steps.forEach((el) => (el.className = 'ig-step done'));
+      setText(ig.line, 'Flora is ready. Ask away.');
+      this.igDone = 2.2;
+    } else if (s.status !== 'ready') this.ignite.className = 'ai-ignite hidden';
+  }
+
+  private tickIgnition(dt: number): void {
+    if (this.igDone > 0) {
+      this.igDone -= dt;
+      if (this.igDone <= 0) this.ignite.className = 'ai-ignite hidden';
+      return;
+    }
+    if (this.engine.state.status !== 'loading') return;
+    this.igTimer += dt;
+    if (this.igTimer < 1.8) return;
+    this.igTimer = 0;
+    const lines = IGNITION_LINES[Number(this.ignite.dataset.step ?? 0)] ?? IGNITION_LINES[3]!;
+    setText(this.ig.line, `› ${lines[this.igLine++ % lines.length]}…`);
+  }
+
+  /** The model core drawer: one card per core, with its state and a single clear action. */
   private renderModels(s: EngineState): void {
     const mlx = s.native.supported;
     const rec = recommendedModel(mlx);
-    const row = (m: ModelDef) => {
+    const busy = s.status === 'loading';
+    const card = (m: ModelDef, i: number) => {
       const cached = s.cached.has(m.id);
       const loaded = s.loadedId === m.id;
       const loading = s.loadingId === m.id;
       const fit = m.engine === 'mlx' ? memoryFit(m.bytes, s.native.memory) : null;
-      const btn = loaded
-        ? h('button', { class: 'ai-op', onClick: () => void this.engine.unload() }, 'Unload')
+      const state = loaded ? 'Online' : loading ? 'Igniting' : cached ? 'On this computer' : 'Not downloaded';
+      const primary = loaded
+        ? h('button', { class: 'aim-btn ghost', onClick: () => void this.engine.unload() }, 'Unload')
         : h(
             'button',
-            {
-              class: 'ai-op',
-              disabled: s.status === 'loading' || undefined,
-              onClick: () => void this.engine.load(m.id),
-            },
-            cached ? 'Load core' : `Download ${m.size}`,
+            { class: 'aim-btn', disabled: busy || undefined, onClick: () => void this.engine.load(m.id) },
+            icon(cached ? 'sparkle' : 'down'),
+            cached ? 'Load core' : `Download · ${m.size}`,
           );
       const remove =
-        cached && !loading
+        cached && !loading && !loaded
           ? h(
               'button',
               {
-                class: 'ai-op',
+                class: 'aim-btn ghost danger',
                 title: 'Delete the downloaded model',
-                onClick: () =>
-                  confirm(`Delete the downloaded ${m.name} (${m.size})?`) && void this.engine.remove(m.id),
+                onClick: () => confirm(`Delete the downloaded ${m.name} (${m.size})?`) && void this.engine.remove(m.id),
               },
               'Delete',
             )
           : null;
       return h(
         'div',
-        { class: `ai-model${loaded ? ' on' : ''}` },
+        { class: `aim-card${loaded ? ' on' : ''}${loading ? ' loading' : ''}`, style: `--i:${i}` },
         h(
           'div',
-          { class: 'ai-model-h' },
+          { class: 'aim-top' },
+          h('i', { class: `aim-led${loaded ? ' on' : loading ? ' busy' : cached ? ' ok' : ''}` }),
           h('b', {}, m.name),
-          h(
-            'span',
-            { class: `ai-pill${m.engine === 'mlx' ? '' : ' dim'}` },
-            m.engine === 'mlx' ? 'native' : 'web',
-          ),
-          m.id === rec.id ? h('span', { class: 'ai-pill rec' }, 'recommended') : null,
-          cached ? h('span', { class: 'ai-pill ok' }, 'on disk') : null,
+          m.id === rec.id ? h('span', { class: 'ai-pill rec' }, 'Recommended') : null,
+          h('span', { class: `ai-pill${m.engine === 'mlx' ? '' : ' dim'}` }, m.engine === 'mlx' ? 'Native' : 'Web'),
         ),
+        h('div', { class: 'aim-note' }, m.note),
+        fit?.fits === false ? h('div', { class: 'aim-warn' }, `Needs ≈${fit.needGb} GB of memory: likely too big for this Mac.`) : null,
         h(
           'div',
-          { class: 'ai-model-n' },
-          `${m.family} · ${m.note}${fit?.fits === false ? ` Needs ≈${fit.needGb} GB: likely too big for this Mac.` : ''}`,
+          { class: 'aim-foot' },
+          h('span', { class: 'aim-state' }, `${m.family} · ${state}`),
+          h('span', { class: 'aim-acts' }, remove, loading ? h('span', { class: 'aim-igniting' }, 'Igniting…') : primary),
         ),
-        loading && s.progress
-          ? h(
-              'div',
-              { class: 'ai-progress' },
-              h('i', {
-                style: `width:${s.progress.total ? (s.progress.loaded / s.progress.total) * 100 : 0}%`,
-              }),
-              h(
-                'span',
-                {},
-                `${s.progress.phase} ${gb(s.progress.loaded)} / ${gb(s.progress.total)}${s.progress.speed ? ` · ${gb(s.progress.speed)}/s` : ''}`,
-              ),
-            )
-          : h('div', { class: 'ai-model-a' }, btn, remove),
       );
     };
     this.models.replaceChildren(
-      h('div', { class: 'ai-rail-h' }, 'Model core'),
       h(
         'div',
-        { class: 'ai-models-h' },
-        mlx
-          ? 'Native cores run on this Mac’s GPU (MLX); web cores run in the page (wllama).'
-          : `Cores run in this page with wllama${s.isolated ? '' : ' (single-threaded here: slower)'}. On the macOS app they run natively.`,
+        { class: 'aim-head' },
+        h('span', { class: 'aim-gem' }, icon('chip')),
+        h(
+          'div',
+          { class: 'aim-titles' },
+          h('div', { class: 'aim-eyebrow' }, 'Model core'),
+          h('b', {}, s.loadedId ? 'Flora’s mind is online' : 'Give Flora a mind'),
+        ),
+        h(
+          'button',
+          { class: 'aim-done', title: 'Close model settings', 'aria-label': 'Close model settings', onClick: () => this.showModels(false) },
+          'Done',
+        ),
       ),
-      ...availableModels(mlx).map(row),
-      ...(s.error ? [h('div', { class: 'ai-model-err' }, s.error)] : []),
+      h(
+        'p',
+        { class: 'aim-intro' },
+        mlx
+          ? 'Pick a core. Native cores run on this Mac’s GPU (fast); web cores run inside the page.'
+          : `Pick a core: it downloads once, then runs right here in your browser${s.isolated ? '' : ' (single-threaded on this page, so a little slower)'}. The macOS app runs them natively.`,
+      ),
+      h('div', { class: 'aim-cards' }, ...availableModels(mlx).map(card)),
+      ...(s.error ? [h('div', { class: 'aim-err' }, icon('st-fail'), s.error)] : []),
       h(
         'div',
-        { class: 'ai-models-f' },
-        'Downloaded once from Hugging Face (pinned, checksum-verified); runs entirely on this computer. Nothing you type leaves it.',
+        { class: 'aim-privacy' },
+        icon('access'),
+        h('span', {}, 'Private by design: pinned, checksum-verified downloads from Hugging Face. Nothing you type leaves this computer.'),
       ),
     );
   }

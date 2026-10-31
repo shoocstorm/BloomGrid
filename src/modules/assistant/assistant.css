@@ -126,13 +126,6 @@ body.flora-max .help {
   letter-spacing: 0.32em;
   color: var(--accent);
 }
-.ai-sub {
-  font-family: var(--mono);
-  font-size: 8.5px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-}
 .ai-link {
   margin-left: auto;
   display: flex;
@@ -838,7 +831,6 @@ body.flora-max .help {
   align-items: center;
   margin: 8px 0 2px;
   padding: 9px 12px;
-  border: 1px solid var(--line);
   border-left: 2px solid var(--line-strong);
   border-radius: var(--r-md);
   background: var(--bg-raise);
@@ -1698,4 +1690,616 @@ body.flora-max .help {
 .ai-fab .ai-badge {
   top: 4px;
   right: 4px;
+}
+
+/* ── Header actions: the status link sits under her name; a clear round close button ─────────────── */
+.ai-title {
+  min-width: 0;
+}
+.ai-title .ai-link {
+  margin-left: 0;
+  padding: 2px 0 0;
+  font-size: 9px;
+}
+.ai-hacts {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.ai-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  background: rgba(95, 242, 218, 0.06);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.ai-close:hover {
+  color: #fff;
+  background: rgba(255, 90, 110, 0.25);
+  border-color: var(--crit);
+}
+.ai-close .ico {
+  width: 15px;
+  height: 15px;
+}
+/* Open: the orb steps aside and the console takes its height (desktop). */
+.ai-launch.on {
+  display: none;
+}
+body.flora-open:not(.compact) .ai.panel:not(.max) {
+  bottom: 14px;
+}
+
+/* ── Model core drawer: one card per core, a clear action each, and a Done button ─────────────────── */
+.ai .ai-models {
+  max-height: 64%;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgba(95, 242, 218, 0.1), transparent 60%), rgba(4, 18, 20, 0.94);
+  animation: ig-in 0.35s ease-out both;
+}
+.aim-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.aim-gem {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--accent);
+  border: 1px solid var(--line-strong);
+  background: radial-gradient(circle at 35% 30%, rgba(95, 242, 218, 0.25), rgba(6, 19, 21, 0.6) 70%);
+  box-shadow: 0 0 12px rgba(95, 242, 218, 0.25);
+}
+.aim-gem .ico {
+  width: 16px;
+  height: 16px;
+}
+.aim-titles {
+  flex: 1;
+  min-width: 0;
+}
+.aim-eyebrow {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.aim-titles b {
+  display: block;
+  font-size: 15px;
+  background: linear-gradient(95deg, #e9fff9, var(--accent) 60%, var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.aim-done {
+  padding: 6px 13px;
+  border-radius: var(--pill);
+  border: 1px solid var(--accent);
+  font: 600 10px var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: transparent;
+  cursor: pointer;
+}
+.aim-done:hover {
+  background: var(--bg-hover);
+}
+.aim-intro {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.aim-cards {
+  display: grid;
+  gap: 8px;
+}
+.aim-card {
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+  animation: wc-rise 0.35s calc(0.05s + var(--i, 0) * 0.06s) ease-out both;
+}
+.aim-card.on {
+  border-color: rgba(142, 240, 122, 0.6);
+  background: rgba(142, 240, 122, 0.06);
+  box-shadow: inset 3px 0 var(--accent-2);
+}
+.aim-card.loading {
+  border-color: rgba(255, 207, 106, 0.6);
+}
+.aim-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.aim-top b {
+  margin-right: auto;
+  font-size: 13.5px;
+}
+.aim-led {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+.aim-led.ok {
+  background: var(--accent);
+}
+.aim-led.on {
+  background: var(--accent-2);
+  box-shadow: 0 0 6px var(--accent-2);
+}
+.aim-led.busy {
+  background: var(--warn);
+  animation: ig-blink 0.8s steps(2) infinite;
+}
+.aim-note {
+  margin: 5px 0 8px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.aim-warn {
+  margin: -4px 0 8px;
+  font-size: 11px;
+  color: var(--warn);
+}
+.aim-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.aim-state {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.aim-acts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.aim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--pill);
+  border: 1px solid var(--accent);
+  font: 600 10px var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #052522;
+  background: linear-gradient(95deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 10px rgba(95, 242, 218, 0.3);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.aim-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.aim-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.aim-btn .ico {
+  width: 13px;
+  height: 13px;
+}
+.aim-btn.ghost {
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: transparent;
+  box-shadow: none;
+}
+.aim-btn.ghost.danger:hover {
+  color: #ffb0b8;
+  border-color: var(--crit);
+}
+.aim-igniting {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--warn);
+  animation: ig-blink 1s steps(2) infinite;
+}
+.aim-err {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin-top: 8px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 90, 110, 0.4);
+  border-radius: var(--r-sm);
+  background: rgba(255, 90, 110, 0.06);
+  font-size: 11px;
+  color: #ffb0b8;
+}
+.aim-privacy {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  margin-top: 10px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--ink-faint);
+}
+.aim-privacy .ico {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--accent);
+}
+
+/* ── Core ignition: a reactor spinning up while a model loads (transient; transforms and opacity only) ── */
+.ai .ai-ignite {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 108px 1fr;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background:
+    radial-gradient(70% 120% at 0% 50%, rgba(95, 242, 218, 0.18), transparent 65%),
+    radial-gradient(60% 90% at 100% 100%, rgba(255, 159, 196, 0.1), transparent 70%), rgba(3, 16, 18, 0.95);
+  animation: ig-in 0.5s cubic-bezier(0.2, 0.9, 0.2, 1.1) both;
+}
+.ai .ai-ignite.hidden {
+  display: none;
+}
+.ai-ignite > * {
+  position: relative;
+}
+/* A receding floor grid streaming toward the viewer, and a light bar sweeping across. */
+.ai-ignite .ig-grid {
+  position: absolute;
+  inset: -24px 0 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(95, 242, 218, 0.09) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, rgba(95, 242, 218, 0.06) 0 1px, transparent 1px 24px);
+  -webkit-mask: linear-gradient(to bottom, transparent, #000 60%);
+  mask: linear-gradient(to bottom, transparent, #000 60%);
+  animation: ig-stream 1.2s linear infinite;
+}
+.ai-ignite .ig-sweep {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(220, 255, 246, 0.12), transparent);
+  animation: ig-sweep 2.4s ease-in-out infinite;
+}
+.ig-reactor {
+  position: relative;
+  width: 108px;
+  height: 108px;
+}
+.ig-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+.ig-svg * {
+  transform-box: view-box;
+  transform-origin: 0 0;
+}
+.ig-ticks line {
+  stroke: var(--line-strong);
+}
+.ig-ticks {
+  animation: ig-spin 24s linear infinite;
+}
+.ig-r1 {
+  stroke-dasharray: 2 6;
+  opacity: 0.8;
+  animation: ig-spin 7s linear infinite;
+}
+.ig-r2 {
+  stroke: var(--accent-2);
+  stroke-dasharray: 22 9 4 9;
+  animation: ig-spin 4.5s linear infinite reverse;
+}
+.ig-track {
+  stroke: rgba(95, 242, 218, 0.12);
+  stroke-width: 4;
+}
+.ig-arc {
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 4px rgba(95, 242, 218, 0.9));
+  transition: stroke-dashoffset 0.4s ease-out;
+}
+.ig-r3 path {
+  stroke: #ff9fc4;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.ig-r3 {
+  animation: ig-spin 1.4s linear infinite;
+}
+.ig-hex {
+  stroke: var(--line-strong);
+  fill: rgba(95, 242, 218, 0.06);
+  animation: ig-breathe 1.6s ease-in-out infinite;
+}
+.ig-core {
+  fill: var(--accent-2);
+  stroke: none;
+  filter: drop-shadow(0 0 6px var(--accent-2));
+  animation: ig-pulse 1.1s ease-in-out infinite;
+}
+.ig-pct {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%);
+  padding: 1px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
+  background: rgba(3, 16, 18, 0.95);
+  font: 700 12px var(--mono);
+  color: var(--ink);
+}
+.ig-pct::after {
+  content: '%';
+  margin-left: 1px;
+  font-size: 9px;
+  color: var(--ink-faint);
+}
+.ig-text {
+  min-width: 0;
+}
+.ig-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.ig-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 6px var(--warn);
+  animation: ig-blink 0.8s steps(2) infinite;
+}
+.ig-name {
+  margin: 3px 0 2px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  background: linear-gradient(95deg, #e9fff9, var(--accent) 55%, var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.ig-phase {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ig-steps {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 7px;
+}
+.ig-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px 2px 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.ig-step i {
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 8px;
+  background: rgba(95, 242, 218, 0.08);
+}
+.ig-step.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.ig-step.on i {
+  color: #052522;
+  background: var(--accent);
+  animation: ig-blink 0.9s steps(2) infinite;
+}
+.ig-step.done {
+  color: var(--accent-2);
+  border-color: rgba(142, 240, 122, 0.45);
+}
+.ig-step.done i {
+  color: #052522;
+  background: var(--accent-2);
+}
+.ig-bar {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--pill);
+  background: rgba(95, 242, 218, 0.1);
+}
+.ig-bar i {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: transform 0.4s ease-out;
+}
+.ig-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: ig-sweep 1.3s linear infinite;
+}
+.ig-line {
+  min-height: 14px;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+/* Online: the reactor settles, a shockwave rings out once, everything goes green. */
+.ai-ignite.online {
+  border-color: rgba(142, 240, 122, 0.7);
+}
+.ai-ignite.online .ig-led {
+  background: var(--accent-2);
+  box-shadow: 0 0 6px var(--accent-2);
+  animation: none;
+}
+.ai-ignite.online .ig-eyebrow {
+  color: var(--accent-2);
+}
+.ai-ignite.online .ig-r1,
+.ai-ignite.online .ig-r2,
+.ai-ignite.online .ig-r3,
+.ai-ignite.online .ig-ticks,
+.ai-ignite.online .ig-bar::after,
+.ai-ignite.online .ig-grid,
+.ai-ignite.online .ig-sweep {
+  animation-play-state: paused;
+}
+.ai-ignite.online .ig-arc {
+  stroke: var(--accent-2);
+}
+.ai-ignite.online .ig-reactor::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 2px solid var(--accent-2);
+  border-radius: 50%;
+  opacity: 0;
+  animation: ig-shock 0.9s ease-out both;
+}
+.ai-ignite.online .ig-core {
+  animation: ig-flash 0.7s ease-out both;
+}
+
+@keyframes ig-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+@keyframes ig-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes ig-stream {
+  to {
+    transform: translateY(24px);
+  }
+}
+@keyframes ig-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(330%);
+  }
+}
+@keyframes ig-breathe {
+  50% {
+    transform: scale(1.08);
+  }
+}
+@keyframes ig-pulse {
+  50% {
+    transform: scale(0.7);
+    opacity: 0.6;
+  }
+}
+@keyframes ig-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes ig-shock {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@keyframes ig-flash {
+  0% {
+    transform: scale(2.2);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-ignite,
+  .ai-ignite *,
+  .ai-ignite::after,
+  .ai-ignite .ig-reactor::after,
+  .ai .ai-models,
+  .aim-card {
+    animation: none !important;
+  }
 }

@@ -247,6 +247,9 @@ own `requestAnimationFrame` loops.
   that acts on a single tap should preview first when `e.touch` (no hover on touch), and a drag-drawing tool should
   implement `cancel` (a second finger turns the press into a camera gesture).
 - Headless `?gputime` swings 1.7–5 ms between identical runs; compare several runs on and off before blaming a change.
+- Small or thin lit details flash when the camera moves (sub-pixel, then bloomed). Scale glow by `pieceCover()`, draw
+  repeating lines with `stripes()`, and fade patterns to their mean using `fwidth` (`groundPx()`) in
+  `render/materials/library.ts` (D-064).
 
 ## 9. Picking up work
 
