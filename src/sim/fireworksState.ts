@@ -8,6 +8,10 @@ export type FireworkKind = (typeof FIREWORK_KINDS)[number];
 
 export type Stock = Record<FireworkKind, number>;
 
+/** Shaped shells (D-071): a show mixes them in; a steward's show can feature one. */
+export const FIREWORK_SHAPES = ['heart', 'rings', 'butterfly'] as const;
+export type FireworkShape = (typeof FIREWORK_SHAPES)[number];
+
 export interface FireworkShow {
   id: number;
   startTick: number;
@@ -25,6 +29,9 @@ export interface FireworkShow {
   grand: boolean;
   /** `night`: the nightly show the factories put on; `steward`: launched by the steward (button or Flora). */
   cause: 'night' | 'steward';
+  /** A message written in the sky (cleaned by `skyText`), and a shape the show features (D-071). */
+  text?: string;
+  shape?: FireworkShape;
 }
 
 /** A finished show, for the dashboard (newest last, capped). */
@@ -36,6 +43,8 @@ export interface ShowRecord {
   shells: number;
   grand: boolean;
   cause: FireworkShow['cause'];
+  text?: string;
+  shape?: FireworkShape;
 }
 
 export interface FireworksState {

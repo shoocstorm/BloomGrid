@@ -80,7 +80,10 @@ export const pieceCover = (px = 4) => min(float(1), float(1 / px).div(max(length
 export const stripes = (v: Node<'float'>, edge: number) => {
   const w = fwidth(v);
   const sharp = smoothstep(float(edge).sub(w.mul(0.5)), float(edge).add(w.mul(0.5)), fract(v));
-  return mix(sharp, float(1 - edge), smoothstep(0.2, 0.6, w));
+  // Fade from where a line is about a pixel wide to where it is a third of one (D-070): a line of one or two pixels
+  // still steps between pixels as the camera moves, and that crawl reads as flashing on lit façades.
+  const line = Math.min(1 - edge, 0.2);
+  return mix(sharp, float(1 - edge), smoothstep(line, Math.min(line * 3, 0.6), w));
 };
 /** World units per pixel on the ground plane. */
 const groundPx = () => max(fwidth(positionWorld.x), fwidth(positionWorld.z));
@@ -147,13 +150,17 @@ export function initMaterials(): void {
     const P = positionWorld;
     const u = P.x.add(P.z);
     const y = P.y;
-    const n1 = mx_noise_float(P.mul(6));
+    // World units per pixel: per-tile tones, fine grain, weave and fine noise fade to their mean once their cells
+    // are a pixel or two wide, or they twinkle as the camera moves (D-070).
+    const px = length(fwidth(P));
+    const fade = (cell: number) => smoothstep(cell * 0.15, cell * 0.45, px);
+    const n1 = mx_noise_float(P.mul(6)).mul(float(1).sub(fade(0.15)));
     const n2 = mx_noise_float(P.mul(1.3));
     // 1 Tile courses: staggered tiles with grout and a tone per tile.
     const row = floor(y.div(0.08));
     const tu = u.div(0.22).add(mod(row, 2).mul(0.5));
     const grout = max(stripes(y.div(0.08), 0.86), stripes(tu, 0.93));
-    const tiles = mix(hash(row.mul(13).add(floor(tu))).mul(0.16).add(0.9), float(0.74), grout);
+    const tiles = mix(mix(hash(row.mul(13).add(floor(tu))).mul(0.16).add(0.9), float(0.98), fade(0.08)), float(0.74), grout);
     // 2 Rammed earth: wavy strata of warmer and cooler earth.
     const strata = sin(y.mul(38).add(n2.mul(3))).mul(0.5).add(0.5);
     const earth = mix(vec3(0.84, 0.8, 0.78), vec3(1.07, 1.02, 0.94), strata).sub(n1.mul(0.05));
@@ -161,27 +168,28 @@ export function initMaterials(): void {
     const plaster = float(1).sub(n1.mul(0.06)).sub(n2.mul(0.06));
     // 4 Standing-seam copper: patina panels with seams and copper-brown weathering.
     const seam = stripes(u.mul(5), 0.94);
-    const panel = hash(floor(u.mul(5)).add(floor(y.mul(1.2)).mul(7))).mul(0.1).add(0.95);
+    const panel = mix(hash(floor(u.mul(5)).add(floor(y.mul(1.2)).mul(7))).mul(0.1).add(0.95), float(1), fade(0.2));
     const patina = mix(vec3(1), vec3(1.45, 0.82, 0.56), smoothstep(0.25, 0.7, n2)).mul(panel);
     const copper = mix(patina, vec3(0.62), seam);
     // 5 Glazed mosaic: small tiles, each its own shade and tint.
     const cell = floor(vec3(u.mul(14), y.mul(14), 0));
     const hm = vec3(hash(cell.x.add(cell.y.mul(57))), hash(cell.x.mul(3).add(cell.y.mul(11)).add(5)), hash(cell.x.mul(7).add(cell.y.mul(29)).add(9)));
     const mosaicGrout = max(stripes(u.mul(14), 0.86), stripes(y.mul(14), 0.86));
-    const mosaic = mix(hm.sub(0.5).mul(0.3).add(1), vec3(0.86), mosaicGrout);
+    const mosaic = mix(mix(hm.sub(0.5).mul(0.3).add(1), vec3(1), fade(0.07)), vec3(0.86), mosaicGrout);
     // 6 Charred boards: vertical boards with gaps and a crackled grain.
     const board = stripes(u.div(0.12), 0.92);
-    const grain = sin(y.mul(90).add(n1.mul(8))).mul(0.08);
-    const charred = mix(float(1).add(grain).add(step(0.55, n1).mul(0.25)), float(0.55), board);
+    const grain = sin(y.mul(90).add(n1.mul(8))).mul(0.08).mul(float(1).sub(fade(0.07)));
+    const knotW = max(fwidth(n1), float(0.02));
+    const charred = mix(float(1).add(grain).add(smoothstep(float(0.55).sub(knotW), float(0.55).add(knotW), n1).mul(0.25)), float(0.55), board);
     // 7 Ashlar: staggered stone blocks with pale mortar.
     const course = floor(y.div(0.16));
     const bu = u.div(0.36).add(mod(course, 2).mul(0.5));
     const mortar = max(stripes(y.div(0.16), 0.9), stripes(bu, 0.95));
-    const ashlar = mix(hash(course.mul(17).add(floor(bu))).mul(0.18).add(0.88).sub(n1.mul(0.04)), float(1.12), mortar);
+    const ashlar = mix(mix(hash(course.mul(17).add(floor(bu))).mul(0.18).add(0.88), float(0.97), fade(0.16)).sub(n1.mul(0.04)), float(1.12), mortar);
     // 8 Woven bamboo: basket weave, strands alternating direction per cell.
     const checker = mod(floor(u.mul(10)).add(floor(y.mul(10))), 2);
     const w = mix(fract(u.mul(30)), fract(y.mul(30)), checker);
-    const weave = smoothstep(0, 0.25, w).mul(smoothstep(1, 0.75, w)).mul(0.25).add(0.8);
+    const weave = mix(smoothstep(0, 0.25, w).mul(smoothstep(1, 0.75, w)).mul(0.25).add(0.8), float(0.99), fade(0.033));
     const pick = (k: number, v: Node<'vec3'> | Node<'float'>) => vec3(v as Node<'vec3'>).mul(is(p, k));
     const smooth = float(1).sub(n1.mul(0.04));
     const patterned = pick(0, smooth)
@@ -229,9 +237,12 @@ export function initMaterials(): void {
     const diag = is(gp, 4);
     const floorIdx = mix(floor(y.div(0.32)), floor(db), diag);
     const col = mix(floor(u.mul(k)), floor(da), diag);
-    const grid = max(step(0.88, fy), step(0.92, fx));
-    const ribbon = max(step(0.6, fy), step(0.96, fx));
-    const slots = max(step(0.85, fy), step(0.55, fx));
+    // Mullions and floor bands as pixel-soft stripes (D-070): hard steps make every window edge crawl in motion.
+    const fyv = y.div(0.32);
+    const fxv = u.mul(k);
+    const grid = max(stripes(fyv, 0.88), stripes(fxv, 0.92));
+    const ribbon = max(stripes(fyv, 0.6), stripes(fxv, 0.96));
+    const slots = max(stripes(fyv, 0.85), stripes(fxv, 0.55));
     // Arched windows: a rectangle under a semicircle, measured in world units so the arch stays round.
     const ax = fx.sub(0.5).div(k);
     const archR = float(0.26).div(k);
@@ -239,8 +250,8 @@ export function initMaterials(): void {
       step(ax.abs(), archR).mul(step(0.1, fy)).mul(step(fy, 0.55)),
       step(length(vec2(ax, fy.sub(0.55).mul(0.32))), archR).mul(step(0.55, fy)),
     );
-    const diagrid = max(max(step(0.9, fract(da)), step(0.9, fract(db))), step(0.94, fy));
-    const louvres = max(max(step(0.9, fx), step(0.88, fy)), step(0.55, fract(y.mul(14))).mul(0.75));
+    const diagrid = max(max(stripes(da, 0.9), stripes(db, 0.9)), stripes(fyv, 0.94));
+    const louvres = max(max(stripes(fxv, 0.9), stripes(fyv, 0.88)), stripes(y.mul(14), 0.55).mul(0.75));
     const mullion = grid
       .mul(is(gp, 0))
       .add(ribbon.mul(is(gp, 1)))
@@ -280,14 +291,18 @@ export function initMaterials(): void {
     const p = positionWorld.mul(3.2);
     const n = mx_noise_float(p).mul(0.5).add(0.5);
     const up = smoothstep(0.4, 0.9, normalWorld.y);
-    const cover = smoothstep(n.sub(0.12), n.add(0.12), iGreenery.mul(0.9).add(up.mul(0.45)).add(0.22));
+    // The moss edge is a contour of a noise field: pale plaster on one side, dark moss on the other. Sharp, it is
+    // a hairline that crawls as the camera moves (D-070), so its soft edge is at least ~a pixel wide.
+    const reach = iGreenery.mul(0.9).add(up.mul(0.45)).add(0.22).sub(n);
+    const edge = max(float(0.12), fwidth(reach).mul(1.2));
+    const cover = smoothstep(edge.negate(), edge, reach);
     const mossA = color(0x4f8f3a);
     const mossB = color(0x8cc95a);
     const wpx = length(fwidth(positionWorld));
-    const mossCol = mix(mossA, mossB, mx_noise_float(p.mul(2.7)).mul(float(1).sub(smoothstep(0.03, 0.1, wpx))).mul(0.5).add(0.5));
+    const mossCol = mix(mossA, mossB, mx_noise_float(p.mul(2.7)).mul(float(1).sub(smoothstep(0.012, 0.04, wpx))).mul(0.5).add(0.5));
     const cells = mx_worley_noise_float(positionWorld.mul(9));
     // Blossom specks (~0.02 units) are sub-pixel beyond close range: fade them out instead of letting them sparkle.
-    const blossom = step(cells, 0.07).mul(cover).mul(iGreenery).mul(float(1).sub(smoothstep(0.02, 0.06, wpx)));
+    const blossom = step(cells, 0.07).mul(cover).mul(iGreenery).mul(float(1).sub(smoothstep(0.008, 0.025, wpx)));
     const petal = mix(color(0xffb7d5), color(0xffe08a), hash(floor(positionWorld.mul(9)).dot(vec3(1, 7, 13))));
     m.colorNode = mix(mix(color(0xe9e4d6), mossCol, cover), petal, blossom);
     // Glowing veins are thin contour lines of a noise field: drawn at least ~a pixel wide and dimmed as they widen.
@@ -339,7 +354,8 @@ export function initMaterials(): void {
     const open = smoothstep(0.12, 0.55, bloomAt(positionWorld.x, positionWorld.z));
     const tinted = mix(vec3(1), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
     m.colorNode = mix(vec3(0.44, 0.6, 0.29).div(max(instanceColor, vec3(0.08))), tinted, open);
-    m.emissiveNode = instanceColor.mul(iGlow).mul(bioPulse()).mul(1.3).mul(open).mul(activityGlow()).mul(pieceCover());
+    // Flowers are a few pixels at street zoom: their glow fades below ~10 px or the gardens sparkle in motion (D-070).
+    m.emissiveNode = instanceColor.mul(iGlow).mul(bioPulse()).mul(1.3).mul(open).mul(activityGlow()).mul(pieceCover(10));
     return m;
   }, { vitality: true });
 
@@ -417,7 +433,10 @@ export function initMaterials(): void {
 
   define('pool', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.04, metalness: 0.2 });
-    const ripple = mx_noise_float(vec3(positionWorld.x.mul(6), time.mul(0.5), positionWorld.z.mul(6))).mul(0.08);
+    // Fine ripples alias from afar: fade them once they are under a couple of pixels (D-070).
+    const ripple = mx_noise_float(vec3(positionWorld.x.mul(6), time.mul(0.5), positionWorld.z.mul(6)))
+      .mul(0.08)
+      .mul(float(1).sub(smoothstep(0.03, 0.09, groundPx())));
     m.colorNode = color(0x3fb6c0).add(ripple);
     const lily = step(mx_worley_noise_float(positionWorld.mul(7)), 0.12).mul(float(1).sub(smoothstep(0.04, 0.12, groundPx())));
     m.colorNode = mix(m.colorNode, color(0x5fae4a), lily);
@@ -434,8 +453,8 @@ export function initMaterials(): void {
     m.emissiveNode = color(0x8ff8ec).mul(iGlow).mul(U.night.mul(0.6).add(0.1)).mul(pieceCover(px));
     return m;
   };
-  define('lumen', lumen(3));
-  define('lumenThin', lumen(40));
+  define('lumen', lumen(8));
+  define('lumenThin', lumen(80));
 
   // Commuter pod shell: pearl body with a glowing window band (instance glow brightens it at night).
   define('pod', () => {

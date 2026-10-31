@@ -15,11 +15,7 @@
   text-transform: uppercase;
   color: var(--accent);
 }
-@media (max-width: 1800px) {
-  .cmap-btn .l {
-    display: none;
-  }
-}
+/* The label gives way when the status bar runs out of room (`fit-1`, theme.css). */
 .cmap-btn .g {
   font-size: 15px;
   line-height: 1;

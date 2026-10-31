@@ -17,6 +17,7 @@
     "trailer:feature": "node scripts/feature-trailer.mjs",
     "check": "tsc --noEmit && eslint src tests && bun run test && vite build",
     "perf": "node scripts/perf.mjs",
+    "flicker": "node scripts/flicker.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

@@ -221,6 +221,8 @@ The city is a system that can run well or badly.
 - [x] Hazards (D-050): earthquakes, thunderstorms with lightning, industrial and heat fires that spread; Ember Watch stations, crews, ruins and repairs; incident log (dashboard Incidents tab); Flora incident tools and notices
 - [x] Fireworks (D-068): Fireworks Factory, five shell kinds, nightly 21:00 show and steward launches (top-bar button, dashboard Fireworks tab, Flora); harmony afterglow vs novelty fatigue, visitor income, smoke and stray-spark fires; GPU-flown particles (one draw call during a show)
 - [x] Build tab explains itself (D-069): action tiles and click-only category chips, an explanation card for every action (what, how, cost) and building (numbers, abilities), floating 3D preview of the building; two waterfront Fireworks Factories in the founding city
+- [x] Flicker probe (`bun run flicker`) and anti-aliasing of moss edges, façade patterns, glass mullions, sky-lane dashes and small lights; instant animated Return to nature; Ctrl/⌘-drag group selection with batch removal and Delete key (D-070)
+- [x] Shaped fireworks (hearts, Olympic rings, butterflies) and sky messages via Flora (`text`, `shape`); the top status bar fits its width, shedding labels and minor items in order (D-071)
 - [ ] Deferred: explore modes on touch (virtual stick), a phone-sized Flora model, PWA install, wind strength varying with weather, zone rules for player building (warnings when a factory goes in a living zone)
 - **Accept:** ✅ `tests/touch.test.ts` (tap, gesture cancels the press, pinch/twist deltas, tilt lock); `bun run snap -- --mobile --eval @scripts/scenes/mobile.js` (portrait and `--size 844x390`, WebGPU and WebGL); desktop HUD unchanged.
 

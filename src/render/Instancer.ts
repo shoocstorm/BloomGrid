@@ -248,6 +248,8 @@ interface Tween {
   matrix: Matrix4;
   start: number;
   duration: number;
+  /** Shrink away and remove the instance at the end (demolition), instead of growing in. */
+  out?: boolean;
 }
 
 const _m = new Matrix4();
@@ -343,6 +345,26 @@ export class ChunkedInstancer {
   }
 
   /**
+   * Removes an instance with a tween: after `delay` seconds it swells a touch, then shrinks to nothing about its
+   * pivot and is removed. A grow tween still playing on it is dropped.
+   */
+  removeAnimated(handle: InstanceHandle, delay = 0, duration = 0.45): void {
+    const b = handle.batch;
+    if (!b) return;
+    const start = this.time + delay;
+    // A grow tween still playing: shrink from its full size, and let it finish first if it can.
+    let matrix: Matrix4 | null = null;
+    for (let i = this.tweens.length - 1; i >= 0; i--) {
+      const t = this.tweens[i]!;
+      if (t.handle !== handle) continue;
+      if (!t.out) matrix = t.matrix;
+      if (t.out || t.start + t.duration > start) this.tweens.splice(i, 1);
+    }
+    matrix ??= new Matrix4().fromArray(b.mesh.instanceMatrix.array as Float32Array, handle.slot * 16);
+    this.tweens.push({ handle, matrix, start, duration, out: true });
+  }
+
+  /**
    * Compiles every piece pipeline up front (one temporary instance each at `at`), so the first
    * placement of a building type never stalls on shader compilation — notably on WebGL2.
    * `compile` must build for the render path frames use (see `PostFX.compile`).
@@ -390,7 +412,14 @@ export class ChunkedInstancer {
       const k = (this.time - t.start) / t.duration;
       if (k <= 0) continue;
       const done = k >= 1;
-      const e = done ? 1 : Math.max(1e-4, easeOutBack(k));
+      if (t.out && done) {
+        t.handle.batch.remove(t.handle);
+        this.tweens[i] = this.tweens[this.tweens.length - 1]!;
+        this.tweens.pop();
+        continue;
+      }
+      // Out: a small swell, then down to nothing (ease-in), like the lot breathing out.
+      const e = t.out ? Math.max(1e-4, (1 + 0.12 * Math.sin(k * Math.PI)) * (1 - k * k)) : done ? 1 : Math.max(1e-4, easeOutBack(k));
       _m.copy(t.matrix).scale(_s.setScalar(e));
       t.handle.batch.writeSlot(t.handle.slot, _m, null, null);
       if (done) {

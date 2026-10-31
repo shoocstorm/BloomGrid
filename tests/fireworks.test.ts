@@ -19,6 +19,7 @@ import { AgentToolRegistry } from '@/core/AgentTools';
 import type { ActionCtx } from '@/sim/actionTools';
 import { fireworksTools } from '@/sim/fireworksTools';
 import { plainIntent } from '@/ai/agent';
+import { SKY_FONT, SKY_TEXT_MAX, skyText } from '@/content/skyFont';
 import { makeSim } from './helpers';
 
 const seconds = (s: ReturnType<typeof makeSim>, n: number) => s.step(n * 10);
@@ -189,5 +190,39 @@ describe('fireworks (D-068)', () => {
     expect(plainIntent('how many fireworks shows have we had?')).toBe('fireworks_status');
     expect(plainIntent('build a fireworks factory')).toBe('build');
     expect(plainIntent('put out the fire')).toBe('respond_incident');
+  });
+
+  it('writes a cleaned message in the sky and features a shape; both survive a save (D-071)', async () => {
+    expect(skyText('Happy birthday <3 ❤ ~ é')).toBe('HAPPY BIRTHDAY ♥ ♥');
+    expect(skyText('a'.repeat(40)).length).toBe(SKY_TEXT_MAX);
+    expect(skyText('~~~')).toBe('');
+    for (const ch of skyText('THE QUICK BROWN FOX JUMPS 0123456789'))
+      if (ch !== ' ') expect(SKY_FONT[ch]!.length).toBeGreaterThan(0);
+    const s = withFactory();
+    stockUp(s, 8);
+    expect(s.commands.execute('launchFireworks', { shape: 'square' as never })).toBe(false);
+    expect(s.commands.execute('launchFireworks', { text: 'i <3 bloomgrid!', shape: 'heart' })).toBe(true);
+    const show = s.city.fireworks.show!;
+    expect(show.text).toBe('I ♥ BLOOMGRID!');
+    expect(show.shape).toBe('heart');
+    const data = JSON.parse(JSON.stringify(serializeCity(s.city))) as SaveData;
+    const other = new City(new EventBus(), 1);
+    deserializeCity(other, data);
+    expect(other.fireworks.show?.text).toBe('I ♥ BLOOMGRID!');
+    expect(other.hash()).toBe(s.city.hash());
+    seconds(s, 40);
+    expect(s.city.fireworks.history.at(-1)).toMatchObject({ text: 'I ♥ BLOOMGRID!', shape: 'heart' });
+  });
+
+  it('Flora launches a show with a message and a featured shape', async () => {
+    const s = withFactory();
+    const r = new AgentToolRegistry<ActionCtx>({ city: s.city, commands: s.commands });
+    for (const t of fireworksTools) r.register(t);
+    stockUp(s, 8);
+    expect((await r.call('launch_fireworks', { text: '~~' })).ok).toBe(false);
+    const res = await r.call('launch_fireworks', { text: 'Happy birthday', shape: 'butterfly' });
+    expect(res.ok && res.result).toMatchObject({ message: 'HAPPY BIRTHDAY', featuring: 'butterfly' });
+    expect(plainIntent('fireworks that say happy birthday')).toBe('launch_fireworks');
+    expect(plainIntent('heart fireworks please')).toBe('launch_fireworks');
   });
 });

@@ -14,7 +14,8 @@ import {
   stockTotal,
   storage,
 } from './fireworks';
-import { FIREWORK_KINDS } from './fireworksState';
+import { FIREWORK_KINDS, FIREWORK_SHAPES, type FireworkShape } from './fireworksState';
+import { SKY_TEXT_MAX, skyText } from '@/content/skyFont';
 
 /**
  * Fireworks tools for the city assistant and scripts (D-068): stock, shows and their effects; launching a
@@ -63,10 +64,25 @@ export const fireworksTools: AgentTool<ActionCtx, never>[] = [
   },
   {
     name: 'launch_fireworks',
-    option: 'Launch a fireworks show now',
-    description: `Launches a fireworks show now from a Fireworks Factory: ${SHOW_SHELLS} shells, or ${GRAND_SHELLS} for a grand show (needs ${MIN_SHELLS}+ in stock; uses what there is). Crew fee ${SHOW_FEE} credits. Lifts harmony and draws visitors, but adds smoke, and shows in quick succession tire residents. Undoable.`,
-    keywords: ['fireworks', 'firework', 'launch', 'celebrate', 'celebration', 'show', 'party', 'set off'],
-    llmArgs: ['grand'],
+    option: 'Launch a fireworks show now, optionally writing a message or featuring a shape',
+    description: `Launches a fireworks show now from a Fireworks Factory: ${SHOW_SHELLS} shells, or ${GRAND_SHELLS} for a grand show (needs ${MIN_SHELLS}+ in stock; uses what there is). Shows mix in shaped shells (hearts, the five Olympic rings, butterflies); \`shape\` features one of them. \`text\` writes a message in the sky in sparks (up to ${SKY_TEXT_MAX} letters, digits, spaces, ♥ ! ? & - +), e.g. "HAPPY BIRTHDAY". Crew fee ${SHOW_FEE} credits. Lifts harmony and draws visitors, but adds smoke, and shows in quick succession tire residents. Undoable.`,
+    keywords: [
+      'fireworks',
+      'firework',
+      'launch',
+      'celebrate',
+      'celebration',
+      'show',
+      'party',
+      'set off',
+      'heart',
+      'olympic',
+      'butterfly',
+      'message',
+      'write',
+      'spell',
+    ],
+    llmArgs: ['grand', 'text', 'shape'],
     input: {
       type: 'object',
       properties: {
@@ -74,18 +90,36 @@ export const fireworksTools: AgentTool<ActionCtx, never>[] = [
           type: 'boolean',
           description: `A grand show of ${GRAND_SHELLS} shells (default ${SHOW_SHELLS}).`,
         },
+        text: {
+          type: 'string',
+          description: `A message to write in the sky, e.g. "HAPPY BIRTHDAY" or "I ♥ BLOOMGRID" (up to ${SKY_TEXT_MAX} characters).`,
+        },
+        shape: {
+          type: 'string',
+          enum: FIREWORK_SHAPES,
+          description: 'Feature one shape: heart, rings (the five Olympic rings) or butterfly.',
+        },
       },
     },
     effect: 'mutate',
-    run({ city, commands }, { grand = false }: { grand?: boolean }) {
+    run(
+      { city, commands },
+      { grand = false, text, shape }: { grand?: boolean; text?: string; shape?: FireworkShape },
+    ) {
       const why = launchBlocker(city);
       if (why) throw new Error(why);
-      if (!commands.execute('launchFireworks', { grand })) throw new Error('The show could not launch.');
+      const message = text ? skyText(text) : '';
+      if (text && !message)
+        throw new Error('Nothing in that message can be written in sparks: use letters, digits or ♥.');
+      if (!commands.execute('launchFireworks', { grand, text: message || undefined, shape }))
+        throw new Error('The show could not launch.');
       const show = city.fireworks.show!;
       return {
         launched: true,
         shells: show.shells,
         grand,
+        ...(show.text ? { message: show.text } : {}),
+        ...(show.shape ? { featuring: show.shape } : {}),
         fee: show.fee,
         left: stockTotal(city.fireworks.stock),
       };

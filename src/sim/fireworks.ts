@@ -7,10 +7,13 @@ import type { SimCtx } from './systems';
 import { DAY_LENGTH, PULSE_TICKS } from './pulseConst';
 import { seasonAt } from './seasons';
 import { ignite } from './hazards';
+import { skyText } from '@/content/skyFont';
 import {
   FIREWORK_KINDS,
+  FIREWORK_SHAPES,
   emptyStock,
   type FireworkKind,
+  type FireworkShape,
   type FireworkShow,
   type FireworksState,
   type ShowRecord,
@@ -121,7 +124,12 @@ function takeShells(stock: Stock, n: number): Stock {
 }
 
 /** Starts a show from the next factory in turn. Assumes `launchBlocker` passed. */
-function startShow(city: City, grand: boolean, cause: FireworkShow['cause']): FireworkShow {
+function startShow(
+  city: City,
+  grand: boolean,
+  cause: FireworkShow['cause'],
+  extra: { text?: string; shape?: FireworkShape } = {},
+): FireworkShow {
   const fw = city.fireworks;
   const sites = launchSites(city);
   const [, x, z] = sites[fw.shows % sites.length]!;
@@ -143,6 +151,8 @@ function startShow(city: City, grand: boolean, cause: FireworkShow['cause']): Fi
     fee: SHOW_FEE,
     grand,
     cause,
+    ...(extra.text ? { text: extra.text } : {}),
+    ...(extra.shape ? { shape: extra.shape } : {}),
   };
   fw.show = show;
   fw.shows++;
@@ -280,6 +290,8 @@ function endShow(city: City, show: FireworkShow): void {
     shells: show.fired,
     grand: show.grand,
     cause: show.cause,
+    ...(show.text ? { text: show.text } : {}),
+    ...(show.shape ? { shape: show.shape } : {}),
   };
   fw.history.push(record);
   if (fw.history.length > HISTORY_CAP) fw.history.shift();
@@ -299,6 +311,14 @@ export function clockOf(t: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 }
 
+export interface LaunchPayload {
+  grand?: boolean;
+  /** A message to write in the sky (cleaned by `skyText`: letters, digits, ♥ and a little punctuation). */
+  text?: string;
+  /** Feature one shape: shaped shells come more often and are all this shape. */
+  shape?: FireworkShape;
+}
+
 interface LaunchUndo {
   id: number;
   load: Stock;
@@ -306,10 +326,12 @@ interface LaunchUndo {
 }
 
 export function registerFireworksCommands(stack: CommandStack<SimCtx>): void {
-  stack.register<{ grand?: boolean }, LaunchUndo>('launchFireworks', {
+  stack.register<LaunchPayload, LaunchUndo>('launchFireworks', {
     apply({ city }, p) {
       if (launchBlocker(city)) return null;
-      const show = startShow(city, !!p.grand, 'steward');
+      if (p.shape && !FIREWORK_SHAPES.includes(p.shape)) return null;
+      const text = p.text ? skyText(p.text) : '';
+      const show = startShow(city, !!p.grand, 'steward', { text: text || undefined, shape: p.shape });
       return { id: show.id, load: { ...show.load }, fee: show.fee };
     },
     revert({ city }, _p, u) {

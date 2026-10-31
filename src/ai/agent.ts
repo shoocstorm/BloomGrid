@@ -138,6 +138,8 @@ export function plainIntent(request: string): string | null {
     // Fireworks (D-068) before hazards: "fire the fireworks" is a show, not a fire.
     [/\b(stop|turn off|switch off|disable|cancel|turn on|switch on|enable|resume)\b.*\b(nightly|automatic|every night)\b.*\bfireworks?\b|\b(nightly|automatic) fireworks?\b.*\b(on|off)\b/, 'fireworks_nightly'],
     [/\b(launch|set off|let off|fire( off)?|light|start|put on|celebrate)\b(?!.*\bfactor(y|ies)\b).*\bfireworks?\b/, 'launch_fireworks'],
+    // A message or a shape in the sky (D-071): "fireworks that say HAPPY BIRTHDAY", "heart fireworks".
+    [/\bfireworks?\b.*\b(say|says|saying|spell|spelling|write|writing|reads?)\b|\b(write|spell)\b.*\bfireworks?\b|\b(hearts?|olympic|butterfl(y|ies))\b.*\bfireworks?\b|\bfireworks?\b.*\b(hearts?|olympic|butterfl(y|ies))\b/, 'launch_fireworks'],
     // Hazards (D-050) before the general remedies: crews to fires, rebuilding ruins.
     [/\b(put out|extinguish|firefighters?|fire ?crews?|dispatch (the )?crews?|send (the )?crews?)\b/, 'respond_incident'],
     [/\b(rebuild|ruins?|repair (the )?(damage|damaged|ruins?|quake|fire))\b/, 'repair_damage'],

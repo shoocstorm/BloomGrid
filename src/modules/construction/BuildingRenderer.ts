@@ -288,7 +288,7 @@ export class BuildingRenderer {
   constructor(private ctx: GameContext) {
     const { bus } = ctx;
     bus.on('building:added', ({ eid }) => this.add(eid, !ctx.loading));
-    bus.on('building:removed', ({ eid }) => this.remove(eid));
+    bus.on('building:removed', ({ eid }) => this.remove(eid, !ctx.loading));
     bus.on('city:reset', () => {
       for (const eid of [...this.entries.keys()]) this.remove(eid);
     });
@@ -483,13 +483,48 @@ export class BuildingRenderer {
     else if (plant) entry.plants.push(h);
   }
 
-  private remove(eid: number): void {
+  /**
+   * Takes a building's pieces off the map. Animated (a demolition): the pieces fold away from the top down, the
+   * plinth last, and a few wild plants sprout on the bare lot, then fade back into the meadow.
+   */
+  private remove(eid: number, animate = false): void {
     const entry = this.entries.get(eid);
     if (!entry) return;
-    for (const h of entry.handles) this.ctx.instancer.remove(h);
-    this.removeRetrofit(entry);
-    if (entry.alert) this.ctx.instancer.remove(entry.alert);
+    const { instancer } = this.ctx;
+    if (entry.alert) instancer.remove(entry.alert);
+    if (!animate) {
+      for (const h of entry.handles) instancer.remove(h);
+      this.removeRetrofit(entry);
+      this.entries.delete(eid);
+      return;
+    }
+    const parts = [...entry.handles, ...entry.retro];
+    const ys = parts.map((h) => (h.batch ? (h.batch.mesh.instanceMatrix.array as Float32Array)[h.slot * 16 + 13]! : 0));
+    const base = entry.base.elements[13]!;
+    const top = Math.max(base + 0.5, ...ys);
+    parts.forEach((h, i) => instancer.removeAnimated(h, ((top - ys[i]!) / (top - base)) * 0.4 + Math.random() * 0.06, 0.4));
+    entry.handles = [];
+    entry.retro = [];
     this.entries.delete(eid);
+    this.sprout(entry.base, Building.w[eid]!, Building.d[eid]!);
+  }
+
+  /** Wild plants that grow on a cleared lot and fade back into the meadow (render only). */
+  private sprout(base: Matrix4, w: number, d: number): void {
+    const { instancer } = this.ctx;
+    const n = Math.min(16, Math.max(4, Math.round(w * d * 0.7)));
+    const tints = PALETTE.blossoms;
+    for (let i = 0; i < n; i++) {
+      const piece = i % 4 === 0 ? 'bush' : i % 2 ? 'grass' : 'flower';
+      const s = piece === 'bush' ? 0.35 + Math.random() * 0.2 : piece === 'grass' ? 0.4 : 0.12;
+      _q.setFromEuler(_e.set(0, Math.random() * 6.28, 0));
+      const local = _m.compose(_v.set((Math.random() - 0.5) * w * 0.8, 0, (Math.random() - 0.5) * d * 0.8), _q, _s.setScalar(s));
+      const world = new Matrix4().multiplyMatrices(base, local);
+      const tint = piece === 'flower' ? tints[i % tints.length]! : piece === 'bush' ? PALETTE.leaves[i % PALETTE.leaves.length]! : 0x8fd35a;
+      const delay = 0.3 + Math.random() * 0.3;
+      const h = instancer.addMatrix(piece, world, _c.setHex(tint), [1, Math.random(), piece === 'flower' ? 0.6 : 0, 1], delay, 0.5);
+      instancer.removeAnimated(h, delay + 2.2 + Math.random() * 0.8, 0.6);
+    }
   }
 
   /**

@@ -7,13 +7,17 @@ import { CHANNEL_COST, RETROFIT_RADIUS, retrofitPlan, roadTileCost } from '@/sim
 import type { GameContext } from '@/game/context';
 import type { Tool } from '@/game/Tools';
 import type { GroundHit } from '@/world/Picking';
+import { selectInRect } from '@/sim/select';
 import { placeBuilding, placementMatrices } from './BuildingRenderer';
 import type { Ghost } from './Ghost';
 
 declare module '@/core/EventBus' {
   interface GameEvents {
-    /** A building (eid) or, with `road`, the highway network containing that tile. */
-    'selection:changed': { eid: number | null; road?: number };
+    /**
+     * A building (eid) or, with `road`, the highway network containing that tile; with `eids`, a group of buildings
+     * of one type (Ctrl/⌘-drag in Inspect, D-070).
+     */
+    'selection:changed': { eid: number | null; road?: number; eids?: number[] };
     /** With `at` (tile coordinates), the toast is a button that flies the camera there. */
     toast: { text: string; tone?: 'ok' | 'bad' | 'info'; at?: { x: number; z: number } };
   }
@@ -47,6 +51,26 @@ export function createTools(ghost: Ghost, build: BuildState) {
   };
 
   let followsSelection = false;
+  /** Ctrl/⌘-drag group selection: the drag's first tile, the current group and its highlighted footprints. */
+  let rect: { x: number; z: number } | null = null;
+  let group: number[] = [];
+  let groupTiles: [number, number, number][] = [];
+  const footprints = (ctx: GameContext, eids: number[]) => {
+    const out: [number, number, number][] = [];
+    const g = ctx.city.grid;
+    for (const e of eids) {
+      if (!ctx.city.buildingEntities().includes(e)) continue;
+      const r = ctx.city.buildingRecord(e);
+      const [w, d] = ctx.city.footprint(ctx.city.buildingDef(e), r.rot);
+      for (let z = r.z; z < r.z + d; z++) for (let x = r.x; x < r.x + w; x++) out.push([x, g.rangeOver(x, z, 1, 1).max, z]);
+    }
+    return out;
+  };
+  const endRect = (ctx: GameContext) => {
+    rect = null;
+    ctx.cameraCtl.dragPan = true;
+    ghost.hideCursor();
+  };
   const select: Tool = {
     id: 'select',
     label: 'Inspect',
@@ -59,18 +83,66 @@ export function createTools(ghost: Ghost, build: BuildState) {
       // inspector drops the footprint highlight.
       if (!followsSelection) {
         followsSelection = true;
-        ctx.bus.on('selection:changed', ({ eid }) => (selected = eid ?? null));
+        ctx.bus.on('selection:changed', ({ eid, eids }) => {
+          selected = eid ?? null;
+          group = eids ?? [];
+          groupTiles = footprints(ctx, group);
+          ghost.showTiles(groupTiles);
+        });
+        ctx.bus.on('building:removed', ({ eid }) => {
+          if (!group.includes(eid)) return;
+          group = group.filter((e) => e !== eid);
+          groupTiles = footprints(ctx, group);
+        });
       }
+      ghost.showTiles(groupTiles);
     },
-    deactivate: () => ghost.hideAll(),
+    deactivate(ctx) {
+      if (rect) endRect(ctx);
+      ghost.hideAll();
+    },
     hover(ctx, hit) {
       ghost.setValid(true);
+      if (rect && hit?.inBounds) {
+        // The rectangle, and the buildings it would select.
+        const [x0, z0] = [Math.min(rect.x, hit.tx), Math.min(rect.z, hit.tz)];
+        const [w, d] = [Math.abs(hit.tx - rect.x) + 1, Math.abs(hit.tz - rect.z) + 1];
+        ghost.showCursor(x0, ctx.city.grid.rangeOver(rect.x, rect.z, 1, 1).max, z0, w, d);
+        const r = selectInRect(ctx.city, rect.x, rect.z, hit.tx, hit.tz);
+        ghost.showTiles(footprints(ctx, r.eids));
+        const name = r.def ? buildings.get(r.def).name : '';
+        ctx.bus.emit('tool:tooltip', {
+          text: r.eids.length ? `Select ${r.eids.length} × ${name}` : 'No buildings in the box',
+          tone: r.eids.length ? 'ok' : 'bad',
+        });
+        return;
+      }
       const eid = hit?.inBounds ? ctx.city.buildingAt(hit.tx, hit.tz) : NO_ENTITY;
       if (eid !== NO_ENTITY) footprintCursor(ctx, eid);
       else if (selected !== null && ctx.city.buildingEntities().includes(selected)) footprintCursor(ctx, selected);
       else ghost.hideCursor();
+      if (group.length) ghost.showTiles(groupTiles);
+    },
+    down(ctx, hit, e) {
+      // Ctrl (⌘ on a Mac) + drag boxes a group of buildings of one type instead of panning.
+      if (!e.ctrl || e.touch || !hit?.inBounds) return;
+      rect = { x: hit.tx, z: hit.tz };
+      ctx.cameraCtl.dragPan = false;
+    },
+    cancel(ctx) {
+      if (rect) endRect(ctx);
+      ghost.showTiles(groupTiles);
     },
     up(ctx, hit) {
+      if (rect) {
+        const start = rect;
+        endRect(ctx);
+        ctx.bus.emit('tool:tooltip', { text: null });
+        const r = hit?.inBounds ? selectInRect(ctx.city, start.x, start.z, hit.tx, hit.tz) : { eids: [] };
+        if (r.eids.length > 1) ctx.bus.emit('selection:changed', { eid: null, eids: r.eids });
+        else ctx.bus.emit('selection:changed', { eid: r.eids[0] ?? null });
+        return;
+      }
       if (!ctx.input.isTap) return;
       const eid = hit?.inBounds ? ctx.city.buildingAt(hit.tx, hit.tz) : NO_ENTITY;
       selected = eid === NO_ENTITY ? null : eid;

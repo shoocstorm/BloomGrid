@@ -1569,6 +1569,42 @@ body:not(.booted) .help.welcome * {
 /* ── Inspector: the welcome card's idiom (chrome from `.holo`), replayed on every selection ── */
 .info {
   overflow: hidden;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+/* Closing (after Return to nature, or a cleared selection): fade and slide out, then hidden (D-070). */
+.info.closing {
+  opacity: 0;
+  transform: translateX(14px);
+  pointer-events: none;
+}
+/* Group selection: every member's id as a chip (click one to inspect it). */
+.ix-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 96px;
+  overflow-y: auto;
+  margin: 2px 0 4px;
+}
+.ix-chip {
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+.ix-chip:hover {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+.ix-more {
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
 }
 .info > * {
   position: relative;
@@ -2444,4 +2480,52 @@ body:not(.booted) .holo::after {
   .ix-stage-hint {
     transition: none;
   }
+}
+
+/*
+ * Status bar fitting (D-071): `Hud.fitStats` adds cumulative `fit-N` classes to the top bar until the stats stop
+ * clipping, so a narrower window sheds labels first, then secondary values, spacing, the brand, the least vital
+ * stats, the spare action buttons and the season chip; widening the window brings them back.
+ */
+.topbar.fit-1 .stat .k,
+.topbar.fit-1 .stat .meter,
+.topbar.fit-1 .cmap-btn .l {
+  display: none;
+}
+.topbar.fit-1 .stat {
+  padding: 2px 7px;
+  gap: 4px;
+}
+.topbar.fit-2 .stat .sub,
+.topbar.fit-2 .brand-sub {
+  display: none;
+}
+.topbar.fit-3 .stat {
+  padding: 2px 5px;
+  gap: 3px;
+}
+.topbar.fit-3 .brand b {
+  display: none;
+}
+.topbar.fit-3 .brand {
+  padding: 8px 10px;
+}
+.topbar.fit-3 .clock .time {
+  min-width: 0;
+}
+.topbar.fit-4 .stat-eco,
+.topbar.fit-4 .fw-btn .l {
+  display: none;
+}
+.topbar.fit-5 .stat-water,
+.topbar.fit-5 .seg button:last-child {
+  display: none;
+}
+.topbar.fit-6 .actions .opt,
+.topbar.fit-6 .season-bar {
+  display: none;
+}
+.topbar.fit-7 .seg button:nth-child(3),
+.topbar.fit-7 .season {
+  display: none;
 }

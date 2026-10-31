@@ -529,16 +529,7 @@ button {
 .stat .ki {
   font-size: 12px;
 }
-@media (max-width: 1600px) {
-  .stat {
-    padding: 2px 7px;
-    gap: 4px;
-  }
-  .stat .k,
-  .stat .meter {
-    display: none;
-  }
-}
+/* Stat labels and the meter give way when the bar runs out of room: see the `fit-*` levels in theme.css. */
 
 /* Many tools: icon + hotkey only on narrower screens (labels stay as tooltips). */
 @media (max-width: 1800px) {

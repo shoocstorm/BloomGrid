@@ -4,6 +4,7 @@ import { CATEGORY_ICONS, CATEGORY_LABELS, ZONES, type BuildingCategory, type Bui
 import { NO_ENTITY } from '@/sim/Grid';
 import { idForSelection } from '@/sim/inventory';
 import { RESPONSE_COST, fireAt, isRuined, repairCost } from '@/sim/hazards';
+import { DEMOLISH_REFUND } from '@/sim/commands';
 import type { GameContext, GameModule } from '@/game/context';
 import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from './dom';
@@ -12,6 +13,8 @@ import { ACTION_HELP, buildingAbilities, buildingStats } from './buildHelp';
 import './styles.css';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
+/** How many steps the status bar may shed to fit (see `fitStats`). */
+const FIT_LEVELS = 7;
 
 function timeLabel(t: number, day: number, short: boolean): string {
   const mins = Math.floor(t * 24 * 60);
@@ -70,6 +73,8 @@ class Hud {
   private infoBody!: HTMLElement;
   private stage!: HTMLElement;
   private selected: number | null = null;
+  /** A group selection (Ctrl/⌘-drag in Inspect): buildings of one type, D-070. */
+  private group: number[] = [];
   private tooltip!: HTMLElement;
   private toasts!: HTMLElement;
   private undoBtn!: HTMLButtonElement;
@@ -115,8 +120,17 @@ class Hud {
       }
     });
     bus.on('toast', ({ text, tone, at }) => this.toast(text, tone, at));
-    bus.on('selection:changed', ({ eid, road }) => (road !== undefined ? this.selectNetwork(road) : this.select(eid)));
-    bus.on('building:removed', ({ eid }) => eid === this.selected && this.select(null));
+    bus.on('selection:changed', ({ eid, road, eids }) =>
+      eids?.length ? this.selectGroup(eids) : road !== undefined ? this.selectNetwork(road) : this.select(eid),
+    );
+    bus.on('building:removed', ({ eid }) => {
+      if (eid === this.selected) this.select(null);
+      else if (this.group.includes(eid)) {
+        const rest = this.group.filter((e) => e !== eid);
+        if (rest.length) this.selectGroup(rest);
+        else this.select(null);
+      }
+    });
     bus.on('save:done', () => this.toast('City saved', 'ok'));
     bus.on('load:done', () => this.toast('City restored', 'ok'));
     ctx.commands.onChange = () => this.syncUndo();
@@ -124,6 +138,11 @@ class Hud {
       if (e.code === 'KeyH' && !e.metaKey && !e.ctrlKey) {
         this.help.classList.toggle('hidden');
         return true;
+      }
+      // Delete (or ⌫) returns the selected building, or the selected group, to nature.
+      if ((e.code === 'Delete' || e.code === 'Backspace') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (this.group.length) return this.razeGroup(), true;
+        if (this.selected !== null) return this.raze(this.selected), true;
       }
       return false;
     });
@@ -291,16 +310,40 @@ class Hud {
       h('button', { class: 'icon-btn', title: 'Save (⌘S)', onClick: () => void save.save() }, 'Save'),
       h('button', { class: 'icon-btn opt', title: 'Load (⌘L)', onClick: () => void save.load().then((ok) => ok || this.toast('No save yet', 'bad')) }, 'Load'),
     ));
-    this.root.append(
-      h(
-        'div',
-        { class: 'topbar' },
-        h('div', { class: 'brand panel' }, h('span', { class: 'logo' }), h('b', {}, 'BloomGrid', h('span', { class: 'brand-sub' }, 'ISLAND OS · v12'))),
-        h('div', { class: 'clock panel' }, this.timeEl, seg),
-        stats,
-        actions,
-      ),
+    const topbar = h(
+      'div',
+      { class: 'topbar' },
+      h('div', { class: 'brand panel' }, h('span', { class: 'logo' }), h('b', {}, 'BloomGrid', h('span', { class: 'brand-sub' }, 'ISLAND OS · v12'))),
+      h('div', { class: 'clock panel' }, this.timeEl, seg),
+      stats,
+      actions,
     );
+    this.topbar = topbar;
+    this.root.append(topbar);
+    // Refit when the bar's room changes (window, side panels) or the screen class flips.
+    new ResizeObserver(() => this.fitStats()).observe(stats);
+    onCompactChange(() => this.fitStats());
+  }
+
+  private topbar!: HTMLElement;
+
+  /**
+   * Fits the status bar to its width (D-071): from the full bar, each level drops something until nothing
+   * clips: 1 the stat labels and the harmony meter, 2 secondary values (rate, capacity) and the brand subtitle,
+   * 3 tighter spacing and the brand name, 4 the ecology stat and the fireworks count, 5 water and the fastest
+   * speed, 6 redo / overview / load and the season bar, 7 the fast speed and the season chip. Levels are
+   * cumulative classes on the top bar; phones keep their own layout (mobile.css).
+   */
+  private fitStats(): void {
+    const bar = this.topbar;
+    const el = this.stats;
+    const set = (level: number) => {
+      for (let i = 1; i <= FIT_LEVELS; i++) bar.classList.toggle(`fit-${i}`, i <= level);
+    };
+    if (isCompact()) return set(0);
+    let level = 0;
+    set(0);
+    while (level < FIT_LEVELS && el.scrollWidth > el.clientWidth + 1) set(++level);
   }
 
   /** Telemetry strip (bottom-left): camera focus coordinates, heading, altitude, sim rate, fps. */
@@ -528,6 +571,102 @@ class Hud {
     this.ctx.bus.emit('selection:changed', { eid: null });
   }
 
+  private closing = 0;
+  private fitTimer = 0;
+
+  private showInfo(): void {
+    clearTimeout(this.closing);
+    this.info.classList.remove('hidden', 'closing');
+  }
+
+  /** Fades the inspector out (opacity and transform only), then hides it. */
+  private hideInfo(): void {
+    this.stageFor(null);
+    if (this.info.classList.contains('hidden')) return;
+    this.info.classList.add('closing');
+    clearTimeout(this.closing);
+    this.closing = window.setTimeout(() => this.info.classList.add('hidden'), 220);
+  }
+
+  /** Returns one building to nature at once (undoable): it folds away and the inspector closes. */
+  private raze(eid: number): void {
+    const { ctx } = this;
+    const def = ctx.city.buildingDef(eid);
+    if (!ctx.commands.execute('demolish', { x: Building.x[eid]!, z: Building.z[eid]! })) return;
+    ctx.bus.emit('toast', { text: `Returned ${def.name} to nature · +◈${fmt(def.stats.cost * DEMOLISH_REFUND)} (⌘Z to undo)`, tone: 'ok' });
+    this.closeInfo();
+  }
+
+  /** Returns the whole group to nature in one undoable step. */
+  private razeGroup(): void {
+    const { ctx } = this;
+    const eids = this.group.filter((e) => ctx.city.buildingEntities().includes(e));
+    if (!eids.length) return;
+    const def = ctx.city.buildingDef(eids[0]!);
+    const refund = eids.reduce((a, e) => a + ctx.city.buildingDef(e).stats.cost * DEMOLISH_REFUND, 0);
+    if (!ctx.commands.execute('demolishMany', { tiles: eids.map((e) => [Building.x[e]!, Building.z[e]!]) })) return;
+    ctx.bus.emit('toast', { text: `Returned ${eids.length} × ${def.name} to nature · +◈${fmt(refund)} (⌘Z to undo)`, tone: 'ok' });
+    this.closeInfo();
+  }
+
+  /** The group inspector: what was boxed, totals, every member's id, and one action for all. */
+  private selectGroup(eids: number[]): void {
+    const { ctx } = this;
+    const { city } = ctx;
+    this.group = eids.filter((e) => city.buildingEntities().includes(e));
+    this.selected = null;
+    if (!this.group.length) return this.select(null);
+    this.showInfo();
+    const def = city.buildingDef(this.group[0]!);
+    const preview = ctx.services.tryGet('preview');
+    this.info.classList.toggle('staged', !!preview);
+    preview?.showDef(this.stage, def.id);
+    let residents = 0;
+    let jobs = 0;
+    for (const e of this.group) {
+      if (def.stats.population) residents += def.stats.population * Service.occupancy[e]!;
+      if (def.stats.jobs) jobs += def.stats.jobs * Service.occupancy[e]!;
+    }
+    const n = this.group.length;
+    const refund = n * def.stats.cost * DEMOLISH_REFUND;
+    const ids = this.group.map((e) => [e, idForSelection(city, { eid: e })] as const);
+    this.infoBody.replaceChildren(
+      ...this.infoHead(
+        icon(`cat:${def.category}`, CATEGORY_ICONS[def.category]),
+        h('div', { class: 'info-id' }, h('span', { class: 'info-id-btn' }, `GROUP · ${n}`), h('span', {}, 'Ctrl/⌘-drag selection')),
+        `${n} × ${def.name}`,
+        `Every ${def.name} in the box you drew. Return them to nature together (Delete), or pick one to inspect it.`,
+      ),
+      h(
+        'div',
+        { class: 'ix-vitals' },
+        this.vital('people', 'Residents', fmt(residents)),
+        this.vital('jobs', 'Staffed jobs', fmt(jobs)),
+        this.vital('energy', 'Energy', `${def.stats.energy * n > 0 ? '+' : ''}${fmt(def.stats.energy * n)}`, def.stats.energy > 0 ? 'good' : def.stats.energy < 0 ? 'bad' : ''),
+        this.vital('pollution', 'Pollution', fmt(def.stats.pollution * n), def.stats.pollution > 0 ? 'bad' : ''),
+        this.vital('credits', 'Refund', `◈${fmt(refund)}`),
+      ),
+      h(
+        'div',
+        { class: 'ix-group' },
+        ...ids.slice(0, 24).map(([e, id]) =>
+          h('button', { class: 'ix-chip', title: 'Inspect this one', onClick: () => ctx.bus.emit('selection:changed', { eid: e }) }, id ?? '—'),
+        ),
+        n > 24 ? h('span', { class: 'ix-more' }, `+${n - 24} more`) : null,
+      ),
+      this.infoActions(
+        null,
+        h(
+          'button',
+          { class: 'tool ix-raze', title: `Return all ${n} to nature: +◈${fmt(refund)} back (Delete; ⌘Z undoes)`, onClick: () => this.razeGroup() },
+          h('span', { class: 'g' }, icon('bulldoze')),
+          `Return all ${n} to nature`,
+        ),
+        h('button', { class: 'tool', title: 'Clear the selection (Esc)', onClick: () => this.closeInfo() }, h('span', { class: 'g' }, icon('close')), 'Clear'),
+      ),
+    );
+  }
+
   /** Shows the 3D stage for a building, or folds it away (networks, nothing selected). */
   private stageFor(eid: number | null): void {
     const preview = this.ctx.services.tryGet('preview');
@@ -595,8 +734,9 @@ class Hud {
     this.stageFor(null);
     const id = city.networks.comp[road]!;
     const n = city.pulse.networks[id];
-    this.info.classList.toggle('hidden', !n);
-    if (!n) return;
+    this.group = [];
+    if (!n) return this.hideInfo();
+    this.showInfo();
     let tiles = 0;
     for (let i = 0; i < city.networks.comp.length; i++) if (city.networks.comp[i] === id) tiles++;
     const ratio = (p: number, u: number) => (u > 0 ? `${Math.round((p / u) * 100)}%` : '—');
@@ -625,10 +765,11 @@ class Hud {
 
   private select(eid: number | null): void {
     this.selected = eid === NO_ENTITY ? null : eid;
+    this.group = [];
     this.hzKey = '';
-    this.info.classList.toggle('hidden', this.selected === null);
+    if (this.selected === null) return this.hideInfo();
+    this.showInfo();
     this.stageFor(this.selected);
-    if (this.selected === null) return;
     const def = this.ctx.city.buildingDef(this.selected);
     const s = def.stats;
     const [bx, bz] = [Building.x[this.selected]! + Building.w[this.selected]! / 2, Building.z[this.selected]! + Building.d[this.selected]! / 2];
@@ -655,7 +796,12 @@ class Hud {
       h('div', { class: 'info-hz', 'data-hz': '1' }),
       this.infoActions(
         id,
-        h('button', { class: 'tool ix-raze', title: 'Bulldoze: return the lot to nature', onClick: () => this.ctx.tools.setActive('bulldoze') }, h('span', { class: 'g' }, icon('bulldoze')), 'Return to nature'),
+        h(
+          'button',
+          { class: 'tool ix-raze', title: `Return it to nature now: +◈${fmt(s.cost * DEMOLISH_REFUND)} back (Delete; ⌘Z undoes)`, onClick: () => this.raze(this.selected!) },
+          h('span', { class: 'g' }, icon('bulldoze')),
+          'Return to nature',
+        ),
       ),
     );
     this.updateInfo();
@@ -742,6 +888,11 @@ class Hud {
     if (this.timer < 0.2) return;
     this.timer = 0;
     this.placeFloat();
+    // Values change width as they grow (10,000 residents): refit every couple of seconds.
+    if ((this.fitTimer += 0.2) >= 2) {
+      this.fitTimer = 0;
+      this.fitStats();
+    }
     const { city, engine } = ctx;
     const s = city.stats;
     setText(this.timeEl, timeLabel(city.timeOfDay, city.day, document.body.classList.contains('compact')));

@@ -538,3 +538,7 @@ body.compact.flora-open #hud > :not(.ai) {
   top: var(--chips);
   max-height: 60dvh;
 }
+/* The bottom-sheet inspector closes downward (D-070). */
+.compact .info.closing {
+  transform: translateY(14px);
+}

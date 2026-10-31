@@ -91,6 +91,26 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
     },
   });
 
+  // Several buildings in one step (a group selection, D-070): one undo puts them all back, with their serials.
+  stack.register<{ tiles: [number, number][] }, { records: BuildingRecord[]; refund: number }>('demolishMany', {
+    apply({ city }, p) {
+      const eids = [...new Set(p.tiles.map(([x, z]) => city.buildingAt(x, z)).filter((e) => e !== NO_ENTITY))];
+      if (!eids.length) return null;
+      let refund = 0;
+      const records: BuildingRecord[] = [];
+      for (const eid of eids) {
+        refund += city.buildingDef(eid).stats.cost * DEMOLISH_REFUND;
+        records.push(city.removeBuilding(eid));
+      }
+      city.credits += refund;
+      return { records, refund };
+    },
+    revert({ city }, _p, u) {
+      for (const r of u.records) city.addBuilding(r);
+      city.credits -= u.refund;
+    },
+  });
+
   stack.register<RoadPayload, { placed: number[]; cleared: [number, number][]; cost: number }>('road', {
     apply({ city }, p) {
       const placed: number[] = [];

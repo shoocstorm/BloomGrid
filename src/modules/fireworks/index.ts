@@ -3,13 +3,20 @@ import {
   InstancedBufferAttribute,
   InstancedMesh,
   OctahedronGeometry,
+  Vector3,
   type BufferAttribute,
 } from 'three/webgpu';
 import type { GameModule } from '@/game/context';
 import { getMaterial } from '@/render/materials/library';
 import { U } from '@/render/uniforms';
 import { MIN_SHELLS, launchBlocker, stockTotal, storage } from '@/sim/fireworks';
-import type { FireworkKind } from '@/sim/fireworksState';
+import {
+  FIREWORK_SHAPES,
+  type FireworkKind,
+  type FireworkShape,
+  type FireworkShow,
+} from '@/sim/fireworksState';
+import { shapePoints, textPoints } from './shapes';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import './fireworks.css';
@@ -105,7 +112,12 @@ interface Pending {
   at: number;
   x: number;
   z: number;
+  /** A shaped burst or a message instead of the kind's own burst (D-071). */
+  form?: { shape: FireworkShape } | { text: string };
 }
+
+/** Shaped sparks settle on their shape (drag), hang there and drift down slowly. */
+const FORM = { drag: 2.6, gravity: 0.8, life: 2.8, textLife: 3.8, size: 0.42 };
 
 /**
  * Fireworks (D-068): the sim decides when shells go up (`fireworks:volley`, once per pulse); this module spreads
@@ -208,9 +220,12 @@ export const fireworksModule: GameModule = {
       const gx = p.x + (Math.random() * 2 - 1) * SCATTER;
       const gz = p.z + (Math.random() * 2 - 1) * SCATTER;
       const gy = ctx.city.grid.heightAt(gx, gz) + 0.6;
-      const bx = gx + (Math.random() * 2 - 1) * 6;
-      const bz = gz + (Math.random() * 2 - 1) * 6;
-      const by = gy + HEIGHT[0] + Math.random() * (HEIGHT[1] - HEIGHT[0]);
+      // Shapes go up near the middle of the show and a little higher; messages higher still, so they clear roofs.
+      const spread = p.form ? 2 : 6;
+      const bx = gx + (Math.random() * 2 - 1) * spread;
+      const bz = gz + (Math.random() * 2 - 1) * spread;
+      const lift = p.form ? ('text' in p.form ? 16 : 8) : 0;
+      const by = gy + lift + HEIGHT[0] + Math.random() * (HEIGHT[1] - HEIGHT[0]);
       const rise = ROCKET_RISE * (0.85 + Math.random() * 0.3);
       for (let t = 0; t < 4; t++)
         write(
@@ -230,6 +245,7 @@ export const fireworksModule: GameModule = {
           1 - t * 0.2,
         );
       const t0 = now + rise;
+      if (p.form) return burstForm(p.form, bx, by, bz, t0);
       const hex = L.colors[Math.floor(Math.random() * L.colors.length)]!;
       // Ring plane: a random tilt.
       const tilt = Math.random() * 1.2;
@@ -276,25 +292,95 @@ export const fireworksModule: GameModule = {
       }
     };
 
+    /**
+     * A shaped burst: every spark flies to its point of the shape in a plane facing the camera (velocity = target
+     * × drag, so it settles there), then hangs and drifts; a white flash marks the centre.
+     */
+    const right = new Vector3();
+    const up = new Vector3();
+    const burstForm = (
+      form: NonNullable<Pending['form']>,
+      bx: number,
+      by: number,
+      bz: number,
+      t0: number,
+    ) => {
+      const e = ctx.camera.matrixWorld.elements;
+      right.set(e[0]!, e[1]!, e[2]!).normalize();
+      up.set(e[4]!, e[5]!, e[6]!).normalize();
+      const text = 'text' in form;
+      const points = text ? textPoints(form.text) : shapePoints(form.shape);
+      const life = text ? FORM.textLife : FORM.life;
+      const k = FORM.drag;
+      // Shapes get a little organic spread; letters none (it grows with distance from the centre and would smear
+      // the outer letters of a long message).
+      const spreadJ = text ? 0 : 0.03;
+      const size = text ? FORM.size * 0.8 : FORM.size;
+      for (const pt of points) {
+        const j = 1 - spreadJ / 2 + Math.random() * spreadJ;
+        const vx = (right.x * pt.x + up.x * pt.y) * k * j;
+        const vy = (right.y * pt.x + up.y * pt.y) * k * j;
+        const vz = (right.z * pt.x + up.z * pt.y) * k * j;
+        const l = life * (0.92 + Math.random() * 0.12);
+        for (let t = 0; t <= 1; t++)
+          write(
+            bx,
+            by,
+            bz,
+            t0 + t * TRAIL_GAP,
+            vx,
+            vy,
+            vz,
+            l - t * TRAIL_GAP,
+            k,
+            FORM.gravity,
+            size * (1 - t * 0.3),
+            0,
+            pt.color,
+            1 - t * 0.4,
+          );
+      }
+      for (let i = 0; i < 14; i++) {
+        const a = i * 2.39996;
+        const yy = 1 - (2 * (i + 0.5)) / 14;
+        const r = Math.sqrt(1 - yy * yy) * 7;
+        write(bx, by, bz, t0, Math.cos(a) * r, yy * 7, Math.sin(a) * r, 0.5, 3, 0, 0.6, 0, 0xfff4e0, 1.2);
+      }
+    };
+
     const pending: Pending[] = [];
     ctx.bus.on('fireworks:volley', ({ show, kinds, finale }) => {
       const now = U.clock.value;
       // Spread the volley over the next pulse (one sim second, shorter at speed), the finale denser.
       const span = (finale ? 0.7 : 1) / Math.max(1, ctx.engine.speed);
+      const first = show.fired - kinds.length;
       kinds.forEach((kind, i) =>
         pending.push({
           kind,
           at: now + ((i + Math.random() * 0.6) / kinds.length) * span,
           x: show.x,
           z: show.z,
+          form: formFor(show, first + i),
         }),
       );
     });
+    /**
+     * Which shells are shaped (D-071): a message at a quarter of the way and again as the finale opens; a featured
+     * shape every third shell; otherwise every fifth shell is a heart, the rings or a butterfly in turn.
+     */
+    const formFor = (show: FireworkShow, n: number): Pending['form'] => {
+      if (show.text && (n === Math.floor(show.shells * 0.25) || n === Math.round(show.shells * 0.6)))
+        return { text: show.text };
+      if (show.shape) return n % 3 === 1 ? { shape: show.shape } : undefined;
+      return n % 5 === 2
+        ? { shape: FIREWORK_SHAPES[Math.floor(n / 5) % FIREWORK_SHAPES.length]! }
+        : undefined;
+    };
     const where = (x: number, z: number) =>
       ctx.city.districtAt(Math.floor(x), Math.floor(z)) ?? 'the outskirts';
     ctx.bus.on('fireworks:start', ({ show }) =>
       ctx.bus.emit('toast', {
-        text: `🎆 ${show.grand ? 'Grand fireworks' : 'Fireworks'} over ${where(show.x, show.z)} · ${show.shells} shells`,
+        text: `🎆 ${show.grand ? 'Grand fireworks' : 'Fireworks'} over ${where(show.x, show.z)} · ${show.shells} shells${show.text ? ` · “${show.text}”` : ''}`,
         tone: 'ok',
         at: { x: show.x, z: show.z },
       }),
@@ -329,7 +415,8 @@ export const fireworksModule: GameModule = {
     let last = '';
     // Factory storage only changes when buildings do.
     let cap = -1;
-    for (const ev of ['building:added', 'building:removed', 'city:reset'] as const) ctx.bus.on(ev, () => (cap = -1));
+    for (const ev of ['building:added', 'building:removed', 'city:reset'] as const)
+      ctx.bus.on(ev, () => (cap = -1));
     const refreshButton = () => {
       const fw = ctx.city.fireworks;
       const n = stockTotal(fw.stock);

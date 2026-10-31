@@ -1,6 +1,6 @@
 // Fireworks drill (D-068): uses the founding city's Westport waterfront Fireworks Factory (built if missing), fills its racks, sets the clock to
 // night and launches a grand show, framed from across the bay. `window.DAY = 1` keeps daylight; `window.FAR = 1`
-// pulls back to the island overview; `window.TAB = 1` opens the dashboard's Fireworks tab. Evaluated by
+// pulls back to the island overview; `window.TAB = 1` opens the dashboard's Fireworks tab; `window.TEXT = 'HI'` writes a message, `window.SHAPE = 'heart' | 'rings' | 'butterfly'` features a shape. Evaluated by
 // scripts/snap.mjs (use `--after 4000` so the shells are up).
 (async () => {
   const g = window.bloomgrid;
@@ -15,7 +15,7 @@
   g.engine.speed = 1;
   const site = c.buildingEntities().find((e) => c.buildingDef(e).id === 'fireworks-factory');
   const r = c.buildingRecord(site);
-  const ok = g.commands.execute('launchFireworks', { grand: true });
+  const ok = g.commands.execute('launchFireworks', { grand: true, text: window.TEXT, shape: window.SHAPE });
   if (window.FAR) g.cameraCtl.overview();
   else {
     g.cameraCtl.lookAt(r.x + 2, r.z + 2, window.NEAR ?? 170, true);

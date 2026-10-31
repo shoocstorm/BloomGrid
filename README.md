@@ -99,6 +99,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | ------------------ | -------------------------------------------------------------------------------------------------- |
 | Move the camera    | **WASD** / arrows · right-drag or **Q/E** orbit · wheel zoom                                       |
 | Build              | City Pulse → **Build**: pick an action or a building category (click; no number keys). A card explains the action, or shows the building's 3D preview, numbers and abilities · **R** rotate · **X** bulldoze |
+| Select & remove    | Click a building to inspect it · **Ctrl/⌘-drag** a box to select every building of one type inside it (the type under where you start) · **Delete** (or ⌫) returns the selection to nature, as does the inspector's *Return to nature* (one undo restores it all) |
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **B** Bloom Retrofit · **Y** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
 | Watch your city    | **P** folds the City Pulse console (tabs: Pulse, Build, Lenses, Flora-Net; on phones, separate sheets) · **L** data lenses · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **M** city map (⌗ MAP in the top bar: every district named; click one to fly there) |
@@ -146,7 +147,10 @@ fly there, or press **.** to step through the fires, hottest first.
 palm and crackle shells (materials cost credits) and fires a show over the city every night at 21:00. Launch one
 yourself any time with the fireworks button in the top bar (it shows the shells in stock; shift-click for a grand
 show), from the dashboard's **Fireworks** tab (**K**, then Fireworks: stock, shows so far, effects, nightly on/off),
-or ask Flora ("launch the fireworks", "how many fireworks shows have we had?"). Shows lift harmony and draw visitors,
+or ask Flora ("launch the fireworks", "how many fireworks shows have we had?"). Shows mix in shaped shells:
+hearts, the five Olympic rings and butterflies. Ask Flora for a message in the sky ("fireworks that say HAPPY
+BIRTHDAY") or type `/launch_fireworks text="I <3 BLOOMGRID" shape=heart grand=true` in her console (up to 18
+letters, digits, spaces, ♥ and ! ? & - +; `shape` = heart, rings or butterfly). Shows lift harmony and draw visitors,
 but the smoke adds pollution, dry nights risk a stray spark setting a roof alight, and shows fired back to back stop
 delighting residents and start to annoy them.
 

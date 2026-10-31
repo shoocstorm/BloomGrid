@@ -831,3 +831,53 @@ transparent hole over the canvas, and inside the console the panel glass dimmed 
 short card (name, three lines, Rotate) first in the strip, no preview. The founding city now has two Fireworks
 Factories on the lots nearest the sea (`byTheSea` in `founding-city.ts`): one on the Westport waterfront west of the
 works (its lot named Westport Wharf, an industry area, since the works' blocks sit inland) and one on Foundry Islet.
+
+## D-070 — Flicker probe and fixes; instant Return to nature; group selection (2026-10-31)
+
+**Flicker.** `bun run flicker` (scripts/flicker.mjs) pans the camera ~0.15 px per frame at night with the shader
+clock pinned and the sim paused, and reports the share of pixels whose brightness jumps by more than 48/255 between
+rendered frames: a well anti-aliased edge changes by ~15% of its contrast, a detail popping in or out of a pixel
+jumps fully. It isolates instanced pieces (`--pieces all`), module meshes (`--pieces names`) or a building type's
+pieces (`--defs`) on render layers (the instancer rewrites `visible` every frame), waits on `engine.frames` (an
+unfocused page renders at 15 fps) and starts the camera's focus on the ground (it eases there otherwise). Earlier
+measurements (fixed 0.05-tile steps) counted real edge motion at close zoom; this one doesn't. Fixes: the moss
+membrane's moss/plaster edge (a noise contour 0.04 units wide: hairlines on every Canopy Tower) is at least a pixel
+soft (moss alone 2.7% → 0.08% at close zoom, old metric); concrete per-tile tones, mosaic, charred grain and knots,
+ashlar tones, bamboo weave and fine noise fade to their mean below a pixel or two; `stripes()` starts fading once a
+line is ~1 px wide (was ~½ px), which covers façade grout, glass mullions (now stripes, not `step`), dome ribs and
+solar busbars; flowers keep full glow from 10 px (was 4), lumen ribs from 8 (was 3), halo rings from 80; pool
+ripples fade from afar; sky-lane dashes are tents, not sawtooths (a hard tail swept along every lane), and ribbons
+keep a 1-px soft rim when their profile flattens. Whole scene, High, night (distances 70/140/260): downtown
+0.200/0.151/0.102% → 0.133/0.113/0.076%; Canopy Tower quarter 0.219/0.145/0.057% → 0.156/0.114/0.044%; Medium (no
+MSAA) 0.63/0.83/1.13% → 0.46/0.65/0.95%. What is left is mostly geometric edges of thin pieces (slab plates, halo
+tubes), which only MSAA (High and up) or a temporal AA would address.
+
+**Removal.** The inspector's *Return to nature* demolishes at once (undoable) instead of switching to the bulldoze
+tool; the inspector fades out. Demolitions animate: pieces swell slightly and shrink away top-down over ~0.8 s
+(`ChunkedInstancer.removeAnimated`, out-tweens), and a few wild plants sprout on the lot and fade after ~3 s (render
+only). **Group selection:** Ctrl/⌘-drag in Inspect boxes buildings of one type (`selectInRect`: the type under the
+first corner, else the commonest; a building counts when its centre is inside), highlighted live with a count; the
+group inspector shows totals, member ids and *Return all to nature*; Delete/⌫ removes the selection (single or
+group). A group removal is one command (`demolishMany`), so one undo restores every building with its id.
+
+## D-071 — Shaped fireworks and sky messages; the status bar fits its width (2026-10-31)
+
+**Shapes.** Shows mix in shaped bursts: hearts, the five Olympic rings (black drawn silver, as black sparks don't
+show at night) and Temple Fay's butterfly curve. The renderer picks them per shell from the show (every fifth shell
+in turn; every third when a steward show features a `shape`), so no extra sim state or stock: shapes are a way of
+packing the same shells. A shaped burst lays its points in a plane facing the camera at launch, and each spark's
+velocity is its target × drag, so it settles on the shape, hangs, and drifts down; a white flash marks the centre.
+**Messages.** `launchFireworks` and Flora's `launch_fireworks` take `text` (≤ 18 characters) and `shape`; the show
+saves both (hashed, and kept in the show history). `skyText` (content/skyFont.ts) upper-cases, turns `<3` and
+heart emoji into ♥ and drops what the 5×7 dot font lacks; each lit dot is a spark (no position jitter: it grows with
+distance from the centre and smeared long messages). The message goes up at a quarter of the show and again as the
+finale opens, 16 units above the other bursts. Routing: "fireworks that say …" and "heart fireworks" go to
+`launch_fireworks`; slash: `/launch_fireworks text="…" shape=heart`.
+
+**Status bar.** Viewport media queries couldn't know how wide the brand, clock and action panels are, so the
+stats clipped (the last value was cut off at 1440 px). `Hud.fitStats` now measures: it adds cumulative `fit-N`
+classes to the top bar until the stats stop overflowing, on resize (ResizeObserver) and every 2 s as values
+grow: 1 labels, meter and the Map label; 2 secondary values and the brand subtitle; 3 tighter spacing and the brand
+name; 4 ecology and the fireworks count; 5 water and the fastest speed; 6 redo, overview, load and the season bar;
+7 the fast speed and the season chip. Measured: 2200 px full, 1600 px level 1, 1440 px level 2, 1100 px level 5,
+960–920 px level 6, nothing clipped. Phones keep their own layout.

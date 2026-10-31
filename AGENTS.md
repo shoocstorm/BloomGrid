@@ -29,6 +29,7 @@ bun run check          # typecheck + lint + tests + production build (must pass 
 bun run test           # vitest only (NOT `bun test`: that is bun's own runner and skips the Vitest setup)
 bun run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500] [--mobile [--size 844x390]]
 bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--profile 15]   # power/perf probe (see §8)
+bun run flicker -- [--pieces all|names|a,b] [--defs canopy-tower] [--day] [--diff shots/f.png]   # thin-detail flashing probe (D-070)
 bun run trailer       # record a ~30s cinematic trailer to shots/trailer.mp4 (dev server + ffmpeg; --duration, --fps, --out)
 bun run trailer:feature  # ~60s feature trailer (wind farm, Bloomtopia, train ride, Flora console, dawn bloom) to shots/feature-trailer.mp4
 bun run optimize-glb -- raw.glb public/assets/x.glb --footprint 3 --height 4 [--ratio 0.5] [--yaw 90] [--tex 1024]
@@ -127,10 +128,12 @@ To light a fire from a snap eval: `(await import('/src/sim/hazards.ts')).ignite(
 | Phone layout / touch input         | `.compact` rules in `src/ui/mobile.css` (loaded last), `platform/device.ts` (`isCompact`, `isTouchDevice`); foldable panels register with `hud.sheet(el)`; gestures in `input/Input.ts`, tools get `cancel` and `e.touch` (D-045). Check with `bun run snap -- --mobile` |
 | Zones (living, work, industry…)    | `ZoneKind` / `ZONES` in `src/content/types.ts`; `nameArea(…, zone)` in a scenario; `District.zone` (saved, hashed); town sub-zones in `founding-city.ts` (`zones` on a `Town`) |
 | Hazards (quake, lightning, fire)   | `src/sim/hazards.ts` (crises, fires, ruins, `respond` / `repair`), log via `logIncident` in `sim/crises.ts`; visuals, fire panel and locators (beacons, screen pins, `.` next fire) `src/modules/hazards/`; a `toast` with `at: { x, z }` is a fly-to button; Incidents tab `modules/dashboard/IncidentLog.ts`; Flora tools `sim/hazardTools.ts`; stations: `response` on a def (D-050) |
-| Fireworks                          | sim `src/sim/fireworks.ts` (state in `fireworksState.ts`, `city.fireworks`; `fireworks` on a def; commands `launchFireworks`, `setFireworksAuto`), Flora tools `sim/fireworksTools.ts`; particles, top-bar button and toasts `src/modules/fireworks/` (the `firework` material flies sparks from `U.clock`: write a particle once, never re-pose); dashboard tab `modules/dashboard/FireworksView.ts` (D-068) |
+| Fireworks                          | sim `src/sim/fireworks.ts` (state in `fireworksState.ts`, `city.fireworks`; `fireworks` on a def; commands `launchFireworks`, `setFireworksAuto`), Flora tools `sim/fireworksTools.ts`; particles, top-bar button and toasts `src/modules/fireworks/` (the `firework` material flies sparks from `U.clock`: write a particle once, never re-pose); shaped bursts `fireworks/shapes.ts` and the sky message font `content/skyFont.ts` (`skyText` cleans messages, D-071); dashboard tab `modules/dashboard/FireworksView.ts` (D-068) |
+| Group selection, batch removal     | Ctrl/⌘-drag in the select tool (`modules/construction/tools.ts`) → `selectInRect` (`src/sim/select.ts`) → `selection:changed` with `eids`; group inspector `selectGroup` in `ui/Hud.ts`; `demolishMany` command (one undo); Delete key and the inspector's Return to nature remove at once; removals animate via `instancer.removeAnimated` (D-070) |
 | Build tab (actions, categories)    | `buildDock` / `renderTray` / `renderBrief` in `src/ui/Hud.ts`; action explanations and building facts in `src/ui/buildHelp.ts` (`ACTION_HELP`: a new tool needs an entry; numbers come from sim constants); the building preview floats beside the console (`preview.showDef`, `BuildingRenderer.designParts`), never under panel glass (D-069) |
 | Wind turbines                      | building `src/content/buildings/wind-turbine.ts` (plinth + tower); nacelles and spinning rotors `src/modules/wind/` (one prevailing wind, CPU-posed from `U.clock`); founding-city farm placement in `founding-city.ts` (`WIND_TURBINES` cap, D-047) |
 | City map (districts)               | `src/modules/citymap/` (canvas painted on open from `city.districts`; labels fit their district); button prepended to `hud.stats`; **M** (Flora-Net mist moved to **Y**) |
+| Top status bar fitting             | `Hud.fitStats` adds cumulative `fit-1…7` classes to `.topbar` until `.stats` stops clipping (rules at the end of `ui/theme.css`); a new top-bar element should say at which level it gives way (D-071) |
 | HUD layout (desktop)               | one left console, City Pulse with tabs (D-056): add a tab with `services.get('pulse').addTab(id, label, glyph, ...els)` (elements return to their phone home on `.compact`); Build adopts `hud.toolbar` / `hud.tray`; telemetry strip in its header (`hud.readout`); explore modes are a top-bar dropdown (`explore/index.ts`); Flora's orb in `hud.dockRow` (bottom-right); console styles at the end of `ui/theme.css` |
 | Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                                                                                             |
 | New lit material                   | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)                                                                             |
@@ -253,6 +256,8 @@ own `requestAnimationFrame` loops.
 - Small or thin lit details flash when the camera moves (sub-pixel, then bloomed). Scale glow by `pieceCover()`, draw
   repeating lines with `stripes()`, and fade patterns to their mean using `fwidth` (`groundPx()`) in
   `render/materials/library.ts` (D-064).
+  Measure with `bun run flicker` (per piece: `--pieces all`; module meshes: `--pieces names`; `--diff` shows where):
+  patterns with hard `step()`/per-cell `hash()` edges and noise contours need a pixel-wide soft edge or a fade to their mean (D-070).
 
 ## 9. Picking up work
 

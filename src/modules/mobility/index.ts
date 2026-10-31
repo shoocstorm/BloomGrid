@@ -228,16 +228,20 @@ export const mobilityModule: GameModule = {
       const flow = mix(mix(float(0.9), float(2.2), isTrunk), float(1.6), isRail);
       // Zoomed out, the running dashes shrink below a pixel and strobe as they move: fade them to their mean (D-064).
       const phase = t.mul(len).mul(0.35);
-      const dash = mix(smoothstep(0.55, 1, fract(phase.sub(time.mul(flow)))), float(0.225), smoothstep(0.15, 0.45, fwidth(phase)));
+      // Each dash fades in and out (a tent, not a sawtooth): a hard tail edge sweeping along the lane strobes (D-070).
+      const tent = float(1).sub(abs(fract(phase.sub(time.mul(flow))).mul(2).sub(1)));
+      const dash = mix(smoothstep(0.55, 1, tent), float(0.225), smoothstep(0.15, 0.45, fwidth(phase)));
       // Trunks carry a bright centre line between two edge rails.
       const across = abs(positionGeometry.z);
       const sharpEdge = mix(smoothstep(0.5, 0.15, across), smoothstep(0.08, 0.0, across).add(smoothstep(0.3, 0.45, across).mul(smoothstep(0.5, 0.45, across))), isTrunk);
       // Seen edge-on (or far), a ribbon narrows below a few pixels and its profile lines pop in and out: fade the
       // profile to its mean once sub-pixel, and the ribbon's opacity once it is under ~3 px wide (D-064).
       const fwAcross = max(fwidth(positionGeometry.z), float(1e-5));
-      const edge = mix(sharpEdge, mix(float(0.65), float(0.23), isTrunk), smoothstep(0.08, 0.3, fwAcross)).mul(
-        min(float(1), float(1 / 3).div(fwAcross)),
-      );
+      // The flattened profile still needs a soft rim: a hard ribbon edge a few pixels apart crawls in motion (D-070).
+      const rim = min(float(1), float(0.5).sub(across).div(fwAcross));
+      const edge = mix(sharpEdge, mix(float(0.65), float(0.23), isTrunk), smoothstep(0.08, 0.3, fwAcross))
+        .mul(min(float(1), float(1 / 3).div(fwAcross)))
+        .mul(rim);
       const ends = smoothstep(0, 0.04, t).mul(smoothstep(1, 0.96, t));
       // Deep, saturated colours by day (pale neon vanishes over the sunlit city), bright neon at night.
       const n = U.night;
@@ -280,7 +284,8 @@ export const mobilityModule: GameModule = {
       rm.positionNode = ring.xyz.add(vec3(tilted.x.mul(ca).add(tilted.z.mul(sa)), tilted.y, tilted.z.mul(ca).sub(tilted.x.mul(sa))));
       // Light dashes chasing round the ring.
       const around = uv().x.mul(24);
-      const dash = mix(smoothstep(0.35, 0.9, fract(around.sub(U.clock.mul(0.8)))), float(0.375), smoothstep(0.15, 0.45, fwidth(around)));
+      const tent = float(1).sub(abs(fract(around.sub(U.clock.mul(0.8))).mul(2).sub(1)));
+      const dash = mix(smoothstep(0.35, 0.9, tent), float(0.375), smoothstep(0.15, 0.45, fwidth(around)));
       const gold = clamp(spin.w, 0, 1);
       const rose = clamp(spin.w.sub(1), 0, 1);
       const day = mix(mix(color(0x0aa89a), color(0xff9414), gold), color(0xd93a7a), rose);
