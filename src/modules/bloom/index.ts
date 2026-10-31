@@ -1,5 +1,6 @@
 import { Color, DoubleSide, IcosahedronGeometry, InstancedMesh, Matrix4, Mesh, MeshBasicNodeMaterial, MeshStandardNodeMaterial, RingGeometry } from 'three/webgpu';
 import { color, float, mod, positionGeometry, positionLocal, sin, smoothstep, time, vec3 } from 'three/tsl';
+import { pieceCover } from '@/render/materials/library';
 import type { GameModule } from '@/game/context';
 import { activityAt, bloomAt, bloomTexture } from '@/render/materials/overlay';
 import { U } from '@/render/uniforms';
@@ -60,7 +61,8 @@ export const bloomModule: GameModule = {
     const size = smoothstep(0.25, 0.8, field).mul(U.pollen);
     pm.positionNode = at.add(positionGeometry.mul(size));
     pm.colorNode = color(0xfff2b0);
-    pm.emissiveNode = color(0xffe08a).mul(0.6).add(color(0x7ff7e6).mul(U.night).mul(0.8));
+    // Motes under ~3 px twinkle as they drift and the camera moves: their glow follows their pixel coverage (D-064).
+    pm.emissiveNode = color(0xffe08a).mul(0.6).add(color(0x7ff7e6).mul(U.night).mul(0.8)).mul(pieceCover(25));
     const pollen = new InstancedMesh(new IcosahedronGeometry(0.06, 0), pm, POLLEN_COUNT);
     const m = new Matrix4();
     for (let i = 0; i < POLLEN_COUNT; i++) pollen.setMatrixAt(i, m.makeTranslation((Math.random() - 0.5) * BOX, Math.random() * HEIGHT, (Math.random() - 0.5) * BOX));

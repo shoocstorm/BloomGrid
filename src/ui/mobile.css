@@ -493,3 +493,18 @@ body.compact.flora-open #hud > :not(.ai) {
 .compact #hud.exploring .toasts {
   top: calc(env(safe-area-inset-top, 0px) + 62px);
 }
+
+/* Debug panels (F3 telemetry, ` inspector) on phones: full width above the toolbar / under the chips. */
+.compact .perf.holo {
+  left: var(--gut);
+  right: var(--gut);
+  width: auto;
+  bottom: calc(var(--bot) + 58px);
+}
+.compact .insp.holo {
+  left: var(--gut);
+  right: var(--gut);
+  width: auto;
+  top: var(--chips);
+  max-height: 60dvh;
+}

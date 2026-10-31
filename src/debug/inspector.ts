@@ -3,6 +3,8 @@ import type { GameContext } from '@/game/context';
 import { QUALITY_TIERS, type QualityTier } from '@/render/Quality';
 import { U } from '@/render/uniforms';
 import { h } from '@/ui/dom';
+import { holoHead } from '@/ui/holo';
+import { icon } from '@/ui/icons';
 import { spawnStressCity } from './stress';
 import { allCrises, forecastCrisis } from '@/sim/crises';
 
@@ -11,9 +13,25 @@ import { allCrises, forecastCrisis } from '@/sim/crises';
  * Tweakpane is not parsed at every boot.
  */
 export function createInspector(ctx: GameContext): { container: HTMLElement; refresh(): void } {
-  const container = h('div', { style: 'position:absolute;right:12px;top:74px;width:280px;display:none' });
+  // A holo panel (theme.css `.insp`) around the pane; Tweakpane's own look is re-themed through its --tp-* tokens.
+  const body = h('div', { class: 'insp-pane' });
+  const container = h(
+    'div',
+    { class: 'insp panel holo hidden' },
+    h(
+      'div',
+      { class: 'insp-head' },
+      holoHead(icon('wrench'), 'Debug console', 'Inspector', 'Toggle with the ` key'),
+      h(
+        'button',
+        { class: 'icon-btn', title: 'Close (`)', 'aria-label': 'Close inspector', onClick: () => container.classList.add('hidden') },
+        icon('close'),
+      ),
+    ),
+    body,
+  );
   ctx.hud.append(container);
-  const pane = new Pane({ title: 'BloomGrid Inspector', container });
+  const pane = new Pane({ container: body });
   const state = {
     timeOfDay: ctx.city.timeOfDay,
     quality: ctx.quality.tier,

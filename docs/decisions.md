@@ -756,6 +756,12 @@ Follow-up: flowers and sunflower petals (`flower`, `lily`) keep their glow by `p
 geometry per pixel), moss blossom specks fade once sub-pixel, solar busbars and dome ribs use `stripes()`, and glass
 windows blend their lit/dark pattern, tone and frames toward the average once a window spans a few pixels. Full
 scene, same probe: 0.38 / 1.93 / 2.28% → 0.21 / 0.82 / 1.44% at island view / 220 / 120.
+Sweep (per piece type, each rendered alone, night and day, three zooms and districts): `moss` veins are AA'd
+contour lines and its fine noise fades; `lumen` ribs and the halo torus (`lumenThin`) scale glow by `pieceCover`;
+fungus, pollen motes and commuter lights likewise; pool lilies, timber grain and algae bubbles fade once sub-pixel;
+slab façade grout/seams/mortar and station glass ribs use `stripes()`; glass frames (colour, roughness, metalness)
+average by day too; sky-lane ribbons fade their profile and opacity when edge-on. Full night scene: 0.21 / 0.82 /
+1.44% → 0.08 / 0.25 / 0.83%; every piece type is now under ~0.16% alone (the rest is real motion: lanes, pods).
 
 ## D-065 — Flora loads a core on demand; core ignition; header close and no orb while open (2026-10-31)
 
@@ -768,3 +774,11 @@ Warm steps, cycling status lines) replaces the drawer, with a one-shot "core onl
 loading (transforms, opacity, stroke offset). The header puts the link status under the name so a round close button
 always fits (it was pushed off the 430 px header), Esc closes the console when no tool is active, and the orb hides
 while the console is open so it reaches the bottom of the screen.
+
+## D-066 — Slash-command autocomplete; F3 and inspector as holo panels (2026-10-31)
+
+Flora's input completes `/commands` from the agent tool registry (`modules/assistant/Slash.ts`): command names
+(prefix matches first), then the command's argument keys (required first, with type or enum hints), then enum or
+boolean values; ↑/↓, Tab/Enter, Esc, click. It only edits the text; sending is unchanged. F3 is a telemetry panel
+(FPS hero with a 12 s sparkline on a canvas redrawn at 4 Hz, tiles, draw-call meter against the 300 budget, hottest
+systems when profiling) and the ` inspector wraps Tweakpane in a holo panel, themed through its `--tp-*` tokens.

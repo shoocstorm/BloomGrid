@@ -74,8 +74,8 @@ const swayed = (amp: number) => {
  * its own geometry) spans `px` pixels or more, then in proportion. `stripes` is `step(edge, fract(v))` with
  * pixel-soft edges that fades to its mean (1 - edge) once a stripe is under a pixel.
  */
-const pieceCover = (px = 4) => min(float(1), float(1 / px).div(max(length(fwidth(positionGeometry)), float(1e-5))));
-const stripes = (v: Node<'float'>, edge: number) => {
+export const pieceCover = (px = 4) => min(float(1), float(1 / px).div(max(length(fwidth(positionGeometry)), float(1e-5))));
+export const stripes = (v: Node<'float'>, edge: number) => {
   const w = fwidth(v);
   const sharp = smoothstep(float(edge).sub(w.mul(0.5)), float(edge).add(w.mul(0.5)), fract(v));
   return mix(sharp, float(1 - edge), smoothstep(0.2, 0.6, w));
@@ -150,7 +150,7 @@ export function initMaterials(): void {
     // 1 Tile courses: staggered tiles with grout and a tone per tile.
     const row = floor(y.div(0.08));
     const tu = u.div(0.22).add(mod(row, 2).mul(0.5));
-    const grout = max(step(0.86, fract(y.div(0.08))), step(0.93, fract(tu)));
+    const grout = max(stripes(y.div(0.08), 0.86), stripes(tu, 0.93));
     const tiles = mix(hash(row.mul(13).add(floor(tu))).mul(0.16).add(0.9), float(0.74), grout);
     // 2 Rammed earth: wavy strata of warmer and cooler earth.
     const strata = sin(y.mul(38).add(n2.mul(3))).mul(0.5).add(0.5);
@@ -158,23 +158,23 @@ export function initMaterials(): void {
     // 3 Lime plaster: soft mottling.
     const plaster = float(1).sub(n1.mul(0.06)).sub(n2.mul(0.06));
     // 4 Standing-seam copper: patina panels with seams and copper-brown weathering.
-    const seam = step(0.94, fract(u.mul(5)));
+    const seam = stripes(u.mul(5), 0.94);
     const panel = hash(floor(u.mul(5)).add(floor(y.mul(1.2)).mul(7))).mul(0.1).add(0.95);
     const patina = mix(vec3(1), vec3(1.45, 0.82, 0.56), smoothstep(0.25, 0.7, n2)).mul(panel);
     const copper = mix(patina, vec3(0.62), seam);
     // 5 Glazed mosaic: small tiles, each its own shade and tint.
     const cell = floor(vec3(u.mul(14), y.mul(14), 0));
     const hm = vec3(hash(cell.x.add(cell.y.mul(57))), hash(cell.x.mul(3).add(cell.y.mul(11)).add(5)), hash(cell.x.mul(7).add(cell.y.mul(29)).add(9)));
-    const mosaicGrout = max(step(0.86, fract(u.mul(14))), step(0.86, fract(y.mul(14))));
+    const mosaicGrout = max(stripes(u.mul(14), 0.86), stripes(y.mul(14), 0.86));
     const mosaic = mix(hm.sub(0.5).mul(0.3).add(1), vec3(0.86), mosaicGrout);
     // 6 Charred boards: vertical boards with gaps and a crackled grain.
-    const board = step(0.92, fract(u.div(0.12)));
+    const board = stripes(u.div(0.12), 0.92);
     const grain = sin(y.mul(90).add(n1.mul(8))).mul(0.08);
     const charred = mix(float(1).add(grain).add(step(0.55, n1).mul(0.25)), float(0.55), board);
     // 7 Ashlar: staggered stone blocks with pale mortar.
     const course = floor(y.div(0.16));
     const bu = u.div(0.36).add(mod(course, 2).mul(0.5));
-    const mortar = max(step(0.9, fract(y.div(0.16))), step(0.95, fract(bu)));
+    const mortar = max(stripes(y.div(0.16), 0.9), stripes(bu, 0.95));
     const ashlar = mix(hash(course.mul(17).add(floor(bu))).mul(0.18).add(0.88).sub(n1.mul(0.04)), float(1.12), mortar);
     // 8 Woven bamboo: basket weave, strands alternating direction per cell.
     const checker = mod(floor(u.mul(10)).add(floor(y.mul(10))), 2);
@@ -200,7 +200,10 @@ export function initMaterials(): void {
 
   define('timber', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.9 });
-    const grain = sin(positionWorld.y.mul(60).add(mx_noise_float(positionWorld.mul(4)).mul(6))).mul(0.06);
+    // Fine grain (~0.1-unit period) aliases once sub-pixel: fade it out with distance (D-064).
+    const grain = sin(positionWorld.y.mul(60).add(mx_noise_float(positionWorld.mul(4)).mul(6)))
+      .mul(0.06)
+      .mul(float(1).sub(smoothstep(0.015, 0.05, length(fwidth(positionWorld)))));
     m.colorNode = color(0xffffff).add(grain);
     return m;
   });
@@ -248,22 +251,24 @@ export function initMaterials(): void {
     // Classic keeps its teal panes; styled glazing is a neutral reflectance times the style's pane tint.
     const pane = mix(vec3(mix(float(0.62), float(1), shimmer)), mix(color(0x4f8f96), color(0x86c4c0), shimmer), classic);
     const frame = mix(st.frame.div(max(instanceColor, vec3(0.08))), color(0xf3efe4), classic);
-    m.colorNode = mix(pane, frame, mullion);
-    m.roughnessNode = mix(float(0.12), float(0.7), mullion);
-    m.metalnessNode = mix(float(0.45), float(0.0), mullion);
+    // Once a window spans only a few pixels, frames vs panes (by day) and lit vs dark windows (by night) twinkle as
+    // the camera moves, and bloom makes the lights flash: blend them toward their averages so far façades read
+    // evenly (D-064).
+    const far = smoothstep(0.2, 0.5, max(fwidth(u.mul(k)), fwidth(y.div(0.32))));
+    const frames = mix(mullion, float(0.25), far);
+    m.colorNode = mix(pane, frame, frames);
+    m.roughnessNode = mix(float(0.12), float(0.7), frames);
+    m.metalnessNode = mix(float(0.45), float(0.0), frames);
     // aParams.w = power supply: windows go dark during brownouts.
     // About 40% of windows lit in the evening, thinning to ~10% in the small hours; each its own brightness and
     // tone (mostly amber lamps, a few cool screens), so façades read as rooms rather than glowing panels.
     const wh = hash(floorIdx.mul(17.0).add(col.mul(3.0)).add(iSeed.mul(91)));
     const cut = U.lateNight.mul(0.3).add(0.6);
-    // Once a window spans only a few pixels, its on/off pattern twinkles as the camera moves (bloom makes it a
-    // flash): blend lit share, tone and frames toward their averages so far façades glow evenly (D-064).
-    const far = smoothstep(0.2, 0.5, max(fwidth(u.mul(k)), fwidth(y.div(0.32))));
     const lit = mix(step(cut, wh), float(1).sub(cut), far).mul(iParams.w);
     const tone = mix(hash(col.mul(1.7).add(floorIdx.mul(5.3)).add(iSeed.mul(13))), float(0.5), far);
     const warm = mix(mix(color(0xff9f4a), color(0xffd9a0), tone), color(0xcfe4ff), step(0.88, tone));
     const level = tone.mul(0.6).add(0.25);
-    m.emissiveNode = warm.mul(lit).mul(level).mul(float(1).sub(mix(mullion, float(0.25), far))).mul(U.night).mul(0.55).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.05));
+    m.emissiveNode = warm.mul(lit).mul(level).mul(float(1).sub(frames)).mul(U.night).mul(0.55).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.05));
     return m;
   });
 
@@ -276,13 +281,19 @@ export function initMaterials(): void {
     const cover = smoothstep(n.sub(0.12), n.add(0.12), iGreenery.mul(0.9).add(up.mul(0.45)).add(0.22));
     const mossA = color(0x4f8f3a);
     const mossB = color(0x8cc95a);
-    const mossCol = mix(mossA, mossB, mx_noise_float(p.mul(2.7)).mul(0.5).add(0.5));
+    const wpx = length(fwidth(positionWorld));
+    const mossCol = mix(mossA, mossB, mx_noise_float(p.mul(2.7)).mul(float(1).sub(smoothstep(0.03, 0.1, wpx))).mul(0.5).add(0.5));
     const cells = mx_worley_noise_float(positionWorld.mul(9));
     // Blossom specks (~0.02 units) are sub-pixel beyond close range: fade them out instead of letting them sparkle.
-    const blossom = step(cells, 0.07).mul(cover).mul(iGreenery).mul(float(1).sub(smoothstep(0.02, 0.06, length(fwidth(positionWorld)))));
+    const blossom = step(cells, 0.07).mul(cover).mul(iGreenery).mul(float(1).sub(smoothstep(0.02, 0.06, wpx)));
     const petal = mix(color(0xffb7d5), color(0xffe08a), hash(floor(positionWorld.mul(9)).dot(vec3(1, 7, 13))));
     m.colorNode = mix(mix(color(0xe9e4d6), mossCol, cover), petal, blossom);
-    const veins = smoothstep(0.08, 0.0, abs(mx_noise_float(positionWorld.mul(1.8)))).mul(cover);
+    // Glowing veins are thin contour lines of a noise field: drawn at least ~a pixel wide and dimmed as they widen.
+    const vn = abs(mx_noise_float(positionWorld.mul(1.8)));
+    const vpx = fwidth(vn);
+    const vw = max(float(0.04), vpx.mul(0.7));
+    const vsoft = max(vpx.mul(0.5), float(0.04));
+    const veins = float(1).sub(smoothstep(vw.sub(vsoft), vw.add(vsoft), vn)).mul(min(float(1), float(0.06).div(vw))).mul(cover);
     m.emissiveNode = color(0x6ff7d8).mul(veins).mul(bioPulse()).mul(0.3).add(petal.mul(blossom).mul(U.night).mul(0.6)).mul(activityGlow());
     return m;
   }, { vitality: true });
@@ -363,7 +374,7 @@ export function initMaterials(): void {
     const m = new MeshStandardNodeMaterial({ roughness: 0.5 });
     const cap = smoothstep(0.35, 0.6, positionGeometry.y);
     m.colorNode = mix(color(0xf6efe4), color(0xffffff), cap);
-    m.emissiveNode = color(0x8ff3ff).mul(cap).mul(iGlow).mul(bioPulse()).mul(1.6).mul(activityGlow());
+    m.emissiveNode = color(0x8ff3ff).mul(cap).mul(iGlow).mul(bioPulse()).mul(1.6).mul(activityGlow()).mul(pieceCover());
     return m;
   }, { vitality: true });
 
@@ -381,7 +392,9 @@ export function initMaterials(): void {
 
   define('algae', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.15, metalness: 0.1 });
-    const bubbles = step(0.82, fract(positionWorld.y.mul(5).sub(time.mul(0.6)).add(hash(floor(positionWorld.x.mul(20))))));
+    const bubbles = stripes(positionWorld.y.mul(5).sub(time.mul(0.6)).add(hash(floor(positionWorld.x.mul(20)))), 0.82).mul(
+      float(1).sub(smoothstep(0.02, 0.06, length(fwidth(positionWorld)))),
+    );
     m.colorNode = color(0x5fd36a);
     m.emissiveNode = color(0x4dff7a)
       .mul(U.night.mul(0.35).add(0.1))
@@ -404,19 +417,23 @@ export function initMaterials(): void {
     const m = new MeshStandardNodeMaterial({ roughness: 0.04, metalness: 0.2 });
     const ripple = mx_noise_float(vec3(positionWorld.x.mul(6), time.mul(0.5), positionWorld.z.mul(6))).mul(0.08);
     m.colorNode = color(0x3fb6c0).add(ripple);
-    const lily = step(mx_worley_noise_float(positionWorld.mul(7)), 0.12);
+    const lily = step(mx_worley_noise_float(positionWorld.mul(7)), 0.12).mul(float(1).sub(smoothstep(0.04, 0.12, groundPx())));
     m.colorNode = mix(m.colorNode, color(0x5fae4a), lily);
     m.emissiveNode = color(0x4fe0ff).mul(U.night).mul(0.25).add(color(0xffb7d5).mul(lily).mul(U.night).mul(0.3));
     return m;
   });
 
   // Landmark light-work: pearl in daylight, glowing aqua at night (instance glow sets the strength).
-  define('lumen', () => {
+  // Ribs and rings are thin: their glow follows how many pixels they cover (`lumenThin` for the halo torus, whose
+  // tube is 1/20 of the piece, D-064).
+  const lumen = (px: number) => () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.3, metalness: 0.15 });
     m.colorNode = color(0xf2faf7);
-    m.emissiveNode = color(0x8ff8ec).mul(iGlow).mul(U.night.mul(0.6).add(0.1));
+    m.emissiveNode = color(0x8ff8ec).mul(iGlow).mul(U.night.mul(0.6).add(0.1)).mul(pieceCover(px));
     return m;
-  });
+  };
+  define('lumen', lumen(3));
+  define('lumenThin', lumen(40));
 
   // Commuter pod shell: pearl body with a glowing window band (instance glow brightens it at night).
   define('pod', () => {

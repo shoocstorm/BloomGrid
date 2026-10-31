@@ -144,7 +144,7 @@ export function initPieces(): void {
   registerPiece({ id: 'drone', geometry: base(new OctahedronGeometry(0.5, 0).scale(1, 0.5, 0.45), 0.25), material: 'pod', castShadow: false, lod: 140 });
   // Façade waterfall sheet: unit plane facing +Z with its pivot at the bottom edge.
   // Landmark light-work (Wellspring Spire): a flat halo ring, a tapered spire and thin light ribs.
-  registerPiece({ id: 'haloRing', geometry: new TorusGeometry(0.5, 0.025, 8, 72).rotateX(Math.PI / 2), material: 'lumen', castShadow: false });
+  registerPiece({ id: 'haloRing', geometry: new TorusGeometry(0.5, 0.025, 8, 72).rotateX(Math.PI / 2), material: 'lumenThin', castShadow: false });
   registerPiece({ id: 'spireCone', geometry: base(new CylinderGeometry(0.02, 0.5, 1, 12)), material: 'glass', castShadow: false });
   registerPiece({ id: 'lumenRib', geometry: cyl(6), material: 'lumen', castShadow: false, lod: 600 });
   registerPiece({ id: 'waterfall', geometry: new PlaneGeometry(1, 1).translate(0, 0.5, 0), material: 'waterfall', castShadow: false, lod: 220 });

@@ -12,9 +12,9 @@ import {
   TorusGeometry,
   Vector3,
 } from 'three/webgpu';
-import { color, float, fract, max, smoothstep, step, uv } from 'three/tsl';
+import { color, float, max, smoothstep, uv } from 'three/tsl';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { getMaterial } from '@/render/materials/library';
+import { getMaterial, stripes } from '@/render/materials/library';
 import { GeoBuilder, tf } from '@/render/bake';
 import { U } from '@/render/uniforms';
 import type { LoopPath, PathPoint } from './path';
@@ -554,7 +554,8 @@ function glassMaterial(): MeshStandardNodeMaterial {
     metalness: 0.3,
   });
   const g = uv();
-  const ribs = max(step(0.94, fract(g.x.mul(14))), step(0.9, fract(g.y.mul(12))));
+  // Mullions fade to their mean once sub-pixel, so the vaults don't sparkle from afar (D-064).
+  const ribs = max(stripes(g.x.mul(14), 0.94), stripes(g.y.mul(12), 0.9));
   m.colorNode = color(0xe6fbff).mul(ribs.mul(0.1).add(0.9));
   m.opacityNode = ribs
     .mul(0.7)

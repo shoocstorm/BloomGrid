@@ -9,6 +9,7 @@ import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { getCrisis } from '@/sim/crises';
 import { listObjects, summarize } from '@/sim/inventory';
 import { Dossier, STATUS_ICON, led } from './Dossier';
+import { SlashMenu } from './Slash';
 
 const ID_SPLIT = /(\b(?:LIV|NRG|UTL|TEC|WRK|IND|SPT|NAT|FOD|HWY|BRG|SKY|CHN|DST|LMK)-[0-9A-Z][0-9A-Z.-]*[0-9A-Z]\b)/g;
 const gb = (bytes: number) =>
@@ -123,6 +124,7 @@ export class AssistantPanel {
   readonly el: HTMLElement;
   private log = h('div', { class: 'ai-log', role: 'log', 'aria-live': 'polite' });
   private input: HTMLTextAreaElement;
+  private slash: SlashMenu;
   private sendBtn: HTMLButtonElement;
   private clearBtn: HTMLButtonElement;
   private link = h('span', { class: 'ai-link' });
@@ -169,12 +171,21 @@ export class AssistantPanel {
         'Transmit to Flora… “what needs fixing?”, “build 3 pocket parks in Hillcrest”, or /help',
       'aria-label': 'Message the city assistant',
       onKeydown: (e: KeyboardEvent) => {
+        if (this.slash.key(e)) return e.preventDefault();
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           this.submit();
         } else if (e.key === 'Escape') this.input.blur();
       },
     }) as HTMLTextAreaElement;
+    this.slash = new SlashMenu(this.input, () => [
+      ...ctx.services
+        .get('agent')
+        .list()
+        .map((t) => ({ name: t.name, option: t.option ?? t.description.split('. ')[0]!, effect: t.effect, input: t.input })),
+      { name: 'help', option: 'List every command', effect: 'console' as const, input: { type: 'object' as const } },
+      { name: 'clear', option: 'Forget this conversation', effect: 'console' as const, input: { type: 'object' as const } },
+    ]);
     this.sendBtn = h(
       'button',
       {
@@ -348,6 +359,7 @@ export class AssistantPanel {
           h(
             'div',
             { class: 'ai-compose' },
+            this.slash.el,
             h('span', { class: 'ai-prompt' }, '›'),
             this.input,
             this.sendBtn,
@@ -562,6 +574,7 @@ export class AssistantPanel {
     const text = this.input.value;
     if (!text.trim()) return;
     this.input.value = '';
+    this.slash.hide();
     this.actions.send(text);
   }
 

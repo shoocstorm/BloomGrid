@@ -23,7 +23,9 @@ import {
   float,
   fract,
   fwidth,
+  length,
   max,
+  min,
   mix,
   mrt,
   normalGeometry,
@@ -146,7 +148,9 @@ export const mobilityModule: GameModule = {
       // Warm headlights (distinct from the cyan guidelines) turning amber, then coral, as lanes jam.
       const tint = mix(mix(color(0xfff1c9), color(0xffb347), smoothstep(0.5, 1.0, cong)), color(0xff5f6d), smoothstep(1.0, 1.5, cong));
       am.colorNode = tint;
-      am.emissiveNode = tint.mul(U.night.mul(1.6).add(0.3));
+      // Sub-pixel commuters twinkle as they move: dim their glow to their share of a pixel (~2 px across, D-064).
+      const cover = min(float(1), float(0.08).div(max(length(fwidth(positionGeometry)), float(1e-5))));
+      am.emissiveNode = tint.mul(U.night.mul(1.6).add(0.3)).mul(cover);
     }
     const agents = new InstancedMesh(agentGeo, am, AGENTS);
     agents.count = 0;
@@ -227,7 +231,13 @@ export const mobilityModule: GameModule = {
       const dash = mix(smoothstep(0.55, 1, fract(phase.sub(time.mul(flow)))), float(0.225), smoothstep(0.15, 0.45, fwidth(phase)));
       // Trunks carry a bright centre line between two edge rails.
       const across = abs(positionGeometry.z);
-      const edge = mix(smoothstep(0.5, 0.15, across), smoothstep(0.08, 0.0, across).add(smoothstep(0.3, 0.45, across).mul(smoothstep(0.5, 0.45, across))), isTrunk);
+      const sharpEdge = mix(smoothstep(0.5, 0.15, across), smoothstep(0.08, 0.0, across).add(smoothstep(0.3, 0.45, across).mul(smoothstep(0.5, 0.45, across))), isTrunk);
+      // Seen edge-on (or far), a ribbon narrows below a few pixels and its profile lines pop in and out: fade the
+      // profile to its mean once sub-pixel, and the ribbon's opacity once it is under ~3 px wide (D-064).
+      const fwAcross = max(fwidth(positionGeometry.z), float(1e-5));
+      const edge = mix(sharpEdge, mix(float(0.65), float(0.23), isTrunk), smoothstep(0.08, 0.3, fwAcross)).mul(
+        min(float(1), float(1 / 3).div(fwAcross)),
+      );
       const ends = smoothstep(0, 0.04, t).mul(smoothstep(1, 0.96, t));
       // Deep, saturated colours by day (pale neon vanishes over the sunlit city), bright neon at night.
       const n = U.night;
