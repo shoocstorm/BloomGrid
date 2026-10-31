@@ -337,7 +337,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
     id: 'mist',
     label: 'Flora-Net Mist',
     icon: '☂',
-    hotkey: 'KeyM',
+    hotkey: 'KeyY',
     deactivate: () => ghost.hideAll(),
     hover(ctx, hit) {
       if (!hit?.inBounds) {

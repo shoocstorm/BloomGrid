@@ -741,3 +741,14 @@ LED, gradient title); `rise()` staggers content in. Brackets are background laye
 put in scrolling panels, and a folded sheet drops them. Every animation is one-shot transform/opacity (the sheen is a
 background-position sweep that hides when done), replays when a panel is shown again, waits for `body.booted`, and is
 off under `prefers-reduced-motion` (§7½).
+
+## D-064 — Thin lights are anti-aliased by pixel footprint (2026-10-31)
+
+Zoomed out, the highway guidelines (a ~0.07-tile line with running dashes), the Aeroline's lit strips and the sky-lane
+and hub-ring dashes were thinner than a pixel. They popped in and out of pixels as the camera moved, and bloom
+(threshold 0) turned that into flashing. Shaders now use `fwidth(positionWorld)` (world units per pixel): the road
+line is drawn at least ~0.7 px wide and dimmed by the same factor, so its average light stays constant; running
+dashes and turf noise fade to their mean once below a pixel. The viaduct uses `glowline` (`scenery` whose glow is
+scaled by the strip's share of a pixel). Measured with a still-night pan of 0.05 tiles per frame (only roads and
+Aeroline drawn): pixels changing by more than 48/255 between frames dropped from 0.4–0.9% to 0.04–0.09% at every zoom.
+Close-ups are unchanged. Hotkeys: the city map moved to **M** and the Flora-Net mist to **Y** (the only free letter).

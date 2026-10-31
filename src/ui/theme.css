@@ -823,7 +823,8 @@ kbd,
   gap: 2px;
   margin: 6px 0 4px;
 }
-.pulse.console.collapsed .con-tabs {
+.pulse.console.collapsed .con-tabs,
+.pulse.console.collapsed .con-panes {
   display: none;
 }
 .con-tab {

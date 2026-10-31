@@ -100,8 +100,8 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Move the camera    | **WASD** / arrows · right-drag or **Q/E** orbit · wheel zoom                                       |
 | Build              | **4–0** building categories · **R** rotate · **X** bulldoze                                        |
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
-| Grow and heal      | **B** Bloom Retrofit · **M** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
-| Watch your city    | **P** folds the City Pulse console (tabs: Pulse, Build, Lenses, Flora-Net; on phones, separate sheets) · **L** data lenses · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **Y** city map (⌗ MAP in the top bar: every district named; click one to fly there) |
+| Grow and heal      | **B** Bloom Retrofit · **Y** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
+| Watch your city    | **P** folds the City Pulse console (tabs: Pulse, Build, Lenses, Flora-Net; on phones, separate sheets) · **L** data lenses · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **M** city map (⌗ MAP in the top bar: every district named; click one to fly there) |
 | Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console (the glowing orb beside the toolbar, **✿ Ask** on any selected object) |
 | Explore            | phones: the ◇ button in the top bar picks a view; a joystick moves, ▲ ▼ rise and sink, and the top bar hides so only the round **◇** (top-left) is left to return to the city view · **N** walk / hoverboard / drone / balloon / rooftop / ride a pod / ride the Aeroline (**Tab** next pod, train or landmark; **V** first person or the balloon's basket view; **Esc** back) · **J** photo mode (**P** saves a PNG); or the ◇ view-mode menu at the end of the top bar |
 | Find a fire        | **.** fly to the next fire (⌖ Next in the fire panel) · click a 🔥 pin, an alert toast or a map pin |
@@ -129,7 +129,7 @@ with a readable id such as `LIV-0042` or `HWY-118.204`. Search by name, id or di
 the id of whatever you select; click it to open the inventory.
 
 **A planned city:** every area has a purpose: living, work, industry, entertainment, sports, utility, civic and
-parkland. Open the city map (**Y**) to see the zones in colour (toggle to per-district colours); the inspector
+parkland. Open the city map (**M**) to see the zones in colour (toggle to per-district colours); the inspector
 shows the zone of whatever you select. Factories (Industry ⚙) and venues like Bloom Stadium (Sports ✪) are the
 last two build categories. Pod Interchanges in the living towns fly commuters to the work and industry zones.
 
@@ -139,7 +139,7 @@ reach on their own; elsewhere, dispatch crews from the fire panel or the inspect
 ("put out the fires", "what is burning?"). Burned-out buildings become ruins until you rebuild them. Every crisis
 and fire is recorded with its losses in the dashboard's **Incidents** tab (**K**, then Incidents). Every fire
 raises a beam of light and pulsing rings you can see from across the island, and a 🔥 pin that slides to the screen
-edge (pointing at it) when the fire is out of view; click a pin, an alert toast or a fire on the city map (**Y**) to
+edge (pointing at it) when the fire is out of view; click a pin, an alert toast or a fire on the city map (**M**) to
 fly there, or press **.** to step through the fires, hottest first.
 
 **Wind power:** Breeze Turbines (☀ energy category) are cheap, clean and the cheapest power to run. The founding

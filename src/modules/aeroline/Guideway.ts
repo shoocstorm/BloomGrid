@@ -244,7 +244,7 @@ export class Guideway {
     const glass: BufferGeometry[] = [];
     for (const st of stations) this.station(b, st, ground, glass);
 
-    const mesh = new Mesh(b.build(), getMaterial('scenery'));
+    const mesh = new Mesh(b.build(), getMaterial('glowline'));
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.name = 'aeroline';

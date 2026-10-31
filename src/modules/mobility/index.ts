@@ -22,6 +22,7 @@ import {
   dot,
   float,
   fract,
+  fwidth,
   max,
   mix,
   mrt,
@@ -221,7 +222,9 @@ export const mobilityModule: GameModule = {
       const y = mix(info.x, info.y, t).add(arcProfileNode(t).mul(len.mul(0.06).add(1.5).add(info.z)));
       lm.positionNode = vec3(flat.x.add(dir.y.negate().mul(side)), y, flat.y.add(dir.x.mul(side)));
       const flow = mix(mix(float(0.9), float(2.2), isTrunk), float(1.6), isRail);
-      const dash = smoothstep(0.55, 1, fract(t.mul(len).mul(0.35).sub(time.mul(flow))));
+      // Zoomed out, the running dashes shrink below a pixel and strobe as they move: fade them to their mean (D-064).
+      const phase = t.mul(len).mul(0.35);
+      const dash = mix(smoothstep(0.55, 1, fract(phase.sub(time.mul(flow)))), float(0.225), smoothstep(0.15, 0.45, fwidth(phase)));
       // Trunks carry a bright centre line between two edge rails.
       const across = abs(positionGeometry.z);
       const edge = mix(smoothstep(0.5, 0.15, across), smoothstep(0.08, 0.0, across).add(smoothstep(0.3, 0.45, across).mul(smoothstep(0.5, 0.45, across))), isTrunk);
@@ -266,7 +269,8 @@ export const mobilityModule: GameModule = {
       const sa = sin(a);
       rm.positionNode = ring.xyz.add(vec3(tilted.x.mul(ca).add(tilted.z.mul(sa)), tilted.y, tilted.z.mul(ca).sub(tilted.x.mul(sa))));
       // Light dashes chasing round the ring.
-      const dash = smoothstep(0.35, 0.9, fract(uv().x.mul(24).sub(U.clock.mul(0.8))));
+      const around = uv().x.mul(24);
+      const dash = mix(smoothstep(0.35, 0.9, fract(around.sub(U.clock.mul(0.8)))), float(0.375), smoothstep(0.15, 0.45, fwidth(around)));
       const gold = clamp(spin.w, 0, 1);
       const rose = clamp(spin.w.sub(1), 0, 1);
       const day = mix(mix(color(0x0aa89a), color(0xff9414), gold), color(0xd93a7a), rose);

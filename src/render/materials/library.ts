@@ -14,6 +14,7 @@ import {
   float,
   floor,
   fract,
+  fwidth,
   dot,
   hash,
   length,
@@ -436,13 +437,23 @@ export function initMaterials(): void {
     const dE = mix(far, abs(c.y), bE.mul(step(0, c.x)));
     const dW = mix(far, abs(c.y), bW.mul(step(c.x, 0)));
     const d = min(min(min(dN, dS), min(dE, dW)), c.length().mul(0.8));
-    const line = smoothstep(0.05, 0.02, d);
-    const dots = step(0.45, fract(positionWorld.x.add(positionWorld.z).mul(3).sub(time.mul(0.8))));
-    const turf = mix(color(0x3e7a3a), color(0x5c9a48), mx_noise_float(positionWorld.mul(5)).mul(0.5).add(0.5));
+    // Anti-aliased guideline (D-064). Zoomed out, a tile spans a few pixels: a hairline and its running dashes
+    // flicker in and out of pixels as the camera moves, and bloom turns that into flashes. The line is drawn at
+    // least about a pixel wide and dimmed as it widens (its average light stays put); dashes and turf noise fade
+    // to their average once they are smaller than a pixel.
+    const px = max(fwidth(positionWorld.x), fwidth(positionWorld.z));
+    const hw = float(0.035);
+    const drawW = max(hw, px.mul(0.7));
+    const soft = max(px.mul(0.5), float(0.015));
+    const line = float(1).sub(smoothstep(drawW.sub(soft), drawW.add(soft), d)).mul(min(float(1), hw.mul(1.5).div(drawW)));
+    const dash = step(0.45, fract(positionWorld.x.add(positionWorld.z).mul(3).sub(time.mul(0.8))));
+    const dots = mix(dash, float(0.55), smoothstep(0.04, 0.12, px));
+    const detail = float(1).sub(smoothstep(0.06, 0.2, px));
+    const turf = mix(color(0x3e7a3a), color(0x5c9a48), mx_noise_float(positionWorld.mul(5)).mul(detail).mul(0.5).add(0.5));
     const rut = smoothstep(0.12, 0.2, d).mul(0.12);
     // Unfunded highways are reclaimed: wild meadow creeps in and the guideline goes dark.
     const og = attribute('aOvergrowth', 'float');
-    const wild = mix(color(0x6f9a3c), color(0x9cbf5a), mx_noise_float(positionWorld.mul(9)).mul(0.5).add(0.5));
+    const wild = mix(color(0x6f9a3c), color(0x9cbf5a), mx_noise_float(positionWorld.mul(9)).mul(detail).mul(0.5).add(0.5));
     const lit = line.mul(float(1).sub(smoothstep(0.3, 0.9, og)));
     m.colorNode = mix(mix(turf.add(rut), color(0xd9fff4), lit.mul(0.6)), wild, smoothstep(0.2, 1, og));
     m.emissiveNode = color(0x7ff7e6).mul(lit).mul(dots.mul(0.6).add(0.4)).mul(U.night.mul(1.2).mul(activityGlow()).add(0.12));
@@ -474,17 +485,19 @@ export function initMaterials(): void {
   });
 
   // Merged scenery meshes (sea wonders): per-vertex colour, and `aGlow` for parts that light up at night.
-  define(
-    'scenery',
-    () => {
-      const m = new MeshStandardNodeMaterial({ roughness: 0.7, metalness: 0.05 });
-      const c = attribute('color', 'vec3');
-      m.colorNode = c;
-      m.emissiveNode = c.mul(attribute('aGlow', 'float')).mul(U.night.mul(0.9).add(0.12));
-      return m;
-    },
-    { overlay: 'plain' },
-  );
+  // `glowline` is the same for meshes whose lit parts are thin strips (the Aeroline's rails and flanks): once a
+  // pixel is wider than a strip, it pops in and out of coverage as the camera moves, so its glow is dimmed toward
+  // the strip's share of the pixel and bloom has no flashes to amplify (D-064).
+  const scenery = (thin: boolean) => () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.7, metalness: 0.05 });
+    const c = attribute('color', 'vec3');
+    const cover = thin ? min(float(1), float(0.08).div(max(length(fwidth(positionWorld)).mul(0.6), float(1e-4)))) : float(1);
+    m.colorNode = c;
+    m.emissiveNode = c.mul(attribute('aGlow', 'float')).mul(cover).mul(U.night.mul(0.9).add(0.12));
+    return m;
+  };
+  define('scenery', scenery(false), { overlay: 'plain' });
+  define('glowline', scenery(true), { overlay: 'plain' });
 
   define('sky', () => {
     const m = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, fog: false });

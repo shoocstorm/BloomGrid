@@ -390,7 +390,7 @@ registerAdvisorRule((city) => {
     severity: count > 8 ? 2 : 1,
     title: `${count} garden zone${count > 1 ? 's are' : ' is'} parched`,
     detail: 'Dry soil starves living walls and roof meadows even when the taps run, and cuts harvests. Haze season and heatwaves dry it fastest.',
-    fix: 'Dispatch a Flora-Net mist (M) over them, dig Filtration Channels (C), or place a Drone Hive (drones mist dry gardens).',
+    fix: 'Dispatch a Flora-Net mist (Y) over them, dig Filtration Channels (C), or place a Drone Hive (drones mist dry gardens).',
     focus,
     build: 'flora-hive',
   };
