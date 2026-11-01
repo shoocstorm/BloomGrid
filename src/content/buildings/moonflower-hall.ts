@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, lamp, railing } from '../kit';
 
 const TAU = Math.PI * 2;
 
@@ -77,5 +77,26 @@ export default defineBuilding({
       });
       b.add({ piece: 'flower', p: [Math.cos(a) * r, h, Math.sin(a) * r], s: 0.6, tint: 0xffe08a, glow: 1 });
     }
+    // Street level (D-097): a railed boardwalk across the pool to a lit door in the drum, lamps at its foot, lilies
+    // round the lily-pad stage and benches in the corner gardens.
+    b.add({ piece: 'timberBox', p: [0, 0.2, 4.0], s: [1.2, 0.12, 1.9], tint: 0xc8a57c });
+    for (const sx of [-1, 1]) {
+      railing(b, sx * 0.58, 0.32, 4.0, 1.8, true);
+      lamp(b, sx * 0.75, 0.2, 4.8, 0.6);
+    }
+    entrance(b, 0, 0.6, 2.32, 0.7, 0.45, 0xf2e6ff);
+    for (let i = 0; i < 26; i++) {
+      const a = b.rand() * TAU;
+      if (Math.abs(a - Math.PI / 2) < 0.25) continue;
+      const r = b.range(3.45, 4.3);
+      b.add({
+        piece: 'lily',
+        p: [Math.cos(a) * r, 0.25, Math.sin(a) * r],
+        s: b.range(0.16, 0.26),
+        r: b.rand() * TAU,
+        tint: b.pick(PALETTE.blossoms),
+      });
+    }
+    for (const sx of [-1, 1]) bench(b, sx * 4.2, 0.3, 3.75, 0.42, false, true);
   },
 });

@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, ivyEdge, lamp, railing, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 const LEVELS = 6;
@@ -87,5 +87,22 @@ export default defineBuilding({
     }
     b.add({ piece: 'canopy', p: [0, y + 3.3, 0], s: 2.2, tint: 0x8fd35a, glow: 0.4, growAt: 0.3 });
     b.add({ piece: 'haloRing', p: [0, y + 0.15, 0], s: [2.4, 4, 2.4], glow: 0.9 });
+    // Street level and terraces (D-097): two lit entrances either side of the front cascade, and on every terrace
+    // a glass balustrade, corner lamps and a bench looking out.
+    for (const x of [-2.4, 2.4]) entrance(b, x, 0, 4.81, 0.9, 0.5);
+    for (let i = 0; i < LEVELS; i++) {
+      const size = 9.6 - i * 1.4;
+      const ty = (i + 1) * LH + 0.1;
+      const e = size / 2 - 0.12;
+      railing(b, 0, ty, e, size - 0.3);
+      railing(b, 0, ty, -e, size - 0.3);
+      railing(b, e, ty, 0, size - 0.3, true);
+      railing(b, -e, ty, 0, size - 0.3, true);
+      if (i === LEVELS - 1) continue;
+      for (const sx of [-1, 1]) {
+        lamp(b, sx * (e - 0.2), ty, e - 0.2, 0.5);
+        bench(b, sx * 1.4, ty, e - 0.32);
+      }
+    }
   },
 });

@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { FLOOR, PALETTE, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import { FLOOR, PALETTE, bench, entrance, flowers, grassTufts, ivyEdge, lamp, railing, tree } from '../kit';
 
 const H = 19.2; // tower height (60 floors)
 const TOWERS = [-4, 0, 4];
@@ -83,5 +83,14 @@ export default defineBuilding({
       tint: PALETTE.glassWarm,
       glow: 0.2,
     });
+    // Street level and decks (D-097): a lit lobby under each tower, lamps along the colonnade, a balustrade and
+    // benches on the podium garden, and rails round the ark's deck.
+    for (const tx of TOWERS) entrance(b, tx, 0, 3.41, 0.9, 0.52);
+    for (const x of [-5.6, -2, 2, 5.6]) lamp(b, x, 0, 3.45, 0.6);
+    railing(b, 0, 0.98, 3.32, 11.4);
+    for (const x of [-3.0, -0.8, 0.8, 3.0]) bench(b, x, 0.98, 2.95);
+    const deckY = 0.98 + H + 0.7;
+    for (const z of [-1.68, 1.68]) railing(b, 0.8, deckY, z, 13.4);
+    for (const x of [0.8 - 6.75, 0.8 + 6.75]) railing(b, x, deckY, 0, 3.36, true);
   },
 });

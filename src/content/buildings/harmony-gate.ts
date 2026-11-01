@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, beam, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import { PALETTE, beam, bench, entrance, flowers, grassTufts, ivyEdge, lamp, lilies, tree } from '../kit';
 
 const H = 18;
 
@@ -44,5 +44,22 @@ export default defineBuilding({
     for (const x of [-2.2, 0, 2.2]) tree(b, x, H + 1.08, 0, 0.7, 0.2);
     for (const nz of [-1, 1]) ivyEdge(b, 0, H + 0.8, nz * 1.9, 6, 0, nz, 6);
     b.add({ piece: 'haloRing', p: [0, H + 1.1, 0], s: [4.2, 4, 4.2], glow: 1 });
+    // Street level (D-097): stepping stones through the gate across the pool, lilies, a lit lobby at each tower's
+    // foot, lamps at the pool corners and benches looking over the water.
+    for (let i = 0; i < 7; i++)
+      b.add({
+        piece: 'slab',
+        p: [0, 0.2, -2.85 + i * 0.95],
+        s: [0.6, 0.08, 0.55],
+        r: (i % 2) * 0.12,
+        tint: 0xe4dac8,
+      });
+    for (const sx of [-1, 1]) {
+      lilies(b, sx * 1.35, 0.25, 0, 1.3, 6, 9);
+      entrance(b, sx * 4.9, 0.2, 1.48, 0.8, 0.5);
+      for (const z of [-3.4, 3.4]) lamp(b, sx * 2.55, 0.2, z, 0.6);
+    }
+    bench(b, -2.55, 0.2, -1.6, 0.5, true);
+    bench(b, 2.55, 0.2, -1.6, 0.5, true, true);
   },
 });

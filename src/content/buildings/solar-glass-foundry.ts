@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, ivyEdge, tree } from '../kit';
+import { PALETTE, TRIM, beam, crate, door, ivyEdge, lamp, solarArray, tree } from '../kit';
 
 export default defineBuilding({
   id: 'solar-glass-foundry',
@@ -68,5 +68,27 @@ export default defineBuilding({
         glow: 0.5,
       });
     tree(b, 2.5, 0.12, 1.5, 0.45, 0.3);
+    // Detail (D-097): a framed furnace door and office entrance, window bands down the hall, a sand silo with a
+    // chute into the hall, A-frame racks holding the fresh panes, crates, a demo solar array and yard lamps.
+    b.add({ piece: 'slab', p: [-0.6, 0.12, 1.31], s: [1.9, 1.15, 0.03], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [-0.6, 1.25, 1.33], s: [2.1, 0.08, 0.06], tint: TRIM.orange });
+    door(b, -2.2, 0.12, 1.32, 0.24, 0.36);
+    for (const x of [-2.71, 1.51])
+      b.add({ piece: 'glassBox', p: [x, 0.9, 0], s: [0.02, 0.3, 2.2], tint: 0xd6f2ee, glow: 0.3 });
+    b.add({ piece: 'concreteCyl', p: [-2.3, 0.12, -1.55], s: [0.7, 1.4, 0.7], tint: 0xe3d3b0 });
+    b.add({ piece: 'spireCone', p: [-2.3, 1.52, -1.55], s: [0.72, 0.4, 0.72], tint: 0xe3d3b0 });
+    for (const x of [-2.55, -2.05])
+      b.add({ piece: 'timberBox', p: [x, 0.12, -1.55], s: [0.05, 0.4, 0.05], tint: TRIM.steel });
+    beam(b, 'slab', [-2.3, 1.5, -1.55], [-1.7, 1.9, -1.3], 0.12, { tint: TRIM.steel });
+    for (let i = 0; i < 2; i++) {
+      const x = 1.6 + i * 0.8;
+      beam(b, 'timberBox', [x - 0.38, 0.12, 0.85], [x - 0.38, 0.95, 0.75], 0.05, { tint: PALETTE.bark });
+      beam(b, 'timberBox', [x + 0.38, 0.12, 0.85], [x + 0.38, 0.95, 0.75], 0.05, { tint: PALETTE.bark });
+    }
+    crate(b, 1.4, 0.12, 1.65, 0.24, 0.1);
+    crate(b, 1.75, 0.12, 1.7, 0.2, -0.2, 0xb48d5a);
+    solarArray(b, -2.15, 0.12, 1.75, 0.9, 0.3, 1, 3, 0.5);
+    lamp(b, 0.7, 0.12, 1.75, 0.6);
+    lamp(b, 2.75, 0.12, -1.75, 0.6);
   },
 });

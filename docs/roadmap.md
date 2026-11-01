@@ -284,7 +284,8 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Waterside buildings face the water (scenario, site finder, Build tool)
 - [x] Highway levels: raw track → Living Highway → Bloom Boulevard (D-096)
 - [x] Canopy Tower, Living Studio, Orchard Stack, Drone Fabricator, Pod Dock, Phyto Garden, Data Spire, Storm Shelter detailed (D-096)
-- [ ] The rest of the catalogue (heroes, industry, sports) to the same standard
+- [x] Industry (5), sports (5) and twelve landmarks detailed; `bench` / `entrance` / `forecourt` / `lilies` helpers (D-097)
+- [ ] The rest of the catalogue to the same standard (41 left: Wellspring Spire, Supertree Grove, Lotus Pavilion, Bloomtopia, the other hero-quarter landmarks, energy, utility, tech and nature buildings)
 - **Accept:** ✅ snaps (day, night, WebGL), `tests/orient.test.ts`, draw calls and boot measured, flicker probe (D-095)
 
 ---

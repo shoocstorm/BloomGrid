@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, ivyEdge, roofMeadow, tree } from '../kit';
+import { PALETTE, TRIM, awning, crate, ivyEdge, lamp, roofMeadow, tree } from '../kit';
 
 export default defineBuilding({
   id: 'mycelium-brickworks',
@@ -61,5 +61,42 @@ export default defineBuilding({
       });
     roofMeadow(b, 1.62, 0.8, 2.5);
     tree(b, -2.1, 0.12, 1.5, 0.5, 0.3);
+    // Detail (D-097): shelved curing racks under a striped shade, a window band and lit sign on the hall, a
+    // roller door, the kiln's glowing firing door and banded chimney, timber pallets and a little forklift.
+    for (let i = 0; i < 4; i++)
+      b.add({
+        piece: 'timberBox',
+        p: [-2.15 + i * 1.07, 0.12, 1.45],
+        s: [0.05, 0.62, 0.32],
+        tint: PALETTE.bark,
+      });
+    b.add({ piece: 'timberBox', p: [-0.55, 0.48, 1.45], s: [3.3, 0.04, 0.34], tint: PALETTE.timber });
+    for (let i = 0; i < 7; i++)
+      b.add({ piece: 'fungus', p: [-2.0 + i * 0.48, 0.52, 1.45], s: 0.18, tint: 0xf6e7c8, glow: 0.9 });
+    awning(b, -0.55, 0.86, 1.42, 3.4, 0.5, TRIM.cream, TRIM.terracotta, 9);
+    b.add({ piece: 'glassBox', p: [-0.4, 0.98, 1.11], s: [3.2, 0.2, 0.02], tint: 0xd6f2ee, glow: 0.3 });
+    b.add({ piece: 'slab', p: [-0.4, 1.28, 1.11], s: [1.3, 0.22, 0.03], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [-0.4, 1.32, 1.13], s: [1.1, 0.12, 0.01], tint: 0xf6e7c8, glow: 0.8 });
+    b.add({ piece: 'slab', p: [-2.215, 0.12, -0.5], s: [0.03, 0.9, 0.8], tint: TRIM.terracotta });
+    for (let r = 0; r < 6; r++)
+      b.add({ piece: 'slab', p: [-2.235, 0.2 + r * 0.14, -0.5], s: [0.012, 0.012, 0.78], tint: 0x8a5a40 });
+    b.add({ piece: 'slab', p: [1.85, 0.12, -0.29], s: [0.5, 0.48, 0.04], tint: TRIM.charcoal });
+    b.add({ piece: 'lumenRib', p: [1.85, 0.16, -0.27], s: [0.34, 0.34, 0.04], tint: 0xff8a3c, glow: 1 });
+    for (const y of [2.0, 3.6, 4.2])
+      b.add({ piece: 'concreteCyl', p: [1.85, y, -0.9], s: [0.6, 0.06, 0.6], tint: TRIM.charcoal });
+    for (let k = 0; k < 4; k++)
+      b.add({
+        piece: 'timberBox',
+        p: [1.4 + (k % 2) * 0.7, 0.12, 0.6 + Math.floor(k / 2) * 0.7],
+        s: [0.6, 0.06, 0.6],
+        tint: 0xa47c56,
+      });
+    b.add({ piece: 'slab', p: [1.75, 0.14, 1.72], s: [0.34, 0.16, 0.26], tint: TRIM.orange });
+    b.add({ piece: 'glassBox', p: [1.8, 0.3, 1.72], s: [0.18, 0.16, 0.22], tint: 0xd6f2ee });
+    for (const z of [1.62, 1.82])
+      b.add({ piece: 'slab', p: [1.55, 0.12, z], s: [0.04, 0.42, 0.03], tint: TRIM.charcoal });
+    crate(b, 1.42, 0.14, 1.72, 0.14, 0, 0xc0704a);
+    lamp(b, 2.3, 0.12, -0.05, 0.6);
+    lamp(b, -2.3, 0.12, 0.6, 0.6);
   },
 });

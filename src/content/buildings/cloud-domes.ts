@@ -1,5 +1,5 @@
 import { defineBuilding, type KitBuilder } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, ivyEdge, lamp, lilies, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 
@@ -90,5 +90,23 @@ export default defineBuilding({
         growAt: 0.2,
       });
     b.add({ piece: 'concreteCyl', p: [sx, 6.6, sz], s: [0.7, 0.2, 0.7], tint: 0xe9f4ef });
+    // Street level (D-097): a glazed foyer with a meadow roof between the domes, glass links into each, lamps by
+    // the door, lilies on the lagoon and a boardwalk with benches along its far side.
+    b.add({
+      piece: 'glassBox',
+      p: [-0.8, 0.2, 3.6],
+      s: [1.6, 0.95, 1.2],
+      tint: PALETTE.glassWarm,
+      glow: 0.4,
+    });
+    b.add({ piece: 'slab', p: [-0.8, 1.15, 3.6], s: [1.8, 0.06, 1.4], tint: PALETTE.timber });
+    b.add({ piece: 'mossBox', p: [-0.8, 1.21, 3.6], s: [1.7, 0.05, 1.3] });
+    entrance(b, -0.8, 0.2, 4.21, 0.7, 0.45);
+    b.add({ piece: 'glassBox', p: [-0.8, 0.2, 2.3], s: [0.7, 0.6, 1.4], tint: PALETTE.glass, glow: 0.2 });
+    b.add({ piece: 'glassBox', p: [0.15, 0.2, 3.3], s: [0.5, 0.6, 0.6], tint: PALETTE.glass, glow: 0.2 });
+    for (const x of [-1.85, 0.25]) lamp(b, x, 0.2, 4.7, 0.6);
+    lilies(b, 3.0, 0.25, -2.8, 2.4, 2.4, 10);
+    b.add({ piece: 'timberBox', p: [2.7, 0.2, -4.55], s: [3.2, 0.06, 0.5], tint: 0xc8a57c });
+    for (const x of [1.9, 3.5]) bench(b, x, 0.26, -4.6, 0.42, false, false);
   },
 });

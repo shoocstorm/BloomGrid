@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, tree } from '../kit';
+import { PALETTE, TRIM, awning, flowers, lamp, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 const SEATS = [0xf4f1ea, 0x5ff2da, 0xf4f1ea, 0xffb7d5];
@@ -78,5 +78,56 @@ export default defineBuilding({
       tree(b, Math.cos(a) * 5.4, 0.3, Math.sin(a) * 5.4, 0.55, 0.2);
     }
     flowers(b, 0, 0.3, 5.5, 2.5, 16, 0, 0.6);
+    // Detail (D-097): goal frames and penalty boxes on the pitch, a big screen over the north stand, three lit
+    // entrance gates with turnstiles, a ticket kiosk and plaza lamps.
+    const line = (x: number, z: number, w: number, d: number) =>
+      b.add({ piece: 'slab', p: [x, 0.36, z], s: [w, 0.01, d], tint: 0xffffff });
+    for (const s of [-1, 1]) {
+      const gx = s * 2.75;
+      line(s * 2.35, -0.6, 0.8, 0.05);
+      line(s * 2.35, 0.6, 0.8, 0.05);
+      line(s * 1.95, 0, 0.05, 1.25);
+      for (const z of [-0.4, 0.4])
+        b.add({ piece: 'timberBox', p: [gx + s * 0.04, 0.36, z], s: [0.04, 0.3, 0.04], tint: 0xffffff });
+      b.add({ piece: 'timberBox', p: [gx + s * 0.04, 0.66, 0], s: [0.04, 0.04, 0.84], tint: 0xffffff });
+    }
+    for (const x of [-1.0, 1.0])
+      b.add({ piece: 'slab', p: [x, 0.3, -5.25], s: [0.14, 3.3, 0.14], tint: 0xf4f1ea });
+    b.add({ piece: 'slab', p: [0, 3.5, -5.25], s: [2.6, 1.1, 0.1], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [0, 3.58, -5.19], s: [2.4, 0.94, 0.02], tint: 0x5ff2da, glow: 0.9 });
+    for (const [x, z, r] of [
+      [0, 5.0, 0],
+      [5.75, 0, Math.PI / 2],
+      [-5.75, 0, -Math.PI / 2],
+    ] as const) {
+      const [c, s] = [Math.cos(r), Math.sin(r)];
+      const at = (u: number, v = 0): [number, number] => [x + u * c + v * s, z - u * s + v * c];
+      for (const u of [-0.75, 0.75])
+        b.add({ piece: 'slab', p: [at(u)[0], 0.3, at(u)[1]], s: [0.22, 1.5, 0.22], tint: 0xf4f1ea });
+      b.add({
+        piece: 'slab',
+        p: [x, 1.8, z],
+        s: r ? [0.2, 0.32, 1.8] : [1.8, 0.32, 0.2],
+        tint: TRIM.charcoal,
+      });
+      b.add({
+        piece: 'slab',
+        p: [at(0, 0.11)[0], 1.86, at(0, 0.11)[1]],
+        s: r ? [0.02, 0.2, 1.5] : [1.5, 0.2, 0.02],
+        tint: 0xffb7d5,
+        glow: 1,
+      });
+      for (const u of [-0.3, 0, 0.3])
+        b.add({
+          piece: 'slab',
+          p: [at(u, -0.2)[0], 0.3, at(u, -0.2)[1]],
+          s: [0.06, 0.28, 0.06],
+          tint: TRIM.steel,
+        });
+    }
+    b.add({ piece: 'timberBox', p: [2.2, 0.3, 5.35], s: [0.6, 0.55, 0.4], tint: PALETTE.timber });
+    b.add({ piece: 'glassBox', p: [2.2, 0.55, 5.56], s: [0.45, 0.2, 0.02], tint: 0xd6f2ee, glow: 0.4 });
+    awning(b, 2.2, 0.9, 5.6, 0.7, 0.3, 0xf4f1ea, 0x2fbfa6, 4);
+    for (const x of [-3.0, 3.6]) lamp(b, x, 0.3, 5.5, 0.8);
   },
 });

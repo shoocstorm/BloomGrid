@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, grassTufts, ivyEdge, roofMeadow } from '../kit';
+import { PALETTE, TRIM, barrel, crate, door, grassTufts, ivyEdge, lamp, railing, roofMeadow } from '../kit';
 
 /** Shell colours on the drying racks and the mortar caps (the five kinds the factory makes). */
 const SHELLS = [0xff6a8a, 0xffc94a, 0x7ff7e6, 0xc9b6ff, 0xfff4f0] as const;
@@ -79,5 +79,22 @@ export default defineBuilding({
     // Safety beacon mast over the yard.
     b.add({ piece: 'timberBox', p: [2.15, 0.12, 1.6], s: [0.12, 2.4, 0.12], tint: PALETTE.bark });
     b.add({ piece: 'haloRing', p: [2.15, 2.5, 1.6], s: [0.5, 2, 0.5], glow: 1 });
+    // Detail (D-097): a hazard-striped steel door into the magazine berm, a railed launch yard on a gravel pad,
+    // a shell-coloured sign over the hall, red sand barrels, crates of packed shells and yard lamps.
+    b.add({ piece: 'slab', p: [1.5, 0.12, -0.31], s: [0.5, 0.5, 0.04], tint: TRIM.steel });
+    for (let k = 0; k < 4; k++) b.add({ piece: 'slab', p: [1.29 + k * 0.14, 0.62, -0.29], s: [0.07, 0.06, 0.02], tint: k % 2 ? TRIM.charcoal : 0xffc94a });
+    b.add({ piece: 'slab', p: [1.25, 0.12, 1.02], s: [1.7, 0.02, 1.25], tint: 0xb9b2a4 });
+    railing(b, 1.25, 0.12, 0.4, 1.7);
+    railing(b, 0.4, 0.12, 1.02, 1.25, true);
+    railing(b, 2.1, 0.12, 0.75, 0.7, true);
+    b.add({ piece: 'slab', p: [-1.1, 1.08, 0.67], s: [1.5, 0.28, 0.03], tint: TRIM.charcoal });
+    for (let i = 0; i < 5; i++) b.add({ piece: 'concreteCyl', p: [-1.6 + i * 0.25, 1.15, 0.69], s: [0.12, 0.12, 0.02], rx: Math.PI / 2, tint: SHELLS[i]!, glow: 1 });
+    door(b, -2.31, 0.12, -0.55, 0.3, 0.42, true);
+    for (const z of [1.15, 1.55]) barrel(b, 2.25, 0.12, z - 0.5, 0.13, TRIM.red);
+    crate(b, -0.2, 0.12, 0.9, 0.22, 0.2, 0xc9a06a);
+    crate(b, -0.25, 0.3, 0.9, 0.18, -0.1, 0xb48d5a);
+    crate(b, 0.05, 0.12, 1.2, 0.2, 0.5, 0xc9a06a);
+    lamp(b, -2.3, 0.12, 1.75, 0.6);
+    lamp(b, 0.3, 0.12, -1.75, 0.6);
   },
 });

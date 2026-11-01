@@ -1,5 +1,5 @@
 import { defineBuilding, type Vec3 } from '../types';
-import { PALETTE, beam, flowers, grassTufts } from '../kit';
+import { PALETTE, TRIM, awning, beam, entrance, flowers, grassTufts, lamp } from '../kit';
 
 const TAU = Math.PI * 2;
 const R = 7.2;
@@ -40,5 +40,19 @@ export default defineBuilding({
       // Gondolas hang below the rim.
       b.add({ piece: 'pod', p: [rim[0], rim[1] - 0.9, 0], s: [1.2, 1.6, 1.4], glow: 0.9 });
     }
+    // Street level (D-097): a lit boarding entrance with a name sign on the hall roof, ticket and snack kiosks under
+    // striped awnings, and lamps along the street.
+    entrance(b, 0, 0.25, 2.41, 1.0, 0.5, 0xffb7d5);
+    b.add({ piece: 'slab', p: [0, 1.25, 2.1], s: [2.6, 0.36, 0.06], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [0, 1.3, 2.14], s: [2.3, 0.24, 0.01], tint: 0xffb7d5, glow: 1 });
+    for (const [x, c] of [
+      [-2.9, TRIM.teal],
+      [2.9, TRIM.terracotta],
+    ] as const) {
+      b.add({ piece: 'timberBox', p: [x, 0.25, 1.9], s: [0.7, 0.55, 0.5], tint: PALETTE.timber });
+      b.add({ piece: 'glassBox', p: [x, 0.5, 2.16], s: [0.5, 0.2, 0.02], tint: 0xd6f2ee, glow: 0.4 });
+      awning(b, x, 0.9, 2.25, 0.8, 0.3, 0xf5efe4, c, 4);
+    }
+    for (const x of [-4.4, -1.6, 1.6, 4.4]) lamp(b, x, 0.25, 2.7, 0.6);
   },
 });

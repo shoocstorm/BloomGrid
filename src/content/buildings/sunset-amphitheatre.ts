@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, TRIM, flowers, forecourt, grassTufts, ivyEdge, tree } from '../kit';
 
 const ROWS = 8;
 const SEG = 14;
@@ -55,6 +55,46 @@ export default defineBuilding({
     for (const sx of [-1, 1]) {
       tree(b, sx * 4.2, 0.15, 3.6, 0.9, 0.1);
       flowers(b, sx * 4.0, 0.15, -4.2, 0.6, 10, 0, 0.6);
+    }
+    // Detail (D-097): a lighting truss with spotlights over the stage, speaker stacks, and a paved entrance at the
+    // top of the bowl with planters and lamps.
+    for (const sx of [-1, 1]) {
+      b.add({ piece: 'slab', p: [sx * 2.7, 0.6, -2.35], s: [0.12, 2.3, 0.12], tint: TRIM.charcoal });
+      b.add({ piece: 'slab', p: [sx * 2.35, 0.6, -2.6], s: [0.4, 0.75, 0.35], tint: 0x2a2d30 });
+      b.add({
+        piece: 'concreteCyl',
+        p: [sx * 2.35, 0.95, -2.42],
+        s: [0.22, 0.02, 0.22],
+        rx: Math.PI / 2,
+        tint: 0x55595c,
+      });
+    }
+    b.add({ piece: 'slab', p: [0, 2.85, -2.35], s: [5.5, 0.14, 0.14], tint: TRIM.charcoal });
+    for (let i = 0; i < 6; i++)
+      b.add({
+        piece: 'lumenRib',
+        p: [-2.0 + i * 0.8, 2.68, -2.3],
+        s: [0.14, 0.17, 0.14],
+        tint: [0xffd9a0, 0xffb7d5, 0x9ee6ff][i % 3],
+        glow: 1,
+      });
+    forecourt(b, 0, 0.15, 4.4, 3.2, 0.8, 2, 0);
+    // Ivy down the back of the top row, so the street side is green, not a bare wall.
+    const rTop = 2.4 + (ROWS - 1) * 0.62 + 0.31;
+    for (let s = 0; s < SEG; s++) {
+      const a = Math.PI * (0.08 + ((s + 0.5) / SEG) * 0.84);
+      const [x, z] = [Math.cos(a) * rTop, -3.4 + Math.sin(a) * rTop];
+      if (Math.abs(x) > 4.7 || z > 4.9) continue;
+      ivyEdge(
+        b,
+        x,
+        0.15 + (ROWS - 1) * 0.32 + 0.3,
+        z,
+        (Math.PI * rTop * 0.84) / SEG,
+        Math.cos(a),
+        Math.sin(a),
+        4,
+      );
     }
   },
 });

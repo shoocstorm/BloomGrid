@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, tree } from '../kit';
 
 /** Tiers of the pine: base height, cone diameter, cone height. */
 const TIERS = [
@@ -49,5 +49,24 @@ export default defineBuilding({
       b.add({ piece: 'concreteCyl', p: [0, y, 0], s: [d, 0.12, d], tint: 0xe9f4ef });
     }
     b.add({ piece: 'lumenRib', p: [0, 21.3, 0], s: [0.12, 2.0, 0.12], glow: 1 });
+    // Street level (D-097): a glazed vestibule through the foot of the lowest cone, benches round the trunk in the
+    // winter garden inside, and a ring of glowing bollards on the plaza rim.
+    b.add({ piece: 'glassBox', p: [0, 0.3, 4.5], s: [1.2, 0.62, 0.6], tint: PALETTE.glassWarm, glow: 0.4 });
+    entrance(b, 0, 0.3, 4.81, 0.7, 0.45);
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
+      const [x, z] = [Math.cos(a) * 2.3, Math.sin(a) * 2.3];
+      bench(b, x, 0.3, z, 0.5, Math.abs(x) > Math.abs(z), x < 0);
+    }
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2 + 0.26;
+      b.add({
+        piece: 'lumenRib',
+        p: [Math.cos(a) * 4.7, 0.3, Math.sin(a) * 4.7],
+        s: [0.08, 0.2, 0.08],
+        tint: 0xffd9a0,
+        glow: 0.9,
+      });
+    }
   },
 });

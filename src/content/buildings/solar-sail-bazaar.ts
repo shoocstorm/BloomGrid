@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, beam, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, TRIM, beam, bench, flowers, grassTufts, lamp, tree } from '../kit';
 
 /** Masts: x, z, height, yaw of the main sail. */
 const MASTS = [
@@ -78,5 +78,35 @@ export default defineBuilding({
         { glow: 0.7 },
       );
     }
+    // Street level (D-097): a fountain in the middle of the market, benches round it, a lit gateway with string
+    // lights over the front planter, and lamps round the edge.
+    b.add({ piece: 'concreteCyl', p: [0, 0.15, 0], s: [1.6, 0.25, 1.6], tint: PALETTE.concrete });
+    b.add({ piece: 'pool', p: [0, 0.36, 0], s: [1.05, 0.05, 1.05] });
+    b.add({ piece: 'concreteCyl', p: [0, 0.4, 0], s: [0.25, 0.4, 0.25], tint: PALETTE.concrete });
+    b.add({ piece: 'lumenRib', p: [0, 0.8, 0], s: [0.07, 0.35, 0.07], tint: 0x9ee6ff, glow: 0.8 });
+    bench(b, 0, 0.15, -1.15);
+    bench(b, 0, 0.15, 1.15, 0.42, false, true);
+    for (const sx of [-1, 1]) {
+      b.add({ piece: 'timberBox', p: [sx * 1.3, 0.15, 4.75], s: [0.12, 1.75, 0.12], tint: PALETTE.bark });
+      for (let k = 0; k < 4; k++)
+        b.add({
+          piece: 'lumenRib',
+          p: [sx * (0.25 + k * 0.32), 1.5 - Math.sin((k / 4) * Math.PI) * 0.05, 4.75],
+          s: [0.06, 0.06, 0.06],
+          tint: b.pick([0xffe08a, 0xffb7d5, 0x9ee6ff]),
+          glow: 1,
+        });
+    }
+    b.add({ piece: 'slab', p: [0, 1.75, 4.75], s: [2.9, 0.3, 0.1], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [0, 1.8, 4.81], s: [2.5, 0.18, 0.01], tint: 0xffe08a, glow: 0.9 });
+    for (const [x, z] of [
+      [-4.75, -2.4],
+      [-4.75, 2.4],
+      [4.6, -2.4],
+      [4.6, 2.4],
+      [-2.6, 4.75],
+      [2.6, 4.75],
+    ] as const)
+      lamp(b, x, 0.15, z, 0.6);
   },
 });

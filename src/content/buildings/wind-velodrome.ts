@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, grassTufts } from '../kit';
+import { PALETTE, TRIM, awning, beam, door, grassTufts, lamp } from '../kit';
 
 const TAU = Math.PI * 2;
 
@@ -35,7 +35,79 @@ export default defineBuilding({
     b.add({ piece: 'haloRing', p: [0, 0.6, 0], s: [8.0, 1, 5.6], glow: 0.8 });
     // Glulam rib vault, open to the breeze.
     for (let i = 0; i < 7; i++)
-      b.add({ piece: 'willowArch', p: [-3.6 + i * 1.2, 0.25, 0], s: [6.6, 3.4, 6.6], r: Math.PI / 2 });
-    b.add({ piece: 'timberBox', p: [0, 3.5, 0], s: [7.6, 0.1, 0.5], tint: PALETTE.timber });
+      b.add({
+        piece: 'willowArch',
+        p: [-3.6 + i * 1.2, 0.25, 0],
+        s: [6.6, 3.4, 2.4],
+        r: Math.PI / 2,
+        tint: 0xd8b07e,
+      });
+    // The ridge rests on the arch crowns (the arch rises 1.7 above the deck).
+    b.add({ piece: 'timberBox', p: [0, 2.05, 0], s: [7.6, 0.1, 0.5], tint: PALETTE.timber });
+    // Detail (D-097): the blue and red racing lines round the banking, spectator steps along both sides, an
+    // entrance pavilion with a lit sign, racing bikes on the infield, pennants and lamps.
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * TAU;
+      const [tx, tz] = [-Math.sin(a) * ra, Math.cos(a) * rb];
+      for (const [off, tint] of [
+        [-0.28, 0x3f8fb0],
+        [0.05, TRIM.red],
+      ] as const) {
+        const [rx, rz] = [Math.cos(a) * (ra + off), Math.sin(a) * (rb + off)];
+        b.add({
+          piece: 'slab',
+          p: [rx, 0.25 + 0.04 + off * Math.sin(0.32), rz],
+          s: [len, 0.06, 0.035],
+          r: Math.atan2(-tz, tx),
+          rx: 0.32,
+          tint,
+        });
+      }
+    }
+    for (const z of [-3.15, 3.15])
+      for (let r = 0; r < 2; r++)
+        b.add({
+          piece: 'timberBox',
+          p: [0, 0.25 + r * 0.14, z + Math.sign(z) * r * 0.14],
+          s: [6.0, 0.14, 0.16],
+          tint: 0xc89a66,
+        });
+    b.add({ piece: 'timberBox', p: [3.9, 0.25, 2.6], s: [0.8, 0.7, 0.8], tint: PALETTE.timber });
+    door(b, 3.9, 0.25, 3.01, 0.26, 0.4);
+    awning(b, 3.9, 0.95, 3.15, 0.9, 0.3, 0xf4f1ea, TRIM.red, 5);
+    b.add({ piece: 'slab', p: [3.9, 0.98, 2.99], s: [0.8, 0.2, 0.03], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [3.9, 1.04, 3.03], s: [0.7, 0.12, 0.01], tint: 0x5ff2da, glow: 0.9 });
+    for (let i = 0; i < 3; i++) {
+      const x = -1.2 + i * 0.5;
+      for (const dx of [-0.13, 0.13])
+        b.add({
+          piece: 'concreteCyl',
+          p: [x + dx, 0.47, 0.2],
+          s: [0.22, 0.015, 0.22],
+          rx: Math.PI / 2,
+          tint: TRIM.charcoal,
+        });
+      beam(b, 'slab', [x - 0.13, 0.47, 0.2], [x + 0.06, 0.6, 0.2], 0.02, {
+        tint: [TRIM.red, TRIM.seaBlue, TRIM.orange][i]!,
+      });
+      beam(b, 'slab', [x + 0.06, 0.6, 0.2], [x + 0.13, 0.47, 0.2], 0.02, {
+        tint: [TRIM.red, TRIM.seaBlue, TRIM.orange][i]!,
+      });
+    }
+    for (const [x, z] of [
+      [-4.1, -3.1],
+      [-4.1, 3.1],
+      [4.1, -3.1],
+    ] as const) {
+      b.add({ piece: 'timberBox', p: [x, 0.25, z], s: [0.04, 1.6, 0.04], tint: TRIM.steel });
+      b.add({
+        piece: 'slab',
+        p: [x + 0.15, 1.55, z],
+        s: [0.3, 0.2, 0.01],
+        tint: b.pick([TRIM.red, TRIM.teal, 0xffd36b]),
+      });
+    }
+    lamp(b, -3.9, 0.25, 0.0, 0.7);
+    lamp(b, 4.15, 0.25, 0.0, 0.7);
   },
 });

@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, lamp, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 const STEPS = 54;
@@ -63,5 +63,23 @@ export default defineBuilding({
       });
     b.add({ piece: 'haloRing', p: [0, top + 0.3, 0], s: [2.6, 4, 2.6], glow: 1 });
     b.add({ piece: 'spireCone', p: [0, top, 0], s: [0.8, 3.2, 0.8], tint: PALETTE.glassWarm, glow: 0.4 });
+    // Street level (D-097): a lit lobby door with a canopy, a paved path out to the street with lamps, benches on
+    // the lawn and a ring of glowing bollards round the plaza rim.
+    entrance(b, 0, 0.35, 1.08, 0.6, 0.45);
+    b.add({ piece: 'slab', p: [0, 0.43, 2.45], s: [0.9, 0.02, 2.5], tint: 0xe4dac8 });
+    for (const sx of [-1, 1]) for (const z of [2.0, 3.2]) lamp(b, sx * 0.62, 0.43, z, 0.6);
+    bench(b, 2.4, 0.43, 0, 0.5, true);
+    bench(b, -2.4, 0.43, 0, 0.5, true, true);
+    bench(b, 0, 0.43, -2.4, 0.5, false, true);
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * TAU + Math.PI / 8;
+      b.add({
+        piece: 'lumenRib',
+        p: [Math.cos(a) * 3.5, 0.35, Math.sin(a) * 3.5],
+        s: [0.08, 0.2, 0.08],
+        tint: 0xffd9a0,
+        glow: 0.9,
+      });
+    }
   },
 });

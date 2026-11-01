@@ -245,3 +245,44 @@ export function door(b: KitBuilder, x: number, y: number, z: number, w = 0.16, h
   b.add({ piece: 'timberBox', p: alongZ ? [x + 0.01, y, z] : [x, y, z + 0.01], s: alongZ ? [0.03, h, w] : [w, h, 0.03], tint: 0x6b4a32 });
   b.add({ piece: 'lumenRib', p: alongZ ? [x + 0.02, y + h + 0.005, z] : [x, y + h + 0.005, z + 0.02], s: alongZ ? [0.02, 0.02, w * 0.6] : [w * 0.6, 0.02, 0.02], tint: 0xffd9a0, glow: 0.8 });
 }
+
+// ── Street-level helpers for landmarks (D-097): a big building only reads as a place when its foot has an entrance,
+// somewhere to sit and light at night. All face +z (the street side of a recipe).
+
+/**
+ * A park bench (timber seat and back on charcoal legs) `len` long along x, facing +z; `alongZ` turns it to face +x,
+ * `flip` to face the other way.
+ */
+export function bench(b: KitBuilder, x: number, y: number, z: number, len = 0.42, alongZ = false, flip = false): void {
+  // (u along the seat, v toward the back, h up) → local position and size.
+  const f = flip ? -1 : 1;
+  const p = (u: number, h: number, v: number): Vec3 => (alongZ ? [x - v * f, y + h, z + u] : [x + u, y + h, z - v * f]);
+  const s = (u: number, h: number, v: number): Vec3 => (alongZ ? [v, h, u] : [u, h, v]);
+  for (const u of [-len / 2 + 0.04, len / 2 - 0.04]) b.add({ piece: 'slab', p: p(u, 0, 0), s: s(0.03, 0.1, 0.13), tint: TRIM.charcoal });
+  b.add({ piece: 'timberBox', p: p(0, 0.1, 0), s: s(len, 0.025, 0.14), tint: PALETTE.timber });
+  b.add({ piece: 'timberBox', p: p(0, 0.125, 0.065), s: s(len, 0.1, 0.02), tint: PALETTE.timber });
+}
+
+/** A glazed double door on a +z façade at z, with a framed timber canopy and a lit name strip above it. */
+export function entrance(b: KitBuilder, x: number, y: number, z: number, w = 0.7, h = 0.42, sign = 0x7ff7e6): void {
+  b.add({ piece: 'slab', p: [x, y, z], s: [w + 0.08, h + 0.05, 0.04], tint: TRIM.charcoal });
+  for (const sx of [-1, 1]) b.add({ piece: 'glassBox', p: [x + (sx * w) / 4, y, z + 0.02], s: [w / 2 - 0.03, h, 0.02], tint: 0xcfefff, glow: 0.5 });
+  b.add({ piece: 'slab', p: [x, y + h + 0.1, z + 0.22], s: [w + 0.5, 0.04, 0.45], tint: PALETTE.timber });
+  for (const sx of [-1, 1]) b.add({ piece: 'timberBox', p: [x + sx * (w / 2 + 0.18), y, z + 0.4], s: [0.04, h + 0.1, 0.04], tint: TRIM.charcoal });
+  b.add({ piece: 'slab', p: [x, y + h + 0.16, z + 0.02], s: [w + 0.2, 0.1, 0.03], tint: TRIM.charcoal });
+  b.add({ piece: 'slab', p: [x, y + h + 0.18, z + 0.04], s: [w, 0.06, 0.01], tint: sign, glow: 0.9 });
+}
+
+/** A paved forecourt w × d centred at (x, z): planters at the ends, `lamps` along the front edge, benches between. */
+export function forecourt(b: KitBuilder, x: number, y: number, z: number, w: number, d: number, lamps = 2, benches = 2): void {
+  b.add({ piece: 'slab', p: [x, y, z], s: [w, 0.02, d], tint: 0xe4dac8 });
+  for (const sx of [-1, 1]) planter(b, x + sx * (w / 2 - 0.35), y + 0.02, z, 0.55, Math.min(0.3, d * 0.5), 0.1);
+  for (let i = 0; i < lamps; i++) lamp(b, x - w / 2 + (w * (i + 0.5)) / lamps, y + 0.02, z + d / 2 - 0.08, 0.6);
+  for (let i = 0; i < benches; i++) bench(b, x - w / 4 + (w / 2) * (benches > 1 ? i / (benches - 1) : 0.5), y + 0.02, z - d / 4);
+}
+
+/** Lily pads scattered over a pool w × d centred at (x, z), floating at y. */
+export function lilies(b: KitBuilder, x: number, y: number, z: number, w: number, d: number, count: number): void {
+  for (let i = 0; i < count; i++)
+    b.add({ piece: 'lily', p: [x + b.range(-w / 2, w / 2), y, z + b.range(-d / 2, d / 2)], s: b.range(0.16, 0.26), r: b.rand() * 6.28, tint: b.pick(PALETTE.blossoms) });
+}

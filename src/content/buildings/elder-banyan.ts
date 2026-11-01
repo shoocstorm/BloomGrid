@@ -1,5 +1,5 @@
 import { defineBuilding, type Vec3 } from '../types';
-import { PALETTE, beam, flowers, grassTufts } from '../kit';
+import { PALETTE, beam, bench, flowers, grassTufts } from '../kit';
 
 const TAU = Math.PI * 2;
 const lerp = (a: Vec3, c: Vec3, t: number): Vec3 => [
@@ -128,5 +128,40 @@ export default defineBuilding({
       });
     }
     b.add({ piece: 'canopy', p: [0, 14, 0], s: 5, tint: 0x6fbf4a, glow: 0.3, growAt: 0.25 });
+    // Visitors (D-097): a timber stair spiralling up the trunk to the first limbs, a lantern gate at the front with
+    // a stepping-stone path to the roots, and benches either side of the gate.
+    for (let i = 0; i < 44; i++) {
+      const a = i * 0.36 + Math.PI / 2;
+      const [c, s] = [Math.cos(a), Math.sin(a)];
+      b.add({
+        piece: 'timberBox',
+        p: [c * 2.35, 0.15 + i * 0.185, s * 2.35],
+        s: [0.8, 0.05, 0.26],
+        r: -a,
+        tint: 0xc8a57c,
+      });
+      if (i % 3 === 0)
+        b.add({
+          piece: 'timberBox',
+          p: [c * 2.73, 0.2 + i * 0.185, s * 2.73],
+          s: [0.03, 0.32, 0.03],
+          tint: PALETTE.bark,
+        });
+    }
+    for (const sx of [-1, 1]) {
+      b.add({ piece: 'timberBox', p: [sx * 0.85, 0.15, 4.6], s: [0.14, 1.6, 0.14], tint: 0x8a5a40 });
+      b.add({ piece: 'lumenRib', p: [sx * 0.6, 1.2, 4.6], s: [0.14, 0.2, 0.14], tint: 0xffc58a, glow: 1 });
+      bench(b, sx * 1.7, 0.15, 4.25);
+    }
+    b.add({ piece: 'timberBox', p: [0, 1.65, 4.6], s: [2.3, 0.12, 0.2], tint: 0x8a5a40 });
+    b.add({ piece: 'timberBox', p: [0, 1.4, 4.6], s: [1.9, 0.07, 0.1], tint: 0x8a5a40 });
+    for (let i = 0; i < 5; i++)
+      b.add({
+        piece: 'slab',
+        p: [b.range(-0.08, 0.08), 0.15, 4.1 - i * 0.55],
+        s: [0.42, 0.04, 0.34],
+        r: b.range(-0.3, 0.3),
+        tint: 0xb9b2a4,
+      });
   },
 });

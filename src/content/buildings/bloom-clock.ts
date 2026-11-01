@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, beam, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import { PALETTE, beam, entrance, flowers, forecourt, grassTufts, ivyEdge, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 const H = 15;
@@ -65,5 +65,8 @@ export default defineBuilding({
     b.add({ piece: 'glassCyl', p: [0, H + 0.4, 0], s: [1.6, 1.6, 1.6], tint: 0xffe08a, glow: 0.9 });
     b.add({ piece: 'dome', p: [0, H + 0.6, 0], s: [1.1, 1.4, 1.1] });
     b.add({ piece: 'spireCone', p: [0, H + 2, 0], s: [1.8, 3, 1.8], tint: PALETTE.glassWarm, glow: 0.4 });
+    // Street level (D-097): a lit door into the clock shaft and a paved forecourt with planters, lamps and benches.
+    entrance(b, 0, 0.2, 1.02, 0.8, 0.5, 0xffe08a);
+    forecourt(b, 0, 0.2, 3.1, 3.2, 1.4, 2, 2);
   },
 });
