@@ -224,40 +224,9 @@ button {
   min-width: 0;
   max-width: 100%;
 }
-/* The toolbar gives way (and scrolls sideways) so Flora's orb beside it always stays on screen. */
-.dock-row .toolbar {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.dock-row .toolbar::-webkit-scrollbar {
-  display: none;
-}
-.dock-row .toolbar .tool {
+/* Flora's orb, and on phones the Build launcher. */
+.dock-row > * {
   flex: none;
-}
-.dock-row > :not(.toolbar) {
-  flex: none;
-}
-/* Narrower desktops: drop the hotkey hints (tooltips keep them) before the toolbar has to scroll. */
-@media (max-width: 1400px) {
-  .toolbar .tool kbd {
-    display: none;
-  }
-  .toolbar .tool {
-    padding: 8px 9px;
-  }
-}
-.tray {
-  display: flex;
-  gap: 8px;
-  padding: 8px;
-  overflow-x: auto;
-  max-width: 100%;
-}
-.tray.hidden {
-  display: none;
 }
 .card {
   width: 148px;
@@ -308,18 +277,6 @@ button {
 }
 .tag.neg {
   background: rgba(232, 106, 106, 0.16);
-}
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px;
-}
-.toolbar .sep {
-  width: 1px;
-  align-self: stretch;
-  margin: 4px 6px;
-  background: rgba(0, 0, 0, 0.1);
 }
 .tool {
   display: flex;
@@ -505,9 +462,6 @@ button {
   .brand b {
     display: none;
   }
-  .tool span.l {
-    display: none;
-  }
 }
 
 .info .svc {
@@ -531,15 +485,6 @@ button {
 }
 /* Stat labels and the meter give way when the bar runs out of room: see the `fit-*` levels in theme.css. */
 
-/* Many tools: icon + hotkey only on narrower screens (labels stay as tooltips). */
-@media (max-width: 1800px) {
-  .tool span.l {
-    display: none;
-  }
-  .tool {
-    padding: 8px 10px;
-  }
-}
 
 /* Inspector: readable object id (opens the inventory) and district. */
 .info-id {

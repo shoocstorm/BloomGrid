@@ -1,6 +1,5 @@
 import type { GameModule } from '@/game/context';
 import { TIERS } from '@/sim/pulseState';
-import { isCompact } from '@/platform/device';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { PulsePanel, SYSTEM_LABELS } from './PulsePanel';
@@ -9,8 +8,8 @@ import './pulse.css';
 /**
  * City Pulse UI: the management view of the sim's pulse (`sim/pulse.ts`). Shows system health,
  * demand, budget and trends, and raises alerts when a system changes tier. On desktops the panel is the
- * steward's console (D-056): it adopts the HUD's build tools and cards as its Build tab, and other modules add
- * theirs through the `pulse` service.
+ * steward's monitoring console (D-056): other modules add tabs through the `pulse` service. Building has its own
+ * panel (`modules/build`, D-084).
  */
 export const pulseModule: GameModule = {
   id: 'pulse',
@@ -45,11 +44,6 @@ export const pulseModule: GameModule = {
     new MutationObserver(lit).observe(panel.el, { attributes: true, attributeFilter: ['class'] });
     lit();
     hud.lead.prepend(toggle);
-    const build = panel.addTab('build', 'Build', '✚', hud.toolbar, hud.tray);
-    // Opening a building category or an action brings its cards and explanation forward in the console.
-    new MutationObserver(() => {
-      if (!isCompact() && !hud.tray.classList.contains('hidden')) build.select();
-    }).observe(hud.tray, { attributes: true, attributeFilter: ['class'] });
     ctx.systems.add({ id: 'pulse.panel', phase: 'render', order: 110, update: (_c, f) => panel.update(f.dt) });
     ctx.bus.on('pulse:tier', ({ system, tier, prev }) => {
       // A new city's first pulses settle occupancy and staffing from their starting values: no alarms yet.

@@ -102,7 +102,7 @@ export const overlaysModule: GameModule = {
           class: 'lens',
           title: `${o.label} lens`,
           onClick: () => service.set(active === o.id ? null : o.id),
-          // Hovering previews the lens's explanation, as the Build tab does for buildings.
+          // Hovering previews the lens's explanation, as the Build panel does for buildings.
           onPointerenter: () => ((peek = o.id), renderBrief()),
           onPointerleave: () => ((peek = null), renderBrief()),
         },

@@ -1,0 +1,295 @@
+/*
+ * Build mode (D-084). Desktops: a column on the left where City Pulse sits (it folds while building) and a
+ * Build button at the bottom centre. Phones: a bottom sheet in the dock, with Done at its top; the launcher sits
+ * beside Flora's orb. Selectors carry `.build` so they win over theme.css and mobile.css (loaded later).
+ */
+.build-fab {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px 10px 16px;
+  border-radius: var(--pill);
+  background: var(--accent);
+  color: #06201c;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s;
+}
+.build-fab:hover {
+  transform: translateX(-50%) translateY(-2px);
+}
+.build-fab .ico {
+  width: 18px;
+  height: 18px;
+}
+.build-fab kbd,
+.bd-done kbd {
+  font: inherit;
+  color: inherit;
+  background: none;
+  box-shadow: none;
+  font-size: 10px;
+  padding: 0 4px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  opacity: 0.6;
+}
+body.building .build-fab {
+  display: none;
+}
+
+.build {
+  position: absolute;
+  left: 12px;
+  top: 74px;
+  width: 320px;
+  max-height: calc(100vh - 88px);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  font-size: 12.5px;
+}
+.build.hidden {
+  display: none;
+}
+.build > * {
+  flex: none;
+}
+.bd-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.bd-ico {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  background: rgba(95, 242, 218, 0.14);
+  color: var(--accent);
+  font-size: 17px;
+}
+.bd-titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.bd-titles b {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.bd-hint {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+.build.holding .bd-hint {
+  color: var(--accent);
+}
+.bd-done {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--pill);
+  background: var(--accent);
+  color: #06201c;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.bd-done:hover {
+  background: var(--accent-2, var(--accent));
+}
+.bd-scroll {
+  counter-reset: sec;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  padding-right: 2px;
+}
+.build .bd-sec,
+.build .bd-list-title {
+  margin: 12px 0 5px;
+}
+
+/* Actions: icon tiles, four a row, label under the icon; the hotkey as a corner badge. */
+.bd-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+}
+.build .bd-action {
+  position: relative;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 2px 6px;
+  font-size: 11px;
+}
+.build .bd-action .g {
+  font-size: 17px;
+}
+.build .bd-action .l {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.build .bd-action kbd {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 0 3px;
+  font-size: 8.5px;
+  opacity: 0.6;
+}
+/* Categories: chips, three a row. */
+.bd-cats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+}
+.build .tool.cat {
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 7px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.build .tool.cat .g {
+  font-size: 15px;
+}
+/* The category's buildings as compact tiles (the card below has the numbers). */
+.bd-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+.build .card {
+  width: auto;
+  padding: 6px 8px;
+}
+.build .card .n {
+  font-size: 12px;
+  line-height: 1.25;
+}
+.build .card .tags {
+  display: none;
+}
+.build .card:hover {
+  transform: none;
+  border-color: var(--line-strong);
+}
+.build .brief {
+  margin-top: 10px;
+}
+.build .brief.empty {
+  border-style: dashed;
+  background: none;
+}
+
+/* ── Phones: a bottom sheet (Done on top), the launcher beside Flora's orb ── */
+.compact .dock-row .build-fab {
+  position: static;
+  flex: 1;
+  justify-content: center;
+  transform: none;
+  min-width: 0;
+  padding: 0 16px;
+  box-shadow: none;
+}
+.compact.building .dock-row {
+  display: none;
+}
+.compact .build {
+  position: static;
+  width: auto;
+  max-height: none;
+  padding: 6px 6px 8px;
+  gap: 6px;
+}
+.compact .bd-head {
+  padding: 0 2px 6px 4px;
+}
+.compact .bd-ico,
+.compact .build .bd-sec,
+.compact .build .bd-list-title {
+  display: none;
+}
+.compact .bd-done {
+  padding: 9px 16px;
+  font-size: 14px;
+}
+.compact .bd-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: visible;
+  padding: 0;
+}
+.compact .bd-actions,
+.compact .bd-cats,
+.compact .bd-body {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.compact .bd-actions::-webkit-scrollbar,
+.compact .bd-cats::-webkit-scrollbar,
+.compact .bd-body::-webkit-scrollbar {
+  display: none;
+}
+.compact .build .bd-action {
+  flex: none;
+  width: 58px;
+  padding: 6px 2px 4px;
+  font-size: 10px;
+}
+.compact .build .tool span.l {
+  display: inline;
+}
+.compact .build .tool.cat {
+  flex: none;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+}
+.compact .build .tool.cat.on {
+  border-color: var(--accent);
+}
+.compact .bd-body {
+  gap: 6px;
+}
+.compact .bd-list {
+  display: contents;
+}
+.compact .build .card {
+  flex: none;
+  width: 116px;
+  padding: 7px 8px;
+}
+.compact .build .brief {
+  margin: 0;
+}
+.compact .build .brief.empty {
+  display: none;
+}

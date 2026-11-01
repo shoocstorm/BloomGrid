@@ -413,7 +413,7 @@ export class BuildingRenderer {
    * matrices, tints and shader params read back from the instancer, for the inspector's 3D preview.
    */
   /**
-   * A building type as the Build tab's preview stage draws it (D-069): variant 0, fully grown and lit, on its
+   * A building type as the Build panel's preview stage draws it (D-069): variant 0, fully grown and lit, on its
    * plinth, standing at `at`. A GLB hero comes back empty until its model has loaded (the stage retries); if
    * the model fails, its procedural fallback stands in.
    */

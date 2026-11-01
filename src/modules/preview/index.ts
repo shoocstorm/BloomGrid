@@ -24,7 +24,7 @@ import { buildings } from '@/content';
 export interface PreviewService {
   /** Shows building `eid` on the stage `host` (an element whose box is a transparent window in the HUD). */
   show(host: HTMLElement, eid: number): void;
-  /** Shows building type `defId` as it would be built (the Build tab, D-069). */
+  /** Shows building type `defId` as it would be built (the Build panel, D-069). */
   showDef(host: HTMLElement, defId: string): void;
   hide(): void;
   /** Back to the framing it opened with. */

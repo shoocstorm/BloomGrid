@@ -11,7 +11,7 @@ import { MIST_COST } from '@/sim/floranet';
 import { BANYAN_SHARE, BRIDGE_MAX, BRIDGE_MIN, BRIDGES_PER_TOWER } from '@/sim/weaver';
 
 /**
- * Plain-language help for the Build tab (D-069): what each building action does, how to use it and what it
+ * Plain-language help for the Build panel (D-069, D-084): what each building action does, how to use it and what it
  * costs, and a building type's numbers and special abilities in words. Numbers come from the sim's constants,
  * so the text can't drift from the rules.
  */

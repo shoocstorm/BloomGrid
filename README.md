@@ -99,11 +99,11 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Do this            | Keys                                                                                               |
 | ------------------ | -------------------------------------------------------------------------------------------------- |
 | Move the camera    | **WASD** / arrows · right-drag or **Q/E** orbit · wheel zoom                                       |
-| Build              | City Pulse → **Build**: pick an action or a building category (click; no number keys). A card explains the action, or shows the building's 3D preview, numbers and abilities · **R** rotate · **X** bulldoze |
+| Build              | **B** or the **Build** button (bottom centre) opens build mode: pick an action or a building category, then a building (a card explains the action, or shows the building's 3D preview, numbers and abilities) · **R** rotate · **X** bulldoze · **Done**, **B** or **Esc** leaves (Esc or a right-click first puts down what is in hand) |
 | Select & remove    | Click a building to inspect it · **Ctrl/⌘-drag** a box to select every building of one type inside it (the type under where you start) · **Delete** (or ⌫) returns the selection to nature, as does the inspector's *Return to nature* (one undo restores it all) |
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
-| Grow and heal      | **B** Bloom Retrofit · **Y** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
-| Watch your city    | **P** (or the pulse button at the left of the top bar's actions) shows / hides the City Pulse console (tabs: Pulse, Build, Lenses, Flora-Net; on phones, separate sheets) · **L** data lenses (each explained in City Pulse → Lenses; **Esc** or ✕ on the legend turns one off) · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **M** city map (the map button in the top bar's actions: every district named; click one to fly there) |
+| Grow and heal      | **Z** Bloom Retrofit · **Y** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
+| Watch your city    | **P** (or the pulse button at the left of the top bar's actions) shows / hides the City Pulse console (tabs: Pulse, Lenses, Flora-Net, Goals; on phones, separate sheets) · **L** data lenses (each explained in City Pulse → Lenses; **Esc** or ✕ on the legend turns one off) · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **M** city map (the map button in the top bar's actions: every district named; click one to fly there) |
 | Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console · **Esc** or ✕ closes it · type **/** for commands (Tab completes) (the glowing orb bottom-right, **Ask Flora** on any selected object: it loads a downloaded model if none is running) |
 | Explore            | phones: the ◇ button in the top bar picks a view; a joystick moves, ▲ ▼ rise and sink, and the top bar hides so only the round **◇** (top-left) is left to return to the city view · **N** walk / hoverboard / drone / balloon / rooftop / ride a pod / ride the Aeroline (**Tab** next pod, train or landmark; **V** first person or the balloon's basket view; **Esc** back) · **J** photo mode (**P** saves a PNG); or the ◇ view-mode menu at the end of the top bar |
 | Find a fire        | **.** fly to the next fire (⌖ Next in the fire panel) · click a 🔥 pin, an alert toast or a map pin |
@@ -113,11 +113,11 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Sound              | **,** mute / unmute · volumes for music, ambience and effects in ⚙ Settings (sound starts on your first click); trains, pods and fires are heard close up |
 
 **On a phone:** drag to pan, pinch to zoom, twist to rotate, drag two fingers up or down to tilt. Tap a building to
-inspect it. To build, pick a category, tap to preview, then tap the preview again (⟳ rotates). City Pulse,
+inspect it. To build, tap **Build** (bottom), pick a category and a building, tap the map to preview, then tap the preview again (⟳ rotates); **Done** leaves build mode. City Pulse,
 Flora-Net and the ◐ lenses are chips under the top bar; tap the city to fold them away. On a fresh island the
 Goals (unlock projects, sea wonders, fishing) sit at the top of the City Pulse sheet. The HUD shows less on a phone
 (no telemetry strip or explore modes), and phones start on Medium graphics. Flora is the glowing orb beside the
-toolbar; her console opens full-screen.
+Build button; her console opens full-screen.
 
 **Flora** (**U**): a city assistant that runs a small AI model on your own computer. Ask it what needs fixing,
 or tell it what to do ("build three vertical farms in Bayfront", "fix the power problem in Bayfront", "set taxes to

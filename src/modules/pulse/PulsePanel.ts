@@ -82,8 +82,8 @@ function sparkline(canvas: HTMLCanvasElement, data: number[], color: string): vo
 /**
  * City Pulse console: the steward's one panel on desktops (D-056), a full-height column on the left with tabs.
  * Pulse (system health tiers, demand meters, budget with tax control, harmony breakdown, trend sparklines) is its
- * own; other modules add theirs through the `pulse` service (Build: the HUD's tools and building cards; Lenses;
- * Flora-Net), so the bottom toolbar, the lens bar and the advisor no longer cover the city. Phones keep their chips
+ * own; other modules add theirs through the `pulse` service (Lenses, Flora-Net, Goals), so the lens bar and the
+ * advisor no longer cover the city. Building is not a tab: it has its own mode and panel (D-084). Phones keep their chips
  * and sheets: there the console shows only the pulse, and adopted elements go back to their own places. Updates
  * are throttled and text-diffed.
  */

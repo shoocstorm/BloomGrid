@@ -53,8 +53,8 @@ const STEPS: Step[] = [
   },
   {
     title: 'Build a second fishing dock',
-    body: 'Fishing pays the bills at first. Open City Pulse → Build → Food, pick the Fishing Boat Dock (free) and click a spot that touches the sea.',
-    highlight: '.con-tab[title="Build"]',
+    body: 'Fishing pays the bills at first. Press Build (B) → Food, pick the Fishing Boat Dock (free) and click a spot that touches the sea. Done (or Esc) leaves build mode.',
+    highlight: '.build-fab',
     done: (c) =>
       c.city.buildingEntities().filter((e) => c.city.buildingDef(e).id === 'fishing-dock').length >= 2,
   },

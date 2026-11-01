@@ -1117,3 +1117,26 @@ instance's `getWorkerResources` to force the compat build otherwise (wllama stay
 line (`isFatalLog`: an abort, a worker error) now fails the warm-up at once with that line instead of waiting.
 Ported from Andai, where the same fix was checked end to end in WKWebView on macOS 27 (compat build, WebGPU 29/29
 layers). D-062's CPU-only rule for iOS stays; whether its stall was this same bug isn't measured yet.
+
+## D-084 — Build mode leaves City Pulse: its own panel, a Build button, easy ways out (2026-11-01)
+
+**Context:** Since D-056 building lived in City Pulse's Build tab. City Pulse is for watching the city, so building
+was a tab among monitors, a category click picked up its first building at once, and the only way out was the
+Inspect tile or Esc. Phones had a permanent eight-icon toolbar whose categories sat off-screen to the right.
+
+**Decision:** Build mode is its own module (`modules/build`, `build` service: `open(category?)`, `close`,
+`toggle`, `isOpen`). Entry: the **Build** button (bottom centre on desktops; beside Flora's orb on phones), **B**,
+or any build hotkey (G, C, X, Z, Y, V, T), Flora or the advisor picking up a building, which all open the panel so
+there is always a visible way out. The panel has a header with **Done**, the seven actions (Inspect is not one:
+leaving is), category chips, the category's buildings and the explanation card (plus the floating 3D preview on
+desktops). A category click only lists its buildings; a building is picked up when its card is clicked, and a
+second click puts it down. Leaving: **Done**, **B**, **Esc** (first puts down what is in hand, then closes;
+dialogs above the city and a tool's own Esc go first), or a right-click without a drag (puts it down; right-drag
+still orbits). Desktops: the panel takes City Pulse's column, which folds while building and comes back as it was;
+opening City Pulse (P) ends build mode. Phones: a bottom sheet in the dock (Done on top, then action tiles with
+labels, category chips and the card + buildings strip, all sideways scrolling); the dock row hides while it is open.
+Bloom Retrofit's hotkey moves from B to **Z**. The last category is remembered per browser (`localStorage`).
+
+**Consequences:** `hud.toolbar` / `hud.tray` and the City Pulse Build tab are gone (`hud.dock` is new); the
+old bottom-toolbar CSS went with them. A new build action is an entry in `ACTIONS` (`BuildPanel.ts`) plus its
+`ACTION_HELP`.

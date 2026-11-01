@@ -387,7 +387,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
     id: 'retrofit',
     label: 'Bloom Retrofit',
     icon: '✾',
-    hotkey: 'KeyB',
+    hotkey: 'KeyZ',
     deactivate: () => ghost.hideAll(),
     hover(ctx, hit) {
       if (!hit?.inBounds) {

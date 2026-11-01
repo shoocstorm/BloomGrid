@@ -344,7 +344,7 @@ registerAdvisorRule((city) => {
     severity: 0,
     title: 'The treasury can fund a Bloom Retrofit',
     detail: 'Transform a district: flowering façades, sunflower roofs, lily-pad channels. Ecology ×1.5, less power and water use.',
-    fix: 'Choose Bloom Retrofit (B) and click the heart of a busy district.',
+    fix: 'Build (B) → Retrofit (Z) and click the heart of a busy district.',
   };
 });
 

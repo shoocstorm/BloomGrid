@@ -16,7 +16,8 @@
     g.bus.emit('selection:changed', { eid });
   }
   if (sheet === 'build') {
-    document.querySelector('.tool[title="Homes"], .toolbar .tool:nth-of-type(10)')?.click();
+    document.querySelector('.build-fab')?.click();
+    document.querySelector('.bd-list .card')?.click();
     const r = canvas.getBoundingClientRect();
     touch('pointerdown', 1, r.width / 2, r.height / 2);
     touch('pointerup', 1, r.width / 2, r.height / 2);
