@@ -1174,3 +1174,18 @@ instead of folding it to its header (`.pulse.console.collapsed` is `display: non
 it). The header title no longer toggles on desktops. Phones are unchanged: the header is the sheet's chip and
 folds it. `pulse.fold(true)` / `collapsed` keep their names (build mode and F use them) and now mean hidden on
 desktops. City Pulse is also hidden while the New Chapter dialog is open (`body.chapter-open`).
+
+## D-087 — Settings: a Controls tab, tabs that never jump; inspector actions that fit; dashboard beside City Pulse (2026-11-01)
+
+- **Settings tabs** share one grid cell (inactive panes invisible, crossfaded), so the panel keeps the tallest
+  tab's size; section numbers restart per tab. The panel is 520 px wide.
+- **Controls tab** (`modules/settings/controls.ts`): camera, build, time, views and general keys in two columns
+  (one on phones, which list touch gestures instead). Build-action keys are read from the registered tools.
+  **H** opens it (again closes it); a `settings` service has `open(tab?)`, `close`, `isOpen`. It replaces D-085's
+  Controls card (the old welcome card), whose markup and `.help` / `.wc-*` rules are gone (the `wc-*` keyframes
+  stay: the inspector uses them).
+- **Inspector actions** (`fitActions` in `ui/Hud.ts`): each button's text is a `.l` label (price in `.l-price`)
+  and leads its tooltip; a row that overflows first tightens and drops prices (`snug`), then shows icons only
+  (`tight`). Every action button has a border so icon-only buttons still read as buttons. Repair / rebuild /
+  dispatch keep dark text on orange (the theme's generic `.tool` colour had won).
+- **Top bar:** the dashboard button moved into the leading view group, right after City Pulse.

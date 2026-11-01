@@ -207,9 +207,6 @@ body.compact {
   flex: none;
   padding: 9px 10px;
 }
-.compact .tool span.l {
-  display: none;
-}
 .compact .card {
   width: 116px;
   padding: 7px 8px;
@@ -284,16 +281,6 @@ body.compact {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
-}
-.compact .help {
-  position: absolute;
-  left: var(--gut);
-  right: var(--gut);
-  top: 34%;
-  max-width: none;
-  margin: 0 auto;
-  width: min(340px, calc(100vw - 2 * var(--gut)));
-  z-index: 20;
 }
 /* Toasts under the chips: the bottom belongs to the inspector and the build tray. */
 .compact .toasts {

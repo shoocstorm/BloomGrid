@@ -71,8 +71,7 @@ body.flora-open:not(.compact):not(.flora-max) .rightcol {
 .night .ai.panel.hidden {
   display: none;
 }
-body.flora-max .rightcol,
-body.flora-max .help {
+body.flora-max .rightcol {
   display: none;
 }
 

@@ -418,29 +418,6 @@ button {
   }
 }
 
-/* Help */
-.help {
-  position: relative;
-  transition: opacity 0.6s;
-  padding: 12px 14px;
-  font-size: 12px;
-  line-height: 1.7;
-  max-width: 250px;
-}
-.help.hidden {
-  display: none;
-}
-.help b {
-  font-weight: 600;
-}
-.help kbd {
-  font: inherit;
-  font-size: 11px;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.07);
-}
-
 /* Perf overlay */
 .perf {
   position: absolute;

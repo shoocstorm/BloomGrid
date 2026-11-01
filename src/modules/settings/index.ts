@@ -3,7 +3,8 @@ import { QUALITY_TIERS, type QualityTier } from '@/render/Quality';
 import { POWER_MODES, type PowerMode } from '@/render/Power';
 import { ago, h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
-import { holoHead, rise } from '@/ui/holo';
+import { holoHead } from '@/ui/holo';
+import { controlsPane } from './controls';
 import './settings.css';
 
 const QUALITY_LABELS: Record<QualityTier, string> = {
@@ -128,15 +129,29 @@ const TABS = [
   ['game', 'Game'],
   ['sound', 'Sound'],
   ['display', 'Display'],
+  ['controls', 'Controls'],
 ] as const;
 type TabId = (typeof TABS)[number][0];
 const TAB_KEY = 'bloomgrid.settings.tab';
 
 /**
- * Settings (⚙, D-081): one panel with three tabs. **Game**: the saved city with Save / Load (moved from the top
+ * Settings (⚙, D-081, D-087): one panel with four tabs, sharing one grid cell so switching never jumps. **Game**: the saved city with Save / Load (moved from the top
  * bar), found a new city, the guide. **Sound**: volumes and mute. **Display**: power mode, desktop window, graphics
- * quality. Quality, power and the open tab are per-viewer conveniences in localStorage; `?quality=` still wins.
+ * quality. **Controls**: basic controls and common hotkeys (H opens it). Quality, power and the open tab are per-viewer conveniences in localStorage; `?quality=` still wins.
  */
+export interface SettingsService {
+  /** Opens Settings (on a tab, else the last one). */
+  open(tab?: TabId): void;
+  close(): void;
+  readonly isOpen: boolean;
+}
+
+declare module '@/core/Services' {
+  interface GameServices {
+    settings: SettingsService;
+  }
+}
+
 export const settingsModule: GameModule = {
   id: 'settings',
   deps: ['hud'],
@@ -172,7 +187,6 @@ export const settingsModule: GameModule = {
         h('h4', {}, 'City'),
         h('button', { class: 'set-new', onClick: () => (close(), ctx.services.get('crises').newCity()) }, icon('sparkle'), ' New chapter: resume, new island, showcase…'),
         h('button', { class: 'set-new', onClick: () => (close(), ctx.services.tryGet('wizard')?.guide()) }, icon('console'), ' How to play (guide)'),
-        h('button', { class: 'set-new', onClick: () => (close(), ctx.services.get('hud').showControls(true)) }, icon('chip'), ' Controls (H)'),
       ),
       sound: h(
         'div',
@@ -200,6 +214,7 @@ export const settingsModule: GameModule = {
           }
         }),
       ),
+      controls: h('div', { class: 'set-pane p-controls' }, ...controlsPane(ctx)),
     };
     let current: TabId = 'game';
     try {
@@ -221,9 +236,9 @@ export const settingsModule: GameModule = {
       TABS.forEach(([t], i) => {
         tabBtns[i]!.classList.toggle('on', t === id);
         tabBtns[i]!.setAttribute('aria-selected', String(t === id));
-        panes[t].classList.toggle('hidden', t !== id);
+        panes[t].classList.toggle('on', t === id);
+        panes[t].setAttribute('aria-hidden', String(t !== id));
       });
-      rise([...panes[id].children]);
       if (id === 'game') saves.refresh();
     };
 
@@ -237,7 +252,8 @@ export const settingsModule: GameModule = {
         h('button', { class: 'icon-btn', title: 'Close (Esc)', 'aria-label': 'Close', onClick: close }, icon('close')),
       ),
       h('div', { class: 'set-tabs', role: 'tablist' }, ...tabBtns),
-      ...Object.values(panes),
+      // All panes share one cell: the panel keeps the tallest one's size, so switching tabs never jumps.
+      h('div', { class: 'set-stage' }, ...Object.values(panes)),
     );
     pick(current);
     const btn = h(
@@ -260,7 +276,18 @@ export const settingsModule: GameModule = {
       if (!(t instanceof Node) || pop.contains(t) || btn.contains(t)) return;
       close();
     });
+    const open = (tab?: TabId) => {
+      pop.classList.remove('hidden');
+      pick(tab ?? current);
+    };
+    ctx.services.provide('settings', { open, close, get isOpen() { return !pop.classList.contains('hidden'); } });
     ctx.input.onKey((e) => {
+      // H: Settings → Controls (again closes it).
+      if (e.code === 'KeyH' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (!pop.classList.contains('hidden') && current === 'controls') close();
+        else open('controls');
+        return true;
+      }
       if (e.code !== 'Escape' || pop.classList.contains('hidden')) return false;
       close();
       return true;
