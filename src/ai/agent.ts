@@ -98,10 +98,10 @@ export const REPLY = '__reply__';
  */
 export const PROMPTS = {
   planner:
-    'You are the planner of a city-management assistant. Pick the next step from the options. Follow the output format exactly.',
+    'You are the planner of a city-management assistant. Pick the next step from the options. Use as few steps as possible: never repeat a lookup already done this turn, and reply as soon as the facts answer the request. Follow the output format exactly.',
   args: 'You write the JSON arguments of one tool call for a city-management assistant. Reply with the JSON object only. Fill an optional argument only when the request asks for it; set every other optional argument to null.',
   reply:
-    'You are Flora, the city assistant of BloomGrid, a solarpunk island city. You help the human steward run the city: you watch its systems, look things up and carry out actions they approve. Reply to the steward directly in at most 3 short sentences of plain words, no headings or labels: say what you found or did, with the key numbers and ids. Name city objects by id and name (e.g. LIV-0042 Garden Residence) and say where they are. Only say you did something if it is an ACTION below that did not fail; if an action failed or was declined, say so. Never promise to do or monitor anything later, and never invent numbers or states that are not in the facts. Use only the facts below.',
+    'You are Flora, the city assistant of BloomGrid, a solarpunk island city. You help the human steward run the city like a thoughtful city planner: you watch its systems, look things up, explain causes and carry out actions they approve. Reply to the steward directly in at most 4 short sentences of plain words, no headings, labels or lists. Answer the request first. When something is wrong, say what is wrong and why (cause, with the key numbers), then the one or two most effective fixes; if PROPOSALS were found, recommend them by name and say the steward can build each with one click on the cards below. Mention other problems only when they are critical. Name ids where useful. Name city objects by id and name (e.g. LIV-0042 Garden Residence) and say where they are. Only say you did something if it is an ACTION below that did not fail; if an action failed or was declined, say so. Never promise to do or monitor anything later, and never invent numbers or states that are not in the facts. Use only the facts below.',
 } as const;
 /**
  * Tools kept off the menu by default: the brief already carries the overview and the vocabulary, and
@@ -135,6 +135,8 @@ export function plainIntent(request: string): string | null {
   const question = isQuestion(r);
   const rules: [RegExp, string][] = [
     [/^\s*undo\b/, 'undo'],
+    // Build proposals (D-089): "what should we build?", "what does the city need?", "make a plan".
+    [/\bwhat (should|can|could|shall) (i|we) (build|do next|add|place)\b|\bwhat (do|does) (we|the city|it) need\b|\b(propose|proposals?|plan|priorit(y|ies|ise|ize)|next steps?)\b/, 'propose_builds'],
     // Seedvault (D-088): a note to keep, a doc to open, then how-to and runbook questions (before the topics
     // below, so "how do we handle a fire?" reads the runbook rather than listing fires).
     [/\b(remember (this|that)|note (this|that)( down)?|write (this|that) down|(add|save|keep|make|write) (a |an |this |that )?(note|lesson))\b/, 'knowledge_note'],
@@ -178,11 +180,12 @@ export function plainIntent(request: string): string | null {
     [/\b(fires?|burning|earthquakes?|quakes?|lightning|incidents?|emergenc(y|ies)|damaged?)\b/, 'incident_status'],
     [/\b(crisis|crises|storm|flood|heatwave|drought|forecast)\b/, 'crisis_status'],
     [/\b(trend|over time|improving|getting (better|worse))\b/, 'city_trends'],
-    [/\b(best|cheapest|which building|what (should|can) (i|we) build)\b/, 'building_types'],
+    [/\b(best|cheapest|which building)\b/, 'building_types'],
     [/\b(advice|advise|suggest|recommend)\b/, 'advisor_tips'],
     [/\b(find|list|which|how many|search)\b/, 'inventory_search'],
   ];
   const lookups = new Set([
+    'propose_builds',
     'knowledge_catalog',
     'object_select',
     'inventory_search',
@@ -203,6 +206,7 @@ export function plainIntent(request: string): string | null {
 
 /** Always on the menu when offered: the lookups and the general remedies most requests need. */
 export const CORE_TOOLS = [
+  'propose_builds',
   'knowledge_catalog',
   'inventory_search',
   'inventory_inspect',

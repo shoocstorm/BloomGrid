@@ -52,6 +52,8 @@ export const insightTools: AgentTool<SimCtx, never>[] = [
       'The Flora-Net advisor’s current advisories, most severe first: what is wrong, why it matters, and the suggested remedy (often a building type to place).',
     input: { type: 'object', properties: {} },
     effect: 'read',
+    // Advice ends in something the steward can act on: sized build proposals (one-click cards, D-089).
+    follow: () => ({ tool: 'propose_builds', args: {} }),
     run({ city }) {
       return evaluateAdvisor(city)
         .slice(0, 8)

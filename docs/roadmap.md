@@ -249,6 +249,13 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Flora: `knowledge_catalog` → `knowledge_read` (two-level retrieval with `narrow` / `follow`), `knowledge_note`, `knowledge_open`; verified with `bun run ai-probe` (qwen3-1.7b)
 - **Accept:** ✅ `tests/knowledge.test.ts`; snaps on WebGPU, WebGL and `--mobile` (D-088)
 
+## ✅ Flora plans: one-click build proposals (2026-11-01)
+
+- [x] `proposeBuilds` / `diagnose` (sized, unlocked, sited, affordable plans) and the `propose_builds` tool
+- [x] Proposal cards in the console (Build, Lot, Locate chips, Undo); Locate chips on every build result; cards on tier-drop alerts
+- [x] Advice and "why" follow into proposals; planning questions routed; planner-style reply prompt
+- **Accept:** ✅ `tests/proposals.test.ts`, `bun run test:rust`, ai-probe, in-game one-click build snap (D-089)
+
 ---
 
 ## Tech debt / open issues

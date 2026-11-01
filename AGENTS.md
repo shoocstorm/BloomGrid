@@ -126,6 +126,7 @@ To light a fire from a snap eval: `(await import('/src/sim/hazards.ts')).ignite(
 | Agent (LLM) tools                  | `ctx.services.get('agent').register({ name, description, input, effect, run })` (`src/core/AgentTools.ts`); pure-sim read tools in `src/sim/inventoryTools.ts`; try them in the console: `await bloomgrid.services.get('agent').call('inventory_search', { status: 'critical' })` |
 | City assistant (local LLM agent)   | engine `src/ai/llm/` (wllama + native MLX), loop `src/ai/agent.ts` (system prompts in `PROMPTS`, shown verbatim in the console's Profile tab; menus via `selectMenu`, routing via `plainIntent`), Profile/Tools tabs `src/modules/assistant/Dossier.ts`, tools `src/sim/{inventory,insight,action}Tools.ts` + game tools in `src/modules/assistant/index.ts`, console `src/modules/assistant/Panel.ts`; Rust `src-tauri/src/{llm,models}/`, `mlx.rs`. Measure agent changes with `bun run ai-probe`, not by argument |
 | Knowledge base (Seedvault)        | guides `docs/knowledge/<category>/*.md` (front matter: `docs/knowledge/README.md`; `tests/knowledge.test.ts` checks links and section size), live reference `src/sim/knowledgeRefs.ts` (link it rather than copying numbers), journal via `ctx.platform.knowledge` (IndexedDB / desktop `knowledge/*.md`), base + field logs `src/modules/knowledge/base.ts`, search `search.ts`, Flora tools `tools.ts` (`knowledge_catalog` → `knowledge_read`), dialog `Vault.ts`; **?** / F1 (D-088). A new crisis kind needs a runbook that `covers` it |
+| Build proposals (Flora's planner)  | `src/sim/proposals.ts` (`proposeBuilds`: advisories / rules → sized, unlocked, sited plans; `diagnose`), tool `propose_builds` in `sim/proposalTools.ts`; console cards (one-click Build, Lot, Locate chips, Undo) in `modules/assistant/Panel.ts` `proposals()`; alerts on tier drops carry cards (`assistant/index.ts`). A new advisory with a `build` gets proposals for free; a new shortage needs a case in `planFor` (D-089) |
 | Inspector 3D preview               | `src/modules/preview/` (`preview` service: `show(host, eid)`; scissored render after `core.render`); pieces from `BuildingRenderer.snapshot(eid)`; stage markup in `ui/Hud.ts` `buildInfo` (D-067) |
 | Phone layout / touch input         | `.compact` rules in `src/ui/mobile.css` (loaded last), `platform/device.ts` (`isCompact`, `isTouchDevice`); foldable panels register with `hud.sheet(el)`; gestures in `input/Input.ts`, tools get `cancel` and `e.touch` (D-045). Check with `bun run snap -- --mobile` |
 | Zones (living, work, industry…)    | `ZoneKind` / `ZONES` in `src/content/types.ts`; `nameArea(…, zone)` in a scenario; `District.zone` (saved, hashed); town sub-zones in `founding-city.ts` (`zones` on a `Town`) |
@@ -189,6 +190,24 @@ GPU ≈ 3.5 ms per frame, GPU uploads < 1 MB/s.** If a change raises these notic
 capacity; never use `backdrop-filter` or animate `box-shadow`/layout properties in the HUD; anything that changes
 shadow casters must call `atmosphere.invalidateShadows()`; rendering is paced by `PowerManager`, so don't add your
 own `requestAnimationFrame` loops.
+
+## 7¾. Growing the knowledge base (Seedvault)
+
+The knowledge base is never finished: treat it as part of every feature. Flora's answers are only as good as it.
+
+- **New system, crisis, building family or control** → add or update the doc that explains it in
+  `docs/knowledge/` in the same change (a crisis kind needs a runbook that `covers` it; the test enforces this).
+- **Numbers live in code** → extend the live reference (`src/sim/knowledgeRefs.ts`) rather than writing them into
+  a guide; guides link `kb:reference-…`.
+- **Write for retrieval**: one question per `##` section (Flora reads one section at a time, < 1,400 chars), headings
+  in the player's words ("Prepare (in the warning window)", not "Phase A"), tags with the words players use. When a
+  player phrase misses, add it to `SYNONYMS` in `modules/knowledge/search.ts` and a case to `tests/knowledge.test.ts`.
+- **Measure, don't guess**: after changing docs, search or tools, ask Flora the doc's questions with
+  `bun run ai-probe -- --ask "…"` and check she reads the right section.
+- **Learn from play**: field logs and recoveries on your device show what actually goes wrong; when a pattern keeps
+  coming up, turn it into a runbook step or a playbook. Ideas worth doing next: a "lessons" pass that promotes
+  recurring field-log lessons into a doc, per-doc "was this useful" signals, and docs for new player questions
+  seen in probes.
 
 ## 8. Gotchas (three r186 / tooling)
 

@@ -126,7 +126,10 @@ or tell it what to do ("build three vertical farms in Bayfront", "fix the power 
 a model under ⚙ (it downloads once from Hugging Face, ≈0.6–1 GB; on an Apple Silicon Mac the desktop app runs it
 natively, much faster). Without a model, slash commands work: type `/help`. The **Autonomous mode** switch in the Profile tab lets her act without asking. Clear the chat with the eraser in her header (or `/clear`): earlier messages are then no longer sent to the model. The log keeps the latest 40 entries; older ones fade away. The **◈ Profile** tab shows who Flora
 is and the exact instructions (system prompts) her model gets each turn, plus the live city brief she reads; the
-**⚒ Tools** tab lists every tool she can use, with its parameters, and lets you run one directly.
+**⚒ Tools** tab lists every tool she can use, with its parameters, and lets you run one directly. Ask *"what should we build next?"* (or for advice, or why something is failing) and she diagnoses the
+city and proposes concrete builds as cards: what, how many, where, why and what it achieves. **Build** on a card
+places them with one click (undoable), **Lot** shows the spot first, and once built each new building gets a
+**Locate** chip that flies you there. When a system drops, her alert already carries the cards.
 
 **Seedvault** (**?** or F1, or the book in the top bar): the city's knowledge base. Guides to every system, what
 causes what, step-by-step incident runbooks (fires, quakes, floods, blackouts, tornadoes, tsunamis, debt, the fail

@@ -24,6 +24,8 @@ export const consequenceTools: AgentTool<ActionCtx, never>[] = [
       },
     },
     effect: 'read',
+    // A cause explained is followed by what to build about it (D-089).
+    follow: () => ({ tool: 'propose_builds', args: {} }),
     run({ city }, { topic }: { topic?: string }) {
       const m = measure(city);
       const t = topic?.toLowerCase().trim();

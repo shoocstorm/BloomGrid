@@ -13,6 +13,8 @@ import { consequenceTools } from '@/sim/consequenceTools';
 import { switchTools } from '@/sim/switchTools';
 import { riskTools } from '@/sim/riskTools';
 import { growthTools } from '@/sim/growthTools';
+import { proposalTools } from '@/sim/proposalTools';
+import { proposeBuilds, type ProposalFocus } from '@/sim/proposals';
 import { floraBilled, floraBlocker, floraLocked } from '@/sim/flora';
 import { PROJECTS } from '@/sim/projects';
 import { allOverlays, getOverlay } from '@/sim/overlays';
@@ -21,7 +23,7 @@ import { cityBrief } from '@/ai/brief';
 import { defaultPolicy, observe, runTurn, type Policy, type ToolCall } from '@/ai/agent';
 import { LlmEngine, isAbort, type ChatMessage } from '@/ai/llm/engine';
 import { availableModels } from '@/ai/llm/models';
-import { AssistantPanel } from './Panel';
+import { AssistantPanel, type ProposalCard } from './Panel';
 import './assistant.css';
 
 /**
@@ -88,11 +90,19 @@ class Assistant {
   /** Notices from the city's own events: no model needed, throttled per topic. */
   private watch(): void {
     const { bus } = this.ctx;
-    const notice = (topic: string, text: string, ask?: string) => {
+    const notice = (topic: string, text: string, ask?: string, proposals?: ProposalCard[]) => {
       const now = performance.now();
       if (now - (this.lastNotice.get(topic) ?? -Infinity) < 30_000) return;
       this.lastNotice.set(topic, now);
-      this.panel.notice(text, ask);
+      this.panel.notice(text, ask, proposals);
+    };
+    // A failing system comes with what to build about it (D-089): worked out by the planner, no model needed.
+    // Only once Flora is awake on a fresh island (she is an unlock).
+    const FOCUS: Partial<Record<string, ProposalFocus>> = { energy: 'energy', water: 'water', food: 'food', jobs: 'jobs', mobility: 'traffic', ecology: 'ecology', harmony: 'any' };
+    const proposalsFor = (system: string): ProposalCard[] | undefined => {
+      const focus = FOCUS[system];
+      if (!focus || floraLocked(this.ctx.city)) return undefined;
+      return proposeBuilds(this.ctx.city, { focus, limit: 2 }).map((p) => ({ build: `${p.count}× ${p.name}`, type: p.type, count: p.count, where: p.district, why: p.why, gain: p.gain, cost: p.cost, site: p.site }));
     };
     bus.on('pulse:tier', ({ system, tier, prev }) => {
       if (tier <= prev || tier < 2 || !this.ctx.city.pulse.primed) return;
@@ -101,6 +111,7 @@ class Assistant {
         `tier:${system}`,
         `${label} dropped to ${TIERS[tier]} (was ${TIERS[prev]}).`,
         `${label} dropped to ${TIERS[tier]}. What is causing it and what should we do?`,
+        proposalsFor(system),
       );
     });
     bus.on('crisis:forecast', ({ crisis }) => {
@@ -486,7 +497,7 @@ export const assistantModule: GameModule = {
   deps: ['inventory', 'pulse', 'hud'],
   init(ctx) {
     const agent = ctx.services.get('agent');
-    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...gameTools()]) agent.register(t);
+    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...gameTools()]) agent.register(t);
     const a = new Assistant(ctx);
     ctx.services.provide('assistant', {
       toggle: (open) => a.panel.toggle(open),

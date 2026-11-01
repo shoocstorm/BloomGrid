@@ -8,6 +8,8 @@ import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { getCrisis } from '@/sim/crises';
 import { listObjects, summarize } from '@/sim/inventory';
+import { buildings } from '@/content';
+import type { BuildingCategory } from '@/content/types';
 import { Dossier, STATUS_ICON, led } from './Dossier';
 import { SlashMenu } from './Slash';
 
@@ -30,6 +32,33 @@ const stamp = () => {
   return [d.getHours(), d.getMinutes(), d.getSeconds()].map((v) => String(v).padStart(2, '0')).join(':');
 };
 const MAX_KEY = 'bloomgrid.ai.max';
+/** A build proposal as `propose_builds` returns it (D-089). */
+export interface ProposalCard {
+  build: string;
+  type: string;
+  count: number;
+  where: string;
+  why: string;
+  gain: string;
+  cost: number;
+  site: { x: number; z: number; rot: number };
+}
+const CATEGORY_ICON: Record<BuildingCategory, string> = {
+  residential: 'house',
+  energy: 'energy',
+  utility: 'water',
+  tech: 'tech',
+  commercial: 'jobs',
+  industry: 'industry',
+  sports: 'sports',
+  nature: 'nature',
+  food: 'food',
+};
+/** Ids a tool result names as built (`built: "NRG-0042"` or `built: [...]`). */
+const builtIds = (result: unknown): string[] => {
+  const b = (result as { built?: unknown } | null)?.built;
+  return (Array.isArray(b) ? b : [b]).filter((v): v is string => typeof v === 'string' && /^[A-Z]{3}-/.test(v));
+};
 /** Log entries kept on screen; older ones fade out (the model only ever sees the last few turns anyway). */
 const LOG_KEEP = 40;
 const FADE_MS = 450;
@@ -656,7 +685,7 @@ export class AssistantPanel {
   }
 
   /** A city notice from the monitor, with a button to ask about it. */
-  notice(text: string, ask?: string): void {
+  notice(text: string, ask?: string, proposals?: readonly ProposalCard[]): void {
     this.push(
       h(
         'div',
@@ -668,8 +697,86 @@ export class AssistantPanel {
           h('span', {}, text),
           ask ? h('button', { class: 'ai-chip', onClick: () => this.actions.send(ask) }, 'Analyse') : null,
         ),
+        proposals?.length ? this.proposals(proposals) : null,
       ),
     );
+  }
+
+  /** Chips that fly to each built object and open it (and one undo for the lot). */
+  private locateRow(ids: readonly string[], label = 'Built'): HTMLElement {
+    const inv = this.ctx.services.get('inventory');
+    return h(
+      'div',
+      { class: 'ai-built' },
+      h('span', { class: 'ai-built-l' }, `✓ ${label}`),
+      ...ids.map((id) =>
+        h('button', { class: 'ai-id ai-loc', title: `Fly to ${id} and open it`, onClick: () => inv.select(id) }, icon('locate'), id),
+      ),
+    );
+  }
+
+  /**
+   * Build proposals as cards (D-089): what, where, why and the expected gain, with one-click Build (the steward's
+   * own action, so no authorization; undoable) and a look at the lot first. Once built, the card turns into
+   * Locate chips for the new buildings, and the camera flies to the first.
+   */
+  proposals(list: readonly ProposalCard[]): HTMLElement {
+    const agent = this.ctx.services.get('agent');
+    const inv = this.ctx.services.get('inventory');
+    const card = (p: ProposalCard) => {
+      const def = buildings.has(p.type) ? buildings.get(p.type) : null;
+      const btn = h('button', { class: 'ai-auth yes ai-prop-go', title: `Build ${p.build} in ${p.where}` }, icon('build'), `Build ◈${fmt(p.cost)}`) as HTMLButtonElement;
+      const foot = h(
+        'div',
+        { class: 'ai-prop-btns' },
+        btn,
+        h('button', { class: 'ai-chip', title: 'Fly to the proposed lot', onClick: () => this.ctx.cameraCtl.flyTo(p.site.x, p.site.z, 36) }, icon('locate'), 'Lot'),
+      );
+      const el = h(
+        'div',
+        { class: 'ai-prop' },
+        h('div', { class: 'ai-prop-h' }, h('span', { class: 'ai-prop-i' }, icon(!def ? 'build' : def.response ? 'fire' : def.stats.water > 0 ? 'water' : def.stats.energy > 0 ? 'energy' : CATEGORY_ICON[def.category])), h('b', {}, p.build), h('span', { class: 'ai-prop-w' }, p.where)),
+        h('div', { class: 'ai-prop-why' }, p.why),
+        h('div', { class: 'ai-prop-gain' }, p.gain),
+        foot,
+      );
+      const sync = () => {
+        const short = this.ctx.city.credits < p.cost;
+        btn.disabled = short;
+        btn.title = short ? `Needs ◈${fmt(p.cost)}; the treasury has ◈${fmt(this.ctx.city.credits)}` : `Build ${p.build} in ${p.where}`;
+      };
+      sync();
+      el.addEventListener('pointerenter', sync);
+      btn.onclick = async () => {
+        btn.disabled = true;
+        const ids: string[] = [];
+        let error = '';
+        for (let i = 0; i < p.count; i++) {
+          const r = await agent.call('build', { type: p.type, x: p.site.x, z: p.site.z, rot: p.site.rot });
+          if (!r.ok) {
+            error = r.error;
+            break;
+          }
+          ids.push(...builtIds(r.result));
+        }
+        if (!ids.length) {
+          foot.replaceChildren(h('span', { class: 'ai-verdict bad' }, `✗ ${error || 'Could not build'}`));
+          return;
+        }
+        el.classList.add('done');
+        foot.replaceChildren(this.locateRow(ids, ids.length < p.count ? `Built ${ids.length} of ${p.count}` : 'Built'), h('button', { class: 'ai-chip', title: 'Undo these builds (⌘Z)', onClick: () => {
+          for (let i = 0; i < ids.length; i++) this.ctx.commands.undo();
+          el.classList.remove('done');
+          foot.replaceChildren(h('span', { class: 'ai-verdict' }, 'Undone'));
+        } }, icon('undo'), 'Undo'));
+        this.actionsRun.push({ at: stamp(), text: `build ${ids.join(' ')}` });
+        this.timer = 99;
+        inv.select(ids[0]!);
+        this.ctx.bus.emit('toast', { text: `Built ${ids.length > 1 ? `${ids.length}× ` : ''}${def?.name ?? p.type} in ${p.where}`, tone: 'ok', at: p.site });
+      };
+      return el;
+    };
+    return h('div', { class: 'ai-props' }, h('div', { class: 'ai-props-h' }, icon('sparkle'), 'Proposed builds · one click each'), ...list.map(card));
   }
 
   assistant(): Bubble {
@@ -708,6 +815,10 @@ export class AssistantPanel {
             r.ok ? `✓ ${Math.round(performance.now() - l.t0)} ms` : `✗ ${r.error}`,
           ),
         );
+        const props = (r.result as { proposals?: ProposalCard[] } | undefined)?.proposals;
+        if (r.ok && props?.length) steps.append(this.proposals(props));
+        const built = r.ok && r.call.effect === 'mutate' ? builtIds(r.result) : [];
+        if (built.length) steps.append(this.locateRow(built));
         if (r.ok && r.call.effect === 'mutate') {
           const ids = Object.values((r.result as Record<string, unknown> | undefined) ?? {})
             .flat()

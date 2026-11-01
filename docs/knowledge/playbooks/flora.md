@@ -21,6 +21,13 @@ things happen, finds objects, and carries out actions you approve (every action 
 - *How do I…* questions make her search the Seedvault and read the right section of a guide or runbook.
 - *Remember that…* or *save a note…* asks her to write a note into your journal (she asks first).
 
+## Proposals: one click to build
+
+Ask *"what should we build next?"*, for advice, or *why* something is failing: Flora diagnoses the city and shows
+**proposal cards** (what, how many, where, why, and what it achieves). **Build** places them (undoable with ⌘Z),
+**Lot** flies to the spot first, and the new buildings get **Locate** chips that fly you there. Alerts about a
+failing system come with cards too.
+
 ## Slash commands
 
 Type `/` for direct tool calls without a model, e.g. `/knowledge_catalog query="fire"` or

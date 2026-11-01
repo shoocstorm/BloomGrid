@@ -1231,3 +1231,31 @@ button never gives way when the bar is tight (one icon). Not in the save: the jo
 crisis has a runbook. Rejected: embeddings / a vector index (a model download for ~50 docs; lexical search with
 synonyms finds the right section in the probe set), storing the journal in the save (lessons should carry over).
 
+## D-089 — Flora proposes builds the steward places with one click; sharper analysis (2026-11-01)
+
+**Context:** Flora diagnosed problems in words, but acting on them meant another request, an approval and then
+hunting for the result on the map. A 1.7B model also can't size a fix (how many, which type, where).
+
+**Decision:**
+- **Planner in the sim** (`sim/proposals.ts`): `proposeBuilds(city, { focus, district })` turns the advisor's
+  advisories (and the *fire cover* rule) into up to 3 plans: for supply shortfalls (energy, water, food, jobs,
+  homes) the most cost-effective unlocked, non-landmark type and count (1–3) that covers demand ×1.15 (affordable
+  first), trying ranked candidates until one has a valid lot (inside the named district when given); other
+  advisories use their `build`. Each plan says why, what it achieves ("+660 water → 99% of demand"), cost and
+  affordability. `diagnose` lists the systems below Stable with readings. Pure, deterministic, ≈2–30 ms.
+- **Tool** `propose_builds` (read): the diagnosis plus proposals. `advisor_tips` and `why` `follow` into it, so
+  every analysis ends in something actionable without another model decision; "what should we build / what does
+  the city need / make a plan" route to it; it is a core menu tool.
+- **Console cards** (`Panel.proposals`): what, where, why, gain; **Build ◈cost** (disabled when the treasury is
+  short) runs the `build` tool at the proposed lot (the steward's own click: no authorization; undoable), **Lot**
+  flies to the lot first. Built, the card becomes **Locate** chips per new id plus **Undo**, the camera flies to
+  the first (inspector open) and a toast offers ⌖ Show. Any `build` / `build_many` result gets Locate chips too.
+- **Proactive**: a tier-drop alert carries cards for that system (no model needed), once Flora is awake.
+- **Prompts**: the reply asks for planner-style analysis (answer first, then what is wrong and why with numbers,
+  then the one or two best fixes, naming the proposals), up to 4 sentences; the planner is told not to repeat
+  lookups and to reply as soon as the facts answer.
+
+**Consequences:** Verified with `bun run ai-probe` (qwen3-1.7b): "what should we build next?" → `propose_builds` →
+answer naming the cards; "why is our water strained?" → `why` → `propose_builds` (followed). A one-click build
+in a snap built 3 NEWater works and raised water from 90% to 96%. Grammar fixture updated (`propose_builds`).
+
