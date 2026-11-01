@@ -1259,3 +1259,26 @@ hunting for the result on the map. A 1.7B model also can't size a fix (how many,
 answer naming the cards; "why is our water strained?" → `why` → `propose_builds` (followed). A one-click build
 in a snap built 3 NEWater works and raised water from 90% to 96%. Grammar fixture updated (`propose_builds`).
 
+## D-090 — Locate from above; a selection highlight you can't miss (2026-11-01)
+
+**Context:** "Locate" (inventory, Flora's chips, toasts) glided the target across at the current pitch, so a low
+camera often landed with the object behind towers; the only selection cue was the hover footprint cursor.
+
+**Decision:**
+- **`CityCamera.locate(x, z, { size, height })`**: a timed glide (1–2.4 s, smootherstep) instead of goal smoothing.
+  The target eases across while the distance arcs up with the trip length (less when already high) and the pitch
+  tips to nearly top-down mid-flight, settling at `BIRD_PITCH` (1.18 rad, ≈68°) at a distance framed by the
+  object's footprint and height (`max(38, size × 2.6, height × 2.4)`). Any key, drag, wheel or gesture cancels it
+  where it is. The inventory service (`focus` / `select`, so Flora's Locate chips, `object_select`, the dashboard),
+  located toasts and Flora's **Lot** button use it; `flyTo` stays for bookmarks, the overview and the advisor.
+- **Selection highlight** (`modules/selection`): on `selection:changed` a building (or highway tile) gets a
+  targeting reticle on the ground (inner ring and four arcs that close in on select, then breathe and turn
+  slowly), two one-shot ripples, a light beam from the roof for 3.5 s (wide from far away), and a diamond marker
+  over the roof that drops in and bobs, drawn over buildings (`beacon-xray`) so it is never hidden. New unlit
+  materials `beacon` / `beacon-xray` (vertex colour; glow adds bloom only at night) with dark outlines under bright
+  strokes so they read on pale daytime ground. Rings hide beyond distance 170 (sub-pixel shimmer, D-070); the
+  marker grows with distance and carries it. Four meshes, CPU-posed only while something is selected; they are
+  visible at zero scale for the first frames so their pipelines compile in the boot warm-up.
+
+**Consequences:** +4 draw calls only while something is selected. `tests/locate.test.ts` covers the glide.
+

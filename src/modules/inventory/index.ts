@@ -12,6 +12,7 @@ import {
   type ObjectInspection,
 } from '@/sim/inventory';
 import { inventoryTools } from '@/sim/inventoryTools';
+import { placeBuilding } from '@/modules/construction/BuildingRenderer';
 
 /**
  * City inventory service: the sim inventory (`sim/inventory.ts`) plus the view actions a steward or an agent
@@ -32,11 +33,17 @@ export interface InventoryService {
   select(id: string): boolean;
 }
 
-/** Camera distance that frames an object of footprint w × d (tiles). */
-const frameDistance = (o: CityObject) => Math.min(260, Math.max(28, Math.max(o.w, o.d) * 1.6));
+/** A building's height above its base (its cached template), for framing it from above. */
+function heightOf(ctx: GameContext, o: CityObject): number {
+  const eid = o.kind === 'building' ? o.ref.eid : undefined;
+  if (eid === undefined || !ctx.city.buildingEntities().includes(eid)) return 6;
+  const rec = ctx.city.buildingRecord(eid);
+  return placeBuilding(ctx.city.grid, ctx.city.buildingDef(eid), rec.x, rec.z, rec.rot).template.height;
+}
 
 function createService(ctx: GameContext): InventoryService {
-  const focus = (o: CityObject) => ctx.cameraCtl.flyTo(o.x, o.z, frameDistance(o));
+  // A bird's-eye glide (D-090): from wherever the camera is, so the object is always in view when it lands.
+  const focus = (o: CityObject) => ctx.cameraCtl.locate(o.x, o.z, { size: Math.min(120, Math.max(o.w, o.d)), height: heightOf(ctx, o) });
   return {
     list: (kind) => listObjects(ctx.city, kind),
     filter: filterObjects,

@@ -182,7 +182,7 @@ class Hud {
           {
             class: `toast panel tone-${tone} go`,
             title: 'Show me',
-            onClick: () => (this.ctx.cameraCtl.flyTo(at.x, at.z, 36), t.remove()),
+            onClick: () => (this.ctx.cameraCtl.locate(at.x, at.z), t.remove()),
           },
           text,
           h('span', { class: 'toast-go' }, '⌖ Show'),

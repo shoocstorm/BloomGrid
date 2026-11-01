@@ -111,6 +111,7 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Dashboard chart          | `new LineChart({ format, step })` from `modules/dashboard/LineChart.ts` (one series per chart)                    |
 | Inventory object kind    | `registerInventoryKind({ kind, label, icon, prefixes, description, list, get?, details? })` in `sim/inventory.ts` (or a module); issue codes via `registerIssue` |
 | Agent tool (LLM / script)| `ctx.services.get('agent').register({ name, description, input, effect, run })` (`core/AgentTools.ts`); pure-sim tools go in `sim/*Tools.ts` |
+| Show an object           | `cameraCtl.locate(x, z, { size, height })` (bird's-eye glide, cancelled by any input); emitting `selection:changed` draws the highlight (`modules/selection`, D-090) |
 | Build proposal           | an advisory with `build` (or a case in `planFor`, `sim/proposals.ts`); the console renders any tool result with `proposals` as one-click cards and any `built` ids as Locate chips (D-089) |
 | Knowledge doc (Seedvault)| a Markdown file with front matter in `docs/knowledge/<category>/` (format in `docs/knowledge/README.md`); numbers that live in code go in `sim/knowledgeRefs.ts` (live reference) instead (D-088) |
 | Device-local documents   | `ctx.platform.knowledge` (`DocStore`: `list` / `put` / `remove`): IndexedDB on the web, `<app data>/knowledge/*.md` on the desktop |

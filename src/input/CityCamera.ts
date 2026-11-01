@@ -69,6 +69,55 @@ export class CityCamera {
   }
 
   private smoothTimer = 0;
+  /** A locate glide in progress (see `locate`). */
+  private glide: {
+    t: number;
+    dur: number;
+    x0: number;
+    z0: number;
+    x1: number;
+    z1: number;
+    d0: number;
+    d1: number;
+    lift: number;
+    p0: number;
+  } | null = null;
+
+  /** Pitch of the bird's-eye view a locate settles on (≈ 68°: steep enough that towers don't hide the object). */
+  static readonly BIRD_PITCH = 1.18;
+
+  /**
+   * Shows an object from above, wherever the camera is (D-090): the camera climbs on a steep, high arc (higher
+   * the further it travels), crosses over, and settles looking down at the object, framed by its footprint and
+   * height. Any pan, orbit, zoom or key cancels it and leaves the camera where it is.
+   */
+  locate(x: number, z: number, opts: { size?: number; height?: number } = {}): void {
+    if (!this.enabled) return;
+    const size = opts.size ?? 6;
+    const height = opts.height ?? 8;
+    const d1 = MathUtils.clamp(Math.max(38, size * 2.6, height * 2.4), this.minDistance, 260);
+    const travel = Math.hypot(x - this.target.x, z - this.target.z);
+    clearTimeout(this.smoothTimer);
+    this.smoothing = 10;
+    this.glide = {
+      t: 0,
+      dur: MathUtils.clamp(0.9 + travel / 280, 1, 2.4),
+      x0: this.target.x,
+      z0: this.target.z,
+      x1: x,
+      z1: z,
+      d0: this.distance,
+      d1,
+      // Rise with the distance travelled (but not when already high), so the trip reads from above.
+      lift: MathUtils.clamp(travel * 0.45 - Math.max(0, this.distance - d1) * 0.5, 0, 280),
+      p0: this.pitch,
+    };
+  }
+
+  /** True while a locate glide runs. */
+  get locating(): boolean {
+    return this.glide !== null;
+  }
 
   /** Smooth, slower glide to a point (advisor "show me", bookmarks, overview). */
   flyTo(x: number, z: number, distance?: number, pitch?: number): void {
@@ -121,6 +170,13 @@ export class CityCamera {
     if (!this.enabled) return;
     const inp = this.input;
     const k = inp.keys;
+    // The steward taking the controls ends a locate glide where it is.
+    if (this.glide && (k.size > 0 || inp.buttons.size > 0 || inp.wheel || inp.gesture)) {
+      this.glide = null;
+      this.goalTarget.copy(this.target);
+      this.goalDistance = this.distance;
+      this.goalPitch = this.pitch;
+    }
     const panSpeed = this.goalDistance * 0.9 * dt;
     let fx = 0;
     let fz = 0;
@@ -156,6 +212,8 @@ export class CityCamera {
     this.goalTarget.z = MathUtils.clamp(this.goalTarget.z, 0, g.h);
     this.goalTarget.y = Math.max(0, g.heightAt(this.goalTarget.x, this.goalTarget.z));
 
+    if (this.glide) this.stepGlide(dt);
+
     // Exponential smoothing (frame-rate independent).
     const a = 1 - Math.exp(-dt * this.smoothing);
     this.target.lerp(this.goalTarget, a);
@@ -171,9 +229,26 @@ export class CityCamera {
     this.camera.lookAt(this.target);
   }
 
+  /** Advances a locate glide: the target eases across, distance arcs up and back down, pitch tips to look down. */
+  private stepGlide(dt: number): void {
+    const gl = this.glide!;
+    gl.t = Math.min(gl.dur, gl.t + dt);
+    const u = gl.t / gl.dur;
+    const s = u * u * u * (u * (u * 6 - 15) + 10); // smootherstep
+    const arc = Math.sin(Math.PI * s);
+    const pitch = MathUtils.lerp(gl.p0, CityCamera.BIRD_PITCH, Math.min(1, s * 1.6));
+    this.goalTarget.x = this.target.x = MathUtils.lerp(gl.x0, gl.x1, s);
+    this.goalTarget.z = this.target.z = MathUtils.lerp(gl.z0, gl.z1, s);
+    this.goalDistance = this.distance = Math.min(this.maxDistance, MathUtils.lerp(gl.d0, gl.d1, s) + gl.lift * arc);
+    // Steepest mid-flight (nearly top-down), settling on the bird's-eye pitch.
+    this.goalPitch = this.pitch = Math.min(1.42, pitch + 0.2 * arc);
+    if (gl.t >= gl.dur) this.glide = null;
+  }
+
   /** True while the camera is still gliding toward its goal (or a key is held). */
   isMoving(): boolean {
     return (
+      this.glide !== null ||
       this.externalMotion ||
       this.target.distanceToSquared(this.goalTarget) > 1e-4 ||
       Math.abs(this.goalDistance - this.distance) > 0.01 ||

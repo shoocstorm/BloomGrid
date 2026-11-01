@@ -571,6 +571,18 @@ export function initMaterials(): void {
   define('scenery', scenery(false), { overlay: 'plain' });
   define('glowline', scenery(true), { overlay: 'plain' });
 
+  // Selection highlight (D-090): unlit, so it reads in daylight as well as at night (glow adds bloom after dark).
+  // `beacon-xray` draws over everything (the marker over a selected building is never hidden behind a tower).
+  const beacon = (xray: boolean) => () => {
+    const m = new MeshBasicNodeMaterial({ transparent: xray, depthTest: !xray, depthWrite: !xray });
+    const c = attribute('color', 'vec3');
+    m.colorNode = c.mul(attribute('aGlow', 'float').mul(U.night.mul(0.4)).add(1));
+    if (xray) m.opacityNode = float(0.92);
+    return m;
+  };
+  define('beacon', beacon(false));
+  define('beacon-xray', beacon(true));
+
   // Firework sparks (D-068): every particle's flight is a closed-form function of `U.clock` from its
   // per-instance launch data, so the CPU only writes a particle once (at launch) and never re-poses it.
   // aBurst = origin xyz + start time, aVel = velocity xyz + life, aLook = drag, gravity, size, crackle.

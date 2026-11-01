@@ -730,7 +730,7 @@ export class AssistantPanel {
         'div',
         { class: 'ai-prop-btns' },
         btn,
-        h('button', { class: 'ai-chip', title: 'Fly to the proposed lot', onClick: () => this.ctx.cameraCtl.flyTo(p.site.x, p.site.z, 36) }, icon('locate'), 'Lot'),
+        h('button', { class: 'ai-chip', title: 'Fly to the proposed lot', onClick: () => this.ctx.cameraCtl.locate(p.site.x, p.site.z, { size: buildings.has(p.type) ? Math.max(...buildings.get(p.type).footprint) : 6 }) }, icon('locate'), 'Lot'),
       );
       const el = h(
         'div',

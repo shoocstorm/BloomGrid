@@ -142,7 +142,7 @@ note. In the desktop app the journal is a folder of Markdown files (app data `kn
 **Inventory** (**I**): every building, highway network, bridge, sky-bridge, channel, district and sea wonder, each
 with a readable id such as `LIV-0042` or `HWY-118.204`. Search by name, id or district, or filter with `issue:power`,
 `status:critical`, `district:westbrook`, `is:old`, `is:upgradable`, `is:top` (or the age / level menu, and sort by
-Oldest or Level); pick a row to inspect it and **Locate** to fly there. The inspector shows
+Oldest or Level); pick a row to inspect it and **Locate** to fly there: the camera climbs and comes down over it from above, so it is never hidden behind towers, and a glowing reticle and marker show what is selected. The inspector shows
 the id of whatever you select; click it to open the inventory.
 
 **A planned city:** every area has a purpose: living, work, industry, entertainment, sports, utility, civic and
