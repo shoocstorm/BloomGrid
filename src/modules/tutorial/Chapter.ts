@@ -1,11 +1,12 @@
 import type { GameContext } from '@/game/context';
 import { SHOWCASE_SEED } from '@/game/newCity';
 import type { SaveInfo } from '@/game/SaveManager';
+import type { SaveData } from '@/sim/save';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
 import { ago, h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { holoHead, rise } from '@/ui/holo';
-import { drawIsland } from './islandMap';
+import { MAP_COLORS, MAP_LINE, MAP_ROAD, drawIsland, mapOfCity, mapOfSave } from './islandMap';
 
 type Path = 'resume' | 'new' | 'showcase';
 
@@ -43,9 +44,12 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   // The city holds still while the steward chooses (no alerts piling up behind the dialog).
   const speed = ctx.engine.speed;
   ctx.engine.speed = 0;
+  // City Pulse waits until a chapter is chosen (it would show a city about to be replaced).
+  document.body.classList.add('chapter-open');
   const close = () => {
     window.removeEventListener('keydown', onKey, true);
     scrim.remove();
+    document.body.classList.remove('chapter-open');
     ctx.engine.speed = speed;
   };
 
@@ -73,7 +77,7 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   const resume = h(
     'div',
     { class: 'ch-pane p-resume' },
-    savedMap,
+    h('div', { class: 'ch-mapbox' }, h('div', { class: 'ch-mapwrap' }, savedMap, h('span', { class: 'ch-map-cap' }, info?.seed ? `Island #${info.seed}` : 'Your island')), legend(false)),
     h(
       'div',
       { class: 'ch-detail' },
@@ -112,8 +116,10 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   const seedInput = h('input', { type: 'number', class: 'ch-seed', value: String(seed), min: '1', 'aria-label': 'Island seed' }) as HTMLInputElement;
   const seedLabel = h('span', { class: 'ch-map-cap' });
   const paintNew = () => {
-    setText(seedLabel, `Island #${seed}`);
-    drawIsland(newMap, seed, size);
+    // The island on screen at boot already holds the hamlet you would found: show it.
+    const here = o.first && seed === ctx.city.seed && ctx.city.growth.progression;
+    setText(seedLabel, here ? `Island #${seed} · your hamlet` : `Island #${seed} · unclaimed`);
+    drawIsland(newMap, seed, size, here ? mapOfCity(ctx.city) : undefined);
   };
   seedInput.addEventListener('change', () => {
     seed = Math.max(1, Math.floor(Number(seedInput.value)) || 1);
@@ -123,7 +129,7 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   const fresh = h(
     'div',
     { class: 'ch-pane p-new' },
-    h('div', { class: 'ch-mapbox' }, newMap, seedLabel),
+    h('div', { class: 'ch-mapbox' }, h('div', { class: 'ch-mapwrap' }, newMap, seedLabel)),
     h(
       'div',
       { class: 'ch-detail' },
@@ -160,11 +166,17 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   );
 
   // ── Showcase ──
-  const showMap = h('canvas', { class: 'ch-map' }) as HTMLCanvasElement;
+  // A snapshot of the real showcase (scripts/scenes/showcase-map.js); the bare island if it is missing.
+  const showMap = h('img', { class: 'ch-map', alt: 'Map of the showcase city', src: '/assets/showcase-map.webp', draggable: 'false' }) as HTMLImageElement;
+  showMap.addEventListener('error', () => {
+    const c = h('canvas', { class: 'ch-map' }) as HTMLCanvasElement;
+    drawIsland(c, SHOWCASE_SEED, size);
+    showMap.replaceWith(c);
+  });
   const showcase = h(
     'div',
     { class: 'ch-pane p-showcase' },
-    showMap,
+    h('div', { class: 'ch-mapbox' }, h('div', { class: 'ch-mapwrap' }, showMap, h('span', { class: 'ch-map-cap' }, 'The founding city')), legend(true)),
     h(
       'div',
       { class: 'ch-detail' },
@@ -206,9 +218,8 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
         info ? 'Resume your city, found a new island, or wander the showcase.' : 'Grow a solarpunk island from a fishing hamlet, or wander a finished city first.',
       ),
       paths,
-      resume,
-      fresh,
-      showcase,
+      // All panes share one cell, so the dialog keeps the tallest one's height and never jumps between paths.
+      h('div', { class: 'ch-stage' }, resume, fresh, showcase),
       foot,
     ),
   );
@@ -234,7 +245,6 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
       icon(p === 'resume' ? 'play' : p === 'new' ? 'sparkle' : 'city'),
       p === 'resume' ? `Resume ${info?.name || 'my city'}` : p === 'new' ? 'Found the city' : 'Open the showcase',
     );
-    rise(panes[p].querySelectorAll('.ch-detail > *'));
     if (p === 'new' && !o.first) setTimeout(() => nameInput.focus(), 30);
   }
 
@@ -275,9 +285,27 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   // Maps after the dialog is up (≈15k height samples each).
   setTimeout(() => {
     paintNew();
-    drawIsland(showMap, SHOWCASE_SEED, size);
-    drawIsland(savedMap, info?.seed ?? SHOWCASE_SEED, size);
+    // The saved city itself, read from its save (it is not loaded).
+    void ctx.platform.storage
+      .get<SaveData>('save:slot1')
+      .then((data) => drawIsland(savedMap, data?.seed ?? info?.seed ?? SHOWCASE_SEED, size, data ? mapOfSave(data) : undefined))
+      .catch(() => drawIsland(savedMap, info?.seed ?? SHOWCASE_SEED, size));
   }, 60);
+}
+
+/** What the colours on a city map mean. */
+function legend(line: boolean): HTMLElement {
+  const item = (color: string, label: string, cls = '') => h('span', { class: `ch-key ${cls}` }, h('i', { style: `background:${color}` }), label);
+  return h(
+    'div',
+    { class: 'ch-legend' },
+    item(MAP_COLORS.residential, 'Homes'),
+    item(MAP_COLORS.commercial, 'Work'),
+    item(MAP_COLORS.nature, 'Nature'),
+    item(MAP_COLORS.energy, 'Power'),
+    item(MAP_ROAD, 'Highways', 'road'),
+    line ? item(MAP_LINE, 'Aeroline', 'road') : null,
+  );
 }
 
 function fact(ico: string, label: string, value: string): HTMLElement {

@@ -12,6 +12,31 @@
 .pulse.collapsed .pulse-body {
   display: none;
 }
+.pulse-headrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pulse-headrow .pulse-head {
+  flex: 1;
+  min-width: 0;
+}
+.pulse.console .pulse-head {
+  cursor: default;
+}
+.pulse-x {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin: -4px -4px 0 0;
+  color: var(--ink-faint);
+}
+.pulse-x:hover {
+  color: var(--ink);
+}
+.pulse:not(.console) .pulse-x {
+  display: none;
+}
 .pulse-head {
   display: flex;
   align-items: center;

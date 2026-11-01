@@ -32,6 +32,7 @@ bun run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo
 bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--sound] [--profile 15]   # power/perf probe (see §8)
 bun run flicker -- [--pieces all|names|a,b] [--defs canopy-tower] [--day] [--diff shots/f.png]   # thin-detail flashing probe (D-070)
 bun run trailer:feature  # ~76s feature trailer against the showcase city (wind farm, Bloomtopia, train ride, a fireworks act with shaped bursts and a sky message, Flora console, dawn bloom) to shots/feature-trailer.mp4; encodes at crf 25 so it can be committed as public/assets/feature-trailer.mp4 (keep < 100 MB, D-079)
+bun run showcase-map   # redraws public/assets/showcase-map.webp (the New Chapter dialog's showcase map, D-085) from the live founding city: rerun after changing that scenario
 bun run optimize-glb -- raw.glb public/assets/x.glb --footprint 3 --height 4 [--ratio 0.5] [--yaw 90] [--tex 1024]
 bun run tauri:dev      # desktop shell (Tauri v2) against the dev server; tauri:build packages it (needs Rust)
 bun run release [patch|minor|major|X.Y.Z] [--dry-run] [--yes]   # tag + deploy to Firebase (see §10; ask first)

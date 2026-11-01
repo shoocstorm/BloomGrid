@@ -3,6 +3,14 @@
  * above the dock, the highlighted HUD control glows with a static outline (no animated box-shadow, §7½).
  */
 /* ── New Chapter dialog (D-085): path cards, one pane at a time, one primary action ── */
+/* City Pulse appears once a chapter is chosen; the rest of the HUD stays as a dimmed backdrop. */
+body.chapter-open .pulse {
+  display: none;
+}
+/* A deeper dim than other modals, so the HUD behind reads as backdrop. */
+.modal-scrim.ch-scrim {
+  background: rgba(3, 12, 13, 0.82);
+}
 .ch {
   width: min(760px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
@@ -64,29 +72,54 @@
   cursor: default;
 }
 
-.ch-pane {
-  display: none;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 18px;
+.ch-stage {
+  display: grid;
   margin-top: 14px;
+}
+.ch-pane {
+  grid-area: 1 / 1;
+  display: grid;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.18s ease-out,
+    transform 0.18s ease-out,
+    visibility 0s linear 0.18s;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-content: start;
+  gap: 18px;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   background: var(--bg-raise);
 }
 .ch-pane.on {
-  display: grid;
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.18s ease-out,
+    transform 0.18s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ch-pane,
+  .ch-pane.on {
+    transition: none;
+    transform: none;
+  }
 }
 .ch-mapbox {
-  position: relative;
   align-self: start;
+}
+.ch-mapwrap {
+  position: relative;
 }
 .ch-map {
   display: block;
   width: 100%;
   aspect-ratio: 1;
   border-radius: var(--r-md);
-  border: 1px solid var(--line);
   image-rendering: auto;
   background: #06242c;
 }
@@ -100,6 +133,28 @@
   font-family: var(--mono);
   font-size: 10px;
   color: var(--ink-soft);
+}
+.ch-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  margin-top: 8px;
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+.ch-key {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ch-key i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.ch-key.road i {
+  width: 12px;
+  height: 2px;
 }
 .ch-detail {
   display: flex;
@@ -341,10 +396,12 @@
   gap: 12px;
   padding: 12px;
 }
-.compact .ch-pane > .ch-map,
 .compact .ch-mapbox {
-  width: 46%;
+  width: 52%;
   justify-self: center;
+}
+.compact .ch-legend {
+  display: none;
 }
 .compact .ch-diffs {
   grid-template-columns: 1fr 1fr;

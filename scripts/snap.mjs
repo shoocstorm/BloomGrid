@@ -8,10 +8,12 @@
  *   bun run snap -- --times 300,1500,3000,6000 --out shots/boot.png   # timed frames: boot-300.png …
  *   bun run snap -- --mobile --out shots/phone.png                      # 390×844 touch phone (--size overrides)
  *
+ *   bun run snap -- --eval @scripts/scenes/showcase-map.js --eval-out public/assets/showcase-map.webp   # eval → file
+ *
  * Prints page console warnings/errors; exits 1 on uncaught page errors.
  */
 import puppeteer from 'puppeteer-core';
-import { mkdirSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 /** Scripts measure the showcase city unless a path names a scenario (a plain boot is a fresh island + wizard, D-072). */
@@ -62,7 +64,11 @@ if (times) {
   if (args.eval) {
     const code = args.eval.startsWith('@') ? readFileSync(args.eval.slice(1), 'utf8') : args.eval;
     const r = await page.evaluate(code);
-    if (r !== undefined) console.log(`[eval] ${JSON.stringify(r)}`);
+    // --eval-out <file>: an eval returning a data URL (a canvas's toDataURL) is written to that file.
+    if (args['eval-out'] && typeof r === 'string' && r.startsWith('data:')) {
+      writeFileSync(args['eval-out'], Buffer.from(r.slice(r.indexOf(',') + 1), 'base64'));
+      console.log(`[eval-out] ${args['eval-out']}`);
+    } else if (r !== undefined) console.log(`[eval] ${JSON.stringify(r)}`);
     await sleep(after);
   }
   await page.screenshot({ path: out });

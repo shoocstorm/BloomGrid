@@ -20,8 +20,9 @@ export interface PulseService {
   addTab(id: string, label: string, glyph: string, ...els: HTMLElement[]): ConsoleTab;
   /** The pulse tab's body: a tab's phone home when it has no panel of its own (Goals sits at its top on phones). */
   readonly body: HTMLElement;
-  /** Folded to its header? */
+  /** Hidden (desktops) or folded to its chip (phones)? */
   readonly collapsed: boolean;
+  /** Hides / shows the console (desktops), folds / unfolds the sheet (phones). */
   fold(folded: boolean): void;
 }
 
@@ -85,7 +86,8 @@ function sparkline(canvas: HTMLCanvasElement, data: number[], color: string): vo
  * own; other modules add theirs through the `pulse` service (Lenses, Flora-Net, Goals), so the lens bar and the
  * advisor no longer cover the city. Building is not a tab: it has its own mode and panel (D-084). Phones keep their chips
  * and sheets: there the console shows only the pulse, and adopted elements go back to their own places. Updates
- * are throttled and text-diffed.
+ * are throttled and text-diffed. On desktops `collapsed` hides the whole console (the top-bar button, P and ✕ show
+ * and hide it); on phones it folds the sheet to its chip.
  */
 export class PulsePanel {
   readonly el: HTMLElement;
@@ -117,7 +119,13 @@ export class PulsePanel {
     this.el = h(
       'section',
       { class: 'pulse panel holo' },
-      h('button', { class: 'pulse-head', onClick: () => this.el.classList.toggle('collapsed'), title: 'Toggle (P)' }, h('span', { class: 'pulse-orb' }), 'City Pulse'),
+      h(
+        'div',
+        { class: 'pulse-headrow' },
+        // Phones: the header is the sheet's chip (opens and folds it). Desktops: a title; ✕ (or P) hides the panel.
+        h('button', { class: 'pulse-head', onClick: () => isCompact() && this.el.classList.toggle('collapsed'), title: 'City Pulse (P)' }, h('span', { class: 'pulse-orb' }), 'City Pulse'),
+        h('button', { class: 'pulse-x icon-btn', title: 'Hide City Pulse (P)', 'aria-label': 'Hide City Pulse', onClick: () => this.el.classList.add('collapsed') }, icon('close')),
+      ),
       this.tabsEl,
       this.panes,
     );

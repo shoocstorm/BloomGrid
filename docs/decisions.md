@@ -1160,5 +1160,17 @@ the sim's height function, drawn after the dialog opens). Showcase: what it hold
 now the **Controls** card: hidden at boot, **H** or Settings → Controls (`hud.showControls`), a fuller key list;
 the first guide step points to it. The city counter for "BloomGrid 001" names is gone.
 
-**Consequences:** All three maps look alike (they are the same island): the map is there to show what you are
-founding on, not to sell rerolls. The dev server and scripts moved to port 3000 in the same change.
+**Consequences:** The three panes share one grid cell (inactive ones hidden, crossfaded), so the dialog keeps the
+tallest pane's height and never jumps between paths. Each path's map shows what it holds: Resume draws the saved
+city from its save data (highways and lots coloured by category, without loading it); New island the bare island,
+or the hamlet on screen at boot; Showcase a snapshot of the real founding city with the Aeroline loop,
+`public/assets/showcase-map.webp` (≈ 35 KB), made by `bun run showcase-map` (`snap --eval-out` writes an eval's
+data URL to a file); it falls back to the bare island if missing. Regenerate it after changing the founding city. The dev server and scripts moved to port 3000 in the same change.
+
+## D-086 — City Pulse shows and hides as a whole on desktops (2026-11-01)
+
+The top-bar City Pulse button, **P** and a new ✕ in the console's header now hide the whole console on desktops
+instead of folding it to its header (`.pulse.console.collapsed` is `display: none`; the telemetry strip goes with
+it). The header title no longer toggles on desktops. Phones are unchanged: the header is the sheet's chip and
+folds it. `pulse.fold(true)` / `collapsed` keep their names (build mode and F use them) and now mean hidden on
+desktops. City Pulse is also hidden while the New Chapter dialog is open (`body.chapter-open`).
