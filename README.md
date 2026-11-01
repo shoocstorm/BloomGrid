@@ -147,9 +147,11 @@ raises a beam of light and pulsing rings you can see from across the island, and
 edge (pointing at it) when the fire is out of view; click a pin, an alert toast or a fire on the city map (**M**) to
 fly there, or press **.** to step through the fires, hottest first.
 
-**A fresh start:** a new game opens the wizard: name your city, choose the difficulty, and found a fishing hamlet
-on an empty island (or open the *Showcase city*, already built, or continue your save). The guide walks you
-through the first steps. Early on, **Fishing Boat Docks** (free; Build → Food; must touch the sea) pay the bills:
+**A new chapter:** the game opens on the New Chapter dialog: **Resume** your saved city (the default when you have
+one), found a **New island** (name it, roll another name, choose how hard the world pushes back) or browse the
+**Showcase** city, already built. The city waits while you choose; Enter takes the highlighted choice. A new island
+starts as a fishing hamlet, and the guide walks you through the first steps (⚙ Settings → How to play reopens it;
+**H** or Settings → Controls shows every control). Early on, **Fishing Boat Docks** (free; Build → Food; must touch the sea) pay the bills:
 two or three fish the sea best, more overfish it, and a polluted coast spoils the catch. The **Goals** tab in City
 Pulse lists what to unlock next: the *Sky-lane charter* (pod docks), the *Aeroline* and *Wake Flora* (the city
 assistant needs a power plant and a Data Spire, and each request then costs credits), plus the sea wonders still
@@ -182,7 +184,7 @@ You need [bun](https://bun.sh) (and a Rust toolchain only for the desktop app).
 git clone https://github.com/shoocstorm/BloomGrid.git
 cd BloomGrid
 bun install
-bun run dev        # then open http://localhost:5173
+bun run dev        # then open http://localhost:3000
 ```
 
 **macOS app:** download the `.dmg` from the latest [GitHub Release](https://github.com/shoocstorm/BloomGrid/releases/latest)

@@ -29,7 +29,7 @@ const arg = (k, d) => {
 };
 /** Scripts record the showcase city unless a path names a scenario (a plain boot is a fresh island, D-072). */
 const showcase = (p) => (/[?&]scenario=/.test(p) ? p : `${p}${p.includes('?') ? '&' : '?'}scenario=founding-city`);
-const base = arg('base', 'http://localhost:5173');
+const base = arg('base', 'http://localhost:3000');
 const path = showcase(arg('path', '/?quality=high&nodynres'));
 const fps = Number(arg('fps', 30));
 const PLAN = 76;

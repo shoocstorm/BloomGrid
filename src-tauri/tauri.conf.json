@@ -5,7 +5,7 @@
   "identifier": "app.bloomgrid.city",
   "build": {
     "beforeDevCommand": "bun run dev",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://localhost:3000",
     "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist"
   },

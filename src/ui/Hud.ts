@@ -70,7 +70,7 @@ class Hud {
     this.buildInfo();
     this.tooltip = h('div', { class: 'tooltip panel hidden' });
     this.toasts = h('div', { class: 'toasts' });
-    this.help = this.welcome();
+    this.help = this.controls();
     this.right = h('div', { class: 'rightcol' });
     this.root.append(this.tooltip, this.toasts, this.right);
     this.right.append(this.info, this.help);
@@ -78,10 +78,9 @@ class Hud {
     const placeTooltip = (compact: boolean) => (compact ? this.dock.prepend(this.tooltip) : this.root.append(this.tooltip));
     placeTooltip(isCompact());
     onCompactChange(placeTooltip);
-    setTimeout(() => this.help.classList.add('hidden'), 25_000);
 
     const { bus } = ctx;
-    // On phones a tap on the city folds every open sheet away (and the welcome card).
+    // On phones a tap on the city folds every open sheet away (and the controls card).
     ctx.renderer.domElement.addEventListener('pointerdown', () => {
       if (!document.body.classList.contains('compact')) return;
       for (const el of this.sheets) el.classList.add('collapsed');
@@ -121,7 +120,7 @@ class Hud {
     ctx.commands.onChange = () => this.syncUndo();
     ctx.input.onKey((e) => {
       if (e.code === 'KeyH' && !e.metaKey && !e.ctrlKey) {
-        this.help.classList.toggle('hidden');
+        this.showControls();
         return true;
       }
       // Delete (or ⌫) returns the selected building, or the selected group, to nature.
@@ -135,10 +134,11 @@ class Hud {
   }
 
   /**
-   * The welcome card: a one-shot "steward link" reveal (emblem, title, staggered controls) so the first
-   * seconds feel like taking the helm. Animations run once on transform/opacity only (§7½).
+   * The controls card (H, or Settings → Controls): every key at a glance. It was the boot's welcome card; the New
+   * Chapter dialog and the how-to-play guide greet the player now (D-085), so it starts hidden. Animations run once
+   * on transform/opacity only (§7½).
    */
-  private welcome(): HTMLElement {
+  private controls(): HTMLElement {
     const touch = isTouchDevice();
     const keys = (...k: string[]) => h('span', { class: 'wc-keys' }, ...k.map((x) => h('kbd', {}, x)));
     const row = (ico: string, label: string, hint: Node) =>
@@ -150,23 +150,28 @@ class Hud {
           row('rotate', 'Zoom · rotate', say('pinch · twist')),
           row('up', 'Tilt', say('two fingers')),
           row('eye', 'Inspect', say('tap')),
-          row('build', 'Build', say('tap, tap again')),
+          row('build', 'Build', say('Build, then tap, tap again')),
+          row('pulse', 'City Pulse · lenses', say('chips under the top bar')),
         ]
       : [
           row('select', 'Pan', keys('WASD', 'drag')),
           row('rotate', 'Orbit', keys('Q', 'E', 'right-drag')),
           row('search', 'Zoom', keys('wheel')),
-          row('build', 'Build', keys('B', 'Esc')),
+          row('eye', 'Inspect', keys('click')),
+          row('build', 'Build · leave', keys('B', 'Esc')),
           row('undo', 'Undo', keys('⌘Z')),
-          row('pause', 'Pause', keys('Space')),
-          row('fast', 'Speed', keys('1', '2', '3')),
+          row('pause', 'Pause · speed', keys('Space', '1', '2', '3')),
+          row('pulse', 'City Pulse · lenses', keys('P', 'L')),
+          row('dashboard', 'Dashboard · map', keys('K', 'M')),
+          row('sparkle', 'Ask Flora', keys('U')),
+          row('walk', 'Explore', keys('N')),
           row('chip', 'Perf · Debug', keys('F3', '`')),
         ];
     rows.forEach((r, i) => r.style.setProperty('--i', String(i)));
     const dismiss = () => this.help.classList.add('hidden');
     return h(
       'div',
-      { class: 'help panel welcome' },
+      { class: 'help panel welcome hidden' },
       h('div', { class: 'wc-aura' }),
       h('div', { class: 'wc-sheen' }),
       h(
@@ -176,9 +181,9 @@ class Hud {
         h(
           'div',
           {},
-          h('div', { class: 'wc-eyebrow' }, h('i', { class: 'wc-led' }), 'Steward link · online'),
-          h('div', { class: 'wc-title' }, 'BloomGrid'),
-          h('div', { class: 'wc-tag' }, 'An island city that breathes. Keep it blooming.'),
+          h('div', { class: 'wc-eyebrow' }, h('i', { class: 'wc-led' }), 'Steward link · field manual'),
+          h('div', { class: 'wc-title' }, 'Controls'),
+          h('div', { class: 'wc-tag' }, 'Every control at a glance. The how-to-play guide is in Settings.'),
         ),
       ),
       h('div', { class: 'wc-rule' }, h('span', {}, '01'), h('i'), h('span', {}, 'Controls')),
@@ -186,10 +191,15 @@ class Hud {
       h(
         'div',
         { class: 'wc-foot' },
-        touch ? h('span') : h('span', { class: 'wc-hint' }, 'Hide ', h('kbd', {}, 'H')),
-        h('button', { class: 'wc-go', onClick: dismiss }, 'Take the helm', icon('next')),
+        touch ? h('span') : h('span', { class: 'wc-hint' }, 'Show / hide ', h('kbd', {}, 'H')),
+        h('button', { class: 'wc-go', onClick: dismiss }, 'Got it', icon('next')),
       ),
     );
+  }
+
+  /** Shows or hides the controls card (H toggles it; Settings → Controls opens it). */
+  showControls(show = this.help.classList.contains('hidden')): void {
+    this.help.classList.toggle('hidden', !show);
   }
 
   /**
@@ -847,6 +857,8 @@ export interface HudService {
   stats: HTMLElement;
   /** Telemetry strip (sim rate, camera focus, heading, altitude, fps); a panel may adopt it. */
   readout: HTMLElement;
+  /** Shows (or toggles, with no argument) the controls card. */
+  showControls(show?: boolean): void;
   /** Register a panel that folds with a `collapsed` class; phones show these as exclusive sheets. */
   sheet(el: HTMLElement): void;
 }
@@ -862,7 +874,7 @@ export const hudModule: GameModule = {
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
-    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, lead: hud.lead, dock: hud.dock, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, sheet: (el) => hud.sheet(el) });
+    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, lead: hud.lead, dock: hud.dock, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, showControls: (show) => hud.showControls(show), sheet: (el) => hud.sheet(el) });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

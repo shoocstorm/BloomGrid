@@ -12,7 +12,7 @@ const isolation = {
 export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: { target: 'es2022', sourcemap: true, chunkSizeWarningLimit: 2000 },
-  server: { port: 5173, headers: isolation },
+  server: { port: 3000, headers: isolation },
   preview: { headers: isolation },
   optimizeDeps: { exclude: ['@wllama/wllama'] },
   // Sim-heavy tests (founding city, crisis collapse) take 2-4 s locally and ~2.5x that on CI runners.

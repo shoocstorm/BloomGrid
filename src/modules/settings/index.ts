@@ -1,7 +1,7 @@
 import type { GameContext, GameModule } from '@/game/context';
 import { QUALITY_TIERS, type QualityTier } from '@/render/Quality';
 import { POWER_MODES, type PowerMode } from '@/render/Power';
-import { h } from '@/ui/dom';
+import { ago, h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { holoHead, rise } from '@/ui/holo';
 import './settings.css';
@@ -56,16 +56,6 @@ function soundSliders(ctx: GameContext): HTMLElement[] {
     row('sfx', 'Effects'),
     h('label', { class: 'set-opt' }, mute, h('span', {}, 'Mute')),
   ];
-}
-
-/** "just now", "5 min ago", "3 h ago", "2 days ago". */
-function ago(at: number): string {
-  const s = Math.max(0, (Date.now() - at) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
-  const d = Math.round(s / 86400);
-  return `${d} day${d > 1 ? 's' : ''} ago`;
 }
 
 /**
@@ -180,8 +170,9 @@ export const settingsModule: GameModule = {
         h('h4', {}, 'Saved city'),
         saves.el,
         h('h4', {}, 'City'),
-        h('button', { class: 'set-new', onClick: () => (close(), ctx.services.get('crises').newCity()) }, icon('sparkle'), ' Found a new city…'),
+        h('button', { class: 'set-new', onClick: () => (close(), ctx.services.get('crises').newCity()) }, icon('sparkle'), ' New chapter: resume, new island, showcase…'),
         h('button', { class: 'set-new', onClick: () => (close(), ctx.services.tryGet('wizard')?.guide()) }, icon('console'), ' How to play (guide)'),
+        h('button', { class: 'set-new', onClick: () => (close(), ctx.services.get('hud').showControls(true)) }, icon('chip'), ' Controls (H)'),
       ),
       sound: h(
         'div',

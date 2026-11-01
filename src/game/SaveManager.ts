@@ -21,6 +21,9 @@ export interface SaveInfo {
   name: string;
   day: number;
   residents: number;
+  /** Island seed and difficulty (absent in saves from before D-085). */
+  seed?: number;
+  difficulty?: string;
 }
 
 /** Persists the city (and module state) through the platform storage, with a small summary per slot. */
@@ -54,7 +57,7 @@ export class SaveManager {
   async save(slot = 'slot1'): Promise<void> {
     const { city, platform } = this.ctx;
     await platform.storage.set(`save:${slot}`, this.snapshot());
-    const info: SaveInfo = { at: Date.now(), name: city.growth.name, day: city.day, residents: Math.round(city.stats.population) };
+    const info: SaveInfo = { at: Date.now(), name: city.growth.name, day: city.day, residents: Math.round(city.stats.population), seed: city.seed, difficulty: city.steward.difficulty };
     await platform.storage.set(`save:${slot}:info`, info);
     this.ctx.bus.emit('save:done', { slot });
   }

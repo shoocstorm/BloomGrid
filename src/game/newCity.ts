@@ -4,6 +4,8 @@ import { PULSE_TICKS } from '@/sim/pulseConst';
 import type { GameContext } from './context';
 
 const DIFFICULTY_KEY = 'bloomgrid.difficulty';
+/** The default island: the showcase city's, which the founding-city balance is tuned on (D-072). */
+export const SHOWCASE_SEED = 20261024;
 
 /** Difficulty for a new city: `?difficulty=` wins, then the viewer's last choice, then Steward. */
 export function preferredDifficulty(params: URLSearchParams): DifficultyId {

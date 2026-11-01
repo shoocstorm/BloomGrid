@@ -1140,3 +1140,25 @@ Bloom Retrofit's hotkey moves from B to **Z**. The last category is remembered p
 **Consequences:** `hud.toolbar` / `hud.tray` and the City Pulse Build tab are gone (`hud.dock` is new); the
 old bottom-toolbar CSS went with them. A new build action is an entry in `ACTIONS` (`BuildPanel.ts`) plus its
 `ACTION_HELP`.
+
+## D-085 — New Chapter dialog: resume first; seed under Advanced; the welcome card becomes Controls (2026-11-01)
+
+**Context:** The boot's New Game wizard led with a form (name, difficulty, seed) and tucked Continue and the
+showcase among its buttons, so a returning player had to find Continue. The island seed sat beside the name as if it
+mattered: `terrainHeight` keeps the island's layout fixed (main island, three islets, bay, hills, reservoirs) and the
+seed only varies coastline wiggles, hill noise and the sim's random stream (crisis timing, scenario placement). The
+boot's welcome card (controls list, "Take the helm") was hidden by the wizard on a plain boot and showed only on
+script boots.
+
+**Decision:** `modules/tutorial/Chapter.ts`: three path cards (**Resume**, **New island**, **Showcase**), one pane
+at a time and one primary button named for the choice (Enter presses it, Esc cancels when not at boot). Resume is
+the default whenever a save exists and shows its name, day, residents, difficulty, when it was saved and its island
+map (`SaveInfo` now records `seed` and `difficulty`). New island: a generated name with a dice, difficulty as four
+tiles, the guide checkbox, and the seed under **Advanced** with a live island map (`islandMap.ts`, ≈15k samples of
+the sim's height function, drawn after the dialog opens). Showcase: what it holds, opened on `SHOWCASE_SEED`
+(always the tuned island, no longer the seed field). The sim pauses while the dialog is open. The welcome card is
+now the **Controls** card: hidden at boot, **H** or Settings → Controls (`hud.showControls`), a fuller key list;
+the first guide step points to it. The city counter for "BloomGrid 001" names is gone.
+
+**Consequences:** All three maps look alike (they are the same island): the map is there to show what you are
+founding on, not to sell rerolls. The dev server and scripts moved to port 3000 in the same change.

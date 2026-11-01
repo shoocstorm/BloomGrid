@@ -18,3 +18,13 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Props = 
 export function setText(el: HTMLElement, text: string): void {
   if (el.textContent !== text) el.textContent = text;
 }
+
+/** "just now", "5 min ago", "3 h ago", "2 days ago". */
+export function ago(at: number): string {
+  const s = Math.max(0, (Date.now() - at) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  const d = Math.round(s / 86400);
+  return `${d} day${d > 1 ? 's' : ''} ago`;
+}

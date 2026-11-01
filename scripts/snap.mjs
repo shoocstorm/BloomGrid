@@ -20,7 +20,7 @@ const showcase = (p) => (/[?&]scenario=/.test(p) ? p : `${p}${p.includes('?') ? 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1] === undefined || all[i + 1].startsWith('--') ? 'true' : all[i + 1]]] : acc), []),
 );
-const base = args.base ?? 'http://localhost:5173';
+const base = args.base ?? 'http://localhost:3000';
 const out = args.out ?? 'shots/snap.png';
 const wait = Number(args.wait ?? 8000);
 const after = Number(args.after ?? 3000);

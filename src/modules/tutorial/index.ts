@@ -1,13 +1,13 @@
 import type { GameContext, GameModule } from '@/game/context';
-import { foundCity } from '@/game/newCity';
+import { SHOWCASE_SEED, foundCity } from '@/game/newCity';
 import { openingView } from '@/game/opening';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
+import { openChapter } from './Chapter';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
-import { holoHead, rise } from '@/ui/holo';
+import { rise } from '@/ui/holo';
 import './tutorial.css';
 
-const COUNT_KEY = 'bloomgrid.cities';
 const TUTORIAL_KEY = 'bloomgrid.tutorial';
 
 const store = {
@@ -27,8 +27,6 @@ const store = {
   },
 };
 
-/** `BloomGrid 001`, `BloomGrid 002`…: numbered by the cities this viewer has founded. */
-const defaultName = () => `BloomGrid ${String(Number(store.get(COUNT_KEY) ?? '0') + 1).padStart(3, '0')}`;
 
 interface Step {
   title: string;
@@ -46,7 +44,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     title: 'Look around',
-    body: 'Drag to pan, scroll to zoom, right-drag (or Q / E) to orbit. Find your fishing hamlet on the coast.',
+    body: 'Drag to pan, scroll to zoom, right-drag (or Q / E) to orbit. Find your fishing hamlet on the coast. Every control: H, or Settings → Controls.',
     done: (c, s) =>
       Math.hypot(c.cameraCtl.target.x - s.x, c.cameraCtl.target.z - s.z) > 8 ||
       Math.abs(c.cameraCtl.distance - s.distance) > 15,
@@ -189,9 +187,9 @@ class Tutorial {
 }
 
 /**
- * The New Game wizard and how-to-play guide (Phase 16, D-072). On a plain boot (no `?scenario`), the game opens on a
- * fresh island behind a wizard: found a new island (name, difficulty, seed), continue the saved city, or open the
- * showcase city. A new island starts the six-step guide (skippable; reopen from Settings). URL scenarios (scripts,
+ * The New Chapter dialog and how-to-play guide (Phase 16, D-072, D-085). On a plain boot (no `?scenario`), the game
+ * opens on a fresh island behind the dialog (`Chapter.ts`): resume the saved city (the default when there is one),
+ * found a new island, or browse the showcase city. A new island starts the six-step guide (skippable; reopen from Settings). URL scenarios (scripts,
  * demos) skip the wizard unless `?wizard` asks for it.
  */
 export const tutorialModule: GameModule = {
@@ -214,121 +212,27 @@ export const tutorialModule: GameModule = {
       ctx.cameraCtl.intro(v.x, v.z, v.distance, 5, v);
     };
 
-    const open = (first: boolean) => {
-      // The wizard and the guide replace the welcome card's controls list.
-      document.querySelector('.help.welcome')?.classList.add('hidden');
-      let difficulty: DifficultyId = ctx.city.steward.difficulty;
-      const nameInput = h('input', {
-        class: 'wz-name',
-        value: defaultName(),
-        maxlength: '32',
-        'aria-label': 'City name',
-      }) as HTMLInputElement;
-      const seedInput = h('input', {
-        type: 'number',
-        class: 'wz-seed',
-        value: String(first ? ctx.city.seed : Math.floor(Math.random() * 1e6)),
-        'aria-label': 'Island seed',
-      }) as HTMLInputElement;
-      const guide = h('input', { type: 'checkbox' }) as HTMLInputElement;
-      guide.checked = !['done', 'skipped'].includes(store.get(TUTORIAL_KEY) ?? '');
-      const close = () => scrim.remove();
-      const diffs = h(
-        'div',
-        { class: 'wz-diffs' },
-        ...(Object.values(DIFFICULTIES) as (typeof DIFFICULTIES)[DifficultyId][]).map((d) => {
-          const input = h('input', { type: 'radio', name: 'wz-diff', value: d.id }) as HTMLInputElement;
-          input.checked = d.id === difficulty;
-          input.addEventListener('change', () => (difficulty = d.id));
-          return h('label', { class: 'wz-diff' }, input, h('b', {}, d.label), h('span', {}, d.description));
-        }),
-      );
-      const startFresh = () => {
-        close();
-        const name = nameInput.value.trim() || defaultName();
-        const seed = Number(seedInput.value) || 1;
-        // The boot already founded this island: keep it unless the steward changed seed or difficulty.
-        if (
-          first &&
-          seed === ctx.city.seed &&
-          difficulty === ctx.city.steward.difficulty &&
-          ctx.city.growth.progression
-        ) {
-          ctx.commands.execute('nameCity', { name }, false);
-          ctx.commands.clearHistory();
-        } else found('fresh-island', seed, difficulty, name);
-        store.set(COUNT_KEY, String(Number(store.get(COUNT_KEY) ?? '0') + 1));
-        ctx.bus.emit('toast', {
-          text: `${name} is founded: a fishing hamlet on a quiet island (${DIFFICULTIES[difficulty].label})`,
-          tone: 'ok',
-        });
-        if (guide.checked) setTimeout(() => tut.begin(), 1500);
-      };
-      const showcase = () => {
-        close();
-        found('founding-city', Number(seedInput.value) || 1, difficulty);
-        ctx.bus.emit('toast', {
-          text: 'The showcase city: everything built and unlocked. Explore, or manage it.',
-          tone: 'ok',
-        });
-      };
-      const save = ctx.services.get('save');
-      const cont = h(
-        'button',
-        { class: 'wz-card hidden', onClick: () => void save.load().then((ok) => (ok ? close() : null)) },
-        icon('play'),
-        h('b', {}, 'Continue'),
-        h('span', {}, 'Load your saved city'),
-      );
-      void ctx.platform.storage.get('save:slot1').then((d) => d && cont.classList.remove('hidden'));
-      const scrim = h(
-        'div',
-        { class: 'modal-scrim wz-scrim' },
-        h(
-          'section',
-          { class: 'modal wz panel holo', role: 'dialog', 'aria-label': 'New game' },
-          holoHead(
-            icon('sparkle'),
-            'Steward console · new charter',
-            first ? 'Welcome, steward' : 'Found a new city',
-            'Grow a solarpunk island from a fishing hamlet: name it, pick how hard the world pushes back, and take the helm.',
-          ),
-          h('label', { class: 'wz-row' }, h('span', {}, 'City name'), nameInput),
-          diffs,
-          h(
-            'div',
-            { class: 'wz-row2' },
-            h('label', { class: 'wz-row' }, h('span', {}, 'Island seed'), seedInput),
-            h('label', { class: 'wz-check' }, guide, h('span', {}, 'Show me how to play')),
-          ),
-          h(
-            'div',
-            { class: 'wz-actions' },
-            h(
-              'button',
-              { class: 'btn primary wz-go', onClick: startFresh },
-              icon('sparkle'),
-              ' Found the city',
-            ),
-            cont,
-            h(
-              'button',
-              { class: 'wz-card', onClick: showcase },
-              icon('city'),
-              h('b', {}, 'Showcase city'),
-              h('span', {}, 'A finished city, everything unlocked'),
-            ),
-          ),
-        ),
-      );
-      if (!first)
-        scrim
-          .querySelector('.wz-actions')!
-          .append(h('button', { class: 'btn ghost', onClick: close }, 'Cancel'));
-      rise(scrim.querySelectorAll('.wz-row, .wz-diff, .wz-actions > *'));
-      ctx.hud.append(scrim);
-      setTimeout(() => nameInput.select(), 50);
-    };
+    const open = (first: boolean) =>
+      void openChapter(ctx, {
+        first,
+        guide: !['done', 'skipped'].includes(store.get(TUTORIAL_KEY) ?? ''),
+        found(name, seed, difficulty, guide) {
+          // The boot already founded this island: keep it unless the steward changed seed or difficulty.
+          if (first && seed === ctx.city.seed && difficulty === ctx.city.steward.difficulty && ctx.city.growth.progression) {
+            ctx.commands.execute('nameCity', { name }, false);
+            ctx.commands.clearHistory();
+          } else found('fresh-island', seed, difficulty, name);
+          ctx.bus.emit('toast', {
+            text: `${name} is founded: a fishing hamlet on a quiet island (${DIFFICULTIES[difficulty].label})`,
+            tone: 'ok',
+          });
+          if (guide) setTimeout(() => tut.begin(), 1500);
+        },
+        showcase() {
+          found('founding-city', SHOWCASE_SEED, ctx.city.steward.difficulty);
+          ctx.bus.emit('toast', { text: 'The showcase city: everything built and unlocked. Explore, or manage it.', tone: 'ok' });
+        },
+      });
 
     ctx.services.provide('wizard', { open: () => open(false), guide: () => tut.begin() });
     // A plain boot (the player's, not a script's) opens the wizard once the boot screen lifts.
@@ -342,7 +246,7 @@ export const tutorialModule: GameModule = {
 declare module '@/core/Services' {
   interface GameServices {
     wizard: {
-      /** Opens the New Game wizard (new island, continue, showcase). */
+      /** Opens the New Chapter dialog (resume, new island, showcase). */
       open(): void;
       /** Starts the how-to-play guide from the first step. */
       guide(): void;

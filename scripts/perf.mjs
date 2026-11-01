@@ -15,7 +15,7 @@ const showcase = (p) => (/[?&]scenario=/.test(p) ? p : `${p}${p.includes('?') ? 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1] === undefined || all[i + 1].startsWith('--') ? 'true' : all[i + 1]]] : acc), []),
 );
-const base = args.base ?? 'http://localhost:5173';
+const base = args.base ?? 'http://localhost:3000';
 const seconds = Number(args.seconds ?? 10);
 const chrome = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome'].find((p) => existsSync(p));
 const browser = await puppeteer.launch({ executablePath: chrome, headless: 'new', args: ['--autoplay-policy=no-user-gesture-required', '--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', '--window-size=1440,900'] });

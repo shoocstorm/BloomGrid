@@ -35,7 +35,7 @@ const args = Object.fromEntries(
       [],
     ),
 );
-const base = args.base ?? 'http://localhost:5173';
+const base = args.base ?? 'http://localhost:3000';
 const dists = (args.dists ?? '70,140,260').split(',').map(Number);
 const frames = Number(args.frames ?? 10);
 // Pan per frame: by default ~0.15 px on screen at any distance, so a well anti-aliased edge changes by ~15% of its

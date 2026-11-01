@@ -10,7 +10,7 @@ import { SystemRegistry } from '@/core/Systems';
 import { City } from '@/sim/City';
 import { registerSimCommands } from '@/sim/commands';
 import { simSystems } from '@/sim/systems';
-import { foundCity, preferredDifficulty } from './newCity';
+import { SHOWCASE_SEED, foundCity, preferredDifficulty } from './newCity';
 import { chunkSizeFor } from '@/sim/City';
 import { createRenderer } from '@/render/Renderer';
 import { ChunkedInstancer } from '@/render/Instancer';
@@ -84,7 +84,7 @@ export async function createGame(
 
   await onProgress('Raising the island from the sea', 0.25);
   const bus = new EventBus();
-  const seed = Number(params.get('seed')) || 20261024;
+  const seed = Number(params.get('seed')) || SHOWCASE_SEED;
   const city = new City(bus, seed);
   const scene = new Scene();
   const camera = new PerspectiveCamera(45, 1, 0.5, 4000);

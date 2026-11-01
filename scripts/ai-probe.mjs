@@ -24,7 +24,7 @@ for (let i = 0; i < argv.length; i++) {
   else opt[k] = argv[++i];
 }
 const model = opt.model ?? 'qwen3-0.6b';
-const base = opt.base ?? 'http://localhost:5173';
+const base = opt.base ?? 'http://localhost:3000';
 const out = opt.out ?? 'shots/ai-probe.png';
 if (!asks.length) asks.push('What are the most urgent problems, and where?');
 const profile = opt.profile ?? join(tmpdir(), 'bloomgrid-ai-probe-profile');
