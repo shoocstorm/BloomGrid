@@ -13,6 +13,7 @@ import { LineChart } from './LineChart';
 import { InventoryView } from './InventoryView';
 import { IncidentLog } from './IncidentLog';
 import { FireworksView } from './FireworksView';
+import { CauseEffect } from './CauseEffect';
 import './dashboard.css';
 
 const HISTORY_STEP = 10; // sim seconds per history sample
@@ -25,7 +26,7 @@ interface Tile {
   sub: HTMLElement;
 }
 
-type Tab = 'overview' | 'inventory' | 'incidents' | 'fireworks';
+type Tab = 'overview' | 'inventory' | 'incidents' | 'causes' | 'fireworks';
 
 /**
  * City dashboard. Overview (K): headline tiles, trend small-multiples (one series per chart), budget and
@@ -46,6 +47,7 @@ class Dashboard {
   readonly inventory: InventoryView;
   readonly incidents: IncidentLog;
   readonly fireworks: FireworksView;
+  readonly causes: CauseEffect;
 
   constructor(private ctx: GameContext) {
     const tiles = h('div', { class: 'db-tiles' });
@@ -96,11 +98,13 @@ class Dashboard {
     this.inventory = new InventoryView(ctx, () => this.toggle(false));
     this.incidents = new IncidentLog(ctx);
     this.fireworks = new FireworksView(ctx);
+    this.causes = new CauseEffect(ctx);
     const tabBar = h('nav', { class: 'db-tabs', role: 'tablist' });
     for (const [id, name, key, pane] of [
       ['overview', 'Overview', 'K', overview],
       ['inventory', 'Inventory', 'I', h('div', { class: 'db-pane' }, this.inventory.el)],
       ['incidents', 'Incidents', '', h('div', { class: 'db-pane' }, this.incidents.el)],
+      ['causes', 'Causes', '', h('div', { class: 'db-pane' }, this.causes.el)],
       ['fireworks', 'Fireworks', '', h('div', { class: 'db-pane' }, this.fireworks.el)],
     ] as [Tab, string, string, HTMLElement][]) {
       const btn = h('button', { class: 'db-tab', role: 'tab', onClick: () => this.show(id) }, name, key ? h('kbd', {}, key) : null);
@@ -155,6 +159,7 @@ class Dashboard {
     if (tab === 'overview') this.refresh();
     else if (tab === 'incidents') this.incidents.render();
     else if (tab === 'fireworks') this.fireworks.render();
+    else if (tab === 'causes') this.causes.render();
     else this.inventory.update(0, true);
   }
 
@@ -167,6 +172,7 @@ class Dashboard {
     // Live fires and ruins change every second; the log only on events, but a 1 Hz rebuild covers both.
     if (this.tab === 'incidents') this.incidents.render();
     else if (this.tab === 'fireworks') this.fireworks.render();
+    else if (this.tab === 'causes') this.causes.render();
     else this.refresh();
   }
 
@@ -200,7 +206,7 @@ class Dashboard {
       setText(t.sub, sub);
     };
     set('pop', fmt(s.population), `${signed(delta('population'), 0)} in 1 min · capacity ${fmt(s.capacity)}`);
-    set('credits', fmt(city.credits), `${signed(s.income - s.upkeep)}/s net`);
+    set('credits', fmt(city.credits), `${signed(s.income + s.fishing + s.tourism - s.insurance - s.upkeep)}/s net`);
     set('harmony', Math.round(s.happiness).toString(), `${signed(delta('happiness'))} in 1 min`);
     set('energy', `${Math.round(p.energyRatio * 100)}%`, `${fmt(s.energyProduced)} made / ${fmt(s.energyUsed)} used`);
     set('water', `${Math.round(p.waterRatio * 100)}%`, `${fmt(s.waterProduced)} made / ${fmt(s.waterUsed)} used`);
@@ -229,6 +235,9 @@ class Dashboard {
     this.bars(this.budget, [
       { label: 'Resident tax', value: residentsTax, text: signed(residentsTax) },
       { label: 'Worker tax', value: workersTax, text: signed(workersTax) },
+      ...(s.fishing > 0 ? [{ label: 'Fishing', value: s.fishing, text: signed(s.fishing) }] : []),
+      ...(s.tourism > 0 ? [{ label: 'Visitors', value: s.tourism, text: signed(s.tourism) }] : []),
+      ...(s.insurance > 0 ? [{ label: 'Insurance', value: s.insurance, text: signed(-s.insurance), neg: true }] : []),
       ...(Object.entries(upkeep) as [BuildingCategory, number][])
         .sort((a, b) => b[1] - a[1])
         .map(([c, v]) => ({ label: `${CATEGORY_LABELS[c]} upkeep`, value: v, text: signed(-v), neg: true })),
@@ -259,6 +268,12 @@ export const dashboardModule: GameModule = {
       if (e.code === 'Escape' && db.isOpen) return db.toggle(false), true;
       return false;
     });
+    // A rule coming into force is news (D-074): a toast that names it; good ones in green.
+    ctx.bus.on('consequence', ({ rule, kind, text }) => {
+      if (kind !== 'start' || ctx.loading) return;
+      const good = rule === 'harmony-streak' || rule === 'transit-city';
+      ctx.bus.emit('toast', { text: `⚖ ${text.split('. ')[0]} (Dashboard → Causes)`, tone: good ? 'ok' : 'bad' });
+    });
     ctx.services.provide('dashboard', {
       toggle: () => db.toggle(),
       openInventory(id?: string) {
@@ -270,6 +285,9 @@ export const dashboardModule: GameModule = {
       },
       openFireworks() {
         if (!db.isOpen || db.activeTab !== 'fireworks') db.openTab('fireworks');
+      },
+      openCauses() {
+        if (!db.isOpen || db.activeTab !== 'causes') db.openTab('causes');
       },
     });
   },
@@ -285,6 +303,8 @@ declare module '@/core/Services' {
       openIncidents(): void;
       /** Opens the Fireworks tab: stock, shows so far and their effects (D-068). */
       openFireworks(): void;
+      /** Opens the Cause & effect tab: rules in force, stocks and the feed (D-074). */
+      openCauses(): void;
     };
   }
 }

@@ -89,7 +89,8 @@ export class Weather {
     U.heat.value += (heat - U.heat.value) * a;
     U.algae.value += (algae - U.algae.value) * a;
     this.haze += (haze - this.haze) * Math.min(1, dt * 0.5);
-    this.level += (st.modifiers.floodLevel - this.level) * Math.min(1, dt * 1.5);
+    // A tsunami surge (D-076) raises the sea too; its flooding is limited to the waterfront in the sim.
+    this.level += (Math.max(st.modifiers.floodLevel, st.modifiers.surge * 0.3) - this.level) * Math.min(1, dt * 1.5);
     U.waterLevel.value = this.level;
     const water = this.ctx.services.get('world').water;
     if (water) water.position.y = this.level;

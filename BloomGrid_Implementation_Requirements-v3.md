@@ -17,6 +17,7 @@
 | Presentation | —                              | Futuristic, cinematic loading experience; city-health readability everywhere                                              |
 | Assistant (2026-10-27) | — | **Flora, a local-LLM city assistant** works beside the steward: answers about the city, watches it, and carries out requested actions (build, demolish, connect, tax…) only with the steward's approval, every action undoable. Runs on the player's machine (wllama in the browser, MLX on Apple Silicon desktop); nothing leaves it. |
 | Fireworks (2026-10-31) | — | **Fireworks factories** make shells and fire a nightly show; the steward can launch one any time (top bar, dashboard, Flora). Shows lift harmony and draw visitors, cost materials, add smoke and fire risk, and wear thin if overused |
+| Start (2026-10-31) | — | **A fresh island is the default start** (wizard: name, difficulty, seed): a fishing hamlet that earns from Fishing Boat Docks; the sky-lanes, the Aeroline and Flora are unlock projects (Flora costs credits per request); sea wonders are discovered over time. The founding city remains as the Showcase city |
 
 ---
 

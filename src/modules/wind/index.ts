@@ -9,10 +9,9 @@ import {
   Vector3,
 } from 'three/webgpu';
 import type { GameModule } from '@/game/context';
-import { Building } from '@/ecs/components';
+import { Building, Service } from '@/ecs/components';
 import { getMaterial } from '@/render/materials/library';
 import { GeoBuilder, tf } from '@/render/bake';
-import { U } from '@/render/uniforms';
 import { TURBINE_TOP } from '@/content/buildings/wind-turbine';
 
 /** Prevailing sea wind: every nacelle faces this yaw (rotors face east-south-east, into the trade wind). */
@@ -31,6 +30,8 @@ interface Turbine {
   head: Matrix4;
   speed: number;
   phase: number;
+  /** Current rotor rate (rad/s), easing toward the wind's (zero when feathered or broken, D-075). */
+  rate: number;
 }
 
 function nacelleGeometry() {
@@ -64,7 +65,8 @@ function rotorGeometry() {
 /**
  * Breeze Turbines (D-047): the building recipe draws plinth and tower; this module mounts a nacelle on each
  * (all facing the prevailing wind) and spins the rotors. Two instanced meshes, rotors re-posed on the CPU each
- * frame from `U.clock` (≈ one matrix per turbine). Neither casts shadows: rotors move every frame, and the
+ * frame (≈ one matrix per turbine): each rotor's rate eases toward the wind (faster in storms) and winds down to a
+ * stop when the turbine is feathered or broken (D-075). Neither casts shadows: rotors move every frame, and the
  * cached shadow map would need re-rendering for them.
  */
 export const windModule: GameModule = {
@@ -101,7 +103,7 @@ export const windModule: GameModule = {
     const add = (eid: number) => {
       if (!isTurbine(eid) || turbines.length >= CAP) return;
       const h = ((eid * 2654435761) >>> 0) / 4294967296;
-      turbines.push({ eid, head: head(eid), speed: SPIN[0] + (SPIN[1] - SPIN[0]) * h, phase: h * 20 });
+      turbines.push({ eid, head: head(eid), speed: SPIN[0] + (SPIN[1] - SPIN[0]) * h, phase: h * 20, rate: SPIN[0] + (SPIN[1] - SPIN[0]) * h });
     };
     const rebuild = () => {
       turbines.length = 0;
@@ -134,12 +136,17 @@ export const windModule: GameModule = {
       id: 'wind.update',
       phase: 'render',
       order: 5,
-      update() {
+      update(c, f) {
         if (!turbines.length) return;
-        const t = U.clock.value;
+        // Storms spin the rotors faster; a feathered or broken turbine winds down to a stop (D-075).
+        const gust = 1 + 1.2 * c.city.steward.modifiers.rain;
+        const k = Math.min(1, f.dt * 0.6);
         for (let i = 0; i < turbines.length; i++) {
           const tb = turbines[i]!;
-          spin.makeRotationZ(t * tb.speed + tb.phase);
+          const stopped = Service.off[tb.eid] === 1 || Service.condition[tb.eid]! < 0.2;
+          tb.rate += ((stopped ? 0 : tb.speed * gust) - tb.rate) * k;
+          tb.phase += tb.rate * f.dt;
+          spin.makeRotationZ(tb.phase);
           rotors.setMatrixAt(i, m.multiplyMatrices(tb.head, hub).multiply(spin));
         }
         rotors.instanceMatrix.needsUpdate = true;

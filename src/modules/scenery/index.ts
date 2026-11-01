@@ -4,6 +4,7 @@ import { SkyLife } from './SkyLife';
 import { SeaWonders } from './SeaWonders';
 import { WONDER_SITES } from './sites';
 import { registerInventoryKind, type CityObject } from '@/sim/inventory';
+import { wonderVisible } from '@/sim/wonders';
 
 const WONDERS: [keyof typeof WONDER_SITES, string, string, string][] = [
   ['lighthouse', 'LMK-LIGHTHOUSE', 'Tidewatch Lighthouse', 'A lighthouse whose beam sweeps the night sea.'],
@@ -38,9 +39,14 @@ function registerWonders(S: number): void {
     icon: '✧',
     prefixes: ['LMK'],
     description: 'Wonders out at sea (scenery, nothing to manage). Id = LMK-<NAME>.',
-    list: () => [
-      ...WONDERS.map(([k, id, name]) => obj(id, name, ...(WONDER_SITES[k] as readonly [number, number]), 24)),
-      ...WONDER_SITES.whales.map(([x, z], i) => obj(`LMK-WHALES-${i + 1}`, `Whale pod ${i + 1}`, x, z, 40)),
+    // Only the wonders already discovered (D-072).
+    list: (city) => [
+      ...WONDERS.filter(([k]) => wonderVisible(city, k)).map(([k, id, name]) =>
+        obj(id, name, ...(WONDER_SITES[k] as readonly [number, number]), 24),
+      ),
+      ...(wonderVisible(city, 'whales')
+        ? WONDER_SITES.whales.map(([x, z], i) => obj(`LMK-WHALES-${i + 1}`, `Whale pod ${i + 1}`, x, z, 40))
+        : []),
     ],
     details: (_c, o) => ({ description: about.get(o.id) ?? 'Glowing whales that surface now and then.' }),
   });
@@ -61,15 +67,30 @@ export const sceneryModule: GameModule = {
     const life = new SkyLife(S);
     const sea = new SeaWonders(S);
     ctx.scene.add(clouds.mesh, life.mesh, sea.group);
+    // Wonders not yet discovered stay under the sea (fresh islands, D-072); a discovery raises one.
+    const visible = (id: string) => wonderVisible(ctx.city, id);
+    const refresh = (rise: boolean) => sea.sync(visible, rise) && ctx.services.tryGet('world')?.atmosphere.invalidateShadows();
+    refresh(false);
+    for (const ev of ['city:reset', 'load:done', 'stats:updated'] as const) ctx.bus.on(ev, () => refresh(false));
+    ctx.bus.on('wonder:discovered', ({ id, name }) => {
+      refresh(true);
+      const k = id as keyof typeof WONDER_SITES;
+      const site = (k === 'whales' ? WONDER_SITES.whales[0] : WONDER_SITES[k]) as readonly [number, number] | undefined;
+      ctx.bus.emit('toast', {
+        text: `✧ A new sea wonder: ${name} has risen from the sea`,
+        tone: 'ok',
+        ...(site ? { at: { x: site[0] * S, z: site[1] * S } } : {}),
+      });
+    });
 
     ctx.systems.add({
       id: 'scenery.update',
       phase: 'sync',
-      update(c) {
+      update(c, f) {
         const cam = c.cameraCtl;
         clouds.focus.value.copy(cam.target);
         clouds.clear.value = Math.max(60, cam.distance * 0.5);
-        sea.update();
+        if (sea.update(f.dt)) c.services.tryGet('world')?.atmosphere.invalidateShadows();
       },
     });
   },

@@ -18,6 +18,9 @@ import puppeteer from 'puppeteer-core';
 import sharp from 'sharp';
 import { existsSync } from 'node:fs';
 
+/** Scripts measure the showcase city unless a path names a scenario (a plain boot is a fresh island + wizard, D-072). */
+const showcase = (p) => (/[?&]scenario=/.test(p) ? p : `${p}${p.includes('?') ? '&' : '?'}scenario=founding-city`);
+
 const args = Object.fromEntries(
   process.argv
     .slice(2)
@@ -58,7 +61,7 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage();
 await page.setViewport({ width: W, height: H });
 page.on('pageerror', (e) => console.log(`[pageerror] ${e.message}`));
-await page.goto(base + (args.path ?? '/?nodynres'), { waitUntil: 'domcontentloaded' });
+await page.goto(base + showcase(args.path ?? '/?nodynres'), { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.bloomgrid?.engine, { timeout: 60000, polling: 250 });
 await new Promise((r) => setTimeout(r, 2500));
 

@@ -4,10 +4,13 @@
  * main thread is (CDP task time), how many frames were rendered, CPU ms per frame, and GPU ms
  * per frame (needs ?gputime). Use it to compare settings before/after power optimisations.
  *
- *   bun run perf -- --path "/?gputime" --seconds 10 [--idle]
+ *   bun run perf -- --path "/?gputime" --seconds 10 [--idle] [--sound]   (--sound starts the audio engine first)
  */
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
+
+/** Scripts measure the showcase city unless a path names a scenario (a plain boot is a fresh island + wizard, D-072). */
+const showcase = (p) => (/[?&]scenario=/.test(p) ? p : `${p}${p.includes('?') ? '&' : '?'}scenario=founding-city`);
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1] === undefined || all[i + 1].startsWith('--') ? 'true' : all[i + 1]]] : acc), []),
@@ -15,10 +18,10 @@ const args = Object.fromEntries(
 const base = args.base ?? 'http://localhost:5173';
 const seconds = Number(args.seconds ?? 10);
 const chrome = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome'].find((p) => existsSync(p));
-const browser = await puppeteer.launch({ executablePath: chrome, headless: 'new', args: ['--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', '--window-size=1440,900'] });
+const browser = await puppeteer.launch({ executablePath: chrome, headless: 'new', args: ['--autoplay-policy=no-user-gesture-required', '--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', '--window-size=1440,900'] });
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: Number(args.dpr ?? 2) });
-await page.goto(base + (args.path ?? '/'), { waitUntil: 'domcontentloaded' });
+await page.goto(base + showcase(args.path ?? '/'), { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.bloomgrid?.engine, { timeout: 60000 });
 // Older builds have no rendered-frame counter: fall back to counting display refreshes.
 await page.evaluate(() => {
@@ -29,6 +32,15 @@ await page.evaluate(() => {
 });
 const frames = () => page.evaluate(() => window.bloomgrid.engine.frames ?? window.__raf);
 await new Promise((r) => setTimeout(r, 4000)); // let the boot reveal finish
+// Audio starts on the first gesture (D-077); a synthetic key stands in for one.
+// It counts as input, so wait out the power manager's idle delay (6 s) before measuring.
+if (args.sound) {
+  await page.evaluate(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F24' }));
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'F24' }));
+  });
+  await new Promise((r) => setTimeout(r, 7000));
+}
 if (!args.idle) {
   // Simulate an active player: slowly orbit the downtown (stays over the city, keeps input fresh).
   await page.evaluate(() => {

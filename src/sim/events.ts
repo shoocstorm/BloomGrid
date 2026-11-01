@@ -2,6 +2,7 @@ import type { BuildingRecord } from './City';
 import type { SystemKey, Tier } from './pulseState';
 import type { CrisisInstance, FireIncident, IncidentRecord } from './stewardState';
 import type { FireworkKind, FireworkShow, ShowRecord } from './fireworksState';
+import type { UnlockId } from './growthState';
 
 declare module '@/core/EventBus' {
   interface GameEvents {
@@ -51,6 +52,19 @@ declare module '@/core/EventBus' {
     'fireworks:start': { show: FireworkShow };
     'fireworks:volley': { show: FireworkShow; kinds: FireworkKind[]; finale: boolean };
     'fireworks:end': { record: ShowRecord };
+    /** Progression (D-072): an unlock project started / finished; a sea wonder was discovered; the city was named. */
+    'project:start': { id: UnlockId };
+    'project:done': { id: UnlockId };
+    'wonder:discovered': { id: string; name: string };
+    'city:named': { name: string };
+    /** Levels and ageing (D-073): a building changed level (grew, was upgraded, or an upgrade was undone); renovated. */
+    'building:tier': { eid: number; tier: number; paid: boolean };
+    'building:renovated': { eid: number };
+    /** Visible damage and switches (D-075): repaired (a ruin rebuilt when `ruined`); switched off or on. */
+    'building:repaired': { eid: number; ruined: boolean };
+    'building:switched': { eid: number; off: boolean };
+    /** A consequence rule came into force or eased off (D-074). */
+    consequence: { rule: string; kind: 'start' | 'end'; text: string };
   }
 }
 export {};

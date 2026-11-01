@@ -820,7 +820,9 @@ kbd,
 }
 .pulse.console .con-tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* One row however many tabs modules add (Goals made five, D-072). */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 2px;
   margin: 6px 0 4px;
 }
@@ -2336,7 +2338,7 @@ body:not(.booted) .holo::after {
  * The panel drops its own background while staged (the canvas must show through the stage); the details sheet
  * below carries the holo glass instead. The stage paints only a frame and a vignette over the 3D view. */
 .rightcol:has(> .info.staged:not(.hidden)) {
-  width: 380px;
+  width: 450px;
 }
 .info > .ix-close {
   position: absolute;
@@ -2528,4 +2530,17 @@ body:not(.booted) .holo::after {
 .topbar.fit-7 .seg button:nth-child(3),
 .topbar.fit-7 .season {
   display: none;
+}
+
+/* Locked buildings (D-072): dimmed in the Build tab until their unlock project is done. */
+.card.locked {
+  opacity: 0.55;
+}
+.bp-lock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--warn);
 }

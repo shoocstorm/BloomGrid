@@ -3,6 +3,7 @@ import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { BuildingDef, KitBuilder, PieceSpec } from '@/content/types';
 import { Rng, hash2 } from '@/sim/random';
+import { DAY_LENGTH } from '@/sim/pulseConst';
 import { PALETTE } from '@/content/kit';
 import type { Grid } from '@/sim/Grid';
 import type { InstanceHandle } from '@/render/Instancer';
@@ -29,6 +30,8 @@ export interface BuildingTemplate {
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number; top: number };
   /** Bloom Retrofit overlay (flower walls, ivy curtains, sunflower roof), built on demand. */
   retrofit?: TemplatePiece[];
+  /** Level overlays per tier (D-073), built on demand. */
+  tiers?: TemplatePiece[][];
   /** Banyan merge overlay (aerial roots, buttresses, crown), built on demand. */
   banyan?: TemplatePiece[];
   rng: Rng;
@@ -171,6 +174,52 @@ export function retrofitPieces(t: BuildingTemplate): TemplatePiece[] {
 }
 
 /**
+ * Level overlays (D-073), generic so no recipe changes: level 2 adds a roof terrace (a plate, planters at the
+ * corners, a flower edge and two solar petals); level 3 adds a setback crown on top (two glass floors, a meadow
+ * cap with a tree, and a lit spire). Built from the template's bounds; cached per template and level.
+ */
+export function tierPieces(t: BuildingTemplate, tier: number): TemplatePiece[] {
+  const cache = (t.tiers ??= []);
+  if (cache[tier]) return cache[tier]!;
+  const out: TemplatePiece[] = [];
+  const { minX, maxX, minZ, maxZ, top } = t.bounds;
+  const rng = new Rng(Math.floor((minX * 31 + maxZ * 17 + top * 13 + tier) * 1000) >>> 0);
+  const push = (piece: string, p: [number, number, number], s: [number, number, number], r: number, tint: number, glow: number, rz = 0) => {
+    _q.setFromEuler(_e.set(0, r, rz, 'YXZ'));
+    out.push({ piece, local: new Matrix4().compose(_v.set(...p), _q, _s.set(...s)), tint, glow, growAt: 0, seed: rng.next(), y: p[1] });
+  };
+  const [w, d] = [maxX - minX, maxZ - minZ];
+  const [cx, cz] = [(minX + maxX) / 2, (minZ + maxZ) / 2];
+  if (tier >= 1 && w > 0.4 && d > 0.4) {
+    push('slab', [cx, top, cz], [w * 0.92, 0.06, d * 0.92], 0, PALETTE.concrete, 0);
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+      const p: [number, number, number] = [cx + sx * w * 0.36, top + 0.06, cz + sz * d * 0.36];
+      push('concreteCyl', p, [0.16, 0.12, 0.16], 0, 0xdcd5c6, 0);
+      push('bush', [p[0], top + 0.16, p[2]], [0.2, 0.18, 0.2], rng.next() * 6, rng.pick(PALETTE.leaves), 0);
+    }
+    for (let i = 0; i < 6; i++) {
+      const s = 0.09 + rng.next() * 0.04;
+      push('flower', [cx + (rng.next() - 0.5) * w * 0.8, top + 0.06, cz + (rng.next() > 0.5 ? 1 : -1) * d * 0.42], [s, s, s], 0, rng.pick(PALETTE.blossoms), 0.5);
+    }
+    push('solarLeaf', [cx - w * 0.15, top + 0.08, cz], [0.5, 1, 0.6], 0.3, 0xffffff, 0, 0.15);
+    push('solarLeaf', [cx + w * 0.15, top + 0.08, cz], [0.5, 1, 0.6], -0.3, 0xffffff, 0, 0.15);
+  }
+  if (tier >= 2 && w > 0.6 && d > 0.6) {
+    const [cw, cd] = [w * 0.55, d * 0.55];
+    const y = top + 0.06;
+    push('glassBox', [cx, y, cz], [cw, 0.64, cd], 0, PALETTE.glass, 0.4);
+    push('slab', [cx, y + 0.64, cz], [cw + 0.08, 0.06, cd + 0.08], 0, PALETTE.concrete, 0);
+    push('grass', [cx, y + 0.7, cz], [cw * 0.8, 0.3, cd * 0.8], 0, 0x8fd35a, 0);
+    push('trunk', [cx - cw * 0.2, y + 0.7, cz], [0.06, 0.35, 0.06], 0, 0xffffff, 0);
+    push('canopy', [cx - cw * 0.2, y + 1.0, cz], [0.35, 0.3, 0.35], 0, rng.pick(PALETTE.leaves), 0);
+    push('spireCone', [cx + cw * 0.25, y + 0.7, cz], [0.12, 0.7, 0.12], 0, PALETTE.glassWarm, 0.3);
+    push('haloRing', [cx + cw * 0.25, y + 1.2, cz], [0.3, 2, 0.3], 0, 0xffffff, 0.8);
+  }
+  cache[tier] = out;
+  return out;
+}
+
+/**
  * Green Weaver banyan merge: aerial roots curtain the façades down to the ground, buttress roots
  * grip the base and a vast canopy crowns the roof. Generated once per template and cached.
  */
@@ -250,6 +299,15 @@ interface Entry {
   template: BuildingTemplate | null;
   /** Bloom Retrofit overlay instances (empty when not retrofitted). */
   retro: InstanceHandle[];
+  /** Level overlay instances (D-073) and the concrete walls that weather with age (aParams.w = 1 − weathering). */
+  tierH: InstanceHandle[];
+  walls: InstanceHandle[];
+  /** Glass and timber pieces: their weathering rides on aParams.x (1 = clean), which those materials don't use. */
+  skins: InstanceHandle[];
+  weather: number;
+  /** A ruin (D-075): upper floors gone, rubble on the lot. */
+  rubble: InstanceHandle[];
+  collapsed: boolean;
   /** Template pieces waiting for greenery to reach their threshold, sorted by growAt. */
   pending: TemplatePiece[];
   base: Matrix4;
@@ -293,6 +351,23 @@ export class BuildingRenderer {
       for (const eid of [...this.entries.keys()]) this.remove(eid);
     });
     bus.on('stats:updated', () => this.syncService());
+    // Levels (D-073): a new level's overlay grows in with a little fanfare; renovation clears the weathering.
+    bus.on('building:tier', ({ eid, tier }) => {
+      const entry = this.entries.get(eid);
+      if (entry) this.setTier(entry, tier, ctx.loading ? -1 : 0);
+    });
+    bus.on('building:renovated', () => this.syncService());
+    // Ruins collapse; a repair rebuilds (D-075).
+    bus.on('building:ruined', ({ eid }) => {
+      const entry = this.entries.get(eid);
+      if (entry) this.collapse(entry, !ctx.loading);
+    });
+    bus.on('building:repaired', ({ eid, ruined }) => {
+      if (ruined && this.entries.get(eid)?.collapsed) {
+        this.remove(eid, false);
+        this.add(eid, !ctx.loading);
+      } else this.syncService();
+    });
     // District transformation wave: overlays pop in by distance from the retrofit origin.
     bus.on('buildings:level', ({ eids, origin }) => {
       for (const eid of eids) {
@@ -402,6 +477,12 @@ export class BuildingRenderer {
       wild: 0,
       template: typeof def.recipe === 'function' || def.recipe.fallback ? place.template : null,
       retro: [],
+      tierH: [],
+      walls: [],
+      skins: [],
+      rubble: [],
+      collapsed: false,
+      weather: 0,
       pending: [],
       base: place.base,
       height: place.template.height,
@@ -446,6 +527,61 @@ export class BuildingRenderer {
       );
     } else spawnTemplate();
     if (Building.level[eid]) this.addRetrofit(entry, animate ? 0.3 : -1, Building.level[eid]!);
+    if (Building.tier[eid]) this.setTier(entry, Building.tier[eid]!, animate ? 0.5 : -1);
+    if (city.steward.ruins.includes(Building.uid[eid]!)) this.collapse(entry, false);
+  }
+
+  /**
+   * A ruin (D-075): everything above the ground floor folds away (animated when it happens in play) and charred
+   * rubble lies on the lot. Repair rebuilds the building from its template (see `building:repaired`).
+   */
+  private collapse(entry: Entry, animate: boolean): void {
+    if (entry.collapsed) return;
+    entry.collapsed = true;
+    const { instancer } = this.ctx;
+    const base = entry.base.elements[13]!;
+    const cut = base + Math.max(0.35, entry.height * 0.25);
+    const keep = (list: InstanceHandle[]) =>
+      list.filter((h) => {
+        const y = h.batch ? (h.batch.mesh.instanceMatrix.array as Float32Array)[h.slot * 16 + 13]! : 0;
+        if (y <= cut) return true;
+        if (animate) instancer.removeAnimated(h, (y - cut) * 0.08 + Math.random() * 0.2, 0.5);
+        else instancer.remove(h);
+        return false;
+      });
+    entry.handles = keep(entry.handles);
+    entry.glass = entry.glass.filter((h) => entry.handles.includes(h));
+    entry.walls = entry.walls.filter((h) => entry.handles.includes(h));
+    entry.skins = entry.skins.filter((h) => entry.handles.includes(h));
+    for (const h of [...entry.retro, ...entry.tierH]) {
+      if (animate) instancer.removeAnimated(h, 0.2, 0.4);
+      else instancer.remove(h);
+    }
+    entry.retro = [];
+    entry.tierH = [];
+    const t = entry.template;
+    const b = t?.bounds ?? { minX: -0.5, maxX: 0.5, minZ: -0.5, maxZ: 0.5, top: 0.5 };
+    const rng = new Rng(Math.floor(base * 1000 + b.maxX * 77) >>> 0);
+    for (let i = 0; i < 9; i++) {
+      const s = 0.25 + rng.next() * 0.35;
+      _q.setFromEuler(_e.set(rng.next() * 0.8, rng.next() * 6.28, rng.next() * 0.8));
+      const local = _m.compose(_v.set(b.minX + rng.next() * (b.maxX - b.minX), 0.05, b.minZ + rng.next() * (b.maxZ - b.minZ)), _q, _s.set(s, s * 0.45, s * 0.8));
+      const world = new Matrix4().multiplyMatrices(entry.base, local);
+      entry.rubble.push(instancer.addMatrix(i % 3 ? 'slab' : 'concreteCyl', world, _c.setHex(i % 2 ? 0x5e5650 : 0x7a7068), [1, 0.5, 0, 0.05], animate ? 0.3 + rng.next() * 0.3 : -1, 0.4));
+    }
+  }
+
+  /** Swaps a building's level overlay: the new one grows in from the roof (`delay` < 0 = instant). */
+  private setTier(entry: Entry, tier: number, delay: number): void {
+    for (const h of entry.tierH) this.ctx.instancer.removeAnimated(h, 0, 0.3);
+    entry.tierH = [];
+    if (!entry.template || tier <= 0) return;
+    for (const p of tierPieces(entry.template, tier)) {
+      _params.set([1, p.seed, p.glow, 1]);
+      const world = _m.multiplyMatrices(entry.base, p.local);
+      const d = delay < 0 ? -1 : delay + Math.random() * 0.3;
+      entry.tierH.push(this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(p.tint), _params, d, 0.7));
+    }
   }
 
   /** Adds the retrofit (and, at level 2, banyan) overlay; `delay` < 0 = instant, else pop-in bottom-up. */
@@ -474,11 +610,15 @@ export class BuildingRenderer {
     const glass = p.piece === 'glassBox' || p.piece === 'glassCyl';
     const plant = PLANT_PIECES.has(p.piece);
     _params[3] = glass ? entry.power : plant ? entry.vitality : 1;
+    const skin = glass || p.piece === 'timberBox';
+    if (skin) _params[0] = 1 - entry.weather;
     const world = _m.multiplyMatrices(entry.base, p.local);
     const tint = styled ? restyle(p.piece, p.tint, entry.style, entry.shade) : p.tint;
     const h = this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(tint), _params, delay, 0.7);
     entry.handles.push(h);
     if (p.piece === 'mossBox') entry.moss.push(h);
+    if (p.piece === 'slab' || p.piece === 'concreteCyl') entry.walls.push(h);
+    if (skin) entry.skins.push(h);
     if (glass) entry.glass.push(h);
     else if (plant) entry.plants.push(h);
   }
@@ -492,19 +632,22 @@ export class BuildingRenderer {
     if (!entry) return;
     const { instancer } = this.ctx;
     if (entry.alert) instancer.remove(entry.alert);
+    for (const h of entry.rubble) instancer.remove(h);
+    entry.rubble = [];
     if (!animate) {
-      for (const h of entry.handles) instancer.remove(h);
+      for (const h of [...entry.handles, ...entry.tierH]) instancer.remove(h);
       this.removeRetrofit(entry);
       this.entries.delete(eid);
       return;
     }
-    const parts = [...entry.handles, ...entry.retro];
+    const parts = [...entry.handles, ...entry.retro, ...entry.tierH];
     const ys = parts.map((h) => (h.batch ? (h.batch.mesh.instanceMatrix.array as Float32Array)[h.slot * 16 + 13]! : 0));
     const base = entry.base.elements[13]!;
     const top = Math.max(base + 0.5, ...ys);
     parts.forEach((h, i) => instancer.removeAnimated(h, ((top - ys[i]!) / (top - base)) * 0.4 + Math.random() * 0.06, 0.4));
     entry.handles = [];
     entry.retro = [];
+    entry.tierH = [];
     this.entries.delete(eid);
     this.sprout(entry.base, Building.w[eid]!, Building.d[eid]!);
   }
@@ -538,6 +681,15 @@ export class BuildingRenderer {
       const occ = Service.occupancy[eid]!;
       const occupied = st.population > 0 || st.jobs > 0 ? 0.2 + 0.8 * occ : 1;
       const cond = Service.condition[eid]!;
+      // Weathering (D-073): walls grime with age and wear; renovation washes it off. Char from fire and lightning
+      // (D-075) takes the top of the same channel (0.7..1: soot), so it needs no attribute of its own.
+      const scorch = Service.scorch[eid]!;
+      const weather = Math.max(Math.min(0.7, (Service.age[eid]! / (20 * DAY_LENGTH)) * 0.55 + (1 - cond) * 0.35), scorch > 0.02 ? 0.7 + 0.3 * scorch : 0);
+      if (Math.abs(weather - entry.weather) > 0.04) {
+        entry.weather = weather;
+        for (const h of entry.walls) instancer.setParam(h, 3, 1 - weather);
+        for (const h of entry.skins) instancer.setParam(h, 0, 1 - weather);
+      }
       const power = Service.power[eid]! * occupied * (0.3 + 0.7 * cond);
       if (Math.abs(power - entry.power) > 0.03) {
         entry.power = power;

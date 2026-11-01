@@ -211,7 +211,7 @@ export function updateFireworks(
     const f = buildings.at(Building.def[e]!).fireworks;
     if (!f) continue;
     cap += f.storage;
-    if (mod.down.has(e)) continue;
+    if (mod.down.has(e) || Service.off[e]) continue;
     rate += (f.rate / 60) * Service.occupancy[e]! * Math.min(Service.power[e]!, Service.water[e]!);
   }
   if (cap > 0) {
@@ -271,7 +271,8 @@ export function updateFireworks(
     if (show.fired >= show.shells) endShow(city, show);
   } else fw.glow *= GLOW_DECAY;
   fw.fatigue = Math.max(0, fw.fatigue - FATIGUE_RECOVERY / DAY_LENGTH);
-  fw.smog *= SMOG_CLEAR;
+  // Haze holds the smoke (consequences, D-074).
+  fw.smog *= city.consequences.mods.smogHold > 0.5 ? 0.994 : SMOG_CLEAR;
   if (fw.smog < 1e-4) fw.smog = 0;
   if (fw.glow < 1e-4) fw.glow = 0;
   return {

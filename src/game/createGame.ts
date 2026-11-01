@@ -118,7 +118,8 @@ export async function createGame(
   U.mapSize.value = city.grid.w;
 
   // Founding content is generated in bulk before any renderer exists; renderers sync on init.
-  const scenarioId = params.get('scenario') ?? 'founding-city';
+  // A plain boot is a fresh island behind the New Game wizard (D-072); scripts and demos ask for a scenario.
+  const scenarioId = params.get('scenario') ?? 'fresh-island';
   await onProgress('Founding the city: districts, highways & bridges', 0.3);
   const ts = performance.now();
   const r = foundCity(ctx, seed, preferredDifficulty(params), scenarioId);

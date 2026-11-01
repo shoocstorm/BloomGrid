@@ -2,6 +2,7 @@ import type { City } from '@/sim/City';
 import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { getCrisis } from '@/sim/crises';
 import { filterObjects, listObjects, summarize } from '@/sim/inventory';
+import { PROJECTS, PROJECT_IDS, projectStatus } from '@/sim/projects';
 
 /**
  * A few lines about the city for the assistant's prompts: what a steward glances at on the HUD, plus the
@@ -13,7 +14,7 @@ export function cityBrief(city: City): string {
   const p = city.pulse;
   const hh = Math.floor(city.timeOfDay * 24);
   const mm = Math.floor((city.timeOfDay * 24 - hh) * 60);
-  const net = s.income - s.upkeep - s.debtService;
+  const net = s.income + s.fishing - s.upkeep - s.debtService;
   const objects = listObjects(city, ['building', 'network', 'district']);
   const sum = summarize(objects);
   const worst = filterObjects(objects, {
@@ -34,8 +35,21 @@ export function cityBrief(city: City): string {
     `Systems in trouble: ${strained.length ? strained.join(', ') : 'none'}.${crises.length ? ` Crises: ${crises.join(', ')}.` : ''}`,
     `Objects: ${sum.status.critical} critical, ${sum.status.warning} warning${issues ? ` (${issues})` : ''}.`,
     worst.length ? `Worst: ${worst.join('; ')}.` : '',
+    growthLine(city),
     city.districts.length ? `Districts: ${city.districts.map((d) => d.name).join(', ')}.` : '',
   ]
     .filter(Boolean)
     .join('\n');
+}
+
+/** On a fresh island (Phase 22): the city's name, what is still locked and the first thing each one needs. */
+function growthLine(city: City): string {
+  const g = city.growth;
+  if (!g.progression) return '';
+  const locked = PROJECT_IDS.filter((id) => projectStatus(city, id) !== 'open').map((id) => {
+    const st = projectStatus(city, id);
+    const need = PROJECTS[id].criteria(city).find((c) => !c.ok)?.label;
+    return `${PROJECTS[id].name} (${st === 'blocked' ? `needs ${need ?? `◈${PROJECTS[id].cost}`}` : st})`;
+  });
+  return `${g.name}. Fish stock ${Math.round(g.fish * 100)}%.${locked.length ? ` Locked: ${locked.join('; ')}.` : ''}`;
 }

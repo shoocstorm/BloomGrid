@@ -1,4 +1,4 @@
-import type { GameModule } from '@/game/context';
+import type { GameContext, GameModule } from '@/game/context';
 import { QUALITY_TIERS, type QualityTier } from '@/render/Quality';
 import { POWER_MODES, type PowerMode } from '@/render/Power';
 import { h } from '@/ui/dom';
@@ -28,6 +28,34 @@ function desktopSection(setFullscreen: (on: boolean) => Promise<void>): HTMLElem
     }
   });
   return h('div', {}, h('h4', {}, 'Window'), h('button', { class: 'set-new', onClick: toggle }, '⛶ Toggle fullscreen (F11)'));
+}
+
+/** Volume sliders and mute for the audio service (D-077), if present. */
+function soundSliders(ctx: GameContext): HTMLElement[] {
+  const audio = ctx.services.tryGet('audio');
+  if (!audio) return [];
+  const row = (key: 'master' | 'music' | 'ambience' | 'sfx', label: string) => {
+    const value = String(Math.round(audio.levels[key] * 100));
+    const input = h('input', {
+      type: 'range',
+      min: '0',
+      max: '100',
+      value,
+      'aria-label': label,
+    }) as HTMLInputElement;
+    input.addEventListener('input', () => audio.set({ [key]: Number(input.value) / 100 }));
+    return h('label', { class: 'set-slider' }, h('span', {}, label), input);
+  };
+  const mute = h('input', { type: 'checkbox' }) as HTMLInputElement;
+  mute.checked = audio.levels.muted;
+  mute.addEventListener('change', () => audio.set({ muted: mute.checked }));
+  return [
+    row('master', 'Master'),
+    row('music', 'Music'),
+    row('ambience', 'Ambience'),
+    row('sfx', 'Effects'),
+    h('label', { class: 'set-opt' }, mute, h('span', {}, 'Mute')),
+  ];
 }
 
 /**
@@ -68,6 +96,9 @@ export const settingsModule: GameModule = {
         render.power.setMode(m),
       ),
       ...(ctx.platform.setFullscreen ? [desktopSection(ctx.platform.setFullscreen.bind(ctx.platform))] : []),
+      h('h4', {}, 'Sound'),
+      h('p', { class: 'set-hint' }, 'Generative music, island ambience and effects, all synthesised. Press , to mute.'),
+      ...soundSliders(ctx),
       h('h4', {}, 'Graphics'),
       radio('quality', QUALITY_LABELS, ctx.quality.tier, (q) => {
         render.setQuality(q);
@@ -81,6 +112,7 @@ export const settingsModule: GameModule = {
     pop.append(
       h('h4', {}, 'City'),
       h('button', { class: 'set-new', onClick: () => (pop.classList.add('hidden'), ctx.services.get('crises').newCity()) }, icon('sparkle'), ' Found a new city…'),
+      h('button', { class: 'set-new', onClick: () => (pop.classList.add('hidden'), ctx.services.tryGet('wizard')?.guide()) }, icon('console'), ' How to play (guide)'),
     );
     rise([...pop.children].slice(1));
     const btn = h('button', { class: 'icon-btn', title: 'Settings', 'aria-label': 'Settings', onClick: () => pop.classList.toggle('hidden') }, icon('settings'));

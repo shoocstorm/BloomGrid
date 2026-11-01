@@ -30,6 +30,8 @@ export const pulseModule: GameModule = {
     }).observe(hud.tray, { attributes: true, attributeFilter: ['class'] });
     ctx.systems.add({ id: 'pulse.panel', phase: 'render', order: 110, update: (_c, f) => panel.update(f.dt) });
     ctx.bus.on('pulse:tier', ({ system, tier, prev }) => {
+      // A new city's first pulses settle occupancy and staffing from their starting values: no alarms yet.
+      if (ctx.city.tick < 80) return;
       const worse = tier > prev;
       ctx.bus.emit('toast', {
         text: `${worse ? '⚠' : '✓'} ${SYSTEM_LABELS[system]} ${worse ? 'fell to' : 'recovered to'} ${TIERS[tier]}`,

@@ -202,7 +202,15 @@ export function initMaterials(): void {
       .add(pick(7, ashlar))
       .add(pick(8, weave));
     // Roofs and floor-plate tops stay plain; patterns read on the walls.
-    m.colorNode = mix(patterned, vec3(smooth), smoothstep(0.6, 0.9, normalWorld.y));
+    const walls = mix(patterned, vec3(smooth), smoothstep(0.6, 0.9, normalWorld.y));
+    // Weathering (aParams.w = 1 − grime, D-073): rain streaks running down the walls and a warm dinge; the streaks
+    // fade to their mean once they are a pixel or two wide.
+    const grime = float(1).sub(iParams.w).clamp(0, 1);
+    const streak = mix(smoothstep(-0.25, 0.55, mx_noise_float(vec3(u.mul(7), y.mul(0.45), P.y.mul(0.1)))), float(0.5), fade(0.12));
+    const dinge = mix(vec3(1), vec3(0.6, 0.57, 0.52).add(vec3(0.24, 0.22, 0.2).mul(streak)), grime);
+    // Char (grime 0.7..1, D-075): soot darkening the walls, heaviest along the streaks.
+    const soot = smoothstep(0.7, 1.0, grime);
+    m.colorNode = mix(walls.mul(dinge), vec3(0.11, 0.1, 0.09).add(vec3(0.08).mul(streak)), soot.mul(0.85));
     m.roughnessNode = st.roughness;
     m.metalnessNode = st.metalness.mul(float(1).sub(seam));
     return m;
@@ -214,7 +222,10 @@ export function initMaterials(): void {
     const grain = sin(positionWorld.y.mul(60).add(mx_noise_float(positionWorld.mul(4)).mul(6)))
       .mul(0.06)
       .mul(float(1).sub(smoothstep(0.015, 0.05, length(fwidth(positionWorld)))));
-    m.colorNode = color(0xffffff).add(grain);
+    // Weathering (aParams.x = 1 − grime on building timber, D-073): silvered, darker boards.
+    const grime = float(1).sub(iGreenery).clamp(0, 1);
+    const soot = smoothstep(0.7, 1.0, grime);
+    m.colorNode = mix(mix(color(0xffffff).add(grain), vec3(0.5, 0.49, 0.46), grime.mul(0.85)), vec3(0.12, 0.1, 0.09), soot.mul(0.85));
     return m;
   });
 
@@ -269,8 +280,11 @@ export function initMaterials(): void {
     // evenly (D-064).
     const far = smoothstep(0.2, 0.5, max(fwidth(u.mul(k)), fwidth(y.div(0.32))));
     const frames = mix(mullion, float(0.25), far);
-    m.colorNode = mix(pane, frame, frames);
-    m.roughnessNode = mix(float(0.12), float(0.7), frames);
+    // Weathering (aParams.x = 1 − grime on building glass, D-073): panes dull and brown, reflections soften.
+    const grime = float(1).sub(iGreenery).clamp(0, 1);
+    const soot = smoothstep(0.7, 1.0, grime);
+    m.colorNode = mix(mix(mix(pane, frame, frames), vec3(0.3, 0.28, 0.23), grime.mul(0.7)), vec3(0.05, 0.045, 0.04), soot.mul(0.8));
+    m.roughnessNode = mix(mix(float(0.12), float(0.7), frames), float(0.75), grime);
     m.metalnessNode = mix(float(0.45), float(0.0), frames);
     // aParams.w = power supply: windows go dark during brownouts.
     // About 40% of windows lit in the evening, thinning to ~10% in the small hours; each its own brightness and
@@ -281,7 +295,7 @@ export function initMaterials(): void {
     const tone = mix(hash(col.mul(1.7).add(floorIdx.mul(5.3)).add(iSeed.mul(13))), float(0.5), far);
     const warm = mix(mix(color(0xff9f4a), color(0xffd9a0), tone), color(0xcfe4ff), step(0.88, tone));
     const level = tone.mul(0.6).add(0.25);
-    m.emissiveNode = warm.mul(lit).mul(level).mul(float(1).sub(frames)).mul(U.night).mul(0.55).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.05));
+    m.emissiveNode = warm.mul(lit).mul(level).mul(float(1).sub(frames)).mul(float(1).sub(soot)).mul(U.night).mul(0.55).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.05));
     return m;
   });
 

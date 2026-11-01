@@ -55,3 +55,17 @@
   background: rgba(0, 0, 0, 0.05);
   font-weight: 600;
 }
+
+/* Volume sliders (D-077). */
+.set-slider {
+  display: grid;
+  grid-template-columns: 5.5em 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.set-slider input {
+  width: 100%;
+  accent-color: var(--accent, #7fd6a4);
+}

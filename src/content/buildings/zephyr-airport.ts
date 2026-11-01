@@ -18,6 +18,7 @@ export default defineBuilding({
   footprint: [10, 10],
   stats: { cost: 3800, energy: -20, eco: 4, happiness: 12, population: 0, jobs: 50, pollution: 0 },
   growthTime: 160,
+  requires: 'skylanes',
   transit: { radius: 22, riders: 900 },
   variants: 1,
   recipe(b) {

@@ -17,6 +17,9 @@ import { mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 
+/** Scripts measure the showcase city unless a path names a scenario (a plain boot is a fresh island + wizard, D-072). */
+const showcase = (p) => (/[?&]scenario=/.test(p) ? p : `${p}${p.includes('?') ? '&' : '?'}scenario=founding-city`);
+
 const arg = (k, d) => {
   const i = process.argv.indexOf(`--${k}`);
   return i >= 0 && process.argv[i + 1] !== undefined ? process.argv[i + 1] : d;
@@ -185,7 +188,7 @@ const floraPng = await card(
 );
 const endPng = await card([['TEND IT AND IT BLOOMS', 46, 10, 0]]);
 
-await page.goto(base + path, { waitUntil: 'domcontentloaded' });
+await page.goto(base + showcase(path), { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.bloomgrid?.engine, { timeout: 60000 });
 await new Promise((r) => setTimeout(r, 8000)); // boot reveal + founding city
 await page.evaluate(() => {

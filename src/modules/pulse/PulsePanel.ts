@@ -168,6 +168,9 @@ export class PulsePanel {
     const budget = h('div', { class: 'pulse-sec' }, h('div', { class: 'pulse-title' }, 'Budget (per second)'));
     for (const [id, label] of [
       ['income', 'Tax income'],
+      ['fishing', 'Fishing'],
+      ['tourism', 'Visitors'],
+      ['insurance', 'Insurance'],
       ['upkeep', 'Upkeep'],
       ['debt', 'Loan repayments'],
       ['net', 'Net'],
@@ -202,6 +205,8 @@ export class PulsePanel {
       ['bloom', 'Bloom'],
       ['traffic', 'Traffic'],
       ['fireworks', 'Fireworks'],
+      ['wonders', 'Sea wonders'],
+      ['consequences', 'Cause & effect'],
     ]) {
       const v = h('b');
       this.harmony.set(id!, v);
@@ -355,7 +360,7 @@ export class PulsePanel {
     setText(this.nightEl, `${Math.round(p.nightlife * 100)}%`);
     setText(this.seaEl, city.steward.seaRise > 0.005 ? `+${city.steward.seaRise.toFixed(2)} m` : 'steady');
     setText(this.soilEl, `${Math.round(p.soilHealth * 100)}%${p.dryZones ? ` · ${p.dryZones} dry` : ''}`);
-    const net = s.income - s.upkeep - s.debtService;
+    const net = s.income + s.fishing + s.tourism - s.insurance - s.upkeep - s.debtService;
     setText(this.budget.get('debt')!, s.debtService > 0 ? `−${s.debtService.toFixed(1)}` : '0');
     const owed = totalDebt(city);
     setText(this.owed, owed > 0 ? Math.round(owed).toLocaleString() : 'none');
@@ -366,6 +371,9 @@ export class PulsePanel {
     for (const [amount, b] of this.loanBtns) b.disabled = amount > limit;
     this.repayBtn.disabled = owed <= 0 || city.credits < Math.min(...city.steward.loans.map((l) => l.remaining));
     setText(this.budget.get('income')!, `+${s.income.toFixed(1)}`);
+    setText(this.budget.get('fishing')!, s.fishing > 0 ? `+${s.fishing.toFixed(1)}` : '0');
+    setText(this.budget.get('tourism')!, s.tourism > 0 ? `+${s.tourism.toFixed(1)}` : '0');
+    setText(this.budget.get('insurance')!, s.insurance > 0 ? `−${s.insurance.toFixed(1)}` : '0');
     setText(this.budget.get('upkeep')!, `−${s.upkeep.toFixed(1)}`);
     const n = this.budget.get('net')!;
     setText(n, `${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(1)}`);

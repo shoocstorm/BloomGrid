@@ -31,6 +31,17 @@ export interface CrisisInstance {
   displaced?: number;
   /** Readable ids of the worst-hit buildings (up to 6). */
   objects?: string[];
+  /** Tornado heading (tiles per second); tsunami offshore origin is x/z (D-076). */
+  vx?: number;
+  vz?: number;
+  /** Prevention in play (D-076): residents evacuated, the Tide Gates closed, credits of damage avoided. */
+  evacuated?: boolean;
+  gates?: boolean;
+  saved?: number;
+  /** An earthquake that has already rolled for a tsunami. */
+  rolled?: boolean;
+  /** What prevention did, in sentences, for the incident log. */
+  prevented?: string[];
 }
 
 /** A fire burning in one building (D-050). Grows unless crews, a station or rain beat it back; spreads when fierce. */
@@ -45,7 +56,7 @@ export interface FireIncident {
   startTick: number;
   /** Crews dispatched by the steward (a `respond` command). */
   crew: boolean;
-  cause: 'lightning' | 'earthquake' | 'industrial' | 'heat' | 'spread' | 'fireworks';
+  cause: 'lightning' | 'earthquake' | 'industrial' | 'heat' | 'spread' | 'fireworks' | 'tornado';
   /** The crisis that started it, if any. */
   crisisId?: number;
   /** Credits of damage so far. */
@@ -77,6 +88,8 @@ export interface IncidentRecord {
   /** How it ended, in a few words ("contained by crews", "burned out", "weathered"). */
   outcome: string;
   objects: string[];
+  /** What prevention did (D-076): "Windbreak parks absorbed 30% of its force (◈1,200 saved)". */
+  prevented?: string[];
 }
 
 /** Effects of active crises on this pulse. Recomputed every pulse; not saved. */
@@ -98,6 +111,8 @@ export interface Modifiers {
   shake: number;
   /** Storm rain 0..1 from hazards (thunderstorm), for weather and fire suppression. */
   rain: number;
+  /** Tsunami surge height on the waterfront (D-076): floods the coast only, not every low tile like `floodLevel`. */
+  surge: number;
 }
 
 export const neutralModifiers = (): Modifiers => ({
@@ -112,6 +127,7 @@ export const neutralModifiers = (): Modifiers => ({
   down: new Set(),
   shake: 0,
   rain: 0,
+  surge: 0,
 });
 
 /**

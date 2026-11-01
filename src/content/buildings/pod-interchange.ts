@@ -22,6 +22,7 @@ export default defineBuilding({
     upkeep: 0.2,
   },
   growthTime: 110,
+  requires: 'skylanes',
   transit: { radius: 22, riders: 1600, hub: { reach: 45, ring: 8.4, radius: 2.6 } },
   variants: 1,
   recipe(b) {

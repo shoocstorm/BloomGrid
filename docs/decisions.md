@@ -881,3 +881,138 @@ grow: 1 labels, meter and the Map label; 2 secondary values and the brand subtit
 name; 4 ecology and the fireworks count; 5 water and the fastest speed; 6 redo, overview, load and the season bar;
 7 the fast speed and the season chip. Measured: 2200 px full, 1600 px level 1, 1440 px level 2, 1100 px level 5,
 960–920 px level 6, nothing clipped. Phones keep their own layout.
+
+## D-072 — Fresh island start: wizard, fishing, unlock projects, earned wonders, billed Flora (2026-10-31)
+
+A plain boot is now a **fresh island** (`content/scenarios/fresh-island.ts`, `progression: true`) behind a **New Game
+wizard** (`modules/tutorial`): name the city (default `BloomGrid 001`, numbered per viewer), pick difficulty and
+seed, or Continue the saved city, or open the **Showcase city** (the founding city, everything open). A new island
+starts a six-step guide whose steps complete on the real action (camera moved, second dock built, highway drawn,
+treasury +300, Goals tab opened); skippable, reopened from Settings. Any `?scenario=` skips the wizard (`?wizard`
+forces it); the scripts (snap, perf, flicker, trailers, ai-probe) default to `scenario=founding-city`, so every
+baseline and scene still measures the showcase.
+
+State lives on `city.growth` (`sim/growthState.ts`; saved as v11, hashed): name, `progression`, unlocked ids,
+running projects, discovered wonders, fish stock, Flora's bill. **Progression is opt-in per scenario**: the
+showcase city, every existing test and pre-v11 saves have it off (everything open), so their balance and hashes are
+unchanged. **Unlock projects** (`sim/projects.ts`): Sky-lane charter (3 000 residents, a Drone Fabricator; ◈4 000, 1
+day), Build the Aeroline (6 000 residents, power ≥ 110%, the charter; ◈25 000, 2 days), Wake Flora (a power plant, a
+new **Data Spire**, ◈3 000 in the treasury; ◈2 500, ½ day); `startProject` is undoable until done. A def's `requires`
+locks it in `City.checkPlacement` (pod hubs, the Nexus, Dragonfly Port, Zephyr Airport; Aeroline stations); homes
+with built-in pod docks stay buildable, but the mobility sim ignores pod (and rail) transit until its unlock, so no
+lanes fly early. The Aeroline module draws the line when the project completes. **Fishing** (`sim/fishing.ts`): the
+free **Fishing Boat Dock** (`fishing`, `limit` 3 + 1 per 600 residents, food 60, 16 jobs) sells its catch: boats ×
+staffing × fish stock × clean sea × 0.42 ◈/s; the stock regrows logistically (0.6%/s) and each boat takes 0.04%/s,
+so two or three docks fish best and more overfish (tested); coastal pollution and algal blooms spoil the haul.
+Fishing counts in net income, the budget tier, the Pulse budget ("Fishing") and the dashboard. Boats sail out on
+the longest open-sea heading, circle and return (`modules/fishing`, CPU-posed from `U.clock`). **Wonders**
+(`sim/wonders.ts`): the lighthouse and whales at the start; Tide Gates (1 500 residents), Lotus Atoll (bloom ≥ 55%
+from day 2), Verdant Pillars (40 buildings, eco > 0), Abyssal Dome (harmony 70+ from day 4); a discovery raises the
+wonder out of the sea over 5 s, toasts with a fly-to and adds +0.8 harmony (`harmony.wonders`, max +4); the
+inventory lists only discovered ones. **Flora** is asleep until woken (console explains the criteria); each model
+turn then costs ◈6 + 0.01 per estimated token (`floraBill`, not undoable; slash commands are free).
+**Goals tab** (City Pulse): projects with live criteria, Start and progress, wonders and hints, the fishing fleet.
+The console tabs flow into one row however many there are. Deferred: Goals on phones (hidden there for now), the
+Aeroline's segment-by-segment construction animation.
+
+## D-073 — Building levels and ageing (2026-10-31)
+
+`Building.tier` (levels 1–3), `Service.age` and `Service.thrive` (saved v12, hashed, reset in `addBuilding`). A home or
+workplace thriving (power and water ≥ 85%, occupancy ≥ 85%, condition ≥ 0.7, greenery ≥ 0.5) grows a level after 1.5
+then 3 sim days (`sim/levels.ts`); the steward can pay to upgrade (60% / 100% of price) or renovate (resets age and
+condition). Size ×1.35 / ×1.75 (capacity, jobs, food, production; mobility and night life follow), use ×1.25 / ×1.55,
+upkeep ×1.3 / ×1.7, and age adds 15% upkeep per 10 days (max +90%) plus a little wear. Looks: generic overlays from the
+template bounds (level 2 roof terrace, level 3 setback crown, `tierPieces`), animated on change; weathering streaks in
+the concrete shader driven by its free `aParams.w` channel, and dull tan glass and silvered timber driven by `aParams.x`
+(1 = clean; those materials don't read greenery), so every other user of these materials, which passes 1, stays clean. Inspector shows
+level stars, progress and age with Upgrade / Renovate; Flora tools `upgrade_building`, `renovate`. Checked in snaps (crowns, terraces, grime). Deferred: inventory filters for old/upgradable buildings.
+
+## D-074 — Logic and consequences: rules, stocks, the Causes feed (2026-10-31)
+
+`sim/consequences.ts`: 11 rules (bare coast, polluted coast, overfished sea, heat island, bird strikes, neglected
+upkeep, smoke in the haze, thin fire cover, a city people love, falling credit rating, a transit city). Each
+measures its cause as a target 0..1 every 5 pulses (`measure`: one pass over the buildings for waterfront,
+towers, parks, turbines, Ember Watch cover); its intensity ramps toward it (in over ~50 s, out over ~100 s), so
+effects build and fade. Intensities set `city.consequences.mods`, which the next pulse reads: harmony
+(`harmony.consequences`), crisis odds (`crises.ts` pool), heat fires and fire spread (`hazards.ts`), loan interest
+(`finance.ts`), the fishing haul, flood damage, ageing speed, bloom (harmony term), fireworks smoke clearing, Flora's
+discount, the insurance premium. Stocks: credit rating (−25%/day in debt, +10%/day out; shown AAA…C), tourism
+reputation (builds with harmony 70+, falls with crises and a dirty coast; visitors spend 20% of tax income × the
+reputation above 30%), harmony streak. Rules coming into force (≥ 25%) or easing off (< 10%) write the feed (capped 40)
+and a toast. State saved as v13 (modifiers recomputed), hashed. UI: dashboard **Causes** tab (stocks, rules in force
+with cause, effect and strength, rules being watched, feed), budget rows Visitors and Insurance, harmony factor,
+inspector lines for the rules bearing on a building (`rulesFor`); Flora's `why` (optionally by topic) and "why …"
+routing. The showcase city settles with bird strikes, a transit city, a bare coast and thin fire cover in force.
+
+## D-075 — Visible damage and switches (2026-10-31)
+
+`Service.scorch` (0..1) and `Service.off` (saved v14, hashed). A burning building chars toward 0.1 + intensity,
+lightning leaves 0.45; repair (now also for char alone, priced at 8% of cost × char) and renovation clean it, undo
+restores it. Rendering puts char in the top of the weathering channel (0.7..1 = soot, below that age grime), so
+concrete, glass (lit windows go dark too) and timber blacken with no new attribute. Ruins collapse: everything
+above the ground floor folds away (animated in play, instant on load) and charred rubble lies on the lot;
+`building:repaired` rebuilds the building from its template (undoing a repair re-collapses it, `cause: 'undo'`,
+no toast). **Switches**: a def's `interact` (labels and help) lets the steward switch it off and on
+(`toggleBuilding`, undoable): off, it neither produces nor consumes, its staff go home and it is not flagged
+unstaffed; a feathered wind turbine draws lightning at a tenth of the rate; a paused fireworks factory makes no
+shells. Wind turbines and fireworks factories have switches. Rotors now integrate a rate that eases toward the
+wind (×1 + 1.2 × storm rain) and winds down to a stop when feathered or broken (condition < 0.2). Inspector: the
+switch button, "switched off", "broken down" and "charred" lines. Flora: `switch_building` (by id or type).
+
+## D-076 — Tornadoes, tsunamis, risk, prevention and incident trends (2026-10-31)
+
+`sim/disasters.ts`. **Tornado** (Monsoon ×2.5): touches down upwind of a built spot and tracks at ~0.8 tiles/s with a
+wobble; buildings within 3 tiles take 0.09 × severity damage a second (+0.2 for a spinning turbine), sometimes catch
+fire; parks within 8 tiles shield up to 60%; a Storm Shelter covering the track cuts its harmony loss by 60%.
+**Tsunami**: a strong earthquake rolls 30% × severity for one (or rarely on its own); after a warning the surge
+(`Modifiers.surge`, 0.9 + 0.6 × severity, ×0.6 with the Tide Gates closed) floods only the waterfront (shore field
+< 8 tiles, ground below the surge, no seawall covering it): those buildings are evacuated for the pulse and damaged.
+A global flood level was rejected: most of the island sits at 0.5–1 units and the whole city drowned. The sea rises
+visually by 0.3 × surge and a foam ring spreads from the offshore origin. **Prevention**: Storm Shelter and Weather
+Radar buildings (`shelter`, `radar` on a def; the radar doubles the warning for storms, tornadoes, floods and tsunamis
+via `leadFor`), `evacuate` (◈300: 70% fewer residents displaced, half the harmony loss) and `closeTideGates` (◈500,
+once the Tide Gates wonder has risen), feathering turbines (D-075); each incident records what prevention did
+(`IncidentRecord.prevented`). **Risk**: `sim/risk.ts` scores each hazard from the same inputs (weights, season,
+consequence tilts, prevention) with readable factors and advice; shown in the Causes tab, Flora's `risk_status`;
+`prepare_hazard` does the emergency moves. Incidents tab: per-kind trends (count, ruined, displaced, cost, times
+prevention helped) and CSV export. Visuals in `modules/disasters` (funnel with swirling bands and orbiting debris,
+crest ring, a Prepare panel with Evacuate / Close Tide Gates / Feather turbines). Drills: `?drill=tornado|tsunami`,
+snap scenes `tornado.js`, `tsunami.js`. Deferred: a Risk map lens.
+
+## D-077 — Synthesised music and sound (2026-10-31)
+
+`src/modules/audio/`, all Web Audio with **no audio files**: nothing to license, download or pay to generate, and the
+music never loops audibly. A master bus (through a compressor) feeds music, ambience and effects buses; volumes
+and mute live in Settings and persist in localStorage `bloomgrid.audio` (per-viewer); **,** mutes. The
+AudioContext is created on the first pointer or key event (autoplay rules), so headless runs and the boot cost
+nothing. **Music** is generative: each mood (`music.ts`: dawn, day, dusk, night, crisis; picked by time of day,
+with crisis winning while a crisis is active or more than two fires burn) has a chord progression played as a
+detuned-saw pad under a low-pass filter, plus a sparse triangle-wave arpeggio from its scale; a 4 Hz lookahead
+scheduler queues bars on the audio clock, and a mood change takes effect at the next bar. **Ambience** is a looped
+noise buffer through four filters: surf (louder near the coast, with a slow swell), city hum (zoomed in, by night
+life), wind (by camera height and `U.storm`), rain (`U.rain`); birdsong chirps in Bloom by day. **Effects** are short
+synth voices on bus events (build, Return to nature, levelling, upgrades, lightning with thunder delayed by
+distance, quake rumble, fireworks whistle and bang delayed at the speed of sound, crisis forecasts, a worsening
+pulse tier, button clicks), capped at 14 voices and silent while a city loads. Measured: idle main thread ≈ 15%
+with audio running (budget unchanged); `bun run perf --sound` starts it. Music and effects are render-side, so they
+use `Math.random` / their own generator, never `city.rng`. Rejected: streamed stems (licensing, size). Deferred:
+a train pass, pod hum and fire crackle near the camera.
+
+## D-078 — Fresh-island pacing, retuned unlocks, Flora knows the goals (2026-10-31)
+
+Phase 22. `tests/pacing.test.ts` plays the fresh island as a steady steward would (docks first, keep power, water
+and food ahead, homes or work by demand, parks when homes stand empty, a street grid with extra lanes to the
+waterfront when traffic jams, save up once a project's other criteria are met) and times the unlocks. Before
+tuning it reached Flora at ~75 sim-minutes and never the Aeroline; plan v4 asks for the first unlock in ~10 and the
+Aeroline in ~120 minutes of play (read as game time at the 2–3× speeds players use). Retuned (fresh island only;
+the showcase has no docks or Data Spire and everything open): catch value 0.42 → 0.7 ◈ per boat-second (sustained
+fishing ≈ 2.8 ◈/s), starting credits 1 500 → 2 000, Data Spire ◈1 800 → 1 000, Wake Flora ◈2 500 → 1 200 with
+◈1 500 (was 3 000) in the treasury, Sky-lane charter 3 000 → 2 000 residents and ◈4 000 → 3 000, the Aeroline
+6 000 → 5 000 residents and ◈25 000 → 15 000. Measured on three seeds (sim-minutes at 1×): Flora 32–36, sky-lanes
+97–101, the Aeroline started at 137–143, the treasury never below ◈89; the test asserts < 45 / 115 / 160 and order.
+These supersede the numbers in D-072. Flora: `goals_status` (projects with status, cost and ✓/✗ criteria, fish
+stock, wonders found and what reveals the rest) and `start_project` (undoable; a blocked start says what is
+missing), routed by `plainIntent`; her brief gains one line on a fresh island (city name, fish stock, each locked
+project and the first thing it needs). Polish: no tier toasts or alert sounds in a city's first 8 sim-seconds,
+while occupancy and staffing settle from their starting values (a fresh island used to flash "Food fell to
+Critical" at boot). Deferred: the trailer update.

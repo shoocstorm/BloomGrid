@@ -49,7 +49,8 @@ export function registerFinanceCommands(stack: CommandStack<SimCtx>): void {
   stack.register<LoanPayload, Loan>('takeLoan', {
     apply({ city }, p) {
       if (p.amount <= 0 || p.amount > creditLimit(city)) return null;
-      const rate = DIFFICULTIES[city.steward.difficulty].interest;
+      // A falling credit rating makes borrowing dearer (consequences, D-074).
+      const rate = DIFFICULTIES[city.steward.difficulty].interest + city.consequences.mods.interest;
       const total = p.amount * (1 + rate * (LOAN_TERM / 60));
       const loan: Loan = { id: city.steward.nextLoanId++, principal: p.amount, remaining: total, payment: total / LOAN_TERM };
       city.steward.loans.push(loan);

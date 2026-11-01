@@ -10,6 +10,7 @@ export default defineBuilding({
   footprint: [2, 2],
   stats: { cost: 240, energy: -8, eco: 2, happiness: 3, population: 0, jobs: 6, pollution: 0 },
   growthTime: 60,
+  requires: 'skylanes',
   transit: { radius: 12, riders: 420 },
   recipe(b) {
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [1.9, 0.1, 1.9] });

@@ -1,3 +1,5 @@
+import { size, upkeepMul } from './levels';
+import { DAY_LENGTH } from './pulseConst';
 import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import { CATEGORY_CODES, CATEGORY_LABELS, ZONES } from '@/content/types';
@@ -208,13 +210,16 @@ function buildingObject(city: City, eid: number): CityObject {
     bloom: r3(Service.bloom[eid]!),
     soil: r3(Service.soil[eid]!),
     level: Building.level[eid]!,
-    upkeep: r3(s.upkeep),
+    /** Growth level 1–3 and age in days (D-073). */
+    tier: Building.tier[eid]! + 1,
+    ageDays: r3(Service.age[eid]! / DAY_LENGTH),
+    upkeep: r3(s.upkeep * upkeepMul(eid)),
     cost: s.cost,
   };
   if (s.population > 0)
     Object.assign(metrics, {
-      residents: Math.round(s.population * occ),
-      capacity: s.population,
+      residents: Math.round(s.population * size(eid) * occ),
+      capacity: Math.round(s.population * size(eid)),
       occupancy: r3(occ),
     });
   if (s.jobs > 0 && s.population <= 0)

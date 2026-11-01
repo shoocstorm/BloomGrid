@@ -121,14 +121,15 @@ export const insightTools: AgentTool<SimCtx, never>[] = [
         const d = buildings.at(Building.def[eid]!);
         upkeep[d.category] = (upkeep[d.category] ?? 0) + d.stats.upkeep;
       }
-      const net = s.income - s.upkeep - s.debtService;
+      const net = s.income + s.fishing - s.upkeep - s.debtService;
       return {
         credits: Math.round(city.credits),
         taxPercent: Math.round(p.taxRate * 100),
         income: {
           residentTax: r2(s.population * 0.6 * p.taxRate * INCOME_SCALE),
           workerTax: r2(s.employed * 0.4 * p.taxRate * INCOME_SCALE),
-          total: r2(s.income),
+          fishing: r2(s.fishing),
+          total: r2(s.income + s.fishing),
         },
         spending: {
           upkeepPaid: r2(s.upkeep),

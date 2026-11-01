@@ -4,6 +4,8 @@ import { buildings } from '@/content';
 import type { City } from './City';
 import { LABOUR_SHARE } from './pulseConst';
 import { buildSkyNet } from './skylanes';
+import { isOpen } from './growthState';
+import { size } from './levels';
 
 /** Commuters a highway tile carries per pulse before it starts to jam. */
 export const TILE_CAPACITY = 55;
@@ -123,7 +125,8 @@ export function computeMobility(city: City): void {
     if (st.population > 0) homes.push(eid);
     Service.riders[eid] = 0;
     if (Service.network[eid]! < 0) continue;
-    if (def.transit) {
+    // Pods fly only once the Sky-lane charter is done; trains once the Aeroline is built (fresh islands, D-072).
+    if (def.transit && isOpen(city.growth, def.transit.rail ? 'aeroline' : 'skylanes')) {
       // A dock carries riders in proportion to its power and crew.
       const cap = def.transit.riders * Service.power[eid]! * Math.max(0.3, Service.occupancy[eid]!);
       docks.push({ eid, cap, left: cap, x: Building.x[eid]! + Building.w[eid]! / 2, z: Building.z[eid]! + Building.d[eid]! / 2 });
@@ -132,7 +135,7 @@ export function computeMobility(city: City): void {
     const k = accessTiles(city, eid, entrances);
     for (const at of entrances) {
       if (jobsLeft[at] === 0) hubTiles.push(at);
-      jobsLeft[at] += st.jobs / k;
+      jobsLeft[at] += (st.jobs * size(eid)) / k;
     }
   }
 
@@ -147,7 +150,7 @@ export function computeMobility(city: City): void {
   let commuters = 0;
   let podRiders = 0;
   for (const eid of homes) {
-    let c = buildings.at(Building.def[eid]!).stats.population * Service.occupancy[eid]! * LABOUR_SHARE * employed;
+    let c = buildings.at(Building.def[eid]!).stats.population * size(eid) * Service.occupancy[eid]! * LABOUR_SHARE * employed;
     if (c <= 0) continue;
     commuters += c;
     const hx = Building.x[eid]! + Building.w[eid]! / 2;

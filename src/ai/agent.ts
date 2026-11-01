@@ -143,6 +143,9 @@ export function plainIntent(request: string): string | null {
     // Hazards (D-050) before the general remedies: crews to fires, rebuilding ruins.
     [/\b(put out|extinguish|firefighters?|fire ?crews?|dispatch (the )?crews?|send (the )?crews?)\b/, 'respond_incident'],
     [/\b(rebuild|ruins?|repair (the )?(damage|damaged|ruins?|quake|fire))\b/, 'repair_damage'],
+    // Levels and ageing (D-073).
+    [/\b(renovate|refurbish)\b/, 'renovate'],
+    [/\b(upgrade|level up)\b/, 'upgrade_building'],
     [/\b(fix|repair|solve|resolve|sort out)\b/, 'fix_issue'],
     [/\b(pause|unpause|resume|speed up|slow down|fast forward)\b/, 'set_speed'],
     [/\b(lens|overlay)\b/, 'show_lens'],
@@ -159,6 +162,14 @@ export function plainIntent(request: string): string | null {
     [/\b(where is|show me|locate|take me to)\b/, 'object_select'],
     [/\b(budget|money|spending|income|upkeep|afford)\b/, 'budget_breakdown'],
     [/\bfireworks?\b/, 'fireworks_status'],
+    // Progression (Phase 22): unlock projects, goals, fishing, wonders.
+    [/\b(start|begin|launch)\b.*\b(project|charter|aeroline|sky-?lanes?)\b/, 'start_project'],
+    [/\b(goals?|unlock(s|ed)?|locked|projects?|charter|fish(ing)?|wonders?)\b/, 'goals_status'],
+    // Hazards (D-076): emergency moves, then risk questions.
+    [/\b(evacuate|evacuation|siren|close (the )?(tide )?gates|feather)\b/, 'prepare_hazard'],
+    [/\b(risk|risks|tornado|tsunami|how safe)\b/, 'risk_status'],
+    // Cause and effect (D-074): "why is…", "what caused…".
+    [/^why\b|\bwhat caused\b|\bhow come\b|\bconsequences?\b/, 'why'],
     [/\b(fires?|burning|earthquakes?|quakes?|lightning|incidents?|emergenc(y|ies)|damaged?)\b/, 'incident_status'],
     [/\b(crisis|crises|storm|flood|heatwave|drought|forecast)\b/, 'crisis_status'],
     [/\b(trend|over time|improving|getting (better|worse))\b/, 'city_trends'],
@@ -173,6 +184,9 @@ export function plainIntent(request: string): string | null {
     'crisis_status',
     'incident_status',
     'fireworks_status',
+    'why',
+    'risk_status',
+    'goals_status',
     'city_trends',
     'building_types',
     'advisor_tips',

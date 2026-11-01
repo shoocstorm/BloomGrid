@@ -14,6 +14,9 @@ import puppeteer from 'puppeteer-core';
 import { mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 
+/** Scripts measure the showcase city unless a path names a scenario (a plain boot is a fresh island + wizard, D-072). */
+const showcase = (p) => (/[?&]scenario=/.test(p) ? p : `${p}${p.includes('?') ? '&' : '?'}scenario=founding-city`);
+
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1] === undefined || all[i + 1].startsWith('--') ? 'true' : all[i + 1]]] : acc), []),
 );
@@ -43,7 +46,7 @@ page.on('console', (m) => (['warn', 'error'].includes(m.type()) || /^\[[a-z]+\]/
 page.on('pageerror', (e) => (errors++, console.log(`[pageerror] ${e.message}`)));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const t0 = Date.now();
-await page.goto(base + (args.path ?? '/'), { waitUntil: 'domcontentloaded' });
+await page.goto(base + showcase(args.path ?? '/'), { waitUntil: 'domcontentloaded' });
 
 if (times) {
   for (const t of times) {

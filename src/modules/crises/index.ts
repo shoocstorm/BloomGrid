@@ -81,7 +81,8 @@ export const crisesModule: GameModule = {
   init(ctx) {
     const weather = new Weather(ctx, ctx.scene);
     ctx.systems.add({ id: 'crises.weather', phase: 'sync', order: 5, update: (_c, f) => weather.update(f.dt) });
-    ctx.services.provide('crises', { newCity: () => newCityDialog(ctx) });
+    // The New Game wizard when present (name, fresh island or showcase; D-072), else the plain dialog.
+    ctx.services.provide('crises', { newCity: () => (ctx.services.tryGet('wizard') ? ctx.services.get('wizard').open() : newCityDialog(ctx)) });
     // ?drill=<crisis id> starts a crisis two seconds after boot (testing, screenshots).
     const drill = ctx.params.get('drill');
     if (drill) forecastCrisis(ctx.city, drill, Number(ctx.params.get('severity')) || 1.2, 2);

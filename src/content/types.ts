@@ -126,8 +126,23 @@ export interface BuildingDef {
   landmark?: boolean;
   /** A tower the Green Weaver can bridge to other towers or merge with a banyan. */
   tower?: boolean;
+  /** Storm Shelter (D-076): residents within `radius` tiles ride out tornadoes and tsunamis (less harmony loss, fewer displaced). */
+  shelter?: { radius: number };
+  /** Weather Radar (D-076): doubles the warning before storms, tornadoes, floods and tsunamis while it works. */
+  radar?: boolean;
   /** Emergency services (D-050): fires within `radius` tiles are fought automatically while it is powered and staffed. */
   response?: { radius: number };
+  /** Fishing dock (D-072): `boats` fish while staffed; the catch sells for credits (see `sim/fishing.ts`). */
+  fishing?: { boats: number };
+  /** At most `base` of this building, plus one per `perPopulation` residents (D-072). */
+  limit?: { base: number; perPopulation: number };
+  /**
+   * The steward can switch it off and on (D-075): `off` and `on` label the inspector's button, `help` says what
+   * switching off does. Off, it neither produces nor consumes, and its staff go home.
+   */
+  interact?: { off: string; on: string; help: string };
+  /** On a fresh island, can only be built once this unlock project is done (D-072). */
+  requires?: 'skylanes' | 'aeroline' | 'flora';
   /** Fireworks factory (D-068): makes `rate` shells per sim minute when fully staffed, keeps up to `storage`. */
   fireworks?: { rate: number; storage: number };
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */
@@ -229,6 +244,8 @@ export interface ScenarioDef {
   name: string;
   description: string;
   credits: number;
+  /** A growing start (D-072): unlock projects, discovered wonders and a billed Flora. */
+  progression?: boolean;
   build(b: ScenarioBuilder): void;
 }
 

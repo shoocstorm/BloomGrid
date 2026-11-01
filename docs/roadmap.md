@@ -226,6 +226,19 @@ The city is a system that can run well or badly.
 - [ ] Deferred: explore modes on touch (virtual stick), a phone-sized Flora model, PWA install, wind strength varying with weather, zone rules for player building (warnings when a factory goes in a living zone)
 - **Accept:** ✅ `tests/touch.test.ts` (tap, gesture cancels the press, pinch/twist deltas, tilt lock); `bun run snap -- --mobile --eval @scripts/scenes/mobile.js` (portrait and `--size 844x390`, WebGPU and WebGL); desktop HUD unchanged.
 
+
+## 🚧 Phases 16–22: Feature plan v4 (designed 2026-10-31)
+
+Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
+
+- [x] Phase 16: Fresh island start: city name, Fishing Boat Docks, earned sea wonders, locked Aeroline / sky-lanes / Flora (credits per request), unlock projects, how-to-play wizard (D-072; deferred: Goals on phones, Aeroline build animation)
+- [x] Phase 17: Music and sound: synthesised Web Audio (generative mood music, surf/hum/wind/rain/birds ambience, event effects), volume sliders, **,** mute (D-077; train pass, pod hum and fire crackle deferred)
+- [x] Phase 18: Building levels 1–3 and ageing (upkeep growth, weathering, renovate) (D-073)
+- [x] Phase 19: Visible damage (scorch, broken facilities, rubble) and interactive objects (turbine on/off, factory pause) (D-075; floodgates come with the tsunami in Phase 21)
+- [x] Phase 20: Logic and consequences: consequence rules, stocks and delays, Cause & effect feed, insurance and credit rating (D-074)
+- [x] Phase 21: Tornado and tsunami, risk model, prevention, damage reports and trends (D-076; Risk map lens deferred)
+- [x] Phase 22: Polish and balance: fresh-island pacing test (scripted steward) and retuned unlocks, Flora's `goals_status` / `start_project` and a progression line in her brief, no tier alarms while a new city settles (D-078; trailer update deferred)
+
 ---
 
 ## Tech debt / open issues

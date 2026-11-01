@@ -1,0 +1,205 @@
+/*
+ * New Game wizard and how-to-play guide (D-072). Instrument theme tokens from ui/theme.css; the guide card sits
+ * above the dock, the highlighted HUD control glows with a static outline (no animated box-shadow, §7½).
+ */
+.wz {
+  width: min(620px, calc(100vw - 32px));
+}
+.wz-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.wz-row span {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.wz-name {
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+}
+.wz-seed {
+  width: 130px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+  color: var(--ink);
+  font-family: var(--mono);
+}
+.wz-diffs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 12px;
+}
+.wz-diff {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.wz-diff input {
+  grid-row: span 2;
+  accent-color: var(--accent);
+}
+.wz-diff b {
+  color: var(--ink);
+  font-size: 12.5px;
+}
+.wz-diff:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.wz-row2 {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wz-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink);
+}
+.wz-check input {
+  accent-color: var(--accent);
+}
+.wz-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 16px;
+}
+.wz-go {
+  flex: 1 1 200px;
+  font-size: 14px;
+}
+.wz-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 8px;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  text-align: left;
+  color: var(--ink);
+}
+.wz-card .ico {
+  grid-row: span 2;
+  color: var(--accent);
+}
+.wz-card span {
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+.wz-card:hover {
+  background: var(--bg-hover);
+}
+.wz-card.hidden {
+  display: none;
+}
+
+/* The guide: a card bottom right, above Flora's orb (toasts keep the bottom centre). */
+.tt {
+  position: absolute;
+  right: 16px;
+  bottom: 84px;
+  z-index: 18;
+  width: min(380px, calc(100vw - 32px));
+  padding: 12px 14px;
+}
+.tt.hidden {
+  display: none;
+}
+.tt-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+.tt-kicker {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.tt-dots {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+}
+.tt-dots i {
+  width: 14px;
+  height: 3px;
+  border-radius: var(--pill);
+  background: var(--line);
+}
+.tt-dots i.done {
+  background: var(--accent-2);
+}
+.tt-dots i.on {
+  background: var(--accent);
+}
+.tt > b {
+  display: block;
+  margin-top: 8px;
+  font-size: 15px;
+  color: var(--ink);
+}
+.tt > p {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.tt-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+.tt-skip {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.tt-next {
+  padding: 4px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--pill);
+  color: var(--accent);
+  font-size: 12px;
+}
+.tt-next:hover {
+  background: var(--bg-hover);
+}
+/* The control a step points at. */
+.tt-glow {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.compact .tt {
+  left: 16px;
+  right: 16px;
+  width: auto;
+  bottom: calc(var(--bot) + 70px);
+}

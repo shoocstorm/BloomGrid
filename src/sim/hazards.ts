@@ -90,7 +90,8 @@ export function damageBuilding(
 
 function ruin(city: City, eid: number, cause: string, crisis?: CrisisInstance): number {
   const st = city.buildingDef(eid).stats;
-  const displaced = st.population * Service.occupancy[eid]!;
+  // An evacuated district (D-076) loses its homes but far fewer people are caught in them.
+  const displaced = st.population * Service.occupancy[eid]! * (crisis?.evacuated ? 0.3 : 1);
   city.steward.ruins.push(Building.uid[eid]!);
   Service.occupancy[eid] = 0;
   if (crisis) {
@@ -166,7 +167,8 @@ function pick(city: City, ents: number[], weight: (eid: number) => number): numb
 /** Lightning favours tall things: towers, turbines, big landmarks. */
 const height = (city: City, eid: number) => {
   const d = city.buildingDef(eid);
-  return d.tower ? 6 : d.id === 'wind-turbine' ? 4 : d.footprint[0] * d.footprint[1] >= 36 ? 2.5 : 1;
+  // A feathered turbine (switched off, D-075) is far less of a lightning rod.
+  return d.tower ? 6 : d.id === 'wind-turbine' ? (Service.off[eid] ? 0.4 : 4) : d.footprint[0] * d.footprint[1] >= 36 ? 2.5 : 1;
 };
 
 /**
@@ -182,7 +184,7 @@ export function updateHazards(city: City, m: Modifiers): void {
       shock(city, c, 0.18, true);
     if (c.def === 'thunderstorm' && c.x !== undefined && city.rng.next() < 0.3 * c.severity * env)
       strike(city, c);
-    if (c.def === 'heatwave' && city.rng.next() < 0.025 * c.severity * env) {
+    if (c.def === 'heatwave' && city.rng.next() < 0.025 * c.severity * env * city.consequences.mods.heatFire) {
       const ents = [...query(city.world, [Building])];
       ignite(
         city,
@@ -214,6 +216,8 @@ export function updateHazards(city: City, m: Modifiers): void {
       continue;
     }
     down.add(eid);
+    // Fire chars what it burns (D-075).
+    Service.scorch[eid] = Math.max(Service.scorch[eid]!, Math.min(1, 0.1 + f.intensity));
     const station = covered.some((s) => (s.x - f.x) ** 2 + (s.z - f.z) ** 2 <= s.r * s.r);
     const grow = GROW * (isIndustry(city, eid) ? 1.4 : 1) * (m.energyDemand > 1.05 ? 1.3 : 1);
     f.intensity = Math.min(
@@ -225,7 +229,7 @@ export function updateHazards(city: City, m: Modifiers): void {
       // Burn damage belongs to the fire's own log entry (not its crisis'), so the log's totals add up.
       f.cost += damageBuilding(city, eid, BURN * f.intensity, 'fire');
       // Fierce fires leap to a neighbour (a few times at most).
-      if (f.intensity > 0.5 && (f.spread ?? 0) < MAX_SPREAD && city.rng.next() < SPREAD * f.intensity) {
+      if (f.intensity > 0.5 && (f.spread ?? 0) < MAX_SPREAD && city.rng.next() < SPREAD * f.intensity * city.consequences.mods.fireSpread) {
         const next = near(city, f.x, f.z, SPREAD_R).filter(
           (e) => e !== eid && !fireAt(city, e) && !isRuined(city, e),
         );
@@ -302,6 +306,7 @@ function strike(city: City, c: CrisisInstance): void {
   const eid = pick(city, cell, (e) => (isRuined(city, e) ? 0 : height(city, e)));
   if (eid < 0) return;
   damageBuilding(city, eid, 0.12 + 0.15 * city.rng.next() * c.severity, 'lightning', c);
+  Service.scorch[eid] = Math.max(Service.scorch[eid]!, 0.45);
   const fire =
     city.rng.next() < (isIndustry(city, eid) ? 0.65 : 0.4) ? ignite(city, eid, 'lightning', 0.35, c) : null;
   const [x, z] = centre(eid);
@@ -402,9 +407,10 @@ export interface RespondPayload {
 /** What repairing a building costs: a ruin is rebuilt at half its price; damage costs in proportion. */
 export function repairCost(city: City, eid: number): number {
   const price = city.buildingDef(eid).stats.cost;
+  // Cleaning off char (D-075) costs a little too.
   return isRuined(city, eid)
     ? Math.round(price * 0.5)
-    : Math.round(price * (1 - Service.condition[eid]!) * 0.4);
+    : Math.round(price * ((1 - Service.condition[eid]!) * 0.4 + Service.scorch[eid]! * 0.08));
 }
 
 export function registerHazardCommands(stack: CommandStack<SimCtx>): void {
@@ -423,7 +429,7 @@ export function registerHazardCommands(stack: CommandStack<SimCtx>): void {
     },
   });
 
-  stack.register<{ x: number; z: number }, { uid: number; condition: number; ruined: boolean; cost: number }>(
+  stack.register<{ x: number; z: number }, { uid: number; condition: number; ruined: boolean; cost: number; scorch: number }>(
     'repair',
     {
       apply({ city }, p) {
@@ -431,21 +437,28 @@ export function registerHazardCommands(stack: CommandStack<SimCtx>): void {
         if (eid < 0 || fireAt(city, eid)) return null;
         const ruined = isRuined(city, eid);
         const condition = Service.condition[eid]!;
-        if (!ruined && condition > 0.95) return null;
+        const scorch = Service.scorch[eid]!;
+        if (!ruined && condition > 0.95 && scorch < 0.05) return null;
         const cost = repairCost(city, eid);
         if (city.credits < cost) return null;
         city.credits -= cost;
         const uid = Building.uid[eid]!;
         if (ruined) city.steward.ruins.splice(city.steward.ruins.indexOf(uid), 1);
         Service.condition[eid] = ruined ? 0.6 : 1;
-        return { uid, condition, ruined, cost };
+        Service.scorch[eid] = 0;
+        city.bus.emit('building:repaired', { eid, ruined });
+        return { uid, condition, ruined, cost, scorch };
       },
       revert({ city }, _p, u) {
         const eid = eidOfUid(city, u.uid);
         if (eid < 0) return;
         Service.condition[eid] = u.condition;
-        if (u.ruined) city.steward.ruins.push(u.uid);
+        Service.scorch[eid] = u.scorch;
         city.credits += u.cost;
+        if (u.ruined) {
+          city.steward.ruins.push(u.uid);
+          city.bus.emit('building:ruined', { eid, cause: 'undo' });
+        } else city.bus.emit('building:repaired', { eid, ruined: false });
       },
     },
   );

@@ -109,6 +109,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Time               | **Space** pause · **1 / 2 / 3** speed                                                              |
 | Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** / **⌘L** (Ctrl on Windows/Linux)                                         |
 | Remember a view    | **Alt+1–4** store · **Shift+1–4** recall                                                           |
+| Sound              | **,** mute / unmute · volumes for music, ambience and effects in ⚙ Settings (sound starts on your first click) |
 
 **On a phone:** drag to pan, pinch to zoom, twist to rotate, drag two fingers up or down to tilt. Tap a building to
 inspect it. To build, pick a category, tap to preview, then tap the preview again (⟳ rotates). City Pulse,
@@ -142,6 +143,14 @@ and fire is recorded with its losses in the dashboard's **Incidents** tab (**K**
 raises a beam of light and pulsing rings you can see from across the island, and a 🔥 pin that slides to the screen
 edge (pointing at it) when the fire is out of view; click a pin, an alert toast or a fire on the city map (**M**) to
 fly there, or press **.** to step through the fires, hottest first.
+
+**A fresh start:** a new game opens the wizard: name your city, choose the difficulty, and found a fishing hamlet
+on an empty island (or open the *Showcase city*, already built, or continue your save). The guide walks you
+through the first steps. Early on, **Fishing Boat Docks** (free; Build → Food; must touch the sea) pay the bills:
+two or three fish the sea best, more overfish it, and a polluted coast spoils the catch. The **Goals** tab in City
+Pulse lists what to unlock next: the *Sky-lane charter* (pod docks), the *Aeroline* and *Wake Flora* (the city
+assistant needs a power plant and a Data Spire, and each request then costs credits), plus the sea wonders still
+to be discovered: they rise from the sea as your city earns them.
 
 **Fireworks:** build a Fireworks Factory (Industry ⚙). Staffed and powered, it makes peony, willow, halo ring,
 palm and crackle shells (materials cost credits) and fires a show over the city every night at 21:00. Launch one

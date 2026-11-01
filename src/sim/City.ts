@@ -11,6 +11,8 @@ import { createPulseState, type PulseState } from './pulseState';
 import { computeShore, createFields, type Fields } from './fields';
 import { createStewardState, type StewardState } from './stewardState';
 import { FIREWORK_KINDS, createFireworksState, type FireworksState } from './fireworksState';
+import { UNLOCK_NAMES, createGrowthState, isOpen, type GrowthState } from './growthState';
+import { createConsequenceState, type ConsequenceState } from './consequenceState';
 import { createSoil, initSoilLand, soilChecksum, type SoilState } from './floranet';
 import type { SkyBridge } from './weaver';
 import type { DifficultyId } from './difficulty';
@@ -30,6 +32,13 @@ export interface BuildingRecord {
   level?: number;
   /** Stable serial behind the readable id (see `sim/inventory.ts`); assigned on add when missing. */
   uid?: number;
+  /** Growth level 0..2, age and progress to the next level in sim seconds (D-073). */
+  tier?: number;
+  age?: number;
+  thrive?: number;
+  /** Char from fire (0..1) and switched off by the steward (D-075). */
+  scorch?: number;
+  off?: boolean;
 }
 
 /** A named area of the map (town, quarter, park), laid down by the scenario and saved. Inclusive tile rectangle. */
@@ -69,6 +78,11 @@ export interface CityStats {
   demandHomes: number;
   demandWork: number;
   demandFood: number;
+  /** Fishing income this pulse (credits/s, D-072). */
+  fishing: number;
+  /** Visitors' spending and the insurance premium (credits/s, D-074). */
+  tourism: number;
+  insurance: number;
 }
 
 export type PlacementResult = { ok: true; warning?: string } | { ok: false; reason: string };
@@ -98,6 +112,10 @@ export class City {
   steward!: StewardState;
   /** Fireworks stock, the show in the sky and the afterglow (saved, D-068). */
   fireworks!: FireworksState;
+  /** Name, unlocks, discovered wonders, fish stock and Flora's bill (saved, D-072). */
+  growth!: GrowthState;
+  /** Cause-and-effect rules, credit rating, reputation and the feed (saved, D-074). */
+  consequences!: ConsequenceState;
   /** Flora-Net soil zones (saved). */
   soil!: SoilState;
   /** Corner heights changed from the generated terrain (land reclamation), saved sparsely. */
@@ -144,6 +162,8 @@ export class City {
     this.weaver = { bridges: [] };
     this.steward = createStewardState(difficulty);
     this.fireworks = createFireworksState();
+    this.growth = createGrowthState();
+    this.consequences = createConsequenceState();
     this.roadCount = 0;
     this.nextUid = 1;
     this.uids.clear();
@@ -191,6 +211,13 @@ export class City {
       }
     }
     if (def.placement?.nearWater && !this.touchesWater(x, z, w, d)) return { ok: false, reason: 'Must touch the sea or a reservoir' };
+    if (def.requires && !isOpen(this.growth, def.requires)) return { ok: false, reason: `Locked: needs ${UNLOCK_NAMES[def.requires]}` };
+    if (def.limit) {
+      const max = def.limit.base + Math.floor(this.stats.population / def.limit.perPopulation);
+      const idx = buildings.indexOf(def.id);
+      const have = this.buildingEntities().filter((e) => Building.def[e] === idx).length;
+      if (have >= max) return { ok: false, reason: `At most ${max} for now: more as the town grows` };
+    }
     if (this.credits < def.stats.cost) return { ok: false, reason: 'Not enough credits' };
     if (!RoadNetworks.touchesRoad(g, x, z, w, d)) return { ok: true, warning: 'No highway access: no power or water' };
     return { ok: true };
@@ -232,6 +259,11 @@ export class City {
     // Entity ids are reused (also across cities in one page), so reset every per-building store.
     Service.riders[eid] = 0;
     Service.soil[eid] = 0.7;
+    Building.tier[eid] = rec.tier ?? 0;
+    Service.age[eid] = rec.age ?? 0;
+    Service.thrive[eid] = rec.thrive ?? 0;
+    Service.scorch[eid] = rec.scorch ?? 0;
+    Service.off[eid] = rec.off ? 1 : 0;
     Service.network[eid] = this.networks.dirty ? -1 : this.networks.networkFor(rec.x, rec.z, w, d);
     const uid = rec.uid && !this.uids.has(rec.uid) ? rec.uid : this.nextUid;
     this.nextUid = Math.max(this.nextUid, uid + 1);
@@ -275,6 +307,11 @@ export class City {
       condition: Service.condition[eid]!,
       level: Building.level[eid]!,
       uid: Building.uid[eid]!,
+      tier: Building.tier[eid]!,
+      age: Service.age[eid]!,
+      thrive: Service.thrive[eid]!,
+      scorch: Service.scorch[eid]!,
+      off: Service.off[eid] === 1,
     };
   }
 
@@ -376,6 +413,19 @@ export class City {
     return out;
   }
 
+  private consequenceHash(): string {
+    const c = this.consequences;
+    const rules = Object.entries(c.rules)
+      .map(([id, r]) => `${id}:${r.level.toFixed(3)}`)
+      .join(',');
+    return `${rules}|${c.credit.toFixed(4)}|${c.reputation.toFixed(4)}|${c.harmonyStreak}|${c.feed.length}`;
+  }
+
+  private growthHash(): string {
+    const g = this.growth;
+    return `${g.name}|${g.progression ? 1 : 0}|${g.unlocked.join(',')}|${g.projects.map((p) => `${p.id}@${p.endTick}`).join(',')}|${g.wonders.join(',')}|${g.fish.toFixed(4)}|${g.floraRequests}|${g.floraSpent.toFixed(2)}`;
+  }
+
   private fireworksHash(): string {
     const f = this.fireworks;
     const show = f.show ? `${f.show.id}:${f.show.fired}/${f.show.shells}@${f.show.startTick}:${f.show.shape ?? ''}:${f.show.text ?? ''}` : '-';
@@ -384,10 +434,10 @@ export class City {
 
   hash(): string {
     const b = this.snapshotBuildings().map(
-      (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0}`,
+      (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0},${r.tier ?? 0},${Math.round(r.age ?? 0)},${Math.round(r.thrive ?? 0)},${(r.scorch ?? 0).toFixed(3)},${r.off ? 1 : 0}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}`,
     );
   }
 }
@@ -413,5 +463,8 @@ export function emptyStats(): CityStats {
     demandHomes: 0.5,
     demandWork: 0,
     demandFood: 0,
+    fishing: 0,
+    tourism: 0,
+    insurance: 0,
   };
 }

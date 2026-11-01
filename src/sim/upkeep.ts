@@ -10,8 +10,8 @@ const OVERGROW_STEP = 64;
  * Building condition per pulse (1 s): decays under austerity, flooding and abandonment;
  * recovers when fully funded. Returns the new condition.
  */
-export function updateCondition(eid: number, funding: number, flooded: boolean, abandoned: boolean, floodSeverity: number): number {
-  let c = Service.condition[eid]!;
+export function updateCondition(eid: number, funding: number, flooded: boolean, abandoned: boolean, floodSeverity: number, wear = 0): number {
+  let c = Service.condition[eid]! - wear;
   if (flooded) c -= 0.01 * Math.max(0.5, floodSeverity);
   if (funding < 1) c -= 0.004 * (1 - funding);
   if (abandoned) c -= 0.001;

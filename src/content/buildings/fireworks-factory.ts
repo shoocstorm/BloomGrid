@@ -23,6 +23,7 @@ export default defineBuilding({
     water: -3,
     upkeep: 0.2,
   },
+  interact: { off: 'Pause production', on: 'Resume production', help: 'Paused: no shells made (and no material costs); the staff go home.' },
   growthTime: 140,
   fireworks: { rate: 6, storage: 120 },
   variants: 2,

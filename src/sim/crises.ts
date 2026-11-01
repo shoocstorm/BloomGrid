@@ -1,5 +1,5 @@
 import { query } from 'bitecs';
-import { Building } from '@/ecs/components';
+import { Building, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import { DAY_LENGTH, type City } from './City';
 import { DIFFICULTIES } from './difficulty';
@@ -53,6 +53,15 @@ export function logIncident(city: City, rec: Omit<IncidentRecord, 'id'>): Incide
 export function noteHit(c: CrisisInstance, id: string | null): void {
   c.hits = (c.hits ?? 0) + 1;
   if (id && !(c.objects ??= []).includes(id) && c.objects.length < 6) c.objects.push(id);
+}
+
+/** Storms and waves a Weather Radar sees coming (D-076): their warning doubles while one is working. */
+const RADAR_SEES = new Set(['thunderstorm', 'tornado', 'tsunami', 'monsoon', 'king-tide']);
+export function leadFor(city: City, id: string): number {
+  const d = getCrisis(id);
+  if (!RADAR_SEES.has(id)) return d.lead;
+  const radar = city.buildingEntities().some((e) => city.buildingDef(e).radar && !Service.off[e] && Service.condition[e]! > 0.2);
+  return d.lead * (radar ? 2 : 1);
 }
 
 /** Minimum calm between crises (seconds). */
@@ -124,6 +133,7 @@ export function updateCrises(city: City): Modifiers {
                 ? 'damage contained'
                 : 'weathered',
         objects: c.objects ?? [],
+        ...(c.prevented?.length ? { prevented: c.prevented } : {}),
       });
       city.bus.emit('crisis:end', { crisis: c });
     }
@@ -139,12 +149,14 @@ export function updateCrises(city: City): Modifiers {
     const rate = DIFFICULTIES[st.difficulty].eventRate / DAY_LENGTH; // per second
     if (city.rng.next() < rate) {
       const season = seasonAt(city.tick).season;
-      const pool = allCrises().map((d) => [d, Math.max(0, d.weight(city)) * (season.crisis[d.id] ?? 1)] as const);
+      // Consequences (D-074) tilt the odds: a dirty coast breeds algal blooms, a heat island heatwaves.
+      const tilt = city.consequences.mods.crisis;
+      const pool = allCrises().map((d) => [d, Math.max(0, d.weight(city)) * (season.crisis[d.id] ?? 1) * (tilt[d.id] ?? 1)] as const);
       const total = pool.reduce((a, [, w]) => a + w, 0);
       let r = city.rng.next() * total;
       for (const [d, w] of pool) {
         if ((r -= w) <= 0) {
-          forecastCrisis(city, d.id);
+          forecastCrisis(city, d.id, undefined, leadFor(city, d.id));
           break;
         }
       }

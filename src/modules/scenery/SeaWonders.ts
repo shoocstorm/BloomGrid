@@ -95,9 +95,54 @@ export class SeaWonders {
     this.group.add(mesh);
   }
 
-  update(): void {
-    this.beam.visible = U.night.value > 0.05;
+  /** Mesh name → wonder id (`sim/wonders.ts`). */
+  private static readonly IDS: Record<string, string> = {
+    lighthouse: 'lighthouse',
+    'lighthouse-beam': 'lighthouse',
+    'tide-gates': 'tideGates',
+    'lotus-atoll': 'lotus',
+    'abyssal-dome': 'dome',
+    'verdant-pillars': 'stacks',
+    whales: 'whales',
+  };
+  /** Wonders rising out of the sea after their discovery: mesh → seconds elapsed. */
+  private rising = new Map<Mesh, number>();
+  private lit = true;
+
+  /**
+   * Shows the wonders `visible` allows (D-072); a wonder newly allowed with `rise` set climbs out of the sea over
+   * a few seconds instead of popping in. Returns whether anything changed.
+   */
+  sync(visible: (id: string) => boolean, rise = false): boolean {
+    let changed = false;
+    for (const m of this.group.children as Mesh[]) {
+      const on = visible(SeaWonders.IDS[m.name] ?? '');
+      if (m === this.beam) {
+        this.lit = on;
+        continue;
+      }
+      if (on === m.visible) continue;
+      changed = true;
+      m.visible = on;
+      if (on && rise) {
+        m.position.y = -40;
+        this.rising.set(m, 0);
+      } else m.position.y = 0;
+    }
+    return changed;
+  }
+
+  /** True while a wonder is still rising (shadows need refreshing). */
+  update(dt = 0): boolean {
+    this.beam.visible = this.lit && U.night.value > 0.05;
     this.beam.rotation.y = U.clock.value * 0.5;
+    for (const [m, t] of this.rising) {
+      const k = Math.min(1, (t + dt) / 5);
+      m.position.y = -40 * (1 - k) ** 3;
+      if (k >= 1) this.rising.delete(m);
+      else this.rising.set(m, t + dt);
+    }
+    return this.rising.size > 0;
   }
 
   /** A jagged rock outcrop of a few squashed boulders with moss on top. */

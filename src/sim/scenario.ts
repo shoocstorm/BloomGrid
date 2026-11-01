@@ -1,3 +1,4 @@
+import { startWonders } from './wonders';
 import { buildings, scenarios } from '@/content';
 import type { ScenarioBuilder } from '@/content/types';
 import { Service } from '@/ecs/components';
@@ -131,6 +132,10 @@ export function applyScenario(city: City, id: string): { buildings: number; road
   def.build(builder);
   setCorners(city, [...leveled]); // one shore/soil refresh for every terrace
   city.credits = def.credits;
+  if (def.progression) {
+    city.growth.progression = true;
+    city.growth.wonders = startWonders();
+  }
   city.networks.dirty = true;
   city.roadCount += roadTiles.length;
   if (roadTiles.length) city.bus.emit('road:changed', { tiles: roadTiles });

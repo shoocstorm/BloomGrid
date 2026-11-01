@@ -7,7 +7,13 @@ import { HISTORY_LENGTH, HISTORY_METRICS, SYSTEMS, tierFromRatio, type SystemKey
 import { FIELD_PULSES, computeEcology, computePollution } from './fields';
 import { blightLoss, updateCrises } from './crises';
 import { updateHazards } from './hazards';
+import { updateDisasters } from './disasters';
 import { updateFireworks } from './fireworks';
+import { updateFishing } from './fishing';
+import { updateProjects } from './projects';
+import { updateWonders, wonderHarmony } from './wonders';
+import { ageWear, size, updateLevels, upkeepMul, use } from './levels';
+import { updateConsequences } from './consequences';
 import { updateFinance } from './finance';
 import { updateCondition, updateOvergrowth } from './upkeep';
 import { updateStewardship } from './steward';
@@ -105,6 +111,7 @@ export const pulseSystem: System<SimCtx> = {
     updateSeaRise(city);
     const mod = updateCrises(city);
     updateHazards(city, mod);
+    updateDisasters(city, mod);
     const defences = mod.floodLevel > 0 ? defenceList(city) : [];
     const bridges = city.weaver.bridges.length ? bridgeEnds(city) : null;
     const n = networks.count;
@@ -134,14 +141,17 @@ export const pulseSystem: System<SimCtx> = {
       const st = def0.stats;
       const occ = Service.occupancy[eid]!;
       const net = Service.network[eid]!;
-      capacity += st.population;
-      population += st.population * occ;
-      jobsTotal += st.jobs;
-      staffedJobs += st.jobs * occ;
-      upkeep += st.upkeep;
-      // Retrofits, banyan merges and woven sky-bridges delight residents.
+      // Levels (D-073): a grown building holds more and makes more, and uses and costs more.
+      const big = size(eid);
+      const draw = use(eid);
+      capacity += st.population * big;
+      population += st.population * big * occ;
+      jobsTotal += st.jobs * big;
+      staffedJobs += st.jobs * big * occ;
+      upkeep += st.upkeep * upkeepMul(eid);
+      // Retrofits, banyan merges and woven sky-bridges delight residents; so does a grown building.
       const lvl = Building.level[eid]!;
-      amenity += st.happiness + (lvl === BANYAN_LEVEL ? 4 : lvl > 0 ? 2 : 0) + (bridges?.get(eid) ?? 0) * 3;
+      amenity += st.happiness + Building.tier[eid]! + (lvl === BANYAN_LEVEL ? 4 : lvl > 0 ? 2 : 0) + (bridges?.get(eid) ?? 0) * 3;
       // Flooded buildings are evacuated: they neither produce nor consume. Offline plants trip.
       // Seawalls keep water out of what they protect (up to their height).
       const fl =
@@ -152,21 +162,22 @@ export const pulseSystem: System<SimCtx> = {
       flooded[eid] = fl ? 1 : 0;
       const centre = city.grid.index(Building.x[eid]! + (Building.w[eid]! >> 1), Building.z[eid]! + (Building.d[eid]! >> 1));
       Service.bloom[eid] = bloomField[centre]!;
-      if (fl || eid === mod.offline || mod.down.has(eid)) continue;
+      // Switched off by the steward (D-075): no output, no draw.
+      if (fl || eid === mod.offline || mod.down.has(eid) || Service.off[eid]) continue;
       // Worn-down buildings work at reduced capacity.
       const activity = (st.population > 0 ? 0.3 + 0.7 * occ : st.jobs > 0 ? 0.4 + 0.6 * occ : 1) * (0.4 + 0.6 * Service.condition[eid]!);
       // Pollinated farms yield more; seasons shift harvests.
       // Soil nutrients and hydration (Flora-Net) and drone harvesting shift yields too.
       if (st.food > 0)
-        food += st.food * (st.jobs > 0 ? occ : 1) * Service.power[eid]! * (0.7 + 0.5 * Service.bloom[eid]!) * season.foodMul * farmSoilMul(city, Building.x[eid]! + Building.w[eid]! / 2, Building.z[eid]! + Building.d[eid]! / 2);
+        food += st.food * big * (st.jobs > 0 ? occ : 1) * Service.power[eid]! * (0.7 + 0.5 * Service.bloom[eid]!) * season.foodMul * farmSoilMul(city, Building.x[eid]! + Building.w[eid]! / 2, Building.z[eid]! + Building.d[eid]! / 2);
       if (net < 0) continue;
       const retro = Building.level[eid]! > 0;
       const sym = def0.symbiosis && Service.paired[eid] ? def0.symbiosis.outputMul : 1;
-      if (st.energy > 0) prodE[net] += st.energy * activity * mod.energySupply * sym;
-      else demE[net] -= st.energy * activity * mod.energyDemand * (retro ? 0.8 : 1);
+      if (st.energy > 0) prodE[net] += st.energy * big * activity * mod.energySupply * sym;
+      else demE[net] -= st.energy * draw * activity * mod.energyDemand * (retro ? 0.8 : 1);
       // Water works need power to pump.
-      if (st.water > 0) prodW[net] += st.water * activity * Service.power[eid]! * mod.waterSupply * season.waterMul;
-      else demW[net] -= st.water * activity * mod.waterDemand * (retro ? 0.85 : 1);
+      if (st.water > 0) prodW[net] += st.water * big * activity * Service.power[eid]! * mod.waterSupply * season.waterMul;
+      else demW[net] -= st.water * draw * activity * mod.waterDemand * (retro ? 0.85 : 1);
     }
     const netStats = pulse.networks;
     netStats.length = n;
@@ -193,7 +204,8 @@ export const pulseSystem: System<SimCtx> = {
     let condSum = 0;
     const harmony01 = s.happiness / 100;
     const funding = city.steward.funding;
-    const floodSev = city.steward.crises.reduce((a, c) => (c.phase === 'active' ? Math.max(a, c.severity) : a), 0);
+    // A bare coast makes floods bite harder (consequences, D-074).
+    const floodSev = city.steward.crises.reduce((a, c) => (c.phase === 'active' ? Math.max(a, c.severity) : a), 0) * city.consequences.mods.flood;
     for (const eid of ents) {
       const def = buildings.at(Building.def[eid]!);
       const st = def.stats;
@@ -217,7 +229,7 @@ export const pulseSystem: System<SimCtx> = {
       if (isOffline) p |= Problem.OFFLINE;
       if (isDown) p |= Service.condition[eid]! <= 0 ? Problem.RUINED : Problem.ON_FIRE;
       const occ = Service.occupancy[eid]!;
-      const cond = isDown ? Service.condition[eid]! : updateCondition(eid, funding, isFlooded, (st.population > 0 || st.jobs > 0) && occ < 0.1, floodSev);
+      const cond = isDown ? Service.condition[eid]! : updateCondition(eid, funding, isFlooded, (st.population > 0 || st.jobs > 0) && occ < 0.1, floodSev, ageWear(eid));
       if (cond < 0.35) p |= Problem.NEGLECTED;
       const service = isFlooded ? 0 : Math.min(power, water);
       if (st.population > 0) {
@@ -232,9 +244,9 @@ export const pulseSystem: System<SimCtx> = {
         resServices += service * st.population;
         resWeight += st.population;
       } else if (st.jobs > 0) {
-        const target = isFlooded || isOffline ? 0 : staffing * clamp(service + 0.2, 0, 1);
+        const target = isFlooded || isOffline || Service.off[eid] ? 0 : staffing * clamp(service + 0.2, 0, 1);
         Service.occupancy[eid] = approach(occ, target, 0.03, 0.02);
-        if (Service.occupancy[eid]! < 0.5) p |= Problem.UNSTAFFED;
+        if (Service.occupancy[eid]! < 0.5 && !Service.off[eid]) p |= Problem.UNSTAFFED;
       }
       Service.problems[eid] = p;
       const blight = blightLoss(mod, eid);
@@ -251,6 +263,8 @@ export const pulseSystem: System<SimCtx> = {
 
     const fireworks = updateFireworks(city, ents, mod, built);
     s.pollution += fireworks.pollution;
+    s.fishing = updateFishing(city, ents, mod).income;
+    updateLevels(city, ents, mod);
 
     // Aggregate stats.
     s.buildings = built;
@@ -280,11 +294,13 @@ export const pulseSystem: System<SimCtx> = {
     // Amenities only delight when maintained.
     h.amenities = clamp((amenity / per) * 2, -10, 15) * (condSum / per);
     h.crises = mod.harmony;
-    h.bloom = clamp((pulse.bloomIndex - 0.4) * 16, -4, 6);
+    h.bloom = clamp((pulse.bloomIndex - city.consequences.mods.bloomLoss - 0.4) * 16, -4, 6);
     // Jammed commutes wear residents down (flow 0.9+ is free; 0.5 means trips take twice as long).
     h.traffic = -clamp((0.9 - pulse.flow) * 25, 0, 12);
     h.fireworks = fireworks.harmony;
-    const target = clamp(h.base + h.ecology + h.services + h.jobs + h.food + h.taxes + h.amenities + h.crises + h.bloom + h.traffic + h.fireworks, 0, 100);
+    h.wonders = wonderHarmony(city);
+    h.consequences = city.consequences.mods.harmony;
+    const target = clamp(h.base + h.ecology + h.services + h.jobs + h.food + h.taxes + h.amenities + h.crises + h.bloom + h.traffic + h.fireworks + h.wonders + h.consequences, 0, 100);
     pulse.avgGreenery = greenSum / per;
     s.happiness += (target - s.happiness) * 0.06;
 
@@ -295,7 +311,7 @@ export const pulseSystem: System<SimCtx> = {
     s.upkeep = upkeep * city.steward.funding;
 
     // Health tiers.
-    const net = s.income - s.upkeep - s.debtService;
+    const net = s.income + s.fishing + s.tourism - s.insurance - s.upkeep - s.debtService;
     const tiers: Record<SystemKey, Tier> = {
       energy: s.energyUsed > 0 ? tierFromRatio(pulse.energyRatio, [0.6, 0.85, 1, 1.15]) : 1,
       water: s.waterUsed > 0 ? tierFromRatio(pulse.waterRatio, [0.6, 0.85, 1, 1.15]) : 1,
@@ -316,6 +332,9 @@ export const pulseSystem: System<SimCtx> = {
     pulse.primed = true;
     updateOvergrowth(city);
     updateStewardship(city);
+    updateProjects(city);
+    updateWonders(city);
+    updateConsequences(city);
 
     // History.
     if ((city.tick / PULSE_TICKS) % HISTORY_EVERY === 0) {

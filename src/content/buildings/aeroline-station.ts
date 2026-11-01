@@ -16,6 +16,7 @@ export default defineBuilding({
   stats: { cost: 2600, energy: -30, eco: 2, happiness: 8, population: 0, jobs: 24, pollution: 0 },
   growthTime: 60,
   variants: 1,
+  requires: 'aeroline',
   transit: { radius: 26, riders: 2200, rail: true },
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [5.9, 0.1, 3.9], tint: 0xe9e2d0 });

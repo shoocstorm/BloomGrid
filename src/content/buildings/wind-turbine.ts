@@ -13,6 +13,7 @@ export default defineBuilding({
   footprint: [2, 2],
   // Low upkeep: wind is the cheapest power to run per unit (0.0013 ◈/s per energy vs solar's 0.0017).
   stats: { cost: 700, energy: 55, eco: 2, happiness: 2, population: 0, jobs: 2, pollution: 0, upkeep: 0.07 },
+  interact: { off: 'Feather the blades', on: 'Release the blades', help: 'Turned out of the wind: no power, but storms barely touch it (lightning seeks it far less).' },
   growthTime: 90,
   cleanEnergy: true,
   // Turbines stay white in every district (styles recolour neutral tints).

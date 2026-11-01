@@ -16,6 +16,8 @@ export const Building = {
   level: new Uint8Array(MAX_ENTITIES),
   /** Stable serial (saved, never reused by a live building): the number in its readable id, `LIV-0042`. */
   uid: new Uint32Array(MAX_ENTITIES),
+  /** Growth level 0..2 (shown as level 1–3, D-073): bigger, busier, dearer to run. */
+  tier: new Uint8Array(MAX_ENTITIES),
 };
 
 /** Living greenery level 0..1 — drives membrane moss coverage and staged plant growth. */
@@ -59,4 +61,12 @@ export const Service = {
   riders: new Float32Array(MAX_ENTITIES),
   /** Soil hydration of the building's Flora-Net zone (0..1). */
   soil: new Float32Array(MAX_ENTITIES).fill(0.7),
+  /** Sim seconds since built or renovated (D-073): raises upkeep and weathers the walls. */
+  age: new Float32Array(MAX_ENTITIES),
+  /** Sim seconds of thriving service toward the next level (D-073). */
+  thrive: new Float32Array(MAX_ENTITIES),
+  /** 0..1 how charred it is from fire and lightning (D-075); repair or renovation cleans it. */
+  scorch: new Float32Array(MAX_ENTITIES),
+  /** 1 when the steward switched it off (a feathered turbine, a paused factory; D-075). */
+  off: new Uint8Array(MAX_ENTITIES),
 };

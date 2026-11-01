@@ -169,6 +169,7 @@ const GLYPHS: Record<string, string> = {
   '⛈': 'storm',
   '▨': 'ruin',
   '🎆': 'fireworks',
+  '🌪': 'storm',
   '◐': 'lens',
   '◉': 'pulse',
   '✚': 'build',

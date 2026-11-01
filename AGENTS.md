@@ -16,6 +16,7 @@ build and modify it, and keep it running well. Neglect can make the city decline
 | [`BloomGrid_Implementation_Requirements-v2.md`](BloomGrid_Implementation_Requirements-v2.md) | Original aesthetic and content pillars (still valid unless v3 overrides)                   |
 | [`docs/progress.md`](docs/progress.md)                                                       | **Handoff snapshot**: branch, last commit, baselines, next up, open decisions. Start here. |
 | [`docs/roadmap.md`](docs/roadmap.md)                                                         | Phases, status and checklists. **What to work on next.**                                   |
+| [`docs/plan-v4.md`](docs/plan-v4.md)                                                         | Next feature plan (Phases 16–22): fresh start, sound, levels/ageing, consequences, hazards |
 | [`docs/architecture.md`](docs/architecture.md)                                               | Layers, frame order, data flow, extension points                                           |
 | [`docs/decisions.md`](docs/decisions.md)                                                     | Architecture decision log (append-only)                                                    |
 | [`README.md`](README.md)                                                                     | Player-facing quickstart and controls                                                      |
@@ -24,11 +25,11 @@ build and modify it, and keep it running well. Neglect can make the city decline
 
 ```bash
 bun install
-bun run dev            # http://localhost:5173  (?perf ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty ?difficulty=sandbox|relaxed|steward|hard ?drill=<crisis> ?nodynres)
+bun run dev            # http://localhost:5173: a fresh island behind the New Game wizard; ?scenario=founding-city = the showcase (scripts default to it), ?wizard / ?nowizard  (?perf ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty ?difficulty=sandbox|relaxed|steward|hard ?drill=<crisis> ?nodynres)
 bun run check          # typecheck + lint + tests + production build (must pass before you finish)
 bun run test           # vitest only (NOT `bun test`: that is bun's own runner and skips the Vitest setup)
 bun run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500] [--mobile [--size 844x390]]
-bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--profile 15]   # power/perf probe (see §8)
+bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--sound] [--profile 15]   # power/perf probe (see §8)
 bun run flicker -- [--pieces all|names|a,b] [--defs canopy-tower] [--day] [--diff shots/f.png]   # thin-detail flashing probe (D-070)
 bun run trailer       # record a ~30s cinematic trailer to shots/trailer.mp4 (dev server + ffmpeg; --duration, --fps, --out)
 bun run trailer:feature  # ~60s feature trailer (wind farm, Bloomtopia, train ride, Flora console, dawn bloom) to shots/feature-trailer.mp4
@@ -131,6 +132,12 @@ To light a fire from a snap eval: `(await import('/src/sim/hazards.ts')).ignite(
 | Fireworks                          | sim `src/sim/fireworks.ts` (state in `fireworksState.ts`, `city.fireworks`; `fireworks` on a def; commands `launchFireworks`, `setFireworksAuto`), Flora tools `sim/fireworksTools.ts`; particles, top-bar button and toasts `src/modules/fireworks/` (the `firework` material flies sparks from `U.clock`: write a particle once, never re-pose); shaped bursts `fireworks/shapes.ts` and the sky message font `content/skyFont.ts` (`skyText` cleans messages, D-071); dashboard tab `modules/dashboard/FireworksView.ts` (D-068) |
 | Group selection, batch removal     | Ctrl/⌘-drag in the select tool (`modules/construction/tools.ts`) → `selectInRect` (`src/sim/select.ts`) → `selection:changed` with `eids`; group inspector `selectGroup` in `ui/Hud.ts`; `demolishMany` command (one undo); Delete key and the inspector's Return to nature remove at once; removals animate via `instancer.removeAnimated` (D-070) |
 | Build tab (actions, categories)    | `buildDock` / `renderTray` / `renderBrief` in `src/ui/Hud.ts`; action explanations and building facts in `src/ui/buildHelp.ts` (`ACTION_HELP`: a new tool needs an entry; numbers come from sim constants); the building preview floats beside the console (`preview.showDef`, `BuildingRenderer.designParts`), never under panel glass (D-069) |
+| Progression (fresh island)         | `city.growth` (`sim/growthState.ts`); unlock projects `sim/projects.ts` (`requires` on a def, `startProject`); fishing `sim/fishing.ts` (`fishing`, `limit` on a def; boats `modules/fishing`); earned wonders `sim/wonders.ts`; Flora gate and bill `sim/flora.ts`; Goals tab `modules/goals`; wizard + guide `modules/tutorial` (steps are data). Progression is per scenario (`progression: true`): tests and the showcase run with everything open (D-072) |
+| Levels, ageing                     | `sim/levels.ts` (`Building.tier`, `Service.age/thrive`; `size`/`use`/`upkeepMul` wherever stats are summed), overlays `tierPieces` and weathering (concrete `aParams.w`, glass/timber `aParams.x` = 1 − grime) in `BuildingRenderer`; Flora `sim/levelTools.ts` (D-073) |
+| Damage looks, switches             | `Service.scorch` (hazards write it; repair/renovate clear it) and weathering's soot range; ruins collapse in `BuildingRenderer.collapse` and rebuild on `building:repaired`; `interact` on a def + `toggleBuilding` (`sim/switches.ts`), read `Service.off` wherever output is summed (D-075) |
+| Tornado, tsunami, risk             | `sim/disasters.ts` (crises + per-pulse steps, `evacuate` / `closeTideGates`), `sim/risk.ts` (`riskReport`), `shelter` / `radar` on a def, `leadFor` for warnings; visuals and Prepare panel `modules/disasters`; drills `?drill=tornado|tsunami` (D-076) |
+| Music and sound                    | `src/modules/audio/` (Web Audio, all synthesised, no files; D-077): moods in `music.ts` (pure, tested), buses, ambience beds and effects in `index.ts` (effects hang off bus events; respect `MAX_SFX`). Nothing starts before the first gesture. `bun run perf -- --idle --sound` measures with audio running |
+| Consequence rule                   | append to `RULES` in `sim/consequences.ts` (`target`, `apply` to `mods`, `cause`, `effect`); systems read `city.consequences.mods`; feed and Causes tab are automatic; add a case to `tests/consequences.test.ts` (D-074) |
 | Wind turbines                      | building `src/content/buildings/wind-turbine.ts` (plinth + tower); nacelles and spinning rotors `src/modules/wind/` (one prevailing wind, CPU-posed from `U.clock`); founding-city farm placement in `founding-city.ts` (`WIND_TURBINES` cap, D-047) |
 | City map (districts)               | `src/modules/citymap/` (canvas painted on open from `city.districts`; labels fit their district); button prepended to `hud.stats`; **M** (Flora-Net mist moved to **Y**) |
 | Top status bar fitting             | `Hud.fitStats` adds cumulative `fit-1…7` classes to `.topbar` until `.stats` stops clipping (rules at the end of `ui/theme.css`); a new top-bar element should say at which level it gives way (D-071) |
@@ -244,6 +251,10 @@ own `requestAnimationFrame` loops.
 - Building categories feed the Build tab in `CATEGORY_LABELS` order, click-only (no number keys, D-069): add a
   category with a `CATEGORY_CODES` prefix; the id regexes in `ai/agent.ts` and
   `modules/assistant/Panel.ts` list every prefix.
+- A plain boot is a fresh island (D-072): scripts append `scenario=founding-city` unless a path names one, and a test
+  that needs locked progression must apply `fresh-island` (or set `city.growth.progression`).
+- Fresh-island pacing is guarded by `tests/pacing.test.ts` (a scripted steward times the unlocks); after changing
+  unlock costs, fishing or early-game buildings, run it with `PACE=1` for a timeline (D-078).
 - Founding-city balance is sensitive: after changing a scenario mix, measure settled (≈400 ticks) flow,
   unemployment, power margin and budget on seed 20261024 (`tests/zoning.test.ts` guards them). For traffic, list
   the jammed tiles (`mobilityLayers(city).traffic` > 0.8) per district before adding transit.

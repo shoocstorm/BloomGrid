@@ -8,6 +8,13 @@ import { actionTools } from '@/sim/actionTools';
 import { insightTools } from '@/sim/insightTools';
 import { hazardTools } from '@/sim/hazardTools';
 import { fireworksTools } from '@/sim/fireworksTools';
+import { levelTools } from '@/sim/levelTools';
+import { consequenceTools } from '@/sim/consequenceTools';
+import { switchTools } from '@/sim/switchTools';
+import { riskTools } from '@/sim/riskTools';
+import { growthTools } from '@/sim/growthTools';
+import { floraBilled, floraBlocker, floraLocked } from '@/sim/flora';
+import { PROJECTS } from '@/sim/projects';
 import { allOverlays, getOverlay } from '@/sim/overlays';
 import { ISSUES, inventoryKinds } from '@/sim/inventory';
 import { cityBrief } from '@/ai/brief';
@@ -191,6 +198,18 @@ class Assistant {
     if (!request || this.busy) return '';
     if (request.toLowerCase() === '/clear') return (this.clear(), '');
     this.panel.user(request);
+    // On a fresh island Flora must be woken first, and requests need credits (D-072).
+    const why = floraBlocker(this.ctx.city);
+    if (why && !(request.startsWith('/') && floraBilled(this.ctx.city) && !floraLocked(this.ctx.city))) {
+      const crit = floraLocked(this.ctx.city)
+        ? `\n${PROJECTS.flora.criteria(this.ctx.city)
+            .map((c) => `${c.ok ? '✓' : '✗'} ${c.label}`)
+            .join('\n')}\nThen start "Wake Flora" (◈${PROJECTS.flora.cost.toLocaleString()}) on the City Pulse Goals tab.`
+        : '';
+      const msg = `${why}${crit}`;
+      this.panel.assistant().finish(msg, true);
+      return msg;
+    }
     if (request.startsWith('/')) return this.slash(request);
     return this.turn(request);
   }
@@ -246,6 +265,8 @@ class Assistant {
         }
         if (this.busy.signal.aborted) throw new DOMException('Stopped', 'AbortError');
       }
+      let generated = 0;
+      let calls = 0;
       const out = await runTurn({
         llm: this.engine,
         tools: agent,
@@ -259,12 +280,18 @@ class Assistant {
         maxSteps: 5,
         onEvent: (e) => {
           if (e.type === 'phase') bubble.phase(e.phase);
-          else if (e.type === 'call') bubble.call(e.call);
-          else if (e.type === 'result') bubble.result(e.record);
-          else if (e.type === 'delta') bubble.delta(e.text);
+          else if (e.type === 'call') {
+            bubble.call(e.call);
+            calls++;
+          } else if (e.type === 'result') bubble.result(e.record);
+          else if (e.type === 'delta') {
+            bubble.delta(e.text);
+            generated += e.text.length;
+          }
         },
       });
       bubble.finish(out.answer);
+      this.bill(request, generated + out.answer.length, calls);
       this.history.push({ role: 'user', content: request }, { role: 'assistant', content: out.answer });
       this.history = this.history.slice(-8);
       return out.answer;
@@ -276,6 +303,19 @@ class Assistant {
       this.busy = null;
       this.panel.setBusy(false);
     }
+  }
+
+  /**
+   * Charges a finished turn (fresh islands only, D-072): tokens are estimated from the request and what the model
+   * wrote, plus the prompt each model call reads (~300 tokens), at ◈ per token on top of a base fee.
+   */
+  private bill(request: string, generatedChars: number, calls: number): void {
+    const { city, commands, bus } = this.ctx;
+    if (!floraBilled(city)) return;
+    const tokens = Math.ceil((request.length + generatedChars) / 4) + 300 * (1 + calls);
+    const before = city.credits;
+    if (commands.execute('floraBill', { tokens }, false))
+      bus.emit('toast', { text: `Flora · ${tokens.toLocaleString()} tokens · −◈${(before - city.credits).toFixed(1)}`, tone: 'info' });
   }
 
   /** `/tool key=value …` or `/tool {json}`: runs a tool directly (the steward typed it, so no approval). */
@@ -446,7 +486,7 @@ export const assistantModule: GameModule = {
   deps: ['inventory', 'pulse', 'hud'],
   init(ctx) {
     const agent = ctx.services.get('agent');
-    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...gameTools()]) agent.register(t);
+    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...gameTools()]) agent.register(t);
     const a = new Assistant(ctx);
     ctx.services.provide('assistant', {
       toggle: (open) => a.panel.toggle(open),

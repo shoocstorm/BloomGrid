@@ -178,6 +178,7 @@ export const hazardsModule: GameModule = {
       });
     });
     ctx.bus.on('building:ruined', ({ eid, cause }) =>
+      cause !== 'undo' &&
       ctx.bus.emit('toast', {
         text: `${ctx.city.buildingDef(eid).name} was ${cause === 'fire' ? 'burned out' : 'shaken down'}: a ruin now`,
         tone: 'bad',

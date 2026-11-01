@@ -66,6 +66,8 @@ export const aerolineModule: GameModule = {
     ctx.bus.on('building:added', ({ eid }) => {
       if (!trains && city.buildingRecord(eid).def === STATION) build();
     });
+    // A fresh island raises the line when its Aeroline project completes (D-072), ready for stations.
+    ctx.bus.on('project:done', ({ id }) => id === 'aeroline' && build());
 
     ctx.systems.add({
       id: 'aeroline.update',

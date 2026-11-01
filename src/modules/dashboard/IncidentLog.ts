@@ -20,6 +20,8 @@ const KIND: Record<string, Filter> = {
   'industrial-fire': 'fire',
   earthquake: 'quake',
   thunderstorm: 'storm',
+  tornado: 'storm',
+  tsunami: 'water',
   monsoon: 'water',
   'king-tide': 'water',
   'algal-bloom': 'water',
@@ -175,6 +177,7 @@ export class IncidentLog {
           ),
         ),
       ),
+      this.trends(log),
       shown.length
         ? h('div', { class: 'il-log' }, ...shown.map((r) => this.row(r)))
         : h(
@@ -184,6 +187,49 @@ export class IncidentLog {
               ? 'Nothing of this kind yet.'
               : 'No incidents yet. Crises, quakes, storms and fires will be recorded here.',
           ),
+    );
+  }
+
+  /**
+   * Trends (D-076): per kind of incident, how many, buildings ruined, residents displaced and credits lost, and how
+   * many had prevention that helped; plus the log as CSV for analysis outside the game.
+   */
+  private trends(log: IncidentRecord[]): HTMLElement {
+    const by = new Map<string, { name: string; icon: string; n: number; lost: number; displaced: number; cost: number; helped: number }>();
+    for (const r of log) {
+      const t = by.get(r.kind) ?? { name: r.name, icon: r.icon, n: 0, lost: 0, displaced: 0, cost: 0, helped: 0 };
+      t.n++;
+      t.lost += r.lost;
+      t.displaced += r.displaced;
+      t.cost += r.cost;
+      if (r.prevented?.length) t.helped++;
+      by.set(r.kind, t);
+    }
+    const rows = [...by.values()].sort((a, b) => b.cost - a.cost);
+    const csv = () => {
+      const head = 'id,kind,name,start_tick,end_tick,severity,district,hits,ruined,fires,displaced,cost,outcome,prevented';
+      const q = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const body = log.map((r) =>
+        [r.id, r.kind, q(r.name), r.startTick, r.endTick, r.severity.toFixed(2), q(r.district), r.hits, r.lost, r.fires, r.displaced, r.cost, q(r.outcome), q((r.prevented ?? []).join('; '))].join(','),
+      );
+      const blob = new Blob([[head, ...body].join('\n')], { type: 'text/csv' });
+      const a = h('a', { href: URL.createObjectURL(blob), download: 'bloomgrid-incidents.csv' }) as HTMLAnchorElement;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    };
+    return h(
+      'div',
+      { class: 'il-trends' },
+      h('div', { class: 'il-bar' }, h('h3', { class: 'il-h' }, 'By kind'), log.length ? h('button', { class: 'il-act', onClick: csv }, 'Export CSV') : null),
+      rows.length
+        ? h(
+            'div',
+            { class: 'il-trend-grid' },
+            ...rows.map((t) =>
+              h('div', { class: 'il-trend' }, h('b', {}, `${t.icon} ${t.name}`), h('span', {}, `${t.n}×`), h('span', {}, `${t.lost} ruined`), h('span', {}, `${fmt(t.displaced)} displaced`), h('span', {}, `◈${fmt(t.cost)}`), h('span', { class: t.helped ? 'ok' : '' }, t.helped ? `prevention helped ${t.helped}×` : '')),
+            ),
+          )
+        : h('p', { class: 'il-calm' }, 'No incidents yet.'),
     );
   }
 
@@ -198,6 +244,7 @@ export class IncidentLog {
           h('div', {}, h('span', {}, 'Severity'), h('b', {}, `${Math.round(r.severity * 100)}%`)),
           r.cause ? h('div', {}, h('span', {}, 'Cause'), h('b', {}, r.cause)) : null,
           h('div', {}, h('span', {}, 'Ended'), h('b', {}, clockLabel(r.endTick))),
+          ...(r.prevented ?? []).map((p) => h('div', { class: 'il-prev' }, h('span', {}, 'Prevented'), h('b', {}, p))),
           r.objects.length
             ? h(
                 'div',

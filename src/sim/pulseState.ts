@@ -32,6 +32,10 @@ export interface HarmonyBreakdown {
   traffic: number;
   /** Fireworks shows and their afterglow, less novelty fatigue (see `sim/fireworks.ts`). */
   fireworks: number;
+  /** Sea wonders discovered (sightseeing, D-072). */
+  wonders: number;
+  /** Cause-and-effect rules in force (D-074). */
+  consequences: number;
 }
 
 /** Per highway-network utility totals from the last pulse (index = network id). Not saved. */
@@ -98,7 +102,7 @@ export function createPulseState(): PulseState {
     tiers: { energy: 1, water: 1, food: 1, jobs: 1, mobility: 1, ecology: 1, harmony: 1, budget: 1 },
     primed: false,
     history: Object.fromEntries(HISTORY_METRICS.map((m) => [m, []])) as unknown as Record<HistoryMetric, number[]>,
-    harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0, crises: 0, bloom: 0, traffic: 0, fireworks: 0 },
+    harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0, crises: 0, bloom: 0, traffic: 0, fireworks: 0, wonders: 0, consequences: 0 },
     energyRatio: 1,
     waterRatio: 1,
     foodRatio: 1,

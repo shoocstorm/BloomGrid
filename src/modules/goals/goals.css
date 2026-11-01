@@ -1,0 +1,152 @@
+/* Goals tab (D-072): unlock project cards, sea wonders, fishing fleet. Instrument theme tokens (ui/theme.css). */
+.goals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+}
+.gl-card.ready {
+  border-color: var(--accent);
+}
+.gl-card.open {
+  opacity: 0.7;
+}
+.gl-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.gl-head b {
+  flex: 1;
+  font-size: 13px;
+  color: var(--ink);
+}
+.gl-ico {
+  display: flex;
+  color: var(--accent);
+}
+.gl-state {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.gl-card.ready .gl-state,
+.gl-card.running .gl-state {
+  color: var(--accent);
+}
+.gl-desc,
+.gl-unlocks,
+.gl-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.gl-unlocks span {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.gl-note.warn {
+  color: var(--warn);
+}
+.gl-crit {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+}
+.gl-crit li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-faint);
+}
+.gl-crit li.ok {
+  color: var(--ink);
+}
+.gl-crit li.ok .ico {
+  color: var(--accent-2);
+}
+.gl-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+}
+.gl-start {
+  padding: 4px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--pill);
+  color: var(--accent);
+  font-size: 11px;
+}
+.gl-start:disabled {
+  border-color: var(--line);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+.gl-start:not(:disabled):hover {
+  background: var(--bg-hover);
+}
+.gl-bar {
+  height: 5px;
+  border-radius: var(--pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.gl-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.gl-wonders {
+  display: grid;
+  gap: 3px;
+}
+.gl-wonder {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.gl-wonder span {
+  text-align: right;
+}
+.gl-wonder.found {
+  color: var(--ink);
+}
+.gl-wonder.found .ico {
+  color: var(--accent-2);
+}
+.gl-fish {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.gl-fish b {
+  font-family: var(--mono);
+  color: var(--ink);
+}
+/* Phones: the console shows only the pulse, so the goals panel (back in the HUD) stays hidden there. */
+.compact .goals {
+  display: none;
+}

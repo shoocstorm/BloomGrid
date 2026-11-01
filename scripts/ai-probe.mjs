@@ -10,6 +10,9 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+/** Scripts measure the showcase city unless a path names a scenario (a plain boot is a fresh island + wizard, D-072). */
+const showcase = (p) => (/[?&]scenario=/.test(p) ? p : `${p}${p.includes('?') ? '&' : '?'}scenario=founding-city`);
+
 const argv = process.argv.slice(2);
 const asks = [];
 const opt = {};
@@ -44,7 +47,7 @@ page.on(
     console.log(`[${m.type()}] ${m.text()}`),
 );
 page.on('pageerror', (e) => console.log(`[pageerror] ${e.message}`));
-await page.goto(base + (opt.path ?? '/'), { waitUntil: 'domcontentloaded' });
+await page.goto(base + showcase(opt.path ?? '/'), { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.bloomgrid?.services?.tryGet('assistant'), { timeout: 120_000 });
 
 const load = await page.evaluate(

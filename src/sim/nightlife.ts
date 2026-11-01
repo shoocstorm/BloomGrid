@@ -1,3 +1,4 @@
+import { size } from './levels';
 import { query } from 'bitecs';
 import { Building, Service } from '@/ecs/components';
 import { buildings } from '@/content';
@@ -33,7 +34,7 @@ export function computeActivity(city: City, f: Fields): void {
     const occ = Service.occupancy[eid]!;
     // Amenities draw visitors (parks and sanctuaries are where evenings happen).
     const visitors = Math.max(0, st.happiness) * (d.category === 'nature' ? 5 : 2.5) + (Building.level[eid]! > 0 ? 4 : 0);
-    const people = (st.population * occ + st.jobs * occ * 0.6 + visitors) * (0.3 + 0.7 * Service.power[eid]!) * (0.5 + 0.5 * Service.condition[eid]!);
+    const people = ((st.population * occ + st.jobs * occ * 0.6) * size(eid) + visitors) * (0.3 + 0.7 * Service.power[eid]!) * (0.5 + 0.5 * Service.condition[eid]!);
     if (people <= 0) continue;
     a[g.index(Building.x[eid]! + (Building.w[eid]! >> 1), Building.z[eid]! + (Building.d[eid]! >> 1))] += (people / PEOPLE_PER_UNIT) * ACTIVITY_SCALE;
   }

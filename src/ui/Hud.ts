@@ -5,6 +5,9 @@ import { NO_ENTITY } from '@/sim/Grid';
 import { idForSelection } from '@/sim/inventory';
 import { RESPONSE_COST, fireAt, isRuined, repairCost } from '@/sim/hazards';
 import { DEMOLISH_REFUND } from '@/sim/commands';
+import { lockReason } from '@/sim/projects';
+import { MAX_TIER, ageDays, levelProgress, levels, renovateCost, upgradeBlocker, upgradeCost } from '@/sim/levels';
+import { rulesFor } from '@/sim/consequences';
 import type { GameContext, GameModule } from '@/game/context';
 import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from './dom';
@@ -130,6 +133,16 @@ class Hud {
         if (rest.length) this.selectGroup(rest);
         else this.select(null);
       }
+    });
+    // Buildings that grew a level on their own, announced once per pulse (D-073).
+    const grown: number[] = [];
+    bus.on('building:tier', ({ eid, tier, paid }) => !paid && tier > 0 && grown.push(eid));
+    bus.on('stats:updated', () => {
+      if (!grown.length || ctx.loading) return void (grown.length = 0);
+      const e = grown[0]!;
+      const where = { x: Building.x[e]! + Building.w[e]! / 2, z: Building.z[e]! + Building.d[e]! / 2 };
+      this.toast(grown.length === 1 ? `⬆ ${ctx.city.buildingDef(e).name} grew to level ${Building.tier[e]! + 1}` : `⬆ ${grown.length} buildings grew a level`, 'ok', where);
+      grown.length = 0;
     });
     bus.on('save:done', () => this.toast('City saved', 'ok'));
     bus.on('load:done', () => this.toast('City restored', 'ok'));
@@ -313,19 +326,28 @@ class Hud {
     const topbar = h(
       'div',
       { class: 'topbar' },
-      h('div', { class: 'brand panel' }, h('span', { class: 'logo' }), h('b', {}, 'BloomGrid', h('span', { class: 'brand-sub' }, 'ISLAND OS · v12'))),
+      h('div', { class: 'brand panel' }, h('span', { class: 'logo' }), h('b', {}, 'BloomGrid', this.brandSub)),
       h('div', { class: 'clock panel' }, this.timeEl, seg),
       stats,
       actions,
     );
     this.topbar = topbar;
     this.root.append(topbar);
+    // The city's name under the brand and in the window title (D-072).
+    const named = () => {
+      const name = ctx.city.growth.name;
+      setText(this.brandSub, name === 'BloomGrid' ? 'Island OS · v12' : name);
+      document.title = name === 'BloomGrid' ? 'BloomGrid' : `${name} · BloomGrid`;
+    };
+    named();
+    for (const ev of ['city:named', 'city:reset', 'load:done'] as const) ctx.bus.on(ev, named);
     // Refit when the bar's room changes (window, side panels) or the screen class flips.
     new ResizeObserver(() => this.fitStats()).observe(stats);
     onCompactChange(() => this.fitStats());
   }
 
   private topbar!: HTMLElement;
+  private brandSub = h('span', { class: 'brand-sub' });
 
   /**
    * Fits the status bar to its width (D-071): from the full bar, each level drops something until nothing
@@ -430,18 +452,19 @@ class Hud {
       const list = h('div', { class: 'tray-list' });
       this.tray.append(h('div', { class: 'tb-title pulse-title' }, `${CATEGORY_LABELS[this.category]} buildings`), list);
       for (const def of buildings.all().filter((b) => b.category === this.category)) {
+        const locked = lockReason(ctx.city, def.id);
         const card = h(
           'button',
           {
-            class: 'card',
-            title: def.description,
+            class: locked ? 'card locked' : 'card',
+            title: locked ? `${locked}. ${def.description}` : def.description,
             onClick: () => {
               construction.startBuilding(def.id);
               this.syncCards();
             },
           },
           h('div', { class: 'n' }, def.name),
-          h('div', { class: 'c' }, icon('credits'), ` ${fmt(def.stats.cost)} · ${def.footprint[0]}×${def.footprint[1]}`),
+          h('div', { class: 'c' }, locked ? icon('st-off') : icon('credits'), locked ? ' Locked' : ` ${fmt(def.stats.cost)} · ${def.footprint[0]}×${def.footprint[1]}`),
           tags(def),
         );
         card.addEventListener('mouseenter', () => this.peek({ def: def.id }));
@@ -495,6 +518,7 @@ class Hud {
       h('p', { class: 'bp-desc' }, def.description),
       h('div', { class: 'bp-stats' }, ...buildingStats(def).map((r) => h('div', { class: `bp-stat ${r.tone ?? ''}` }, h('span', {}, r.label), h('b', {}, r.value)))),
       h('ul', { class: 'bp-abilities' }, ...abilities.map((a) => h('li', {}, a))),
+      ...(lockReason(ctx.city, def.id) ? [h('p', { class: 'bp-lock' }, icon('st-off'), `${lockReason(ctx.city, def.id)}: see the Goals tab.`)] : []),
       h(
         'div',
         { class: 'bp-place' },
@@ -721,6 +745,61 @@ class Hud {
     return h('div', { class: `ix-vital ${tone}` }, icon(ico), h('b', {}, value), h('span', {}, label));
   }
 
+  /** Level, progress to the next one and age (D-073), for homes and workplaces. */
+  private levelLine(eid: number): string {
+    if (!levels(this.ctx.city, eid)) return `Age ${ageDays(eid).toFixed(1)} days`;
+    const t = Building.tier[eid]!;
+    const stars = '★'.repeat(t + 1) + '☆'.repeat(MAX_TIER - t);
+    const next = t < MAX_TIER ? ` · next level ${Math.round(levelProgress(eid) * 100)}% (thrives when powered, watered, full and green)` : ' · top level';
+    return `Level ${t + 1} ${stars}${next} · age ${ageDays(eid).toFixed(1)} days`;
+  }
+
+  /** The building's switch (D-075): feather a turbine, pause a factory… with what switching does in the tooltip. */
+  private switchButton(eid: number): HTMLElement[] {
+    const it = this.ctx.city.buildingDef(eid).interact;
+    if (!it) return [];
+    const off = Service.off[eid] === 1;
+    return [
+      h(
+        'button',
+        { class: `tool ${off ? 'on' : ''}`, title: it.help, onClick: () => this.ctx.commands.execute('toggleBuilding', { x: Building.x[eid]!, z: Building.z[eid]! }) && this.select(eid) },
+        h('span', { class: 'g' }, icon(off ? 'play' : 'pause')),
+        off ? it.on : it.off,
+      ),
+    ];
+  }
+
+  /** Upgrade and Renovate (D-073): enabled when they would do something and are affordable. */
+  private levelButtons(eid: number): HTMLElement[] {
+    const { ctx } = this;
+    const { city } = ctx;
+    const at = { x: Building.x[eid]!, z: Building.z[eid]! };
+    const out: HTMLElement[] = [];
+    if (levels(city, eid) && Building.tier[eid]! < MAX_TIER) {
+      const why = upgradeBlocker(city, eid);
+      const b = h(
+        'button',
+        { class: 'tool', title: why ?? `Grow it to level ${Building.tier[eid]! + 2} now: more room, more output, more upkeep`, onClick: () => ctx.commands.execute('upgradeBuilding', at) && this.select(eid) },
+        h('span', { class: 'g' }, icon('up')),
+        `Upgrade ◈${fmt(upgradeCost(city, eid))}`,
+      ) as HTMLButtonElement;
+      b.disabled = !!why;
+      out.push(b);
+    }
+    if (ageDays(eid) >= 0.5 || Service.condition[eid]! < 0.95) {
+      const cost = renovateCost(city, eid);
+      const b = h(
+        'button',
+        { class: 'tool', title: 'Renovate: like new (age and weathering reset, condition restored; upkeep drops back)', onClick: () => ctx.commands.execute('renovate', at) && this.select(eid) },
+        h('span', { class: 'g' }, icon('wrench')),
+        `Renovate ◈${fmt(cost)}`,
+      ) as HTMLButtonElement;
+      b.disabled = city.credits < cost;
+      out.push(b);
+    }
+    return out;
+  }
+
   private askAbout(id: string): void {
     const assistant = this.ctx.services.get('assistant');
     assistant.toggle(true);
@@ -796,6 +875,8 @@ class Hud {
       h('div', { class: 'info-hz', 'data-hz': '1' }),
       this.infoActions(
         id,
+        ...this.switchButton(this.selected),
+        ...this.levelButtons(this.selected),
         h(
           'button',
           { class: 'tool ix-raze', title: `Return it to nature now: +◈${fmt(s.cost * DEMOLISH_REFUND)} back (Delete; ⌘Z undoes)`, onClick: () => this.raze(this.selected!) },
@@ -836,6 +917,11 @@ class Hud {
         def.transit ? this.skylaneLine(eid) : '',
         sym ? (Service.paired[eid] ? `✓ Symbiosis: ${sym.label}` : `✗ Unpaired: place a ${sym.partners.map((p) => buildings.get(p).name).join(' or ')} within ${sym.radius} tiles`) : '',
         `Bloom ${Math.round(Service.bloom[eid]! * 100)}% · Condition ${Math.round(Service.condition[eid]! * 100)}%`,
+        this.levelLine(eid),
+        Service.off[eid] ? `⏸ Switched off: ${def.interact?.help ?? 'no output, no draw'}` : '',
+        Service.condition[eid]! < 0.2 && !(p & Problem.RUINED) ? '⚠ Broken down: it barely works until repaired (or renovated)' : '',
+        Service.scorch[eid]! > 0.05 ? `Charred ${Math.round(Service.scorch[eid]! * 100)}%: a repair or renovation cleans it` : '',
+        ...rulesFor(this.ctx.city, eid).map((r) => `⚖ ${r}`),
       ].filter(Boolean);
       const lines = [
         st.energy < 0 ? `Power ${Math.round(Service.power[eid]! * 100)}%` : '',
@@ -904,7 +990,7 @@ class Hud {
       setText(e.sub, sub);
       e.el.classList.toggle('bad', bad);
     };
-    const net = s.income - s.upkeep;
+    const net = s.income + s.fishing + s.tourism - s.insurance - s.upkeep;
     set('credits', fmt(city.credits), city.credits < 0 || net < 0, `  ${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(1)}/s`);
     set('pop', fmt(s.population), false, ` / ${fmt(s.capacity)}`);
     set('energy', `${fmt(s.energyProduced - s.energyUsed)}`, s.energyUsed > s.energyProduced);

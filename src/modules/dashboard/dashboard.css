@@ -458,3 +458,164 @@
   font-family: var(--mono);
   color: var(--ink-faint);
 }
+
+/* Cause & effect tab (D-074): rules in force with their strength, dormant rules, the feed. */
+.ce-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 8px;
+}
+.ce-rule {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+}
+.ce-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+.ce-head b {
+  flex: 1;
+  color: var(--ink);
+}
+.ce-bar {
+  width: 70px;
+  height: 5px;
+  border-radius: var(--pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.ce-bar i {
+  display: block;
+  height: 100%;
+  background: var(--warn);
+}
+.ce-rule p {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.ce-k {
+  display: inline-block;
+  width: 5.8em;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.ce-dormant {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ce-dormant span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.ce-feed {
+  display: grid;
+  gap: 3px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.ce-item {
+  display: grid;
+  grid-template-columns: 9em 1fr;
+  gap: 8px;
+  padding: 3px 4px;
+  font-size: 11.5px;
+  text-align: left;
+  color: var(--ink);
+}
+.ce-item.end {
+  color: var(--ink-faint);
+}
+button.ce-item:hover {
+  background: var(--bg-hover);
+}
+.ce-when {
+  font-family: var(--mono);
+  color: var(--ink-faint);
+}
+.ce-note {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+/* Incident trends and prevention notes (D-076). */
+.il-trend-grid {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+.il-trend {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.4fr) 3em 5.5em 7em 6em 1fr;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.il-trend b {
+  color: var(--ink);
+  font-weight: 500;
+}
+.il-trend .ok,
+.il-prev b {
+  color: var(--accent-2);
+}
+
+.ce-risks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.ce-risk {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  font-size: 11.5px;
+}
+.ce-risk ul {
+  margin: 4px 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-soft);
+}
+.ce-risk li.up {
+  color: var(--warn);
+}
+.ce-risk li.down {
+  color: var(--accent-2);
+}
+.ce-risk p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+.ce-level {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.ce-risk.high .ce-level,
+.ce-risk.severe .ce-level {
+  color: var(--crit);
+}
+.ce-risk.moderate .ce-level {
+  color: var(--warn);
+}
+.ce-risk.low .ce-level {
+  color: var(--accent-2);
+}
