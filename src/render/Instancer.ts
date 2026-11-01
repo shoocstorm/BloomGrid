@@ -389,6 +389,12 @@ export class ChunkedInstancer {
     this.update(0, camera);
   }
 
+  /** The instance's transform once its grow tween ends (a piece still growing in reads at full size). */
+  restMatrix(handle: InstanceHandle, out: Matrix4): Matrix4 {
+    for (const t of this.tweens) if (t.handle === handle && !t.out) return out.copy(t.matrix);
+    return out.fromArray(handle.batch!.mesh.instanceMatrix.array as Float32Array, handle.slot * 16);
+  }
+
   setParam(handle: InstanceHandle, component: number, value: number): void {
     if (handle.batch) handle.batch.setParam(handle.slot, component, value);
   }

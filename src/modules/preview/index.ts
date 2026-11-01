@@ -131,6 +131,11 @@ class Preview {
     this.host = null;
   }
 
+  /** The shown building changed (level, retrofit, ruin, repair): read its pieces again, keeping the view. */
+  changed(eid: number): void {
+    if (this.shown === `e${eid}`) this.load();
+  }
+
   reset(): void {
     this.yaw = this.home.yaw;
     this.pitch = this.home.pitch;
@@ -265,6 +270,13 @@ export const previewModule: GameModule = {
       hide: () => p.hide(),
       reset: () => p.reset(),
     });
+    // The renderer has rebuilt the lot by the time these reach us (construction registers first).
+    const { bus } = ctx;
+    bus.on('building:tier', ({ eid }) => p.changed(eid));
+    bus.on('building:renovated', ({ eid }) => p.changed(eid));
+    bus.on('building:ruined', ({ eid }) => p.changed(eid));
+    bus.on('building:repaired', ({ eid }) => p.changed(eid));
+    bus.on('buildings:level', ({ eids }) => eids.forEach((eid) => p.changed(eid)));
     // After the city frame (core.render), so it draws over the canvas under the stage's window.
     ctx.systems.add({ id: 'preview', phase: 'render', order: 50, update: (_c, f) => p.update(f.dt) });
   },

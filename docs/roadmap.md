@@ -256,6 +256,13 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Advice and "why" follow into proposals; planning questions routed; planner-style reply prompt
 - **Accept:** ✅ `tests/proposals.test.ts`, `bun run test:rust`, ai-probe, in-game one-click build snap (D-089)
 
+## ✅ Flora: bulk building actions, fresh conversation per city (2026-11-01)
+
+- [x] `batch` command (one undo for many changes) and `act_on_buildings` (turn on/off, renovate, upgrade, repair, return to nature by type / district / query)
+- [x] Request-driven narrowing (action, district, type, query) and reply loop guard
+- [x] Conversation, alerts and recent actions reset on a new or loaded city
+- **Accept:** ✅ `tests/bulk.test.ts`, `bun run test:rust`, ai-probe (D-091)
+
 ---
 
 ## Tech debt / open issues

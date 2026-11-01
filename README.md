@@ -99,7 +99,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Do this            | Keys                                                                                               |
 | ------------------ | -------------------------------------------------------------------------------------------------- |
 | Move the camera    | **WASD** / arrows · right-drag or **Q/E** orbit · wheel zoom                                       |
-| Build              | **B** or the **Build** button (bottom centre) opens build mode: pick an action or a building category, then a building (a card explains the action, or shows the building's 3D preview, numbers and abilities) · **R** rotate · **X** bulldoze · **Done**, **B** or **Esc** leaves (Esc or a right-click first puts down what is in hand) |
+| Build              | **B** or the **Build** button (bottom centre) opens build mode: pick an action or a building category, then a building (a card explains the action, or shows the building's 3D preview, numbers and abilities) · **R** rotate · **X** bulldoze · **Done**, **B** or **Esc** leaves (Esc or a right-click first puts down what is in hand) · a new building rises inside a blueprint of its finished size, with a tag counting down until it is **Ready** |
 | Select & remove    | Click a building to inspect it · **Ctrl/⌘-drag** a box to select every building of one type inside it (the type under where you start) · **Delete** (or ⌫) returns the selection to nature, as does the inspector's *Return to nature* (one undo restores it all) |
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **Z** Bloom Retrofit · **Y** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
@@ -129,7 +129,9 @@ is and the exact instructions (system prompts) her model gets each turn, plus th
 **⚒ Tools** tab lists every tool she can use, with its parameters, and lets you run one directly. Ask *"what should we build next?"* (or for advice, or why something is failing) and she diagnoses the
 city and proposes concrete builds as cards: what, how many, where, why and what it achieves. **Build** on a card
 places them with one click (undoable), **Lot** shows the spot first, and once built each new building gets a
-**Locate** chip that flies you there. When a system drops, her alert already carries the cards.
+**Locate** chip that flies you there. When a system drops, her alert already carries the cards. She also acts on many buildings at once: *"turn off all wind turbines"*, *"start all wind turbines"*,
+*"renovate all canopy towers in Westbrook"*, *"upgrade the old homes in Bayfront"* (one ⌘Z undoes the lot, and the
+buildings she changed get Locate chips). Founding a new island or loading a save starts a fresh conversation.
 
 **Seedvault** (**?** or F1, or the book in the top bar): the city's knowledge base. Guides to every system, what
 causes what, step-by-step incident runbooks (fires, quakes, floods, blackouts, tornadoes, tsunamis, debt, the fail

@@ -56,7 +56,8 @@ const CATEGORY_ICON: Record<BuildingCategory, string> = {
 };
 /** Ids a tool result names as built (`built: "NRG-0042"` or `built: [...]`). */
 const builtIds = (result: unknown): string[] => {
-  const b = (result as { built?: unknown } | null)?.built;
+  const r = result as { built?: unknown; affected?: unknown } | null;
+  const b = r?.built ?? r?.affected;
   return (Array.isArray(b) ? b : [b]).filter((v): v is string => typeof v === 'string' && /^[A-Z]{3}-/.test(v));
 };
 /** Log entries kept on screen; older ones fade out (the model only ever sees the last few turns anyway). */
@@ -618,6 +619,22 @@ export class AssistantPanel {
     );
   }
 
+  /**
+   * A new city (D-091): the log, recent actions and session counts start empty, with one line saying why. Nothing
+   * is shown for the first city of the session (the log only has the welcome then).
+   */
+  reset(cityName: string): void {
+    const had = this.log.querySelector('.ai-msg.user, .ai-msg.notice');
+    this.actionsRun = [];
+    this.uses.clear();
+    this.timer = 99;
+    if (!had) return;
+    for (const el of Array.from(this.log.children)) el.remove();
+    this.unread = 0;
+    this.badge.classList.add('hidden');
+    this.system(`New city: ${cityName || 'a new island'}. I've started a fresh conversation; nothing from the last city carries over.`);
+  }
+
   /** Fades an entry out, then removes it; a closed panel removes at once (nothing to see, no timer kept). */
   private fade(el: HTMLElement): void {
     if (el.classList.contains('ai-fade')) return;
@@ -818,7 +835,7 @@ export class AssistantPanel {
         const props = (r.result as { proposals?: ProposalCard[] } | undefined)?.proposals;
         if (r.ok && props?.length) steps.append(this.proposals(props));
         const built = r.ok && r.call.effect === 'mutate' ? builtIds(r.result) : [];
-        if (built.length) steps.append(this.locateRow(built));
+        if (built.length) steps.append(this.locateRow(built, (r.result as { built?: unknown }).built ? 'Built' : 'Done'));
         if (r.ok && r.call.effect === 'mutate') {
           const ids = Object.values((r.result as Record<string, unknown> | undefined) ?? {})
             .flat()

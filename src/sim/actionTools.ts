@@ -24,6 +24,8 @@ export interface ActionCtx extends SimCtx {
     execute(type: string, payload: unknown, undoable?: boolean): boolean;
     undo(): boolean;
     readonly canUndo: boolean;
+    /** Indexes of the records the last `batch` command applied. */
+    readonly lastBatch?: readonly number[];
   };
 }
 

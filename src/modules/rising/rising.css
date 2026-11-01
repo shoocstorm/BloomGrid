@@ -1,0 +1,132 @@
+/* Build progress tags (D-091): a small instrument pill over each rising building, on a stem to its roof. */
+/* Under every HUD panel (the top bar, sheets): it labels the world, so it slides beneath the HUD like the city. */
+#hud > .rise-tags {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.rise-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
+  background: var(--bg-strong);
+  color: var(--ink);
+  white-space: nowrap;
+  /* Anchored at the stem's foot (the roof point), the pill above it. */
+  translate: -50% calc(-100% - 14px);
+  animation: rise-in 0.35s ease-out both;
+}
+.rise-tag::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: 14px;
+  background: linear-gradient(var(--accent), transparent);
+}
+.rise-tag.off {
+  visibility: hidden;
+}
+.rise-ring {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+.rise-ring > .ring {
+  position: absolute;
+  inset: 0;
+  rotate: -90deg;
+}
+.rise-ring .ring circle {
+  fill: none;
+  stroke-width: 3;
+}
+.rise-ring .bg {
+  stroke: var(--line);
+}
+.rise-ring .fg {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.22s linear;
+}
+.rise-ring > .ico {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 13px;
+  height: 13px;
+  color: var(--accent);
+}
+.rise-ring > .ico-sparkle,
+.rise-tag.done .rise-ring > .ico-build {
+  display: none;
+}
+.rise-tag.done .rise-ring > .ico-sparkle {
+  display: block;
+  color: var(--accent-2);
+  animation: rise-pop 0.4s ease-out;
+}
+.rise-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.rise-text b {
+  font-size: 12px;
+  font-weight: 600;
+}
+.rise-sub {
+  display: flex;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.rise-left {
+  color: var(--accent);
+}
+.rise-tag.done {
+  border-color: var(--accent-2);
+  animation: rise-out 0.5s ease-in 1.1s both;
+}
+.rise-tag.done .rise-ring .fg {
+  stroke: var(--accent-2);
+}
+.rise-tag.done .rise-stage {
+  color: var(--accent-2);
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise-pop {
+  from {
+    scale: 0.3;
+  }
+  60% {
+    scale: 1.25;
+  }
+}
+@keyframes rise-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.compact .rise-tag {
+  padding-right: 8px;
+}
+.compact .rise-text b {
+  font-size: 11px;
+}

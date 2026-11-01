@@ -26,10 +26,35 @@ export class CommandStack<Ctx> {
   readonly log: CommandRecord[] = [];
   onChange: (() => void) | null = null;
 
+  /** Indexes of the records the last `batch` applied (the rest were refused). */
+  lastBatch: readonly number[] = [];
+
   constructor(
     private ctx: Ctx,
     private limit = 200,
-  ) {}
+  ) {
+    // `batch`: many records as one action (D-091), so a bulk change is one undo. Records that are refused are
+    // skipped; the batch is refused only when none applied. Undo reverts the applied ones in reverse order.
+    this.handlers.set('batch', {
+      apply: (c, records) => {
+        const done: { i: number; undo: unknown }[] = [];
+        (records as CommandRecord[]).forEach((r, i) => {
+          const h = r.type === 'batch' ? undefined : this.handlers.get(r.type);
+          const undo = h?.apply(c, r.payload) ?? null;
+          if (undo !== null) done.push({ i, undo });
+        });
+        this.lastBatch = done.map((d) => d.i);
+        return done.length ? done : null;
+      },
+      revert: (c, records, done) => {
+        const list = done as { i: number; undo: unknown }[];
+        for (let j = list.length - 1; j >= 0; j--) {
+          const r = (records as CommandRecord[])[list[j]!.i]!;
+          this.handlers.get(r.type)!.revert(c, r.payload, list[j]!.undo);
+        }
+      },
+    });
+  }
 
   register<P, U>(type: string, handler: CommandHandler<Ctx, P, U>): void {
     if (this.handlers.has(type)) throw new Error(`Command "${type}" already registered`);

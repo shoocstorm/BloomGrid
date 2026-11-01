@@ -150,6 +150,8 @@ export function plainIntent(request: string): string | null {
     // Hazards (D-050) before the general remedies: crews to fires, rebuilding ruins.
     [/\b(put out|extinguish|firefighters?|fire ?crews?|dispatch (the )?crews?|send (the )?crews?)\b/, 'respond_incident'],
     [/\b(rebuild|ruins?|repair (the )?(damage|damaged|ruins?|quake|fire))\b/, 'repair_damage'],
+    // Many buildings at once (D-091): "turn on all wind turbines", "renovate every canopy tower in Westbrook".
+    [/\b(turn|switch|power|shut) (on|off|down)\b.*\b(all|every|each|the)\b|\b(all|every|each)\b.*\b(turn|switch) (on|off)\b|\b(start|stop|pause|resume|feather|unfeather|renovate|refurbish|upgrade|level up|repair|demolish|bulldoze|remove)\b.*\b(all|every|each)\b|\b(all|every|each)\b.*\b(on|off)$/, 'act_on_buildings'],
     // Levels and ageing (D-073).
     [/\b(renovate|refurbish)\b/, 'renovate'],
     [/\b(upgrade|level up)\b/, 'upgrade_building'],
@@ -577,13 +579,44 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
     },
   ];
   let streamed = '';
-  const raw = await o.llm.generate(
-    messages,
-    { maxTokens: 220, temperature: 0.2, signal: o.signal },
-    (piece) => {
+  // Small models can fall into a loop, repeating a sentence until the token budget runs out: the reply stops at
+  // the first repeated sentence (its own controller, so the turn itself is not aborted).
+  const stop = new AbortController();
+  // Linked by hand: `AbortSignal.any` is missing from older WebKit (the desktop app's web view).
+  o.signal?.addEventListener('abort', () => stop.abort(), { once: true });
+  const signal = stop.signal;
+  let raw = '';
+  try {
+    raw = await o.llm.generate(messages, { maxTokens: 220, temperature: 0.2, signal }, (piece) => {
       streamed += piece;
       emit({ type: 'delta', text: piece });
-    },
-  );
-  return { answer: stripThink(raw || streamed), steps };
+      if (/[.!?]\s$/.test(streamed) && repeatsItself(stripThink(streamed))) stop.abort();
+    });
+  } catch (e) {
+    if (o.signal?.aborted || !stop.signal.aborted) throw e;
+  }
+  return { answer: tidyAnswer(stripThink(stop.signal.aborted ? streamed : raw || streamed)), steps };
+}
+
+const sentenceKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const sentencesOf = (text: string) => text.split(/(?<=[.!?])\s+/).filter((x) => x.trim());
+
+/** True when the last finished sentence already appeared earlier in the text. */
+export function repeatsItself(text: string): boolean {
+  const all = sentencesOf(text.trim()).map(sentenceKey);
+  const last = all[all.length - 1];
+  return !!last && last.length > 12 && all.slice(0, -1).includes(last);
+}
+
+/** The answer without repeated sentences, at most 5 sentences. */
+export function tidyAnswer(text: string): string {
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  for (const s of sentencesOf(text.trim())) {
+    const k = sentenceKey(s);
+    if (k.length > 12 && seen.has(k)) continue;
+    seen.add(k);
+    kept.push(s.trim());
+  }
+  return kept.slice(0, 5).join(' ');
 }

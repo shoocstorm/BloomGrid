@@ -339,6 +339,21 @@ interface Entry {
   shade: number;
   problems: number;
   alert: InstanceHandle | null;
+  /** Seconds the build-in animation takes from `building:added` (0 = appeared at once). */
+  rise: number;
+}
+
+/** Build-in pace: a template piece at local height y starts growing after y × RISE_PER_UNIT seconds. */
+export const RISE_PER_UNIT = 0.35;
+/** Grow tween of one template piece (s). */
+const PIECE_GROW = 0.7;
+
+/** A building rising on its lot (see `BuildingRenderer.rising`). */
+export interface Rising {
+  base: Matrix4;
+  bounds: BuildingTemplate['bounds'];
+  height: number;
+  seconds: number;
 }
 
 // Marker colour by most urgent problem first.
@@ -460,6 +475,14 @@ export class BuildingRenderer {
     return out;
   }
 
+  /** A building that has just been placed and is still rising (null once it appeared at once, or is unknown). */
+  rising(eid: number): Rising | null {
+    const entry = this.entries.get(eid);
+    if (!entry?.rise) return null;
+    const b = entry.template?.bounds ?? { minX: -0.5, maxX: 0.5, minZ: -0.5, maxZ: 0.5, top: entry.height };
+    return { base: entry.base, bounds: b, height: entry.height, seconds: entry.rise };
+  }
+
   /** GLB parts for design previews: null while loading. */
   private designGlbs = new Map<string, Awaited<ReturnType<GameContext['assets']['loadGlbPieces']>> | null | 'failed'>();
 
@@ -467,12 +490,13 @@ export class BuildingRenderer {
     const entry = this.entries.get(eid);
     if (!entry) return [];
     const out: { piece: string; matrix: Matrix4; color: Color; params: number[] }[] = [];
-    for (const h of [...entry.handles, ...entry.retro]) {
+    // Everything the lot shows now: base, retrofit, level additions (D-073) and rubble, at full size.
+    for (const h of [...entry.handles, ...entry.retro, ...entry.tierH, ...entry.rubble]) {
       const b = h.batch;
       if (!b) continue;
       out.push({
         piece: b.piece.id,
-        matrix: new Matrix4().fromArray(b.mesh.instanceMatrix.array as Float32Array, h.slot * 16),
+        matrix: this.ctx.instancer.restMatrix(h, new Matrix4()),
         color: new Color().fromArray(b.mesh.instanceColor!.array as Float32Array, h.slot * 3),
         params: Array.from((b.params.array as Float32Array).subarray(h.slot * 4, h.slot * 4 + 4)),
       });
@@ -511,6 +535,7 @@ export class BuildingRenderer {
       shade: 0.93 + hash2(rec.x, rec.z, 4259) * 0.12,
       problems: 0,
       alert: null,
+      rise: 0,
     };
     this.entries.set(eid, entry);
     _params.set([rec.greenery, 0.5, 0, 1]);
@@ -518,8 +543,11 @@ export class BuildingRenderer {
 
     const spawnTemplate = () => {
       for (const p of place.template.pieces) {
-        if (p.growAt <= rec.greenery) this.spawn(entry, p, rec.greenery, animate ? p.y * 0.35 + Math.random() * 0.08 : -1);
-        else entry.pending.push(p);
+        if (p.growAt <= rec.greenery) {
+          const delay = animate ? p.y * RISE_PER_UNIT + Math.random() * 0.08 : -1;
+          this.spawn(entry, p, rec.greenery, delay);
+          entry.rise = Math.max(entry.rise, delay + PIECE_GROW);
+        } else entry.pending.push(p);
       }
       entry.pending.sort((a, b) => a.growAt - b.growAt);
     };
@@ -537,6 +565,7 @@ export class BuildingRenderer {
             const world = new Matrix4().multiplyMatrices(scaled, part.matrix);
             entry.handles.push(instancer.addMatrix(part.piece, world, _c.setHex(0xffffff), _params, animate ? 0 : -1, 1.2));
           }
+          if (animate) entry.rise = Math.max(entry.rise, 1.2);
           this.ctx.services.tryGet('world')?.atmosphere.invalidateShadows();
         },
         () => {
@@ -632,7 +661,7 @@ export class BuildingRenderer {
     if (skin) _params[0] = 1 - entry.weather;
     const world = _m.multiplyMatrices(entry.base, p.local);
     const tint = styled ? restyle(p.piece, p.tint, entry.style, entry.shade) : p.tint;
-    const h = this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(tint), _params, delay, 0.7);
+    const h = this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(tint), _params, delay, PIECE_GROW);
     entry.handles.push(h);
     if (p.piece === 'mossBox') entry.moss.push(h);
     if (p.piece === 'slab' || p.piece === 'concreteCyl') entry.walls.push(h);

@@ -14,6 +14,7 @@ import { switchTools } from '@/sim/switchTools';
 import { riskTools } from '@/sim/riskTools';
 import { growthTools } from '@/sim/growthTools';
 import { proposalTools } from '@/sim/proposalTools';
+import { bulkTools } from '@/sim/bulkTools';
 import { proposeBuilds, type ProposalFocus } from '@/sim/proposals';
 import { floraBilled, floraBlocker, floraLocked } from '@/sim/flora';
 import { PROJECTS } from '@/sim/projects';
@@ -70,6 +71,9 @@ class Assistant {
       autoApprove: () => this.autoApprove,
     });
     this.watch();
+    // A new or loaded city starts a new conversation: the last city's history, ids and notices mean nothing here,
+    // and the undo stack they pointed at is gone. A turn in flight is stopped.
+    ctx.bus.on('city:reset', () => this.newCity());
     this.engine.onChange((s) => {
       if (s.status !== 'ready' || !this.pending || this.busy) return;
       const request = this.pending;
@@ -166,9 +170,16 @@ class Assistant {
   /** Building types and districts as enums, so the model can only name real ones; pinned when the request names one. */
   private narrow = (tool: AgentTool<unknown>, schema: JsonSchema, request: string): JsonSchema => {
     const props = { ...schema.properties };
-    const r = ` ${request.toLowerCase().replace(/[^a-z0-9]+/g, ' ')} `;
-    if (props.type && (tool.name === 'build' || tool.name === 'find_sites')) {
-      const all = buildings.all();
+    // Plurals name types too ("all canopy towers", "every factory").
+    const r = ` ${request
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/(\w{3,})ies\b/g, '$1y $1ies')
+      .replace(/(\w{3,}[^s])s\b/g, '$1 $1s')} `;
+    if (props.type && (tool.name === 'build' || tool.name === 'find_sites' || tool.name === 'act_on_buildings')) {
+      // Acting on buildings: only types the city has.
+      const present = new Set(this.ctx.city.buildingEntities().map((e) => this.ctx.city.buildingDef(e).id));
+      const all = tool.name === 'act_on_buildings' ? buildings.all().filter((d) => present.has(d.id)) : buildings.all();
       const words = (s: string) =>
         ` ${s
           .toLowerCase()
@@ -196,6 +207,16 @@ class Assistant {
     const p = defaultPolicy(t);
     return p === 'ask' && this.autoApprove ? 'auto' : p;
   };
+
+  /** Switching city: stops any turn, forgets the conversation, alerts and recent actions, and says so. */
+  private newCity(): void {
+    this.busy?.abort();
+    this.pending = null;
+    this.history = [];
+    this.lastNotice.clear();
+    // The city's name is set after the reset (new island or loaded save): greet once it is.
+    setTimeout(() => this.panel.reset(this.ctx.city.growth.name));
+  }
 
   /** Forgets the conversation: the log and the history the next turn would send to the model. */
   clear(): void {
@@ -497,7 +518,7 @@ export const assistantModule: GameModule = {
   deps: ['inventory', 'pulse', 'hud'],
   init(ctx) {
     const agent = ctx.services.get('agent');
-    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...gameTools()]) agent.register(t);
+    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...bulkTools, ...gameTools()]) agent.register(t);
     const a = new Assistant(ctx);
     ctx.services.provide('assistant', {
       toggle: (open) => a.panel.toggle(open),

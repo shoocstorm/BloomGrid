@@ -1282,3 +1282,60 @@ camera often landed with the object behind towers; the only selection cue was th
 
 **Consequences:** +4 draw calls only while something is selected. `tests/locate.test.ts` covers the glide.
 
+
+## D-091 — Build progress on the lot while a building rises (2026-11-01)
+
+**Context:** a new building rises piece by piece (a piece at local height y starts after y × 0.35 s), a few seconds
+for a tall one, with nothing telling the player how big it will be or when it stands.
+
+**Decision:** module `modules/rising` follows the renderer's own timeline (`BuildingRenderer.rising(eid)`: the
+recorded build-in length, bounds and base, read on `building:added` when not loading). While a building rises:
+
+- a dim **blueprint** outlines the finished volume from the first frame;
+- bright **scaffold posts** at its corners grow with the construction front, and a bright **scan frame** rides
+  the front itself (`RISE_PER_UNIT`);
+- a **tag** over the roof (progress ring, name, stage: foundations / frame / finishing, seconds left) turns to
+  **Ready** when the last piece lands; then the frame fades and the tag follows.
+
+Two instanced meshes on the unlit `beacon` material (posed only while something rises, up to 8 at once; zero-size
+for the first frames so they compile in the boot warm-up). Tags live in a HUD layer *under* the panels and are
+clamped below the top bar and the phone's folded chips; text updates at 5 Hz with the ring easing in CSS.
+
+**Rejected:** a sim construction phase (buildings working only after a build time): changes balance, pacing and
+saves for what is a presentation need.
+
+**Consequences:** +2 draw calls only while something rises. Repairs of ruins (re-added) show it too.
+
+## D-091 — Flora acts on many buildings at once; a new city starts a new conversation (2026-11-01)
+
+**Context:** Stewards asked Flora for things like "turn on all wind turbines" or "renovate all canopy towers in
+Westbrook": the existing tools took one id, a whole type with no district (switches), or "the oldest N" (renovate).
+Her conversation also carried over when a new city was founded or a save loaded, so its ids and undo hints pointed
+at buildings that no longer existed.
+
+**Decision:**
+- **`batch` command** built into `CommandStack`: a list of records applied as one action (refused records are
+  skipped, `lastBatch` says which applied; refused only when none did). One undo reverts the lot, redo re-applies,
+  and replays stay deterministic (the record holds its sub-records).
+- **`act_on_buildings`** (`sim/bulkTools.ts`, mutate): picks buildings by type (fuzzy, plural-tolerant in the host's
+  narrowing, only types the city has), district (rectangle containment) and/or an inventory query, then applies one
+  action: `turn_on` / `turn_off` (switchable buildings), `renovate`, `upgrade`, `repair`, `return_to_nature`. It plans
+  every building first (skipping, with counted reasons: already on, like new, upgrade blocked, credits short) and
+  spends credits in order. The result leads with the count ("110 of 110 switched off") and lists up to 8 ids, which
+  the console shows as Locate chips ("✓ Done").
+- **Narrowing for small models** (the tool's `narrow`): the action the request names is the only one offered; a
+  district or type is offered only when the request names one; a query only from filter words the request uses
+  ("old" → `is:old`, "critical", "worn", "unpowered"). Unnarrowed, qwen3-1.7b added a district from the brief and
+  `is:critical` and matched nothing. `plainIntent` routes "verb … all/every/each" requests to it (after the hazard
+  routes, before single-building renovate/upgrade).
+- **Reply hygiene**: the reply stops at the first repeated sentence (its own abort controller, linked by hand for
+  older WebKit) and `tidyAnswer` drops repeats and keeps at most 5 sentences: the 1.7B model looped "The water
+  deficit is still present" until its token budget ran out.
+- **New city, new conversation**: on `city:reset` (new island, showcase, loaded save) the assistant stops any turn,
+  forgets its history, pending request and alert throttles, and the console clears its log, recent actions and
+  session counts and says why (nothing is shown for the first city of a session).
+
+**Consequences:** Verified with `bun run ai-probe` (qwen3-1.7b): "turn off all wind turbines" and "start all wind
+turbines" each made one correct call (110 turbines), "renovate all canopy towers in Westbrook" one correct call.
+Grammar fixture updated. `tests/bulk.test.ts`.
+

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { proposalTools } from '@/sim/proposalTools';
+import { bulkTools } from '@/sim/bulkTools';
 import { describe, expect, it } from 'vitest';
 import { AgentToolRegistry } from '@/core/AgentTools';
 import {
@@ -40,7 +41,7 @@ function founded() {
 function registry(s: ReturnType<typeof makeSim>) {
   const ctx: ActionCtx = { city: s.city, commands: s.commands };
   const r = new AgentToolRegistry<ActionCtx>(ctx);
-  for (const t of [...inventoryTools, ...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...proposalTools]) r.register(t);
+  for (const t of [...inventoryTools, ...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...proposalTools, ...bulkTools]) r.register(t);
   return r;
 }
 
