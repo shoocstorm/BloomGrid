@@ -22,6 +22,8 @@ export const TIER_UPKEEP = [1, 1.3, 1.7] as const;
 /** Sim days of thriving needed to reach the next level. */
 export const LEVEL_DAYS = [1.5, 3] as const;
 export const MAX_TIER = 2;
+/** From this age (days) a building counts as old: upkeep has crept up 15% and renovation pays (inventory `is:old`). */
+export const OLD_DAYS = 10;
 
 export const size = (eid: number): number => TIER_SIZE[Building.tier[eid]!] ?? 1;
 export const use = (eid: number): number => TIER_USE[Building.tier[eid]!] ?? 1;

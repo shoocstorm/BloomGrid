@@ -18,6 +18,8 @@ export interface PulseService {
    * appended (their phone home), and go back there on phones, where the console shows only the pulse.
    */
   addTab(id: string, label: string, glyph: string, ...els: HTMLElement[]): ConsoleTab;
+  /** The pulse tab's body: a tab's phone home when it has no panel of its own (Goals sits at its top on phones). */
+  readonly body: HTMLElement;
   /** Folded to its header? */
   readonly collapsed: boolean;
   fold(folded: boolean): void;
@@ -87,6 +89,7 @@ function sparkline(canvas: HTMLCanvasElement, data: number[], color: string): vo
  */
 export class PulsePanel {
   readonly el: HTMLElement;
+  readonly body = h('div', { class: 'pulse-body' });
   private rows = new Map<SystemKey, { dot: HTMLElement; tier: HTMLElement; val: HTMLElement }>();
   private demand = new Map<string, HTMLElement>();
   private budget = new Map<string, HTMLElement>();
@@ -110,7 +113,7 @@ export class PulsePanel {
   private current = 'pulse';
 
   constructor(private ctx: GameContext) {
-    const body = h('div', { class: 'pulse-body' });
+    const body = this.body;
     this.el = h(
       'section',
       { class: 'pulse panel holo' },

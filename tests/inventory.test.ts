@@ -14,6 +14,9 @@ import {
   summarize,
 } from '@/sim/inventory';
 import { inventoryTools } from '@/sim/inventoryTools';
+import { Building, Service } from '@/ecs/components';
+import { MAX_TIER, OLD_DAYS } from '@/sim/levels';
+import { DAY_LENGTH } from '@/sim/pulseConst';
 import type { SimCtx } from '@/sim/systems';
 import { findSpot, makeSim } from './helpers';
 
@@ -97,6 +100,26 @@ describe('queries', () => {
         ['district', 'garden quarter'],
       ],
     });
+  });
+
+  it('tags old, upgradable and top-level buildings for quick filters', () => {
+    const { city } = founded();
+    const homes = queryInventory(city, { kind: 'building', group: 'living', sort: 'id' }).items;
+    const [a, b] = [homes[0]!.ref.eid!, homes[1]!.ref.eid!];
+    Service.age[a] = (OLD_DAYS + 1) * DAY_LENGTH;
+    Building.tier[b] = MAX_TIER;
+    const all = listObjects(city);
+    const old = filterObjects(all, { tag: 'old' }).items.map((o) => o.ref.eid);
+    expect(old).toContain(a);
+    expect(old).not.toContain(b);
+    expect(filterObjects(all, { text: 'is:top' }).items.map((o) => o.ref.eid)).toContain(b);
+    const up = filterObjects(all, { tag: 'upgradable' }).items;
+    expect(up.length).toBeGreaterThan(0);
+    expect(up.every((o) => (o.metrics.tier ?? 0) <= MAX_TIER && !o.tags!.includes('top'))).toBe(true);
+    expect(up.map((o) => o.ref.eid)).not.toContain(b);
+    // Run down: no longer upgradable until renovated.
+    Service.condition[a] = 0.3;
+    expect(filterObjects(listObjects(city), { tag: 'upgradable' }).items.map((o) => o.ref.eid)).not.toContain(a);
   });
 
   it('filters, sorts and pages a snapshot', () => {

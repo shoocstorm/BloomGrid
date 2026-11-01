@@ -275,6 +275,9 @@ export const dashboardModule: GameModule = {
       ctx.bus.emit('toast', { text: `⚖ ${text.split('. ')[0]} (Dashboard → Causes)`, tone: good ? 'ok' : 'bad' });
     });
     ctx.services.provide('dashboard', {
+      get isOpen() {
+        return db.isOpen;
+      },
       toggle: () => db.toggle(),
       openInventory(id?: string) {
         if (!db.isOpen || db.activeTab !== 'inventory') db.openTab('inventory');
@@ -297,6 +300,7 @@ declare module '@/core/Services' {
   interface GameServices {
     dashboard: {
       toggle(): void;
+      readonly isOpen: boolean;
       /** Opens the Inventory tab, optionally on one object id. */
       openInventory(id?: string): void;
       /** Opens the Incidents tab: fires and ruins now, and the incident log (D-050). */

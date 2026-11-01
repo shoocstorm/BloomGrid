@@ -88,7 +88,8 @@ export class ToolManager {
         return true;
       }
       for (const t of this.tools.values()) {
-        if (t.hotkey && t.hotkey === e.code && !e.ctrlKey && !e.metaKey) {
+        // Already on: let the key through (Esc on the inspect tool reaches dialogs and the data lens).
+        if (t.hotkey && t.hotkey === e.code && !e.ctrlKey && !e.metaKey && t.id !== this.active?.id) {
           this.setActive(t.id);
           return true;
         }

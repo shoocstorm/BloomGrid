@@ -126,7 +126,7 @@ describe('crises', () => {
     const a = run();
     expect(a.length).toBeGreaterThan(1);
     expect(run()).toEqual(a);
-  }, 30_000); // two sim days on the 512 map, twice
+  }, 180_000); // two sim days on the 512 map, twice: ~8 s locally, past 30 s on a busy CI runner
 });
 
 describe('stewardship', () => {

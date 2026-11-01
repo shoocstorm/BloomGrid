@@ -542,3 +542,18 @@ body.compact.flora-open #hud > :not(.ai) {
 .compact .info.closing {
   transform: translateY(14px);
 }
+
+/* Phones: City Pulse has its chip, so the top bar's Pulse toggle goes (D-081). */
+.compact .act-pulse {
+  display: none;
+}
+/* Six action buttons beside the clock: slimmer buttons, no rule after the view toggles. */
+.compact .actions .icon-btn {
+  min-width: 30px;
+  padding: 0 4px;
+}
+.compact .act-lead {
+  padding-right: 0;
+  margin-right: 0;
+  border-right: 0;
+}

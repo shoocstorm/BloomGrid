@@ -51,7 +51,7 @@ const rgb = (hex: number): [number, number, number] => [(hex >> 16) & 255, (hex 
 const ZONE_ORDER = Object.keys(ZONES) as ZoneKind[];
 
 /**
- * City map (M, ⌖ map button in the top bar's stats): a holographic plan of the island painted from the live
+ * City map (M, ⌖ map button in the top bar's actions): a holographic plan of the island painted from the live
  * city when opened (terrain relief, water depth, highways, buildings), every named district tinted and outlined
  * with its name, building and resident counts placed at its centre, a legend, and the camera's position and
  * heading. Colours show each area's zone (living, work, industry, entertainment, sports…; D-049), or, toggled,
@@ -434,17 +434,16 @@ export const cityMapModule: GameModule = {
   deps: ['hud'],
   init(ctx) {
     const map = new CityMap(ctx);
-    ctx.services.get('hud').stats.prepend(
+    ctx.services.get('hud').lead.append(
       h(
         'button',
         {
-          class: 'cmap-btn',
+          class: 'icon-btn cmap-btn',
           title: 'City map: districts (M)',
           'aria-label': 'Open the city map',
           onClick: () => map.toggle(),
         },
-        h('span', { class: 'g' }, icon('map')),
-        h('span', { class: 'l' }, 'Map'),
+        icon('map'),
       ),
     );
     ctx.services.provide('citymap', {

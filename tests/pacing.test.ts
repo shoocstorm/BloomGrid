@@ -134,5 +134,5 @@ describe('fresh island pacing (Phase 22)', () => {
     expect(min('flora')).toBeLessThan(min('skylanes'));
     expect(r.minCredits).toBeGreaterThan(0);
     expect(r.population).toBeGreaterThan(6000);
-  });
+  }, 180_000); // 165 sim-minutes of play: ~18 s locally, past 30 s on a busy CI runner
 });

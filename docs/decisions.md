@@ -1027,3 +1027,51 @@ closes Flora's console before the dawn shots, scales its timed actions with `--d
 crf 25 / preset slow so the mp4 stays small enough to commit as `public/assets/feature-trailer.mp4` (GitHub's
 pre-receive hook rejects blobs over 100 MB — a 131 MB crf-20 take was refused during the v0.1.6 release; ~70 MB
 for 76 s passes with only the over-50 MB warning).
+
+## D-080 — Plan-v4 deferred items: phone Goals, Aeroline construction, age/level filters, Risk lens, nearby sounds (2026-11-01)
+
+- **Goals on phones.** The console shows only the pulse on phones, so the Goals panel's phone home is the top of
+  the City Pulse body (`pulse` service `body`), shown only on a fresh island and without card descriptions; it
+  refreshes while the sheet is open, and a toast says once when a project becomes ready (no tab badge there).
+- **Aeroline construction.** While the project runs the line rises round the loop with its progress. The viaduct is
+  one baked mesh (no per-piece order to reveal), so `aeroline/construction.ts` clones the finished materials with a
+  vertex stage that sweeps by angle about the loop's centre, from just behind the first station: ahead of the front
+  vertices collapse to one point (no triangles), in a 5% band they rise from below the ground with a warm glow.
+  The stock materials go back on when it opens, so normal play compiles and pays nothing extra; the clone compiles
+  once at the start (a one-off hitch). Shadows are re-cast at most twice a second while the front moves. The module
+  now rebuilds from sim state (`sync`) and tears down on `city:reset` / `load:done` and when the start is undone
+  (before, a new game kept the old line). `aeroline.deck` is 0 until the line opens (pods don't land on the works).
+- **Inventory age / level.** Buildings carry `tags` (`old`: `OLD_DAYS` = 10+ days, upkeep up 15%; `upgradable`:
+  `upgradeBlocker` passes now, credits included; `top`), filtered by `is:` / `tag:` in a search or `tag` in a query,
+  an age / level menu, Oldest / Level sorts, and an "L2 · 14 d" reading while those are in use. Rejected: an
+  `upgradable` that ignored credits (it matched every home and workplace, parks included, since all have jobs).
+- **Risk lens.** `buildingExposure` (`sim/risk.ts`) scores each building from the sim's own reach rules: low
+  unwalled waterfront 0.4, no working Ember Watch in reach 0.3, towers and turbines 0.1, homes with no Storm
+  Shelter in reach 0.15, condition under 60% up to 0.3. The lens paints footprints; the inspector lists the reasons.
+- **Nearby sounds.** Three more ambience beds follow the camera: a maglev rush (low-pass noise opening with
+  nearness and speed) plus a sine whine rising with speed (`aeroline.nearest`), a band-passed whoosh from the
+  nearest sky-lane pod (160 pods sampled per 4 Hz tick, so a large fleet takes a few ticks), and a fire roar with
+  crackles (1–6 band-passed noise ticks of 20–70 ms per tick by heat, kept off the last 4 effect voices). Perf with `--sound`
+  matched HEAD within noise (headless main thread ≈ 20–22% active on this machine for both).
+
+## D-081 — Top bar view toggles, Save / Load in Settings, explained lenses, Esc, no corner brackets (2026-11-01)
+
+- **Top bar.** The actions panel starts with a group of view toggles (`hud.lead`, ruled off from the rest): City
+  Pulse show / hide (lit while open; phones keep its chip and drop the button), the city map and the fireworks
+  launcher (shell count as a corner badge, hidden at `fit-4`). Map and fireworks left the stats strip, which gains
+  room before it sheds stats. Phones use slimmer action buttons so six fit beside the clock at 390 px.
+- **Save / Load in Settings.** Settings is one panel with Game / Sound / Display tabs (last tab remembered).
+  Game holds a saved-city card: name, day, residents and how long ago, from a small `save:<slot>:info` record
+  written with each save (`SaveManager.info`; older saves without one still count as a save). Load asks once
+  ("Replace this city?", 4 s) because it discards the city on screen; ⌘S / ⌘L still work anywhere. Settings closes
+  on Esc and on a press outside it (the outside test now ignores non-Node targets, which threw).
+- **Lens card.** Every lens spec carries `about` / `read` / `act`. City Pulse → Lenses shows the hovered or active
+  lens in the Build tab's card idiom with its colour scale, plus a live reading from the lens's own values (tiles
+  shown, share at the good and bad ends). The lens list is two columns in the console so the card stays in view.
+  Phones show a short card under the lens buttons while a lens is on.
+- **Quitting a lens.** Esc, ✕ on the legend, or Off on the card. Esc used to be swallowed by the tool registry:
+  the inspect tool's hotkey is Escape, so pressing it while already inspecting "re-selected" it and consumed the
+  key. Tools now let a hotkey through when its tool is already active; the lens defers to an open dashboard, map
+  or Settings so Esc closes those first.
+- **No corner brackets.** The `.holo` corner brackets (`--hb`), the welcome card's reticle and the inspector
+  stage's corners are gone; glass, edge glow and the header carry the look.

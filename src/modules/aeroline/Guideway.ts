@@ -258,6 +258,16 @@ export class Guideway {
     }
   }
 
+  /** Frees the baked geometry and the glass material (the stock `glowline` material is shared: kept). */
+  dispose(): void {
+    for (const c of this.group.children) {
+      const m = c as Mesh;
+      m.geometry.dispose();
+      if (m.name === 'aeroline-glass') (m.material as MeshStandardNodeMaterial).dispose();
+    }
+    this.group.removeFromParent();
+  }
+
   /** Frame at arc length s: x = left of travel, y = up, z = forward (a proper rotation), origin on the centreline. */
   private frame(s: number, y: number, out = _f): Matrix4 {
     const p = this.path.at(s, _p);

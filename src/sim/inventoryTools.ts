@@ -146,7 +146,7 @@ export const inventoryTools: AgentTool<SimCtx, never>[] = [
         text: {
           type: 'string',
           description:
-            'Words that must all match id, name, type, group, district or issue; also accepts key:value filters (kind:, type:, group:, district:, status:, issue:).',
+            'Words that must all match id, name, type, group, district or issue; also accepts key:value filters (kind:, type:, group:, district:, status:, issue:, is:old / is:upgradable / is:top).',
         },
         kind: {
           type: 'string',

@@ -394,11 +394,11 @@ export const fireworksModule: GameModule = {
     });
 
     // ── Top-bar button: launch a show now (shift-click for a grand one), with the shells in stock ──
-    const count = h('span', { class: 'l' });
+    const count = h('span', { class: 'fw-count' });
     const btn = h(
       'button',
       {
-        class: 'fw-btn',
+        class: 'icon-btn fw-btn',
         title: 'Launch a fireworks show (shift-click: grand show)',
         'aria-label': 'Launch a fireworks show',
         onClick: (e: MouseEvent) => {
@@ -407,10 +407,10 @@ export const fireworksModule: GameModule = {
           ctx.commands.execute('launchFireworks', { grand: e.shiftKey });
         },
       },
-      h('span', { class: 'g' }, icon('fireworks')),
+      icon('fireworks'),
       count,
     ) as HTMLButtonElement;
-    ctx.services.get('hud').stats.prepend(btn);
+    ctx.services.get('hud').lead.append(btn);
     let timer = 1;
     let last = '';
     // Factory storage only changes when buildings do.

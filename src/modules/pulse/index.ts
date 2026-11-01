@@ -1,6 +1,8 @@
 import type { GameModule } from '@/game/context';
 import { TIERS } from '@/sim/pulseState';
 import { isCompact } from '@/platform/device';
+import { h } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import { PulsePanel, SYSTEM_LABELS } from './PulsePanel';
 import './pulse.css';
 
@@ -17,12 +19,32 @@ export const pulseModule: GameModule = {
     const panel = new PulsePanel(ctx);
     ctx.services.provide('pulse', {
       addTab: (id, label, glyph, ...els) => panel.addTab(id, label, glyph, ...els),
+      body: panel.body,
       get collapsed() {
         return panel.collapsed;
       },
       fold: (folded) => void panel.el.classList.toggle('collapsed', folded),
     });
     const hud = ctx.services.get('hud');
+    // Show / hide the console from the top bar (P does the same); lit while it is open. Phones have its chip.
+    const toggle = h(
+      'button',
+      {
+        class: 'icon-btn act-pulse',
+        title: 'Show / hide City Pulse (P)',
+        'aria-label': 'Show or hide City Pulse',
+        onClick: () => panel.el.classList.toggle('collapsed'),
+      },
+      icon('pulse'),
+    );
+    const lit = () => {
+      const open = !panel.collapsed;
+      toggle.classList.toggle('on', open);
+      toggle.setAttribute('aria-pressed', String(open));
+    };
+    new MutationObserver(lit).observe(panel.el, { attributes: true, attributeFilter: ['class'] });
+    lit();
+    hud.lead.prepend(toggle);
     const build = panel.addTab('build', 'Build', '✚', hud.toolbar, hud.tray);
     // Opening a building category or an action brings its cards and explanation forward in the console.
     new MutationObserver(() => {

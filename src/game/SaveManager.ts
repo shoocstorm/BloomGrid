@@ -14,7 +14,16 @@ declare module '@/core/EventBus' {
   }
 }
 
-/** Persists the city (and module state) through the platform storage. */
+/** What a slot holds, without reading the whole save (Settings shows it beside Save / Load). */
+export interface SaveInfo {
+  /** Wall-clock time of the save (ms since epoch). */
+  at: number;
+  name: string;
+  day: number;
+  residents: number;
+}
+
+/** Persists the city (and module state) through the platform storage, with a small summary per slot. */
 export class SaveManager {
   private hooks: ModuleSaveHook[] = [];
 
@@ -43,8 +52,19 @@ export class SaveManager {
   }
 
   async save(slot = 'slot1'): Promise<void> {
-    await this.ctx.platform.storage.set(`save:${slot}`, this.snapshot());
+    const { city, platform } = this.ctx;
+    await platform.storage.set(`save:${slot}`, this.snapshot());
+    const info: SaveInfo = { at: Date.now(), name: city.growth.name, day: city.day, residents: Math.round(city.stats.population) };
+    await platform.storage.set(`save:${slot}:info`, info);
     this.ctx.bus.emit('save:done', { slot });
+  }
+
+  /** The slot's summary; saves from before summaries existed report `{ at: 0 }` fields as unknown. */
+  async info(slot = 'slot1'): Promise<SaveInfo | null> {
+    const storage = this.ctx.platform.storage;
+    const info = await storage.get<SaveInfo>(`save:${slot}:info`);
+    if (info) return info;
+    return (await storage.keys()).includes(`save:${slot}`) ? { at: 0, name: '', day: 0, residents: 0 } : null;
   }
 
   async load(slot = 'slot1'): Promise<boolean> {

@@ -4,6 +4,7 @@ import { WONDERS } from '@/sim/wonders';
 import { DAY_LENGTH } from '@/sim/pulseConst';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
+import { isCompact, onCompactChange } from '@/platform/device';
 import './goals.css';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -12,19 +13,30 @@ const fmt = (n: number) => Math.round(n).toLocaleString();
  * Goals (Phase 16, D-072): the City Pulse tab for a growing city. Unlock projects (Sky-lane charter, the Aeroline,
  * Wake Flora) with their criteria ticked live, cost, duration, a Start button and a progress bar; the sea wonders
  * found and what will reveal the rest; and the fishing fleet's stock and income. Rebuilt at 1 Hz while shown, and
- * on project and wonder events. A city without progression (the showcase) says everything is open.
+ * on project and wonder events. A city without progression (the showcase) says everything is open. On phones,
+ * where the console shows only the pulse, the panel sits at the top of the City Pulse sheet instead (its phone
+ * home), shown only while there is something to earn.
  */
 export const goalsModule: GameModule = {
   id: 'goals',
   deps: ['pulse', 'hud'],
   init(ctx) {
     const { city } = ctx;
+    const pulse = ctx.services.get('pulse');
     const el = h('div', { class: 'goals' });
-    const tab = ctx.services.get('pulse').addTab('goals', 'Goals', '✧', el);
+    // Phone home first (top of the pulse body), so the console's tab knows where to return it on phones.
+    pulse.body.prepend(el);
+    const tab = pulse.addTab('goals', 'Goals', '✧', el);
     let key = '';
+    /** Read by the 1 Hz refresh: the console tab on desktops, the open City Pulse sheet on phones. */
+    const shown = () => tab.selected || (isCompact() && !pulse.collapsed);
+    const mark = () => el.classList.toggle('gl-phone', isCompact());
+    onCompactChange(() => (mark(), (key = ''), render()));
+    mark();
 
     const render = () => {
       const g = city.growth;
+      el.classList.toggle('gl-open', !g.progression);
       if (!g.progression) {
         const k = 'open';
         if (k === key) return;
@@ -160,7 +172,17 @@ export const goalsModule: GameModule = {
         ? PROJECT_IDS.filter((id) => projectStatus(city, id) === 'ready').length
         : 0;
       tab.setBadge(ready ? String(ready) : '', ready ? 'warn' : '');
+      // Phones have no tab to badge: say once when a project becomes ready to start.
+      if (!g.progression) return;
+      for (const id of PROJECT_IDS) {
+        const now = projectStatus(city, id) === 'ready';
+        if (now && !told.has(id) && isCompact())
+          ctx.bus.emit('toast', { text: `${PROJECTS[id].name} is ready to start: open City Pulse`, tone: 'ok' });
+        if (now) told.add(id);
+        else told.delete(id);
+      }
     };
+    const told = new Set<string>();
     let timer = 0;
     ctx.systems.add({
       id: 'goals',
@@ -171,7 +193,7 @@ export const goalsModule: GameModule = {
         if (timer < 1) return;
         timer = 0;
         badge();
-        if (tab.selected) render();
+        if (shown()) render();
       },
     });
     for (const ev of [

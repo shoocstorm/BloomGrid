@@ -171,3 +171,58 @@ export function riskReport(city: City): HazardRisk[] {
   );
   return out.sort((a, b) => b.score - a.score);
 }
+
+/** What a building is exposed to (the Risk lens and the inspector read it). */
+export interface Exposure {
+  /** 0 (safe) .. 1 (exposed to everything). */
+  score: number;
+  /** Hazards that reach it, worst first: 'flood', 'fire', 'lightning', 'storm', 'frail'. */
+  hazards: ('flood' | 'fire' | 'lightning' | 'storm' | 'frail')[];
+}
+
+/**
+ * Per-building hazard exposure (Phase 21 follow-up, the Risk lens): low waterfront no seawall covers (tsunami,
+ * monsoon), out of reach of a working Ember Watch (fire), towers (lightning), homes with no Storm Shelter in reach
+ * (tornado), and poor condition (collapses sooner). Uses the same reach rules as the sim (`sheltered`, fire
+ * stations, `isProtected`). Pure; one pass over buildings with short station lists.
+ */
+export function buildingExposure(city: City): Map<number, Exposure> {
+  const ents = city.buildingEntities();
+  const stations: { x: number; z: number; r: number }[] = [];
+  const shelters: { x: number; z: number; r: number }[] = [];
+  const mid = (e: number): [number, number] => [
+    Building.x[e]! + Building.w[e]! / 2,
+    Building.z[e]! + Building.d[e]! / 2,
+  ];
+  for (const e of ents) {
+    const def = city.buildingDef(e);
+    const [x, z] = mid(e);
+    if (def.response && Service.power[e]! >= 0.5 && Service.occupancy[e]! >= 0.3)
+      stations.push({ x, z, r: def.response.radius });
+    if (def.shelter && !Service.off[e]) shelters.push({ x, z, r: def.shelter.radius });
+  }
+  const reach = (list: typeof stations, x: number, z: number) =>
+    list.some((s) => (s.x - x) ** 2 + (s.z - z) ** 2 <= s.r * s.r);
+  const defences = defenceList(city);
+  const shore = city.fields.shore;
+  const out = new Map<number, Exposure>();
+  for (const e of ents) {
+    const def = city.buildingDef(e);
+    const [x, z] = mid(e);
+    const parts: [Exposure['hazards'][number], number][] = [];
+    const ground = city.grid.rangeOver(Building.x[e]!, Building.z[e]!, Building.w[e]!, Building.d[e]!).min;
+    if (ground < 1.5 && shore[city.grid.index(Math.floor(x), Math.floor(z))]! < 8 && !isProtected(defences, x, z, 2))
+      parts.push(['flood', 0.4]);
+    if (!def.response && !reach(stations, x, z)) parts.push(['fire', 0.3]);
+    if (def.tower || def.id === 'wind-turbine') parts.push(['lightning', 0.1]);
+    if (def.stats.population > 0 && !reach(shelters, x, z)) parts.push(['storm', 0.15]);
+    const cond = Service.condition[e]!;
+    if (cond < 0.6) parts.push(['frail', (0.6 - cond) * 0.5]);
+    parts.sort((a, b) => b[1] - a[1]);
+    out.set(e, {
+      score: Math.min(1, parts.reduce((a, p) => a + p[1], 0)),
+      hazards: parts.map((p) => p[0]),
+    });
+  }
+  return out;
+}

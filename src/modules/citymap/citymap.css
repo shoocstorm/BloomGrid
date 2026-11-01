@@ -3,25 +3,7 @@
  * one moving thing is the camera marker, repositioned at 5 Hz while the map is open (transform only).
  */
 .cmap-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex: none;
-  margin-right: 4px;
-  padding: 2px 2px 2px 6px;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--accent);
-}
-/* The label gives way when the status bar runs out of room (`fit-1`, theme.css). */
-.cmap-btn .g {
-  font-size: 15px;
-  line-height: 1;
-}
-.cmap-btn:hover {
-  background: var(--bg-hover);
 }
 .cmap-scrim {
   position: absolute;
@@ -242,14 +224,9 @@
   color: var(--ink-faint);
 }
 
-/* Phones: map full width, legend under it; the button keeps only its glyph. */
-.compact .cmap-btn .l,
+/* Phones: map full width, legend under it. */
 .touch .cmap-key {
   display: none;
-}
-.compact .cmap-btn {
-  padding: 0 6px;
-  margin-right: 0;
 }
 .compact .cmap {
   width: 100vw;

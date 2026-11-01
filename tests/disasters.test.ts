@@ -3,7 +3,8 @@ import { Building } from '@/ecs/components';
 import { applyScenario } from '@/sim/scenario';
 import { forecastCrisis, leadFor, getCrisis } from '@/sim/crises';
 import { PULSE_TICKS } from '@/sim/pulseConst';
-import { riskReport } from '@/sim/risk';
+import { buildingExposure, riskReport } from '@/sim/risk';
+import { getOverlay } from '@/sim/overlays';
 import { makeSim } from './helpers';
 
 const seconds = (s: ReturnType<typeof makeSim>, n: number) => s.step(n * PULSE_TICKS);
@@ -83,6 +84,29 @@ describe('tornadoes, tsunamis, risk and prevention (Phase 21, D-076)', () => {
     expect(built).toBe(true);
     expect(leadFor(s.city, 'tornado')).toBe(getCrisis('tornado').lead * 2);
     expect(leadFor(s.city, 'heatwave')).toBe(getCrisis('heatwave').lead);
+  });
+
+  it('the Risk lens marks exposed buildings; a Storm Shelter takes homes off the tornado list', () => {
+    const s = settled();
+    const ex = buildingExposure(s.city);
+    expect(ex.size).toBe(s.city.buildingEntities().length);
+    const home = [...ex].find(([e, x]) => x.hazards.includes('storm') && s.city.buildingDef(e).stats.population > 0);
+    expect(home).toBeDefined();
+    const [eid] = home!;
+    let built = false;
+    for (let r = 3; r < 20 && !built; r++)
+      for (const [dx, dz] of [[r, 0], [-r, 0], [0, r], [0, -r], [r, r], [-r, -r]] as const)
+        if (!built) built = s.commands.execute('build', { def: 'storm-shelter', x: Building.x[eid]! + dx, z: Building.z[eid]! + dz, rot: 0 });
+    expect(built).toBe(true);
+    expect(buildingExposure(s.city).get(eid)!.hazards).not.toContain('storm');
+    // The lens paints every building footprint and nothing else.
+    const n = s.city.grid.w * s.city.grid.h;
+    const value = new Float32Array(n);
+    const mask = new Uint8Array(n);
+    getOverlay('risk')!.compute(s.city, s.city.fields, value, mask);
+    const i = s.city.grid.index(Building.x[eid]!, Building.z[eid]!);
+    expect(mask[i]).toBe(1);
+    expect(value[i]).toBeCloseTo(buildingExposure(s.city).get(eid)!.score, 5);
   });
 
   it('is deterministic', () => {

@@ -1182,11 +1182,11 @@ kbd,
 }
 
 /* Lenses: one per row, label always shown, the cycle key at the foot. */
+/* Two columns, so the lens card (D-081) below stays in view. */
 .con-pane .lens-bar {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 1px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px 4px;
 }
 .con-pane .lens {
   justify-content: flex-start;
@@ -1202,11 +1202,12 @@ kbd,
   background: rgba(95, 242, 218, 0.16);
 }
 .con-pane .lens-bar kbd {
-  align-self: flex-start;
+  grid-column: 1 / -1;
+  justify-self: start;
   margin: 8px 8px 2px;
 }
 .con-pane .lens-bar kbd::after {
-  content: ' cycles lenses';
+  content: ' cycles lenses · Esc turns off';
   font-family: var(--mono);
 }
 
@@ -1284,26 +1285,6 @@ body:not(.compact) .dock {
 }
 .help.welcome > * {
   position: relative;
-}
-/* Corner brackets: a targeting reticle around the card, painted once. */
-.help.welcome::before {
-  content: '';
-  position: absolute;
-  inset: 6px;
-  pointer-events: none;
-  border-radius: calc(var(--radius) - 6px);
-  --c: var(--accent);
-  background:
-    linear-gradient(var(--c), var(--c)) top left / 14px 1.5px,
-    linear-gradient(var(--c), var(--c)) top left / 1.5px 14px,
-    linear-gradient(var(--c), var(--c)) top right / 14px 1.5px,
-    linear-gradient(var(--c), var(--c)) top right / 1.5px 14px,
-    linear-gradient(var(--c), var(--c)) bottom left / 14px 1.5px,
-    linear-gradient(var(--c), var(--c)) bottom left / 1.5px 14px,
-    linear-gradient(var(--c), var(--c)) bottom right / 14px 1.5px,
-    linear-gradient(var(--c), var(--c)) bottom right / 1.5px 14px;
-  background-repeat: no-repeat;
-  opacity: 0.7;
 }
 .wc-aura {
   position: absolute !important;
@@ -1798,28 +1779,18 @@ body:not(.booted) .help.welcome * {
 }
 
 /* ── Holo panels: the welcome card's "steward link" chrome, shared by dialogs and consoles (ui/holo.ts) ──
- * Corner brackets are background layers (`--hb`), so they stay put in scrolling panels. The entrance,
+ * No corner brackets (removed 2026-11-01, D-081): the glass, edge glow and header carry the look. The entrance,
  * header and `.rise` animations are one-shot transform/opacity and replay when a panel is shown again (§7½). */
 .holo,
 .night .holo {
   --hc: rgba(95, 242, 218, 0.6);
   --ht: rgba(95, 242, 218, 0.13);
   --hbg: var(--bg-strong);
-  --hb:
-    linear-gradient(var(--hc), var(--hc)) left 7px top 7px / 12px 1.5px no-repeat,
-    linear-gradient(var(--hc), var(--hc)) left 7px top 7px / 1.5px 12px no-repeat,
-    linear-gradient(var(--hc), var(--hc)) right 7px top 7px / 12px 1.5px no-repeat,
-    linear-gradient(var(--hc), var(--hc)) right 7px top 7px / 1.5px 12px no-repeat,
-    linear-gradient(var(--hc), var(--hc)) left 7px bottom 7px / 12px 1.5px no-repeat,
-    linear-gradient(var(--hc), var(--hc)) left 7px bottom 7px / 1.5px 12px no-repeat,
-    linear-gradient(var(--hc), var(--hc)) right 7px bottom 7px / 12px 1.5px no-repeat,
-    linear-gradient(var(--hc), var(--hc)) right 7px bottom 7px / 1.5px 12px no-repeat;
   box-shadow:
     0 0 0 1px rgba(95, 242, 218, 0.16),
     0 0 26px rgba(95, 242, 218, 0.1),
     0 14px 36px rgba(0, 0, 0, 0.36);
   background:
-    var(--hb),
     radial-gradient(120% 60% at 0% 0%, var(--ht), transparent 60%),
     radial-gradient(90% 50% at 100% 100%, rgba(255, 159, 196, 0.08), transparent 65%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 120px),
@@ -1835,10 +1806,6 @@ body:not(.booted) .help.welcome * {
     0 0 0 1px rgba(255, 106, 74, 0.3),
     0 0 26px rgba(255, 90, 110, 0.14),
     0 14px 36px rgba(0, 0, 0, 0.4);
-}
-/* A folded sheet (phone chips) drops the brackets. */
-.holo.collapsed {
-  --hb: linear-gradient(transparent, transparent);
 }
 .modal.holo,
 .db.holo,
@@ -2381,13 +2348,7 @@ body:not(.booted) .holo::after {
   cursor: grab;
   touch-action: none;
   border-bottom: 1px solid var(--line-strong);
-  --c: rgba(95, 242, 218, 0.75);
-  background:
-    linear-gradient(var(--c), var(--c)) left 10px top 10px / 14px 1.5px no-repeat,
-    linear-gradient(var(--c), var(--c)) left 10px top 10px / 1.5px 14px no-repeat,
-    linear-gradient(var(--c), var(--c)) right 10px bottom 10px / 14px 1.5px no-repeat,
-    linear-gradient(var(--c), var(--c)) right 10px bottom 10px / 1.5px 14px no-repeat,
-    radial-gradient(120% 95% at 50% 45%, transparent 60%, rgba(2, 9, 11, 0.55));
+  background: radial-gradient(120% 95% at 50% 45%, transparent 60%, rgba(2, 9, 11, 0.55));
 }
 .info.staged .ix-stage.dragging {
   cursor: grabbing;
@@ -2490,8 +2451,7 @@ body:not(.booted) .holo::after {
  * stats, the spare action buttons and the season chip; widening the window brings them back.
  */
 .topbar.fit-1 .stat .k,
-.topbar.fit-1 .stat .meter,
-.topbar.fit-1 .cmap-btn .l {
+.topbar.fit-1 .stat .meter {
   display: none;
 }
 .topbar.fit-1 .stat {
@@ -2516,7 +2476,7 @@ body:not(.booted) .holo::after {
   min-width: 0;
 }
 .topbar.fit-4 .stat-eco,
-.topbar.fit-4 .fw-btn .l {
+.topbar.fit-4 .fw-count {
   display: none;
 }
 .topbar.fit-5 .stat-water,
@@ -2543,4 +2503,21 @@ body:not(.booted) .holo::after {
   margin: 0;
   font-size: 11.5px;
   color: var(--warn);
+}
+
+/* Top bar actions (D-081): a leading group of view toggles (City Pulse, city map, fireworks), ruled off from the
+   rest; a toggle whose view is open stays lit. */
+.act-lead {
+  display: flex;
+  gap: 2px;
+  padding-right: 4px;
+  margin-right: 2px;
+  border-right: 1px solid var(--line);
+}
+.act-lead:empty {
+  display: none;
+}
+.icon-btn.on {
+  background: var(--bg-hover);
+  color: var(--accent);
 }

@@ -1,4 +1,5 @@
 import type { GameContext, GameModule } from '@/game/context';
+import { Vector3 } from 'three/webgpu';
 import { U } from '@/render/uniforms';
 import { seasonAt } from '@/sim/seasons';
 import { MOODS, makeRandom, midiHz, pickMood, type Mood } from './music';
@@ -6,6 +7,19 @@ import { MOODS, makeRandom, midiHz, pickMood, type Mood } from './music';
 const KEY = 'bloomgrid.audio';
 /** Most sound effects playing at once (music and ambience are separate). */
 const MAX_SFX = 14;
+/** Fire crackles leave this many effect voices free for everything else. */
+const CRACKLE_HEADROOM = 4;
+/** Pods sampled per 4 Hz tick for the nearest one (the fleet can be ~1000: a full sweep spans a few ticks). */
+const POD_SAMPLES = 160;
+/** Hearing ranges (world units) for trains, pods and fires. */
+const TRAIN_EAR = 70;
+const POD_EAR = 28;
+const FIRE_EAR = 90;
+/** Aeroline cruise speed (Trains.ts `VMAX`): the whine rises with speed toward it. */
+const TRAIN_VMAX = 22;
+const _pod = new Vector3();
+/** 0 at `range`, 1 at the source, eased so a passing source swells. */
+const nearness = (d: number, range: number) => Math.max(0, 1 - d / range) ** 2;
 
 export interface AudioLevels {
   master: number;
@@ -46,8 +60,10 @@ function loadLevels(): AudioLevels {
  * mood follows the time of day and active crises and crossfades at the bar. **Ambience** is filtered noise: surf
  * (louder near the coast and low), city hum (by night life), wind (by camera height and storms), rain, and birdsong
  * in Bloom by day. **Effects** are short synths on game events: build, demolish, retrofit, level-up, lightning,
- * quakes, fireworks (the bang arrives later with distance), alerts and UI clicks. Parameters update at 4 Hz on the
- * main thread; everything else runs on the audio thread.
+ * quakes, fireworks (the bang arrives later with distance), alerts and UI clicks. **Near the camera**, Aeroline
+ * trains rush and whine (pitch with speed), sky-lane pods whoosh softly, and fires roar and crackle (short noise
+ * ticks, kept off the last few effect voices). Parameters update at 4 Hz on the main thread; everything else runs
+ * on the audio thread.
  */
 class Sound {
   levels = loadLevels();
@@ -58,9 +74,14 @@ class Sound {
   private sfx!: GainNode;
   private noise!: AudioBuffer;
   private beds: Record<
-    'surf' | 'hum' | 'wind' | 'rain',
+    'surf' | 'hum' | 'wind' | 'rain' | 'rail' | 'pod' | 'fire',
     { gain: GainNode; filter: BiquadFilterNode }
   > | null = null;
+  /** The maglev's electric whine (a sine an octave apart from its rush). */
+  private whine!: { osc: OscillatorNode; gain: GainNode };
+  private podCursor = 0;
+  private podBest = Infinity;
+  private podNear = Infinity;
   private padFilter!: BiquadFilterNode;
   private voices = 0;
   private mood: Mood = 'day';
@@ -107,7 +128,18 @@ class Sound {
       hum: this.bed('lowpass', 160),
       wind: this.bed('bandpass', 520),
       rain: this.bed('highpass', 2400),
+      rail: this.bed('lowpass', 300),
+      pod: this.bed('bandpass', 1300),
+      fire: this.bed('lowpass', 650),
     };
+    const osc = ac.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 180;
+    const wg = ac.createGain();
+    wg.gain.value = 0;
+    osc.connect(wg).connect(this.amb);
+    osc.start();
+    this.whine = { osc, gain: wg };
     this.applyLevels();
     this.nextBar = ac.currentTime + 0.2;
   }
@@ -281,6 +313,7 @@ class Sound {
     );
     b.wind.filter.frequency.setTargetAtTime(420 + 260 * Math.sin(t * 0.11) + storm * 400, t, 0.8);
     b.rain.gain.gain.setTargetAtTime(U.rain.value * 0.09, t, 0.5);
+    this.nearby(t);
     // Birdsong by day in Bloom, near the ground.
     if (seasonAt(city.tick).season.id === 'bloom' && U.night.value < 0.3 && near > 0.5 && t > this.birdAt) {
       this.birdAt = t + 2 + Math.random() * 5;
@@ -288,6 +321,50 @@ class Sound {
       for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++)
         this.tone(f * (1 + i * 0.06), 0.12, 0.025, 'sine', f * 1.3, i * 0.14);
     }
+  }
+
+  /** Trains, pods and fires near the camera (part of the 4 Hz update). */
+  private nearby(t: number): void {
+    const b = this.beds!;
+    const { services, city } = this.ctx;
+    const cam = this.ctx.camera.position;
+    // Aeroline: a low rush that opens up as a train closes in, and a whine that climbs with its speed.
+    const train = services.tryGet('aeroline')?.nearest(cam) ?? { d: Infinity, v: 0 };
+    const tn = nearness(train.d, TRAIN_EAR);
+    const pace = Math.min(1, train.v / TRAIN_VMAX);
+    b.rail.gain.gain.setTargetAtTime(tn * (0.05 + 0.2 * pace), t, 0.3);
+    b.rail.filter.frequency.setTargetAtTime(220 + 900 * tn * pace, t, 0.3);
+    this.whine.gain.gain.setTargetAtTime(tn * pace * 0.03, t, 0.3);
+    this.whine.osc.frequency.setTargetAtTime(150 + 260 * pace, t, 0.4);
+    // Sky-lane pods: a soft whoosh from the nearest one (sampled a slice of the fleet per tick).
+    const sky = services.tryGet('skylanes');
+    const n = sky?.pods ?? 0;
+    if (n) {
+      for (let k = 0; k < Math.min(n, POD_SAMPLES); k++) {
+        const i = this.podCursor++ % n;
+        this.podBest = Math.min(this.podBest, sky!.podAt(i, U.clock.value, _pod).distanceTo(cam));
+      }
+      if (this.podCursor >= n) {
+        this.podCursor = 0;
+        this.podNear = this.podBest;
+        this.podBest = Infinity;
+      }
+    } else this.podNear = Infinity;
+    const pn = nearness(this.podNear, POD_EAR) * (1 - 0.6 * U.night.value);
+    b.pod.gain.gain.setTargetAtTime(pn * 0.07, t, 0.5);
+    b.pod.filter.frequency.setTargetAtTime(900 + 900 * pn + 200 * Math.sin(t * 1.7), t, 0.3);
+    // Fires: a roar by heat and nearness, and crackles (tiny bright noise ticks) scattered over the next tick.
+    let heat = 0;
+    for (const f of city.steward.fires)
+      heat += f.intensity * nearness(Math.hypot(cam.x - f.x, cam.z - f.z, cam.y * 0.5), FIRE_EAR);
+    heat = Math.min(1, heat);
+    b.fire.gain.gain.setTargetAtTime(heat * 0.22, t, 0.4);
+    if (heat > 0.02)
+      for (let i = 0; i < 1 + Math.round(heat * 5); i++) {
+        if (this.voices >= MAX_SFX - CRACKLE_HEADROOM) break;
+        const f = 1800 + Math.random() * 3800;
+        this.burst(0.02 + Math.random() * 0.05, (0.1 + Math.random() * 0.2) * heat, 'bandpass', f, undefined, Math.random() * 0.25);
+      }
   }
 }
 

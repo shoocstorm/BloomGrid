@@ -1,4 +1,5 @@
 import { Building, Greenery, Problem, Service } from '@/ecs/components';
+import { buildingExposure, type Exposure } from '@/sim/risk';
 import { buildings } from '@/content';
 import { CATEGORY_ICONS, CATEGORY_LABELS, ZONES, type BuildingCategory, type BuildingDef } from '@/content/types';
 import { NO_ENTITY } from '@/sim/Grid';
@@ -48,6 +49,8 @@ class Hud {
   right!: HTMLElement;
   /** Top-bar action buttons; modules may append their own (the assistant's launcher). */
   actions!: HTMLElement;
+  /** Leading group of the actions panel: City Pulse, city map and fireworks buttons (modules add them). */
+  readonly lead = h('div', { class: 'act-lead' });
   /** The central stats panel; modules may prepend a control (the city map button). */
   stats!: HTMLElement;
   private statEls = new Map<string, { el: HTMLElement; v: HTMLElement; sub: HTMLElement }>();
@@ -310,18 +313,16 @@ class Hud {
     this.happyMeter = h('i');
     stat('happy', 'happy Harmony', h('div', { class: 'meter' }, this.happyMeter));
 
-    const save = ctx.services.get('save');
     this.undoBtn = h('button', { class: 'icon-btn', title: 'Undo (⌘Z)', 'aria-label': 'Undo', onClick: () => ctx.commands.undo() }, icon('undo'));
     this.redoBtn = h('button', { class: 'icon-btn opt', title: 'Redo (⇧⌘Z)', 'aria-label': 'Redo', onClick: () => ctx.commands.redo() }, icon('redo'));
     const actions = (this.actions = h(
       'div',
       { class: 'actions panel' },
+      this.lead,
       this.undoBtn,
       this.redoBtn,
       h('button', { class: 'icon-btn', title: 'City dashboard (K)', 'aria-label': 'City dashboard', onClick: () => ctx.services.get('dashboard').toggle() }, icon('dashboard')),
       h('button', { class: 'icon-btn opt', title: 'Overview (O) · bookmarks: Alt+1–4 store, Shift+1–4 recall', 'aria-label': 'Overview', onClick: () => ctx.cameraCtl.overview() }, icon('overview')),
-      h('button', { class: 'icon-btn', title: 'Save (⌘S)', onClick: () => void save.save() }, 'Save'),
-      h('button', { class: 'icon-btn opt', title: 'Load (⌘L)', onClick: () => void save.load().then((ok) => ok || this.toast('No save yet', 'bad')) }, 'Load'),
     ));
     const topbar = h(
       'div',
@@ -353,7 +354,7 @@ class Hud {
    * Fits the status bar to its width (D-071): from the full bar, each level drops something until nothing
    * clips: 1 the stat labels and the harmony meter, 2 secondary values (rate, capacity) and the brand subtitle,
    * 3 tighter spacing and the brand name, 4 the ecology stat and the fireworks count, 5 water and the fastest
-   * speed, 6 redo / overview / load and the season bar, 7 the fast speed and the season chip. Levels are
+   * speed, 6 redo / overview and the season bar, 7 the fast speed and the season chip. Levels are
    * cumulative classes on the top bar; phones keep their own layout (mobile.css).
    */
   private fitStats(): void {
@@ -922,6 +923,7 @@ class Hud {
         Service.condition[eid]! < 0.2 && !(p & Problem.RUINED) ? '⚠ Broken down: it barely works until repaired (or renovated)' : '',
         Service.scorch[eid]! > 0.05 ? `Charred ${Math.round(Service.scorch[eid]! * 100)}%: a repair or renovation cleans it` : '',
         ...rulesFor(this.ctx.city, eid).map((r) => `⚖ ${r}`),
+        this.riskLine(eid),
       ].filter(Boolean);
       const lines = [
         st.energy < 0 ? `Power ${Math.round(Service.power[eid]! * 100)}%` : '',
@@ -933,6 +935,23 @@ class Hud {
       this.infoBody.querySelector('[data-led]')?.classList.toggle('bad', issues.length > 0);
       this.hazardActions(eid);
     }
+  }
+
+  private risk = { tick: -Infinity, map: new Map<number, Exposure>() };
+  /** The Risk lens's reasons for one building (`buildingExposure`, recomputed at most once a sim second). */
+  private riskLine(eid: number): string {
+    const city = this.ctx.city;
+    if (city.tick - this.risk.tick >= 10 || city.tick < this.risk.tick) this.risk = { tick: city.tick, map: buildingExposure(city) };
+    const x = this.risk.map.get(eid);
+    if (!x?.hazards.length) return '';
+    const why: Record<Exposure['hazards'][number], string> = {
+      flood: 'floods (low waterfront, no seawall)',
+      fire: 'fire (no Ember Watch in reach)',
+      lightning: 'lightning (tall)',
+      storm: 'tornadoes (no Storm Shelter in reach)',
+      frail: 'collapse (poor condition)',
+    };
+    return `⛈ Risk ${Math.round(x.score * 100)}%: ${x.hazards.map((k) => why[k]).join(', ')}`;
   }
 
   private hzKey = '';
@@ -1013,8 +1032,10 @@ class Hud {
 
 export interface HudService {
   right: HTMLElement;
-  /** Top-bar action buttons. */
+  /** Top-bar action buttons (undo … settings); Save and Load live in Settings. */
   actions: HTMLElement;
+  /** The actions panel's leading group, for view toggles (City Pulse, map, fireworks), ruled off from the rest. */
+  lead: HTMLElement;
   /** The toolbar's row, for a button beside it. */
   dockRow: HTMLElement;
   /** The central stats panel of the top bar. */
@@ -1039,7 +1060,7 @@ export const hudModule: GameModule = {
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
-    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, toolbar: hud.toolbar, tray: hud.tray, sheet: (el) => hud.sheet(el) });
+    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, lead: hud.lead, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, toolbar: hud.toolbar, tray: hud.tray, sheet: (el) => hud.sheet(el) });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

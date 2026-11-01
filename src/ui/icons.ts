@@ -37,6 +37,8 @@ const ICONS: Record<string, string> = {
   map: '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
   settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  save: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
+  load: '<path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
   send: '<path d="M21 3 10.2 13.8"/><path d="M21 3 14.3 21l-4.1-7.2L3 9.7z"/>',
   // ── Status indicators (Flora's link, system health) ──
   'st-ok': '<circle cx="12" cy="12" r="9"/><path d="m8 12.4 2.8 2.8L16.2 9.6"/>',
@@ -181,6 +183,7 @@ const KEYED: Record<string, string> = {
   'kind:skybridge': 'skybridge',
   'kind:channel': 'channel',
   'lens:access': 'access',
+  'lens:risk': 'storm',
   'lens:hydration': 'drops',
   'cat:commercial': 'jobs',
   'cat:food': 'food',

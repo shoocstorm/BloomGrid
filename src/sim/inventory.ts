@@ -1,4 +1,4 @@
-import { size, upkeepMul } from './levels';
+import { MAX_TIER, OLD_DAYS, levels, size, upgradeBlocker, upkeepMul } from './levels';
 import { DAY_LENGTH } from './pulseConst';
 import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
@@ -45,6 +45,11 @@ export interface CityObject {
   issues: string[];
   /** Numeric readings (rounded); names are stable API (`residents`, `condition`, `tiles`…). */
   metrics: Record<string, number>;
+  /**
+   * Derived labels for quick filters (`is:` / `tag:` in a search, `tag` in a query). Buildings: `old` (OLD_DAYS+ days:
+   * upkeep has crept up, renovation pays), `upgradable` (the inspector's Upgrade would work now, credits included), `top` (top level).
+   */
+  tags?: string[];
   /** Handles for the HUD: the entity (buildings) or an anchor tile (tile-based infrastructure). */
   ref: { eid?: number; tile?: number };
 }
@@ -230,6 +235,10 @@ function buildingObject(city: City, eid: number): CityObject {
   if (s.water < 0) metrics.waterSupply = r3(Service.water[eid]!);
   if (s.food) metrics.food = s.food;
   if (def.transit) metrics.riders = Math.round(Service.riders[eid]!);
+  const tags: string[] = [];
+  if (Service.age[eid]! >= OLD_DAYS * DAY_LENGTH) tags.push('old');
+  if (Building.tier[eid]! >= MAX_TIER) tags.push('top');
+  else if (levels(city, eid) && !upgradeBlocker(city, eid)) tags.push('upgradable');
   return {
     id: buildingId(city, eid),
     kind: 'building',
@@ -244,6 +253,7 @@ function buildingObject(city: City, eid: number): CityObject {
     status: statusOf(issues),
     issues,
     metrics,
+    tags,
     ref: { eid },
   };
 }
@@ -625,7 +635,7 @@ registerInventoryKind({
 export interface InventoryQuery {
   /**
    * Free text (every word must match id, name, type, group, district or an issue) plus `key:value` filters:
-   * `kind:`, `type:`, `group:`, `district:`, `status:`, `issue:` (values are case-insensitive substrings).
+   * `kind:`, `type:`, `group:`, `district:`, `status:`, `issue:`, `is:` (values are case-insensitive substrings).
    */
   text?: string;
   kind?: string | string[];
@@ -635,6 +645,8 @@ export interface InventoryQuery {
   district?: string;
   status?: ObjectStatus | ObjectStatus[];
   issue?: string;
+  /** Exact tag (`old`, `upgradable`, `top`); `is:` in `text` matches substrings. */
+  tag?: string;
   near?: { x: number; z: number; radius?: number };
   /** `id` (default), `name`, `status` (worst first), `distance` (needs `near`), `district`, `type`, or a metric name. */
   sort?: string;
@@ -690,6 +702,9 @@ function field(o: CityObject, key: string): string[] {
       return o.issues.flatMap((i) => [i, ISSUES[i]?.label ?? i]);
     case 'id':
       return [o.id];
+    case 'is':
+    case 'tag':
+      return o.tags ?? [];
     default:
       return [];
   }
@@ -714,6 +729,7 @@ export function filterObjects(objects: readonly CityObject[], q: InventoryQuery 
     if (kinds && !kinds.has(o.kind)) return false;
     if (statuses && !statuses.has(o.status)) return false;
     if (district && o.district.toLowerCase() !== district) return false;
+    if (q.tag && !o.tags?.includes(q.tag)) return false;
     if (near && dist2(o) > r2) return false;
     for (const [k, v] of filters) if (!field(o, k).some((f) => has(f, v))) return false;
     if (words.length) {

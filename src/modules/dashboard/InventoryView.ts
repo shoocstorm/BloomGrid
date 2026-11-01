@@ -23,7 +23,16 @@ const SORTS: [string, string][] = [
   ['type', 'Type'],
   ['residents', 'Residents'],
   ['condition', 'Condition'],
+  ['ageDays', 'Oldest'],
+  ['tier', 'Level'],
   ['tiles', 'Size (tiles)'],
+];
+/** Quick filters on building tags (`sim/inventory.ts`: `is:old` etc.). */
+const TAGS: [string, string][] = [
+  ['', 'Any age / level'],
+  ['old', 'Old (renovation pays)'],
+  ['upgradable', 'Upgradable now'],
+  ['top', 'Top level'],
 ];
 
 /** The headline reading of an object for its table row. */
@@ -39,6 +48,10 @@ function keyMetric(o: CityObject): string {
   if (m.condition !== undefined) return `cond ${Math.round(m.condition * 100)}%`;
   return '';
 }
+
+/** Level and age, for the age / level views. */
+const ageLevel = (o: CityObject): string =>
+  o.metrics.tier === undefined ? keyMetric(o) : `L${o.metrics.tier} · ${Math.floor(o.metrics.ageDays ?? 0)} d`;
 
 const label = (k: string) => k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
 const show = (v: unknown): string =>
@@ -64,6 +77,7 @@ export class InventoryView {
     status: string;
     district: string;
     issue: string;
+    tag: string;
   } = {
     text: '',
     sort: 'status',
@@ -71,6 +85,7 @@ export class InventoryView {
     status: '',
     district: '',
     issue: '',
+    tag: '',
   };
   private shown = PAGE;
   private chosen: string | null = null;
@@ -83,6 +98,7 @@ export class InventoryView {
   private kindSel: HTMLSelectElement;
   private statusSel: HTMLSelectElement;
   private districtSel: HTMLSelectElement;
+  private tagSel: HTMLSelectElement;
   private sortSel: HTMLSelectElement;
   private countEl = h('span', { class: 'inv-count' });
   private rows = h('tbody');
@@ -94,7 +110,7 @@ export class InventoryView {
     private ctx: GameContext,
     private close: () => void,
   ) {
-    const select = (options: [string, string][], key: 'kind' | 'status' | 'district' | 'sort') => {
+    const select = (options: [string, string][], key: 'kind' | 'status' | 'district' | 'sort' | 'tag') => {
       const s = h('select', {
         class: 'inv-sel',
         'aria-label': key,
@@ -120,6 +136,7 @@ export class InventoryView {
       'status',
     );
     this.districtSel = select([['', 'All districts']], 'district');
+    this.tagSel = select(TAGS, 'tag');
     this.sortSel = select(SORTS, 'sort');
     this.clearBtn = h(
       'button',
@@ -151,6 +168,7 @@ export class InventoryView {
         this.kindSel,
         this.statusSel,
         this.districtSel,
+        this.tagSel,
         this.sortSel,
         this.clearBtn,
         this.countEl,
@@ -216,7 +234,7 @@ export class InventoryView {
   }
 
   private reset(): void {
-    this.set({ text: '', kind: '', status: '', district: '', issue: '' });
+    this.set({ text: '', kind: '', status: '', district: '', issue: '', tag: '' });
   }
 
   private syncControls(): void {
@@ -224,13 +242,15 @@ export class InventoryView {
     this.kindSel.value = this.q.kind;
     this.statusSel.value = this.q.status;
     this.districtSel.value = this.q.district;
+    this.tagSel.value = this.q.tag;
     this.sortSel.value = this.q.sort;
     this.clearBtn.disabled = !(
       this.q.text ||
       this.q.kind ||
       this.q.status ||
       this.q.district ||
-      this.q.issue
+      this.q.issue ||
+      this.q.tag
     );
   }
 
@@ -369,10 +389,13 @@ export class InventoryView {
       status: (q.status || undefined) as ObjectStatus | undefined,
       issue: q.issue || undefined,
       district: q.district || undefined,
+      tag: q.tag || undefined,
       sort: q.sort,
       limit: this.shown,
     });
     const items = page.items;
+    // Filtering or sorting by age or level reads better with age and level in the Reading column.
+    const ageView = !!q.tag || q.sort === 'ageDays' || q.sort === 'tier';
     setText(
       this.countEl,
       `${fmt(items.length)} of ${fmt(page.total)} shown · ${fmt(this.objects.length)} in the city`,
@@ -391,7 +414,7 @@ export class InventoryView {
           h('td', {}, o.name),
           h('td', {}, o.district),
           h('td', {}, h('i', { class: `led ${o.status}` }), STATUS_LABEL[o.status]),
-          h('td', { class: 'num' }, keyMetric(o)),
+          h('td', { class: 'num' }, ageView ? ageLevel(o) : keyMetric(o)),
           h('td', { class: 'inv-issues' }, o.issues.map((i) => ISSUES[i]?.label ?? i).join(', ')),
         ),
       ),

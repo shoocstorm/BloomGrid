@@ -87,7 +87,8 @@ reclaim or defend.</td>
 ![The management view: the City Pulse console with system health, bloom, demand and budget over the hero district](docs/images/hud.jpg)
 
 The **City Pulse** tracks energy, water, food, jobs, mobility, ecology and harmony. **Data lenses** recolour the
-whole island by power, pollution, desirability, traffic, soil or flood risk. The **Flora-Net advisor** points at
+whole island by power, pollution, desirability, traffic, soil, flood risk or hazard **risk** (each building's exposure to
+floods, fire, lightning, tornadoes and collapse; the inspector says why). The **Flora-Net advisor** points at
 what is going wrong and offers a fix you can apply with one click.
 
 ## 🎮 How to play
@@ -102,18 +103,19 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Select & remove    | Click a building to inspect it · **Ctrl/⌘-drag** a box to select every building of one type inside it (the type under where you start) · **Delete** (or ⌫) returns the selection to nature, as does the inspector's *Return to nature* (one undo restores it all) |
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **B** Bloom Retrofit · **Y** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
-| Watch your city    | **P** folds the City Pulse console (tabs: Pulse, Build, Lenses, Flora-Net; on phones, separate sheets) · **L** data lenses · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **M** city map (⌗ MAP in the top bar: every district named; click one to fly there) |
+| Watch your city    | **P** (or the pulse button at the left of the top bar's actions) shows / hides the City Pulse console (tabs: Pulse, Build, Lenses, Flora-Net; on phones, separate sheets) · **L** data lenses (each explained in City Pulse → Lenses; **Esc** or ✕ on the legend turns one off) · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **M** city map (the map button in the top bar's actions: every district named; click one to fly there) |
 | Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console · **Esc** or ✕ closes it · type **/** for commands (Tab completes) (the glowing orb bottom-right, **Ask Flora** on any selected object: it loads a downloaded model if none is running) |
 | Explore            | phones: the ◇ button in the top bar picks a view; a joystick moves, ▲ ▼ rise and sink, and the top bar hides so only the round **◇** (top-left) is left to return to the city view · **N** walk / hoverboard / drone / balloon / rooftop / ride a pod / ride the Aeroline (**Tab** next pod, train or landmark; **V** first person or the balloon's basket view; **Esc** back) · **J** photo mode (**P** saves a PNG); or the ◇ view-mode menu at the end of the top bar |
 | Find a fire        | **.** fly to the next fire (⌖ Next in the fire panel) · click a 🔥 pin, an alert toast or a map pin |
 | Time               | **Space** pause · **1 / 2 / 3** speed                                                              |
-| Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** / **⌘L** (Ctrl on Windows/Linux)                                         |
+| Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** / **⌘L** (Ctrl on Windows/Linux), or ⚙ Settings → Game (shows the saved city and when; Load asks before replacing the city) |
 | Remember a view    | **Alt+1–4** store · **Shift+1–4** recall                                                           |
-| Sound              | **,** mute / unmute · volumes for music, ambience and effects in ⚙ Settings (sound starts on your first click) |
+| Sound              | **,** mute / unmute · volumes for music, ambience and effects in ⚙ Settings (sound starts on your first click); trains, pods and fires are heard close up |
 
 **On a phone:** drag to pan, pinch to zoom, twist to rotate, drag two fingers up or down to tilt. Tap a building to
 inspect it. To build, pick a category, tap to preview, then tap the preview again (⟳ rotates). City Pulse,
-Flora-Net and the ◐ lenses are chips under the top bar; tap the city to fold them away. The HUD shows less on a phone
+Flora-Net and the ◐ lenses are chips under the top bar; tap the city to fold them away. On a fresh island the
+Goals (unlock projects, sea wonders, fishing) sit at the top of the City Pulse sheet. The HUD shows less on a phone
 (no telemetry strip or explore modes), and phones start on Medium graphics. Flora is the glowing orb beside the
 toolbar; her console opens full-screen.
 
@@ -127,7 +129,8 @@ is and the exact instructions (system prompts) her model gets each turn, plus th
 
 **Inventory** (**I**): every building, highway network, bridge, sky-bridge, channel, district and sea wonder, each
 with a readable id such as `LIV-0042` or `HWY-118.204`. Search by name, id or district, or filter with `issue:power`,
-`status:critical`, `district:westbrook`; pick a row to inspect it and **Locate** to fly there. The inspector shows
+`status:critical`, `district:westbrook`, `is:old`, `is:upgradable`, `is:top` (or the age / level menu, and sort by
+Oldest or Level); pick a row to inspect it and **Locate** to fly there. The inspector shows
 the id of whatever you select; click it to open the inventory.
 
 **A planned city:** every area has a purpose: living, work, industry, entertainment, sports, utility, civic and
@@ -187,7 +190,7 @@ bun run dev        # then open http://localhost:5173
 click **Open Anyway** in System Settings → Privacy & Security.
 
 **Desktop app:** `bun run tauri:dev` opens BloomGrid in a native window (Tauri v2), and `bun run tauri:build`
-packages it. Saves are JSON files in the app data folder, and ⚙ → Window toggles fullscreen (F11).
+packages it. Saves are JSON files in the app data folder, and ⚙ → Display → Window toggles fullscreen (F11).
 
 <details>
 <summary><b>Handy URL flags</b></summary>

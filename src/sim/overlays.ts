@@ -5,6 +5,7 @@ import type { City } from './City';
 import type { Fields } from './fields';
 import { soilAt } from './floranet';
 import { defenceList, isProtected } from './coast';
+import { buildingExposure } from './risk';
 
 /**
  * Data lenses: each overlay fills a per-tile value (0..1) and a mask (1 = has data). Pure sim
@@ -16,6 +17,10 @@ export interface OverlaySpec {
   icon: string;
   /** Legend labels for value 0 and 1. */
   legend: [string, string];
+  /** The lens explained (City Pulse → Lenses card, D-081): what it measures, how to read it, what to do about it. */
+  about: string;
+  read: string;
+  act: string;
   /** True when high values are bad (pollution) — flips the colour ramp. */
   invert?: boolean;
   /** Smooth (fields) or crisp per-tile (buildings / networks) sampling. */
@@ -83,16 +88,16 @@ function fieldLens(key: 'pollution' | 'ecology' | 'desirability', scale = 1, rel
   };
 }
 
-registerOverlay({ id: 'power', label: 'Power', icon: '⚡', legend: ['Blackout', 'Powered'], smooth: false, compute: serviceLens('power') });
-registerOverlay({ id: 'water', label: 'Water', icon: '💧', legend: ['Dry', 'Supplied'], smooth: false, compute: serviceLens('water') });
-registerOverlay({ id: 'pollution', label: 'Pollution', icon: '☁', legend: ['Clean', 'Polluted'], invert: true, smooth: true, compute: fieldLens('pollution', 1.2) });
-registerOverlay({ id: 'ecology', label: 'Ecology', icon: '🌿', legend: ['Barren', 'Lush'], smooth: true, compute: fieldLens('ecology', 1, true) });
-registerOverlay({ id: 'desirability', label: 'Desirability', icon: '◆', legend: ['Low', 'High'], smooth: true, compute: fieldLens('desirability', 1, true) });
+registerOverlay({ id: 'power', label: 'Power', icon: '⚡', legend: ['Blackout', 'Powered'], about: 'Whether each building and highway gets the electricity it needs. Highways carry the grid; a network is one connected set of highways and the buildings on them.', read: 'Green is supplied, red a brownout or blackout: that network uses more than it makes.', act: 'Add generation (solar, wind, geothermal) on the struggling network, or join it to a stronger one with a highway.', smooth: false, compute: serviceLens('power') });
+registerOverlay({ id: 'water', label: 'Water', icon: '💧', legend: ['Dry', 'Supplied'], about: 'Whether each building and highway gets the water it needs, per highway network (pipes run beneath the highways).', read: 'Green is supplied, red dry taps: that network draws more water than it makes.', act: 'Build water works on the dry network, or join it to one with water to spare.', smooth: false, compute: serviceLens('water') });
+registerOverlay({ id: 'pollution', label: 'Pollution', icon: '☁', legend: ['Clean', 'Polluted'], about: 'Pollution spreading from industry, power plants and traffic across the island.', read: 'Green is clean air and ground, red is polluted: it lowers harmony, desirability and the coast.', act: 'Pair factories with their symbiosis partners, keep them away from homes and the shore, and plant parks between.', invert: true, smooth: true, compute: fieldLens('pollution', 1.2) });
+registerOverlay({ id: 'ecology', label: 'Ecology', icon: '🌿', legend: ['Barren', 'Lush'], about: "Living green cover: parks, wild flora, gardens and greenery on buildings. Stretched to the island's own range, so differences between districts read.", read: 'Bright green is lush, brown is barren compared with the rest of the island.', act: 'Plant parks, Bloom Retrofit tired buildings, and keep the soil healthy (Soil water and Nutrients lenses).', smooth: true, compute: fieldLens('ecology', 1, true) });
+registerOverlay({ id: 'desirability', label: 'Desirability', icon: '◆', legend: ['Low', 'High'], about: 'Where people want to live: nature, amenities and calm raise it; pollution and traffic lower it. Relative to the island.', read: 'Bright is sought after, dark is low: homes there fill slowly and stay unhappy.', act: 'Put new homes where it is high; lift low areas with parks and amenities, and move pollution away.', smooth: true, compute: fieldLens('desirability', 1, true) });
 registerOverlay({
   id: 'bloom',
   label: 'Bloom',
   icon: '🌸',
-  legend: ['Barren', 'In bloom'],
+  legend: ['Barren', 'In bloom'], about: 'The seasonal bloom on each tile: flowering peaks in Bloom season, with healthy soil and pollinators.', read: 'Pink is in bloom, grey is barren.', act: 'Pollinator Sanctuaries, Drone Hives (mist with Y), healthy soil and Bloom Retrofits spread it.',
   smooth: true,
   compute(city, f, value, mask) {
     const b = city.grid.layer<Float32Array>('bloom');
@@ -106,7 +111,7 @@ registerOverlay({
   id: 'nightlife',
   label: 'Night life',
   icon: '✨',
-  legend: ['Quiet', 'Bustling'],
+  legend: ['Quiet', 'Bustling'], about: "Pedestrian activity after dark, relative to the busiest tile. It drives the city's night glow and visitor income.", read: 'Bright is bustling, dark is quiet at night.', act: 'Mix homes with entertainment and amenities, and link them by sky-lanes and the Aeroline.',
   smooth: true,
   compute(city, f, value, mask) {
     // Stretched to the island's busiest tile so differences between districts read.
@@ -123,7 +128,7 @@ registerOverlay({
   id: 'traffic',
   label: 'Traffic',
   icon: '⇶',
-  legend: ['Free-flowing', 'Gridlock'],
+  legend: ['Free-flowing', 'Gridlock'], about: 'Load on each highway tile from commuters travelling between homes and jobs.', read: 'Green flows freely, red is gridlock: jams slow commuters and add pollution.', act: 'Add Pod Docks and sky-lane hubs, Aeroline stations, more lanes into jammed areas, and jobs closer to homes.',
   invert: true,
   smooth: false,
   compute(city, _f, value, mask) {
@@ -149,13 +154,13 @@ function soilLens(key: 'hydration' | 'nutrients') {
     }
   };
 }
-registerOverlay({ id: 'hydration', label: 'Soil water', icon: '❖', legend: ['Parched', 'Moist'], smooth: true, compute: soilLens('hydration') });
-registerOverlay({ id: 'nutrients', label: 'Nutrients', icon: '✿', legend: ['Depleted', 'Rich'], smooth: true, compute: soilLens('nutrients') });
+registerOverlay({ id: 'hydration', label: 'Soil water', icon: '❖', legend: ['Parched', 'Moist'], about: 'Moisture in the Flora-Net soil, smoothed across each zone.', read: 'Blue-green is moist, pale is parched: dry soil wilts plants and the bloom.', act: 'Mist with Drone Hives (Y), run channels nearby, and watch it in the Haze and droughts.', smooth: true, compute: soilLens('hydration') });
+registerOverlay({ id: 'nutrients', label: 'Nutrients', icon: '✿', legend: ['Depleted', 'Rich'], about: 'Nutrients in the Flora-Net soil, smoothed across each zone. Farms draw them down.', read: 'Rich is green, depleted is pale: poor soil weakens farms and plants.', act: 'Drone Hives tend and pollinate within reach; spread farms out and plant gardens among them.', smooth: true, compute: soilLens('nutrients') });
 registerOverlay({
   id: 'flood',
   label: 'Flood risk',
   icon: '🌊',
-  legend: ['Floods at a king tide', 'Safe'],
+  legend: ['Floods at a king tide', 'Safe'], about: "Height above a king tide on today's sea level; a seawall makes what it covers safe.", read: 'Red floods at a king tide, green is safe. Sea rise moves the line inland over the years.', act: 'Line the low coast with Mangrove Seawalls, keep the lowest ground for parks, or reclaim land higher.',
   smooth: true,
   compute(city, f, value, mask) {
     // Height above a king tide on today's sea; seawalls make what they protect safe.
@@ -176,7 +181,7 @@ registerOverlay({
   id: 'access',
   label: 'Access',
   icon: '≋',
-  legend: ['Cut off', 'Connected'],
+  legend: ['Cut off', 'Connected'], about: 'Whether each building reaches a Living Highway: power, water and commuters all travel along them.', read: 'Green is connected, red is cut off: no services, no residents, no workers.', act: 'Draw a highway to the cut-off buildings (or demolish strays).',
   smooth: false,
   compute(city, _f, value, mask) {
     const g = city.grid;
@@ -193,6 +198,29 @@ registerOverlay({
       if (st.energy >= 0 && st.water >= 0 && st.population === 0 && st.jobs === 0) continue;
       value[i] = Service.network[eid]! >= 0 ? 1 : 0;
       mask[i] = 1;
+    }
+  },
+});
+registerOverlay({
+  id: 'risk',
+  label: 'Risk',
+  icon: '⛈',
+  legend: ['Safe', 'Exposed'], about: "Each building's exposure to hazards: floods (low waterfront no seawall covers), fire (no working Ember Watch in reach), lightning (towers and turbines), tornadoes (homes with no Storm Shelter in reach) and collapse (poor condition). Click a building to see its reasons.", read: 'Green is safe, red is exposed to several hazards at once.', act: 'Mangrove Seawalls on the low coast, Ember Watch stations, Storm Shelters near homes, and repair or renovate run-down buildings. A Weather Radar doubles the warning.',
+  invert: true,
+  smooth: false,
+  compute(city, _f, value, mask) {
+    // Each building's footprint takes its hazard exposure (`buildingExposure`): flood, fire, lightning, storm, frailty.
+    const g = city.grid;
+    mask.fill(0);
+    for (const [e, x] of buildingExposure(city)) {
+      const x0 = Building.x[e]!;
+      const z0 = Building.z[e]!;
+      for (let dz = 0; dz < Building.d[e]!; dz++)
+        for (let dx = 0; dx < Building.w[e]!; dx++) {
+          const i = g.index(x0 + dx, z0 + dz);
+          value[i] = x.score;
+          mask[i] = 1;
+        }
     }
   },
 });

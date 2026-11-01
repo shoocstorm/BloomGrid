@@ -82,3 +82,68 @@
     display: none;
   }
 }
+
+/* Lens card (D-081): under the lens list in City Pulse → Lenses (the Build tab's card idiom). */
+.lens-brief {
+  margin-top: 10px;
+}
+.lens-scale {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.lens-scale i {
+  display: block;
+  height: 6px;
+  border-radius: var(--pill);
+}
+.brief .lens-reading {
+  grid-template-columns: repeat(3, 1fr);
+}
+.lens-brief-off,
+.lens-off {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.lens-off {
+  padding: 2px;
+  margin-left: 2px;
+  border: 0;
+}
+.lens-brief-off:hover,
+.lens-off:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+/* Phones: the card sits under the lens buttons while a lens is on; folded with the sheet. */
+.compact .lens-wrap .lens-brief {
+  order: 0;
+  width: 100%;
+  margin-top: 0;
+}
+.compact .lens-wrap.collapsed .lens-brief,
+.compact .lens-brief.idle {
+  display: none;
+}
+.con-pane .lens-brief.panel {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+}
