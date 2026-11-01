@@ -227,6 +227,8 @@ export interface ScenarioBuilder {
   rand(): number;
   /** Living Highway along an L-path; water tiles on the path become bridges when `bridges` is true. */
   road(x0: number, z0: number, x1: number, z1: number, bridges?: boolean): void;
+  /** Sets the level of every highway tile in a rectangle (applied after the scenario's default, D-096). */
+  roadLevel(x0: number, z0: number, x1: number, z1: number, level: number): void;
   /** Tries to place a building; returns false if invalid. */
   building(def: string, x: number, z: number, rot?: number): boolean;
   /** Fills free road-adjacent land in a rectangle using weighted building picks. Returns count. */
@@ -254,6 +256,8 @@ export interface ScenarioDef {
   credits: number;
   /** A growing start (D-072): unlock projects, discovered wonders and a billed Flora. */
   progression?: boolean;
+  /** Level of the scenario's highways (D-096): 0 raw tracks, 1 Living Highways (default), 2 boulevards. */
+  roadLevel?: number;
   build(b: ScenarioBuilder): void;
 }
 

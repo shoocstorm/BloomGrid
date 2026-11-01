@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, ivyEdge, roofMeadow } from '../kit';
+import { PALETTE, TRIM, barrel, crate, ivyEdge, lamp, roofMeadow } from '../kit';
 
 export default defineBuilding({
   id: 'drone-fabricator',
@@ -45,5 +45,33 @@ export default defineBuilding({
         glow: 1,
       });
     }
+    // Detail (D-096): a sawtooth north-light roof over the hall, loading bays with roller doors and a parked
+    // delivery pod, an overhead gantry crane, window bands on the office wing, a lit sign and yard lamps.
+    for (let k = 0; k < 4; k++) {
+      b.add({ piece: 'slab', p: [-0.7, 2.44 + 0.2, -1.7 + k * 0.8 + 0.12], s: [4.0, 0.03, 0.55], rx: 0.6, tint: 0x8fa7a0 });
+      b.add({ piece: 'glassBox', p: [-0.7, 2.44, -1.7 + k * 0.8 - 0.12], s: [3.96, 0.32, 0.02], tint: 0xcfefff });
+    }
+    for (let k = 0; k < 3; k++) {
+      const x = -2.2 + k * 1.1;
+      b.add({ piece: 'slab', p: [x, 0.12, 1.11], s: [0.8, 0.9, 0.03], tint: k === 1 ? TRIM.orange : 0xbac4c4 });
+      for (let r = 0; r < 6; r++) b.add({ piece: 'slab', p: [x, 0.2 + r * 0.14, 1.13], s: [0.78, 0.012, 0.012], tint: 0x8a9494 });
+    }
+    b.add({ piece: 'pod', p: [-1.1, 0.12, 1.75], s: [0.9, 0.7, 0.7], tint: 0xf4f1e8 });
+    for (const x of [-2.6, 1.2]) b.add({ piece: 'timberBox', p: [x, 0.12, 1.5], s: [0.08, 1.4, 0.08], tint: TRIM.orange });
+    b.add({ piece: 'timberBox', p: [-0.7, 1.5, 1.5], s: [3.9, 0.1, 0.1], tint: TRIM.orange });
+    b.add({ piece: 'timberBox', p: [-1.6, 1.0, 1.5], s: [0.015, 0.5, 0.015], tint: TRIM.steel });
+    crate(b, -1.6, 0.85, 1.5, 0.22, 0, 0x5f9fb0);
+    for (let k = 0; k < 3; k++) b.add({ piece: 'glassBox', p: [2.1, 0.35 + k * 0.38, -0.29], s: [1.3, 0.16, 0.02], tint: 0xd6f2ee });
+    b.add({ piece: 'slab', p: [-0.7, 2.0, 1.13], s: [1.6, 0.22, 0.03], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [-0.7, 2.03, 1.15], s: [1.4, 0.12, 0.01], tint: TRIM.teal, glow: 0.8 });
+    for (const [x, z] of [
+      [2.7, 0.3],
+      [-2.75, 2.2],
+      [0.5, 2.3],
+    ] as const)
+      lamp(b, x, 0.12, z, 0.6);
+    crate(b, 0.2, 0.12, 1.6, 0.2, 0.3);
+    crate(b, 0.45, 0.12, 1.75, 0.18, -0.2, 0xb48d5a);
+    barrel(b, 0.25, 0.12, 2.0, 0.12, 0x3f8fb0);
   },
 });

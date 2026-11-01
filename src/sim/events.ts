@@ -16,6 +16,8 @@ declare module '@/core/EventBus' {
     'crisis:start': { crisis: CrisisInstance };
     'crisis:end': { crisis: CrisisInstance };
     'road:overgrowth': { tiles: number[] };
+    /** Highway tiles whose level changed (D-096). */
+    'road:level': { tiles: number[] };
     'loan:repaid': { id: number };
     'season:changed': { index: number };
     /** The bloom field was recomputed (renderers re-upload it). */

@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, TRIM, flowers, grassTufts, lamp, piles, tree } from '../kit';
 
 export default defineBuilding({
   id: 'phyto-garden',
@@ -27,5 +27,13 @@ export default defineBuilding({
       b.add({ piece: 'fungus', p: [b.range(-0.9, 0.9), 0.05, b.range(0.4, 0.9)], s: b.range(0.07, 0.12), tint: 0xe9d8ff, glow: 0.8, growAt: 0.3 + i * 0.1 });
     tree(b, 0.75, 0.05, -0.75, 0.4, 0.4);
     b.add({ piece: 'bush', p: [-0.85, 0.05, 0.75], s: 0.3, tint: PALETTE.leaves[3], growAt: 0.2 });
+    // Detail (D-096): a timber boardwalk over the pools, stepping stones, a bench, a pump post and a lamp.
+    for (let k = 0; k < 6; k++) b.add({ piece: 'timberBox', p: [-0.95 + k * 0.2, 0.08, 0.1], s: [0.18, 0.03, 0.3], tint: k % 2 ? 0xa98258 : 0x9a7550 });
+    piles(b, -0.95, 0.05, 0.22, 0.08, 4, 0.08);
+    for (let k = 0; k < 3; k++) b.add({ piece: 'concreteCyl', p: [0.3 + k * 0.18, 0.05, 0.25 - k * 0.1], s: [0.12, 0.03, 0.12], tint: 0xd8d0c0 });
+    b.add({ piece: 'timberBox', p: [0.7, 0.12, -0.15], s: [0.12, 0.06, 0.38], tint: 0xa47c56 });
+    b.add({ piece: 'concreteCyl', p: [-0.85, 0.05, -0.85], s: [0.1, 0.32, 0.1], tint: TRIM.seaBlue });
+    b.add({ piece: 'waterfall', p: [-0.85, 0.08, -0.78], s: [0.06, 0.24, 1], tint: 0xbfefff });
+    lamp(b, 0.85, 0.05, 0.85, 0.42);
   },
 });

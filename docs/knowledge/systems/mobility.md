@@ -13,6 +13,20 @@ order: 14
 Residents travel to their jobs along the highways. Busy lanes jam; **flow** measures how freely trips run (0.9+ is
 free, 0.5 means trips take twice as long).
 
+## Highway levels
+
+Every highway has a level, and each level carries more traffic before it jams:
+
+| Level | Carries | Looks |
+| --- | --- | --- |
+| Raw track | ×0.75 | packed earth with wheel ruts, unlit |
+| Living Highway | ×1 | turf lanes with glowing guidelines |
+| Bloom Boulevard | ×1.6 | planted verges, street trees, lamps, double guidelines |
+
+New highways start as raw tracks. Traffic wears them in: a used track is paved into a Living Highway on its own,
+and a busy highway grows into a boulevard. To speed it up, click a highway and **Upgrade** the stretch (◈8 a tile
+to pave, ◈18 a tile for a boulevard), or ask Flora (*"pave the roads in Old Harbour"*).
+
 ## The mobility tier
 
 Flow: 0.9+ Thriving, 0.75+ Stable, 0.6–0.75 Strained, 0.45–0.6 Critical. Jammed commutes cost up to 12 harmony.

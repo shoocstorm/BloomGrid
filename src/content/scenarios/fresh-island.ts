@@ -29,6 +29,8 @@ export default defineScenario({
   description: 'A fishing hamlet on an empty island: grow it into a city.',
   credits: 2000,
   progression: true,
+  // The hamlet's streets are raw tracks: traffic paves them (D-096).
+  roadLevel: 0,
   build(b) {
     const { x, shore } = findCoast(b);
     const street = shore - 9;

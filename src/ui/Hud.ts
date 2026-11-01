@@ -1,3 +1,5 @@
+import { MAX_ROAD_LEVEL, ROAD_CAPACITY, ROAD_LEVEL_NAMES, levelCounts, roadLevels, roadStretch, upgradeCost as roadUpgradeCost } from '@/sim/roads';
+import { ROAD } from '@/sim/City';
 import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildingExposure, type Exposure } from '@/sim/risk';
 import { buildings } from '@/content';
@@ -589,7 +591,18 @@ class Hud {
     if (!n) return this.hideInfo();
     this.showInfo();
     let tiles = 0;
-    for (let i = 0; i < city.networks.comp.length; i++) if (city.networks.comp[i] === id) tiles++;
+    const net: number[] = [];
+    for (let i = 0; i < city.networks.comp.length; i++)
+      if (city.networks.comp[i] === id) {
+        tiles++;
+        net.push(i);
+      }
+    // Highway levels (D-096): this tile's level, the network's mix, and an upgrade for the stretch clicked.
+    const level = roadLevels(city)[road]!;
+    const [raw, paved, blvd] = levelCounts(city, net);
+    const stretch = roadStretch(city, road, 30);
+    const cost = roadUpgradeCost(city, stretch);
+    const next = level < MAX_ROAD_LEVEL && city.grid.road[road] === ROAD ? ROAD_LEVEL_NAMES[level + 1] : null;
     const ratio = (p: number, u: number) => (u > 0 ? `${Math.round((p / u) * 100)}%` : '—');
     const row = (k: string, v: string | number) => h('div', { class: 'row' }, h('span', {}, k), h('b', {}, String(v)));
     const objId = idForSelection(city, { road });
@@ -609,7 +622,32 @@ class Hud {
       ),
       row('Energy', `${fmt(n.energyProduced)} / ${fmt(n.energyUsed)}`),
       row('Water', `${fmt(n.waterProduced)} / ${fmt(n.waterUsed)} (${ratio(n.waterProduced, n.waterUsed)})`),
-      this.infoActions(objId),
+      row('This stretch', `${ROAD_LEVEL_NAMES[level]} · carries ×${ROAD_CAPACITY[level]}`),
+      row('Levels', `${fmt(raw)} raw · ${fmt(paved)} highway · ${fmt(blvd)} boulevard`),
+      h('p', { class: 'ix-note' }, level < MAX_ROAD_LEVEL ? 'Busy roads level up on their own as traffic wears them in; or upgrade this stretch now.' : 'A Bloom Boulevard: the top level.'),
+      this.infoActions(
+        objId,
+        ...(next
+          ? [
+              h(
+                'button',
+                {
+                  class: 'tool',
+                  title: `Upgrade the ${stretch.length} connected ${ROAD_LEVEL_NAMES[level]} tiles here to ${next} (⌘Z undoes)`,
+                  disabled: this.ctx.city.credits < cost ? 'true' : undefined,
+                  onClick: () => {
+                    if (this.ctx.commands.execute('upgradeRoad', { tiles: stretch })) {
+                      this.ctx.bus.emit('toast', { text: `${stretch.length} tiles upgraded to ${next}`, tone: 'ok' });
+                      this.selectNetwork(road);
+                    }
+                  },
+                },
+                h('span', { class: 'g' }, icon('up')),
+                h('span', { class: 'l' }, `Upgrade to ${next}`, h('span', { class: 'l-price' }, ` ◈${fmt(cost)}`)),
+              ),
+            ]
+          : []),
+      ),
     );
     this.info.querySelector('[data-led]')?.classList.toggle('bad', n.energyProduced < n.energyUsed || n.waterProduced < n.waterUsed);
   }

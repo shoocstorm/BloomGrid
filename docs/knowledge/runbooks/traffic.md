@@ -18,8 +18,10 @@ order: 5
 1. **Pod Docks** near the homes feeding the worst jams (after the Sky-lane charter on a fresh island).
 2. A **Pod Interchange** links nearby docks into one network; docks on a network carry more riders.
 3. Aeroline stations link to the nearest hub: riders change to the trains.
-4. A **parallel highway** for a single overloaded link.
-5. **Land use**: jobs nearer homes shorten every commute (work zones beside living zones).
+4. **Upgrade the jammed stretch**: click it and Upgrade (a raw track carries ×0.75, a Living Highway ×1, a Bloom
+   Boulevard ×1.6), or ask Flora to upgrade a district's roads.
+5. A **parallel highway** for a single overloaded link.
+6. **Land use**: jobs nearer homes shorten every commute (work zones beside living zones).
 
 ## Check
 

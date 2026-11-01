@@ -1,3 +1,4 @@
+import { registerRoadCommands, roadLevels, setRoadLevels } from './roads';
 import type { CommandStack } from '@/core/Commands';
 import { buildings } from '@/content';
 import { NO_ENTITY } from './Grid';
@@ -70,6 +71,7 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerMist(stack);
   registerReclaim(stack);
   registerWeaver(stack);
+  registerRoadCommands(stack);
   stack.register<BuildPayload, true>('build', {
     apply({ city }, p) {
       const def = buildings.get(p.def);
@@ -157,15 +159,18 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
     },
   });
 
-  stack.register<RoadPayload, number[]>('unroad', {
+  stack.register<RoadPayload, { tiles: number[]; levels: number[] }>('unroad', {
     apply({ city }, p) {
       const removed = p.tiles.filter((t) => city.grid.road[t]);
       if (!removed.length) return null;
+      const lv = roadLevels(city);
+      const levels = removed.map((t) => lv[t]!);
       city.setRoads(removed, false);
-      return removed;
+      return { tiles: removed, levels };
     },
-    revert({ city }, _p, removed) {
-      city.setRoads(removed, true);
+    revert({ city }, _p, u) {
+      city.setRoads(u.tiles, true);
+      setRoadLevels(city, u.tiles.map((t, i) => [t, u.levels[i]!]));
     },
   });
 

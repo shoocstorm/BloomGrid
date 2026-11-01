@@ -4,6 +4,7 @@ import { Building, Greenery, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { BuildingDef, ZoneKind } from '@/content/types';
 import { Grid, NO_ENTITY, SEA_LEVEL } from './Grid';
+import { roadLevelHash, roadLevels, roadWear } from './roads';
 import { generateTerrain } from './terrain';
 import { Rng, fnv1a } from './random';
 import { RoadNetworks } from './networks';
@@ -360,6 +361,11 @@ export class City {
       if (!on) g.road[t] = 0;
       else g.road[t] = this.isWaterTile(t % g.w, (t / g.w) | 0) ? BRIDGE : ROAD;
       this.roadCount += (g.road[t]! > 0 ? 1 : 0) - (had ? 1 : 0);
+      // A newly laid highway is a raw track (D-096); a removed one forgets its level.
+      if (!had || !on) {
+        roadLevels(this)[t] = 0;
+        roadWear(this)[t] = 0;
+      }
       if (og && og[t]) {
         // Rebuilt or removed highways start clean.
         og[t] = 0;
@@ -437,7 +443,7 @@ export class City {
       (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0},${r.tier ?? 0},${Math.round(r.age ?? 0)},${Math.round(r.thrive ?? 0)},${(r.scorch ?? 0).toFixed(3)},${r.off ? 1 : 0}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${roadLevelHash(this)}`,
     );
   }
 }

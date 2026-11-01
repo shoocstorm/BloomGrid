@@ -88,7 +88,8 @@ export function ivyEdge(b: KitBuilder, x: number, y: number, z: number, len: num
     b.add({
       piece: 'ivy',
       p: [x + -nz * t * len, y, z + nx * t * len],
-      s: [b.range(0.12, 0.22), b.range(0.25, 0.8), 1],
+      // Finer strands (D-096): wide ones read as flat green planks over the glass.
+      s: [b.range(0.06, 0.11), b.range(0.16, 0.48), 1],
       r: Math.atan2(nx, nz),
       tint: b.pick(PALETTE.leaves),
       glow: b.rand() < 0.15 ? 0.6 : 0,

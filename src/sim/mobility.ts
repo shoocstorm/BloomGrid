@@ -6,6 +6,7 @@ import { LABOUR_SHARE } from './pulseConst';
 import { buildSkyNet } from './skylanes';
 import { isOpen } from './growthState';
 import { size } from './levels';
+import { roadCapacity } from './roads';
 
 /** Commuters a highway tile carries per pulse before it starts to jam. */
 export const TILE_CAPACITY = 55;
@@ -246,7 +247,8 @@ export function computeMobility(city: City): void {
     }
     if (moved <= 0.5) break;
   }
-  for (let i = 0; i < n; i++) traffic[i] = g.road[i] ? load[i]! / TILE_CAPACITY : 0;
+  // Each level carries more before it jams (D-096).
+  for (let i = 0; i < n; i++) traffic[i] = g.road[i] ? load[i]! / (TILE_CAPACITY * roadCapacity(city, i)) : 0;
 
   // Travel time: every jammed tile on the way slows the trip.
   let free = 0;

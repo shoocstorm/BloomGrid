@@ -15,6 +15,7 @@ import { DAY_LENGTH } from './pulseConst';
 import { RESPONSE_COST } from './hazards';
 import { EVACUATE_COST, GATES_COST } from './disasters';
 import { LEVEL_DAYS, OLD_DAYS, TIER_SIZE, TIER_UPKEEP } from './levels';
+import { ROAD_CAPACITY, ROAD_LEVEL_NAMES, ROAD_UPGRADE_COST } from './roads';
 
 /**
  * Seedvault's live reference (D-088): docs generated from the game's own registries (crises, consequence
@@ -175,6 +176,15 @@ function rulesOfPlayDoc(): KnowledgeDoc {
     `- Dispatching fire crews: ◈${RESPONSE_COST} a fire.`,
     `- Evacuation siren: ◈${EVACUATE_COST}. Closing the Tide Gates: ◈${GATES_COST}.`,
     '- Repairing a ruin: half the building’s price.',
+    '',
+    '## Highway levels',
+    '',
+    table(
+      ['Level', 'Carries', 'Upgrade cost / tile'],
+      ROAD_LEVEL_NAMES.map((n, i) => [n, `×${ROAD_CAPACITY[i]}`, i ? `◈${ROAD_UPGRADE_COST[i]}` : 'new highways']),
+    ),
+    '',
+    'Traffic wears highways in: a used raw track is paved for free, and a busy Living Highway grows into a boulevard.',
     '',
     '## Levels and ageing',
     '',

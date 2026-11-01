@@ -1455,3 +1455,35 @@ scenario ≈365 ms (was ≈280), draw calls 242 downtown / 225 Westbrook / 271 o
 perf probe 262 draws (246 before); flicker per building in the range of untouched ones (≈0.05–0.1%). Not done:
 the Living Highway's look, other categories' buildings.
 
+## D-096 — Highway levels (raw track → Living Highway → Bloom Boulevard); more buildings detailed; hover-cars (2026-11-01)
+
+**Context:** Highways were one fixed kind of tile, and early roads looked as finished as downtown's. The player
+asked for roads that level up from a raw start, and for the rest of the common buildings to match the hamlet (D-095).
+
+**Decision:**
+- **Sim** (`sim/roads.ts`): per-tile layers `roadLevel` (0 raw track, 1 Living Highway, 2 Bloom Boulevard) and
+  `roadWear` (0..255). Capacity ×0.75 / ×1 / ×1.6 of `TILE_CAPACITY` (mobility divides each tile's load by its
+  own). Every 5 pulses a tile carrying enough traffic for its level (≥ 0.08, ≥ 0.5) gains wear (16 / 7 a pass);
+  full wear raises the level for free (`road:level`). A newly laid highway is raw (`City.setRoads`); `unroad`'s
+  undo restores levels. Command `upgradeRoad` raises tiles one level at ◈8 / ◈18 a tile, in order while credits
+  last, undoable. Scenarios set a default (`roadLevel`, 1; the fresh island 0) and rectangles via
+  `ScenarioBuilder.roadLevel` (the founding city's hero district: boulevards). Saved (v15: `roadLevels` as
+  [tile, level, wear]; older saves migrate to level 1) and hashed. Raw capacity was tuned to 0.75 (0.6 left a new
+  hamlet's mobility Strained for 90 s before it paved itself).
+- **Look** (`RoadRenderer` `aLevel`, the `road` material): raw tracks are packed earth with two wheel ruts and a
+  grass crown, unlit; Living Highways as before (with roadside fungi); boulevards add pale paving kerbs with a
+  flower strip, a second guideline, a little more glow, and instanced street trees and lamps alternating on every
+  kerb that faces open ground.
+- **Player**: the highway inspector shows the clicked stretch's level and the network's mix, and **Upgrade to …**
+  raises the 30 connected same-level tiles (`roadStretch`). Flora: `upgrade_roads` (a district, or the stretch near
+  an object), routed from "pave / upgrade / widen the roads", "boulevard".
+- **Commuters** (`modules/mobility`): the hover-cars are small rounded cars with a glass canopy in five pastel
+  colours by day (were white boxes), glowing at night as before.
+- **Buildings**: `ivyEdge` strands made finer (they read as flat green planks); detail added to the Canopy Tower
+  (lobby, sky-garden rails, fins, solar), Living Studio (doors, porch, terrace), Orchard Stack (grow-light bands,
+  loading bay, rooftop greenhouse), Drone Fabricator (sawtooth roof, roller doors, gantry crane, delivery pod,
+  sign), Pod Dock (waiting shelter, departures pillar, lift door), Phyto Garden (boardwalk, pump, bench), Data Spire
+  (server racks, cooling pipes, entrance, light posts) and Storm Shelter (entrance ramp, sign, supplies).
+
+**Consequences:** Draw calls unchanged (242 / 228 / 271), boot scenario ≈360 ms. `tests/roads.test.ts`.
+

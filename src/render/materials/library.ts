@@ -526,9 +526,26 @@ export function initMaterials(): void {
     // Unfunded highways are reclaimed: wild meadow creeps in and the guideline goes dark.
     const og = attribute('aOvergrowth', 'float');
     const wild = mix(color(0x6f9a3c), color(0x9cbf5a), mx_noise_float(positionWorld.mul(9)).mul(detail).mul(0.5).add(0.5));
-    const lit = line.mul(float(1).sub(smoothstep(0.3, 0.9, og)));
-    m.colorNode = mix(mix(turf.add(rut), color(0xd9fff4), lit.mul(0.6)), wild, smoothstep(0.2, 1, og));
-    m.emissiveNode = color(0x7ff7e6).mul(lit).mul(dots.mul(0.6).add(0.4)).mul(U.night.mul(1.2).mul(activityGlow()).add(0.12));
+    // Highway levels (D-096): 0 raw track, 1 Living Highway, 2 Bloom Boulevard.
+    const lvl = attribute('aLevel', 'float');
+    const raw = float(1).sub(step(0.5, lvl));
+    const blvd = step(1.5, lvl);
+    // Raw track: packed earth with two darker wheel ruts and a grass crown, fading into the verge; no light.
+    const earth = mix(color(0x8a6e4e), color(0xa88a62), mx_noise_float(positionWorld.mul(7)).mul(detail).mul(0.5).add(0.5));
+    const ruts = float(1).sub(smoothstep(0.03, max(px, float(0.04)).add(0.03), abs(d.sub(0.19)))).mul(0.22).mul(detail.mul(0.7).add(0.3));
+    const crown = float(1).sub(smoothstep(0.05, 0.1, d)).mul(0.6);
+    const verge = smoothstep(0.32, 0.46, d);
+    const track = mix(mix(earth.mul(float(1).sub(ruts)), color(0x6f9a4a), crown), color(0x6f9a4a), verge);
+    // Boulevard: pale paving bands at the kerbs with a flower strip, and a second guideline beside the first.
+    const kerb = smoothstep(0.34, 0.38, d);
+    const blooms = step(0.6, mx_noise_float(positionWorld.mul(14))).mul(detail);
+    const kerbCol = mix(color(0xe9e2d2), mix(color(0x5c9a48), color(0xffb7d5), blooms), smoothstep(0.42, 0.45, d));
+    const line2 = float(1).sub(smoothstep(drawW.sub(soft), drawW.add(soft), abs(d.sub(0.1)))).mul(min(float(1), hw.mul(1.5).div(drawW))).mul(blvd);
+    const lines = max(line, line2);
+    const lit = lines.mul(float(1).sub(smoothstep(0.3, 0.9, og))).mul(float(1).sub(raw));
+    const paved = mix(mix(turf.add(rut), kerbCol, kerb.mul(blvd)), color(0xd9fff4), lit.mul(0.6));
+    m.colorNode = mix(mix(paved, track, raw), wild, smoothstep(0.2, 1, og));
+    m.emissiveNode = color(0x7ff7e6).mul(lit).mul(dots.mul(0.6).add(0.4)).mul(U.night.mul(1.2).mul(activityGlow()).add(0.12)).mul(blvd.mul(0.3).add(1));
     return m;
   }, { overlay: 'plain' });
 

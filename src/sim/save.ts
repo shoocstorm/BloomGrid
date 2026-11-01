@@ -1,3 +1,4 @@
+import { roadLevels, roadWear } from './roads';
 import type { ZoneKind } from '@/content/types';
 import { Service } from '@/ecs/components';
 import type { BuildingRecord, City } from './City';
@@ -7,7 +8,7 @@ import { createFireworksState, type FireworksState } from './fireworksState';
 import { createGrowthState, type GrowthState } from './growthState';
 import { createConsequenceState, neutralMods, type ConsequenceState } from './consequenceState';
 
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 
 export interface SaveData {
   version: number;
@@ -27,6 +28,8 @@ export interface SaveData {
   roads: number[];
   /** Sparse [tile, value] pairs of highway overgrowth. */
   overgrowth: [number, number][];
+  /** v15 (D-096): [tile, level, wear] for highway tiles above raw or with wear. */
+  roadLevels: [number, number, number][];
   /** Sparse [tile, value] filtration channels (1 channel, 2 lush). */
   channels: [number, number][];
   pulse: Pick<PulseState, 'taxRate' | 'history'> & { happiness: number };
@@ -126,6 +129,11 @@ export function migrateSave(data: SaveData): SaveData {
     // Damage looks and switches (v14): nothing charred, everything on (missing fields default).
     data.version = 14;
   }
+  if (data.version === 14) {
+    // Highways before levels were all Living Highways.
+    data.roadLevels = data.roads.map((t) => [t, 1, 0]);
+    data.version = 15;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -134,6 +142,10 @@ export function serializeCity(city: City): SaveData {
   const og = city.grid.layer<Uint8Array>('overgrowth');
   const overgrowth: [number, number][] = [];
   if (og) for (let i = 0; i < og.length; i++) if (og[i]) overgrowth.push([i, og[i]!]);
+  const lv = roadLevels(city);
+  const wear = roadWear(city);
+  const levels: [number, number, number][] = [];
+  for (const t of city.roadTiles()) if (lv[t] || wear[t]) levels.push([t, lv[t]!, wear[t]!]);
   return {
     version: SAVE_VERSION,
     seed: city.seed,
@@ -150,6 +162,7 @@ export function serializeCity(city: City): SaveData {
     channels: city.channelTiles(),
     roads: city.roadTiles(),
     overgrowth,
+    roadLevels: levels,
     pulse: { taxRate: city.pulse.taxRate, history: structuredClone(city.pulse.history), happiness: city.stats.happiness },
     steward: structuredClone(persistable(city.steward)),
     fireworks: structuredClone(city.fireworks),
@@ -188,6 +201,14 @@ export function deserializeCity(city: City, input: SaveData): void {
   }
   city.weaver.bridges = data.bridges.map(([ax, az, bx, bz]) => ({ ax, az, bx, bz }));
   if (data.roads.length) city.setRoads(data.roads, true);
+  if (data.roadLevels.length) {
+    const lv = roadLevels(city);
+    const wear = roadWear(city);
+    for (const [t, l, w] of data.roadLevels) {
+      lv[t] = l;
+      wear[t] = w;
+    }
+  }
   if (data.overgrowth.length) {
     const og = city.grid.addLayer('overgrowth', (n) => new Uint8Array(n));
     for (const [t, v] of data.overgrowth) og[t] = v;

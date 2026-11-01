@@ -15,6 +15,7 @@ import { riskTools } from '@/sim/riskTools';
 import { growthTools } from '@/sim/growthTools';
 import { proposalTools } from '@/sim/proposalTools';
 import { bulkTools } from '@/sim/bulkTools';
+import { roadTools } from '@/sim/roadTools';
 import { proposeBuilds, type ProposalFocus } from '@/sim/proposals';
 import { floraBilled, floraBlocker, floraLocked, floraWake, type FloraPhase } from '@/sim/flora';
 import { diagnose } from '@/sim/proposals';
@@ -611,7 +612,7 @@ export const assistantModule: GameModule = {
   deps: ['inventory', 'pulse', 'hud'],
   init(ctx) {
     const agent = ctx.services.get('agent');
-    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...bulkTools, ...gameTools()]) agent.register(t);
+    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...bulkTools, ...roadTools, ...gameTools()]) agent.register(t);
     const a = new Assistant(ctx);
     ctx.services.provide('assistant', {
       toggle: (open) => a.panel.toggle(open),

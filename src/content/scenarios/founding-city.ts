@@ -524,6 +524,8 @@ export default defineScenario({
       const [x0, x1, z0, z1] = [lineX(-GRID_W), lineX(GRID_W + 1), lineZ(-GRID_N), lineZ(GRID_S + 1)];
       for (let i = -GRID_W; i <= GRID_W + 1; i++) b.road(lineX(i), z0, lineX(i), z1);
       for (let j = -GRID_N; j <= GRID_S + 1; j++) b.road(x0, lineZ(j), x1, lineZ(j), j === 2 || j === GRID_S + 1);
+      // The hero district's streets are Bloom Boulevards (D-096).
+      b.roadLevel(x0, z0, x1, z1, 2);
       // Transit for the hero district's living quarter (its towers' commuters otherwise jam the centre's
       // streets): an interchange in its middle and a dock in every block, now that the streets reach the lots.
       for (const q of QUARTERS.filter((qq) => qq.zone === 'living')) {

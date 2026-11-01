@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge } from '../kit';
+import { PALETTE, TRIM, flowers, grassTufts, ivyEdge, lamp } from '../kit';
 
 export default defineBuilding({
   id: 'pod-dock',
@@ -39,5 +39,16 @@ export default defineBuilding({
     // Solar-inductive leaf crown.
     const top = h + 0.1;
     for (let i = 0; i < 8; i++) b.add({ piece: 'solarLeaf', p: [0, top, 0], s: [0.75, 1, 0.75], r: (i / 8) * Math.PI * 2, rz: 0.45, growAt: 0.3 + i * 0.04 });
+    // Detail (D-096): a waiting shelter with a bench and a lit departures pillar, the lift door in the core,
+    // glass rails round both docking rings and a paved approach.
+    b.add({ piece: 'slab', p: [0, 0.1, 0.72], s: [1.2, 0.025, 0.42], tint: 0xe4dac8 });
+    for (const x of [-0.45, 0.45]) b.add({ piece: 'timberBox', p: [x, 0.1, 0.82], s: [0.035, 0.42, 0.035], tint: TRIM.cream });
+    b.add({ piece: 'glassBox', p: [0, 0.52, 0.78], s: [1.05, 0.03, 0.34], tint: 0xd6f2ee });
+    b.add({ piece: 'timberBox', p: [0, 0.1, 0.9], s: [0.6, 0.07, 0.12], tint: 0xa47c56 });
+    b.add({ piece: 'slab', p: [0.62, 0.1, 0.6], s: [0.1, 0.5, 0.1], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [0.62, 0.42, 0.655], s: [0.08, 0.14, 0.01], tint: 0x7ff7e6, glow: 0.9 });
+    b.add({ piece: 'slab', p: [0, 0.12, 0.25], s: [0.2, 0.36, 0.02], tint: 0x2a3a44 });
+    b.add({ piece: 'lumenRib', p: [0, 0.5, 0.27], s: [0.16, 0.02, 0.02], tint: 0x7ff7e6, glow: 0.8 });
+    lamp(b, -0.8, 0.1, 0.85, 0.45);
   },
 });

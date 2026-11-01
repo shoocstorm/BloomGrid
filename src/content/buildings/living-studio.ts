@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { FLOOR, PALETTE, flowers, ivyEdge, roofMeadow } from '../kit';
+import { FLOOR, PALETTE, door, flowers, ivyEdge, lamp, planter, roofMeadow, solarArray } from '../kit';
 
 export default defineBuilding({
   id: 'living-studio',
@@ -26,5 +26,17 @@ export default defineBuilding({
         b.add({ piece: 'solarLeaf', p: [-1.05 + i * 0.52, 0.2 + f * FLOOR * 1.2, 0.78], s: [0.42, 1, 0.3], r: -Math.PI / 2, rz: 0.5, growAt: 0.1 + f * 0.1 });
     roofMeadow(b, 0.08 + h, 2.3, 1.4, 1);
     ivyEdge(b, 0, 0.08 + h, -0.72, 2.2, 0, -1, 6);
+    // Detail (D-096): glazed doors and a timber porch on the front, a terrace with planters and benches, lamps,
+    // and solar panels between the roof plantings.
+    for (const x of [-0.6, 0.6]) door(b, x, 0.08, 0.72, 0.28, 0.34);
+    b.add({ piece: 'timberBox', p: [0, 0.5, 0.92], s: [2.5, 0.05, 0.42], tint: PALETTE.timber });
+    for (const x of [-1.2, 1.2]) b.add({ piece: 'timberBox', p: [x, 0.08, 1.08], s: [0.05, 0.42, 0.05], tint: PALETTE.timber });
+    b.add({ piece: 'slab', p: [0, 0.08, 0.88], s: [2.7, 0.025, 0.3], tint: 0xe4dac8 });
+    planter(b, -1.25, 0.08, 0.6, 0.3, 0.6, 0.15);
+    planter(b, 1.25, 0.08, 0.6, 0.3, 0.6, 0.2);
+    b.add({ piece: 'timberBox', p: [0, 0.08, 1.15], s: [0.5, 0.07, 0.12], tint: 0xa47c56 });
+    lamp(b, -1.35, 0.08, 0.95);
+    lamp(b, 1.35, 0.08, 0.95);
+    solarArray(b, 0.6, 0.12 + h, -0.3, 0.9, 0.5, 1, 3, 0.4);
   },
 });

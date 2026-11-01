@@ -282,7 +282,9 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Kit detail helpers; Garden Residence, Fishing Dock, Work Dome, Water Works rebuilt; Ember Watch, Solar Spire, Bloom Park detailed
 - [x] Fishing boats: lofted hulls, two designs, wakes, believable scale
 - [x] Waterside buildings face the water (scenario, site finder, Build tool)
-- [ ] Living Highway look; the rest of the catalogue to the same standard
+- [x] Highway levels: raw track → Living Highway → Bloom Boulevard (D-096)
+- [x] Canopy Tower, Living Studio, Orchard Stack, Drone Fabricator, Pod Dock, Phyto Garden, Data Spire, Storm Shelter detailed (D-096)
+- [ ] The rest of the catalogue (heroes, industry, sports) to the same standard
 - **Accept:** ✅ snaps (day, night, WebGL), `tests/orient.test.ts`, draw calls and boot measured, flicker probe (D-095)
 
 ---

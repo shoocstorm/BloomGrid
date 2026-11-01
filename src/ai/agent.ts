@@ -150,6 +150,8 @@ export function plainIntent(request: string): string | null {
     // Hazards (D-050) before the general remedies: crews to fires, rebuilding ruins.
     [/\b(put out|extinguish|firefighters?|fire ?crews?|dispatch (the )?crews?|send (the )?crews?)\b/, 'respond_incident'],
     [/\b(rebuild|ruins?|repair (the )?(damage|damaged|ruins?|quake|fire))\b/, 'repair_damage'],
+    // Highway levels (D-096): "pave the roads in Westbrook", "upgrade the streets to boulevards".
+    [/\b(pave|upgrade|widen|improve)\b.*\b(roads?|highways?|streets?|tracks?)\b|\bboulevards?\b/, 'upgrade_roads'],
     // Many buildings at once (D-091): "turn on all wind turbines", "renovate every canopy tower in Westbrook".
     [/\b(turn|switch|power|shut) (on|off|down)\b.*\b(all|every|each|the)\b|\b(all|every|each)\b.*\b(turn|switch) (on|off)\b|\b(start|stop|pause|resume|feather|unfeather|renovate|refurbish|upgrade|level up|repair|demolish|bulldoze|remove)\b.*\b(all|every|each)\b|\b(all|every|each)\b.*\b(on|off)$/, 'act_on_buildings'],
     // Levels and ageing (D-073).

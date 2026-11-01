@@ -1,3 +1,4 @@
+import { updateRoadLevels } from './roads';
 import { query } from 'bitecs';
 import type { System } from '@/core/Systems';
 import { Building, Greenery, Problem, Service } from '@/ecs/components';
@@ -331,6 +332,7 @@ export const pulseSystem: System<SimCtx> = {
     }
     pulse.primed = true;
     updateOvergrowth(city);
+    updateRoadLevels(city);
     updateStewardship(city);
     updateProjects(city);
     updateWonders(city);

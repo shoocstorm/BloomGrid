@@ -3,6 +3,7 @@ import { getMaterial } from '@/render/materials/library';
 import type { Grid } from '@/sim/Grid';
 import { BRIDGE, BRIDGE_DECK, ROAD } from '@/sim/City';
 import { hash2 } from '@/sim/random';
+import { roadLevels } from '@/sim/roads';
 import type { InstanceHandle } from '@/render/Instancer';
 import type { GameContext } from '@/game/context';
 
@@ -17,6 +18,12 @@ const _fungusTint = new Color(0xbff6ff);
 const _fungusParams = [1, 0, 1, 1];
 /** Share of highway tiles that get a roadside cluster of glowing fungi. */
 const FUNGI_SHARE = 0.2;
+const _treeTint = new Color(0x6b4f3a);
+const _leafTints = [0x4e9a3a, 0x6fbf4a, 0x3f8f5f].map((c) => new Color(c));
+const _postTint = new Color(0x3b3f42);
+const _lampTint = new Color(0xffd9a0);
+const _plain = [1, 0, 0, 1];
+const _glow = [1, 0, 1, 1];
 
 /**
  * Living Highways: per-chunk meshes whose quads follow the exact terrain corner heights.
@@ -38,6 +45,8 @@ export class RoadRenderer {
     this.group.name = 'roads';
     ctx.scene.add(this.group);
     ctx.bus.on('road:changed', ({ tiles }) => this.onChanged(tiles));
+    // Highway levels (D-096): the surface and the verge dressing change with the level.
+    ctx.bus.on('road:level', ({ tiles }) => this.onChanged(tiles));
     ctx.bus.on('road:overgrowth', ({ tiles }) => {
       const g = ctx.city.grid;
       const dirty = new Set(tiles.map((t) => this.key(t % g.w, (t / g.w) | 0)));
@@ -97,7 +106,10 @@ export class RoadRenderer {
     this.bridgeParts.set(t, hs);
   }
 
-  /** Roadside fungi on a hashed subset of highway tiles, on a kerb that faces open ground. */
+  /**
+   * Verge dressing by level (D-096): a Living Highway gets roadside fungi on a hashed subset of tiles; a Bloom
+   * Boulevard gets a street tree or a lamp on every open kerb, alternating; a raw track gets nothing.
+   */
   private syncFungi(t: number): void {
     const { instancer, city } = this.ctx;
     const g = city.grid;
@@ -108,8 +120,11 @@ export class RoadRenderer {
     }
     const x = t % g.w;
     const z = (t / g.w) | 0;
-    if (g.road[t] !== ROAD || hash2(x, z, 913) > FUNGI_SHARE) return;
-    const open = (i: number, j: number) => g.inBounds(i, j) && !g.road[g.index(i, j)];
+    if (g.road[t] !== ROAD) return;
+    const level = roadLevels(city)[t]!;
+    const open = (i: number, j: number) => g.inBounds(i, j) && !g.road[g.index(i, j)] && g.occupant[g.index(i, j)] < 0;
+    if (level >= 2) return this.dressBoulevard(t, x, z, open);
+    if (level < 1 || hash2(x, z, 913) > FUNGI_SHARE) return;
     const sides: [number, number][] = [];
     if (open(x, z - 1)) sides.push([0, -1]);
     if (open(x + 1, z)) sides.push([1, 0]);
@@ -127,6 +142,36 @@ export class RoadRenderer {
       hs.push(instancer.addMatrix('fungus', _m.compose(_v.set(px, g.heightAt(px, pz) + LIFT, pz), _q.identity(), _s.set(s, s, s)), _fungusTint, _fungusParams));
     }
     this.fungi.set(t, hs);
+  }
+
+  private dressBoulevard(t: number, x: number, z: number, open: (i: number, j: number) => boolean): void {
+    const { instancer, city } = this.ctx;
+    const g = city.grid;
+    const hs: InstanceHandle[] = [];
+    const sides: [number, number][] = [
+      [0, -1],
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+    ];
+    for (const [nx, nz] of sides) {
+      // Only kerbs facing open ground (not a road, a building or the map edge); trees and lamps alternate.
+      if (!open(x + nx, z + nz)) continue;
+      const px = x + 0.5 + nx * 0.43;
+      const pz = z + 0.5 + nz * 0.43;
+      const y = g.heightAt(px, pz) + LIFT;
+      const tree = (x + z + (nx ? 1 : 0)) % 2 === 0;
+      _plain[1] = hash2(x, z, 77 + nx + nz * 3);
+      if (tree) {
+        const s = 0.22 + hash2(x, z, 19) * 0.08;
+        hs.push(instancer.addMatrix('trunk', _m.compose(_v.set(px, y, pz), _q.identity(), _s.set(s * 0.18, s * 1.6, s * 0.18)), _treeTint, _plain));
+        hs.push(instancer.addMatrix('canopy', _m.compose(_v.set(px, y + s * 1.2, pz), _q.identity(), _s.set(s, s * 0.95, s)), _leafTints[(x * 7 + z) % 3]!, _plain));
+      } else {
+        hs.push(instancer.addMatrix('timberBox', _m.compose(_v.set(px, y, pz), _q.identity(), _s.set(0.03, 0.42, 0.03)), _postTint, _plain));
+        hs.push(instancer.addMatrix('lumenRib', _m.compose(_v.set(px, y + 0.4, pz), _q.identity(), _s.set(0.06, 0.05, 0.06)), _lampTint, _glow));
+      }
+    }
+    if (hs.length) this.fungi.set(t, hs);
   }
 
   private key(x: number, z: number): number {
@@ -153,6 +198,8 @@ export class RoadRenderer {
     const uv: number[] = [];
     const mask: number[] = [];
     const cond: number[] = [];
+    const lvl: number[] = [];
+    const lv = roadLevels(this.ctx.city);
     const idx: number[] = [];
     const og = g.layer<Uint8Array>('overgrowth');
     const road = (x: number, z: number) => (g.inBounds(x, z) && g.road[g.index(x, z)] ? 1 : 0);
@@ -167,6 +214,8 @@ export class RoadRenderer {
         mask.push(m, m, m, m);
         const o = og ? og[g.index(x, z)]! / 255 : 0;
         cond.push(o, o, o, o);
+        const l = lv[g.index(x, z)]!;
+        lvl.push(l, l, l, l);
         idx.push(v, v + 2, v + 1, v + 1, v + 2, v + 3);
       }
     const old = this.chunks.get(key);
@@ -181,6 +230,7 @@ export class RoadRenderer {
     geo.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
     geo.setAttribute('aMask', new BufferAttribute(new Float32Array(mask), 1));
     geo.setAttribute('aOvergrowth', new BufferAttribute(new Float32Array(cond), 1));
+    geo.setAttribute('aLevel', new BufferAttribute(new Float32Array(lvl), 1));
     geo.setIndex(idx);
     geo.computeVertexNormals();
     const mesh = new Mesh(geo, getMaterial('road'));

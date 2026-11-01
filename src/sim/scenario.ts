@@ -1,4 +1,5 @@
 import { seawardScore } from './orient';
+import { roadLevels } from './roads';
 import { startWonders } from './wonders';
 import { buildings, scenarios } from '@/content';
 import type { ScenarioBuilder } from '@/content/types';
@@ -48,6 +49,9 @@ export function applyScenario(city: City, id: string): { buildings: number; road
       setRoad(x, z, bridges);
       while (x !== x1) setRoad((x += sx), z, bridges);
       while (z !== z1) setRoad(x, (z += sz), bridges);
+    },
+    roadLevel(x0, z0, x1, z1, level) {
+      levelRects.push([Math.round(x0), Math.round(z0), Math.round(x1), Math.round(z1), level]);
     },
     building(id, x, z, rot = 0) {
       const d = buildings.get(id);
@@ -144,6 +148,7 @@ export function applyScenario(city: City, id: string): { buildings: number; road
     },
   };
 
+  const levelRects: [number, number, number, number, number][] = [];
   def.build(builder);
   setCorners(city, [...leveled]); // one shore/soil refresh for every terrace
   city.credits = def.credits;
@@ -153,6 +158,13 @@ export function applyScenario(city: City, id: string): { buildings: number; road
   }
   city.networks.dirty = true;
   city.roadCount += roadTiles.length;
+  // Highway levels (D-096): the scenario's default, then its boulevards.
+  const lv = roadLevels(city);
+  const base = def.roadLevel ?? 1;
+  for (const t of roadTiles) lv[t] = base;
+  for (const [x0, z0, x1, z1, l] of levelRects)
+    for (let z = Math.min(z0, z1); z <= Math.max(z0, z1); z++)
+      for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) if (g.inBounds(x, z) && g.road[g.index(x, z)] === 1) lv[g.index(x, z)] = l;
   if (roadTiles.length) city.bus.emit('road:changed', { tiles: roadTiles });
   return { buildings: placed, roads: roadTiles.length };
 }

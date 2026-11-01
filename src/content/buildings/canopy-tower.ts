@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { FLOOR, PALETTE, flowers, ivyEdge, roofMeadow, tree } from '../kit';
+import { FLOOR, PALETTE, door, flowers, ivyEdge, lamp, louvres, planter, railing, roofMeadow, solarArray, tree } from '../kit';
 
 export default defineBuilding({
   id: 'canopy-tower',
@@ -35,5 +35,24 @@ export default defineBuilding({
       y += 0.45;
     }
     roofMeadow(b, y, 1.4, 1.4, 2);
+    // Detail (D-096): a glazed lobby with a canopy and planters at the foot, glass rails round each sky garden,
+    // timber fins on the two bare faces, and solar panels on the roof.
+    b.add({ piece: 'slab', p: [0, 0, 1.25], s: [2.6, 0.03, 0.5], tint: 0xe4dac8 });
+    door(b, 0, 0, 1.05, 0.32, 0.3);
+    b.add({ piece: 'slab', p: [0, 0.38, 1.2], s: [1.1, 0.04, 0.4], tint: PALETTE.timber });
+    for (const x of [-0.85, 0.85]) planter(b, x, 0.03, 1.28, 0.5, 0.2, 0.1);
+    lamp(b, 1.3, 0.03, 1.38);
+    let yy = 0;
+    for (let s = 0; s < segments; s++) {
+      const size = 2.1 - s * 0.18;
+      const hh = 4 * FLOOR;
+      louvres(b, -size / 2 - 0.02, yy, 0.15, size * 0.75, hh, 9, true);
+      louvres(b, 0.2, yy, size / 2 + 0.02, size * 0.7, hh, 9);
+      yy += hh + 0.08;
+      railing(b, 0, yy, (size + 0.3) / 2 - 0.02, size + 0.25);
+      railing(b, (size + 0.3) / 2 - 0.02, yy, 0, size + 0.25, true);
+      yy += 0.45;
+    }
+    solarArray(b, 0.35, yy + 0.05, -0.35, 0.9, 0.6, 1, 3, 0.4);
   },
 });

@@ -1,7 +1,7 @@
 import {
   AdditiveBlending,
   NormalBlending,
-  BoxGeometry,
+  SphereGeometry,
   CylinderGeometry,
   DoubleSide,
   InstancedBufferAttribute,
@@ -41,6 +41,7 @@ import {
   vec2,
   vec3,
 } from 'three/tsl';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { skyShade } from '@/render/bake';
@@ -119,7 +120,11 @@ export const mobilityModule: GameModule = {
     // ── Hover-commuters ────────────────────────────────────────────────────────
     const aSeg = new InstancedBufferAttribute(new Float32Array(AGENTS * 4), 4);
     const aInfo = new InstancedBufferAttribute(new Float32Array(AGENTS * 4), 4);
-    const agentGeo = new BoxGeometry(0.34, 0.09, 0.16).translate(0, 0.045, 0);
+    // A small rounded hover-car (D-096): a low body with a glass canopy (long axis x).
+    const agentGeo = mergeGeometries([
+      new SphereGeometry(0.5, 12, 6).scale(0.34, 0.1, 0.17).translate(0, 0.05, 0),
+      new SphereGeometry(0.5, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).scale(0.17, 0.09, 0.13).translate(-0.02, 0.075, 0),
+    ])!;
     agentGeo.setAttribute('aSeg', aSeg);
     agentGeo.setAttribute('aInfo', aInfo);
     const am = new MeshStandardNodeMaterial({ roughness: 0.4, metalness: 0.2 });
@@ -147,10 +152,18 @@ export const mobilityModule: GameModule = {
       am.positionNode = vec3(flat.x, y, flat.y).add(body.mul(shown));
       // Warm headlights (distinct from the cyan guidelines) turning amber, then coral, as lanes jam.
       const tint = mix(mix(color(0xfff1c9), color(0xffb347), smoothstep(0.5, 1.0, cong)), color(0xff5f6d), smoothstep(1.0, 1.5, cong));
-      am.colorNode = tint;
+      // By day a pastel body per car and a dark glass canopy (D-096); at night the glow as before.
+      const pick = fract(seed.mul(17.31)).mul(5).floor();
+      const paint = mix(
+        mix(mix(color(0xf4f1e8), color(0x7fd1c7), step(0.5, pick)), mix(color(0xffc58a), color(0x9ec5ff), step(2.5, pick)), step(1.5, pick)),
+        color(0xf7d36b),
+        step(3.5, pick),
+      );
+      const canopy = step(0.098, positionGeometry.y);
+      am.colorNode = mix(mix(paint, color(0x2a3a44), canopy), tint, U.night.mul(0.6));
       // Sub-pixel commuters twinkle as they move: dim their glow to their share of a pixel (~2 px across, D-064).
       const cover = min(float(1), float(0.08).div(max(length(fwidth(positionGeometry)), float(1e-5))));
-      am.emissiveNode = tint.mul(U.night.mul(1.6).add(0.3)).mul(cover);
+      am.emissiveNode = tint.mul(U.night.mul(1.6).add(0.05)).mul(cover);
     }
     const agents = new InstancedMesh(agentGeo, am, AGENTS);
     agents.count = 0;
