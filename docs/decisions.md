@@ -1104,3 +1104,16 @@ level 2 lily-pad galleries and a lantern arcade over the bridge; level 3 a lante
 GLB path (`AssetManager.loadGlbPieces`, `optimize-glb`) stays for future use but nothing uses it. Piece counts:
 grove ≈ 500 instances at level 1 (one per island), lotus ≈ 110. `scripts/scenes/heroes.js` shows a hero at all three
 levels side by side.
+
+## D-083 — wllama's build is chosen by compiling Memory64, not by wllama's check (2026-11-01)
+
+Safari 27 (macOS 27, iOS 27) has JSPI (`WebAssembly.Suspending`) and accepts
+`new WebAssembly.Memory({ address: 'i64', initial: 1n })`, but can't compile a Memory64 module ("Memory64 is not
+enabled"; measured with JavaScriptCore on macOS 27.0.1). wllama's `needCompat()` (unchanged up to 3.8.1) uses exactly
+those two checks, so it loaded its default build, logged the compile abort with `console.log`, and the load promise never
+settled: the assistant sat on "Warming up…" until `WARM_MS` on iPhones and in the macOS shell. `ai/llm/wasm.ts`
+decides with `WebAssembly.validate` on `(module (memory i64 1))` plus JSPI, and `LlmEngine.newWllama` overrides the
+instance's `getWorkerResources` to force the compat build otherwise (wllama stays a lazy import). A fatal native log
+line (`isFatalLog`: an abort, a worker error) now fails the warm-up at once with that line instead of waiting.
+Ported from Andai, where the same fix was checked end to end in WKWebView on macOS 27 (compat build, WebGPU 29/29
+layers). D-062's CPU-only rule for iOS stays; whether its stall was this same bug isn't measured yet.

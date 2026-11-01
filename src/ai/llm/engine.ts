@@ -1,5 +1,6 @@
 import type { ModelManager, Wllama } from '@wllama/wllama';
 import { verifyBlobs } from './integrity';
+import { defaultBuildRuns, forceCompat, isFatalLog, type WorkerResources } from './wasm';
 import { MODELS, isMlx, modelById, type MlxDef, type ModelDef, type WllamaDef } from './models';
 import {
   downloadCheckpoint,
@@ -16,8 +17,9 @@ import {
 
 /**
  * The city assistant's local LLM on one of two engines (ported from Andai's `llm/engine.ts`):
- * - wllama (llama.cpp → WASM, WebGPU when available) in the page, everywhere. On WKWebView (the macOS
- *   desktop shell) wllama switches itself to the compat build served from `public/wllama/compat/`.
+ * - wllama (llama.cpp → WASM, WebGPU when available) in the page, everywhere. Safari and WKWebView (the
+ *   macOS desktop shell) need the compat build served from `public/wllama/compat/`; wllama's own check is
+ *   fooled by Safari 27, so `wasm.ts` decides by compiling a Memory64 module.
  * - MLX natively in Rust on Apple Silicon desktop builds (`native.ts`), 5–10× faster.
  * Callers don't care which: `generate` streams the same way on both.
  *
@@ -337,7 +339,16 @@ export class LlmEngine {
     cpu: boolean,
   ): Promise<{ w: Wllama; gpu: { layers: number; total: number } | null }> {
     let gpu: { layers: number; total: number } | null = null;
-    const w = await this.newWllama((g) => (gpu = g));
+    // A fatal native line (wllama only logs it; its promise never settles) fails the warm-up at once.
+    let fatal: string | null = null;
+    let onFatal: ((line: string) => void) | null = null;
+    const w = await this.newWllama(
+      (g) => (gpu = g),
+      (line) => {
+        fatal ??= line;
+        onFatal?.(line);
+      },
+    );
     let timer = 0;
     try {
       await Promise.race([
@@ -348,6 +359,10 @@ export class LlmEngine {
         } as Parameters<Wllama['loadModel']>[1]),
         new Promise<never>((_, reject) => {
           timer = window.setTimeout(() => reject(new WarmTimeout(def.name)), WARM_MS);
+          const stop = (line: string) =>
+            reject(new Error(`${def.name} could not start in this browser: ${line.slice(0, 200)}`));
+          if (fatal) stop(fatal);
+          else onFatal = stop;
         }),
       ]);
     } catch (e) {
@@ -359,7 +374,10 @@ export class LlmEngine {
     return { w, gpu };
   }
 
-  private async newWllama(onGpu: (gpu: { layers: number; total: number }) => void): Promise<Wllama> {
+  private async newWllama(
+    onGpu: (gpu: { layers: number; total: number }) => void,
+    onFatal?: (line: string) => void,
+  ): Promise<Wllama> {
     const { Wllama: W } = await this.wl();
     // llama.cpp's load log says whether WebGPU took the layers; `navigator.gpu` existing says neither (Andai).
     const watch =
@@ -369,6 +387,13 @@ export class LlmEngine {
         const m = /offloaded (\d+)\/(\d+) layers to GPU/.exec(line);
         if (m) onGpu({ layers: Number(m[1]), total: Number(m[2]) });
         else if (/ggml_webgpu: Failed to get an adapter/.test(line)) onGpu({ layers: 0, total: 0 });
+        // any channel: wllama logs an abort (a build that can't compile) with console.log; a worker's
+        // `error` event arrives as an Event
+        if (
+          onFatal &&
+          (isFatalLog(line) || a.some((v) => typeof Event !== 'undefined' && v instanceof Event))
+        )
+          onFatal(line.replace(/\s+/g, ' ').trim());
         fn(...a);
       };
     const logger = {
@@ -381,10 +406,12 @@ export class LlmEngine {
       parallelDownloads: 3,
       logger,
     } as ConstructorParameters<typeof W>[1]);
-    (w as unknown as { setCompat(c: { worker: string; wasm: string }): void }).setCompat({
-      worker: asset('/wllama/compat/wllama.js'),
-      wasm: asset('/wllama/compat/wllama.wasm'),
-    });
+    const compat = { worker: asset('/wllama/compat/wllama.js'), wasm: asset('/wllama/compat/wllama.wasm') };
+    (w as unknown as { setCompat(c: { worker: string; wasm: string }): void }).setCompat(compat);
+    // wllama's own compat check is fooled by Safari 27 (wasm.ts): correct its choice of build.
+    const own = w as unknown as { getWorkerResources(): WorkerResources };
+    const choose = own.getWorkerResources.bind(own);
+    own.getWorkerResources = () => forceCompat(choose(), compat, defaultBuildRuns());
     return w;
   }
 
