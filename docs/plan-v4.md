@@ -162,7 +162,8 @@ Acceptance:
 Shipped (D-078): `tests/pacing.test.ts` plays a scripted steward and times the unlocks (sim-minutes at 1×: Flora
 ≈ 35, sky-lanes ≈ 100, the Aeroline started ≈ 140, never broke; three seeds); unlock costs and fishing retuned to
 get there; Flora's `goals_status` and `start_project` and a progression line in her brief. Showcase balance is
-unchanged (`tests/zoning.test.ts`). The trailer update is deferred.
+unchanged (`tests/zoning.test.ts`). The trailer update shipped as D-079 (one feature-trailer script, showcase
+city, fireworks act).
 
 ## Order and dependencies
 

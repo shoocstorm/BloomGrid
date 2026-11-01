@@ -1015,4 +1015,15 @@ stock, wonders found and what reveals the rest) and `start_project` (undoable; a
 missing), routed by `plainIntent`; her brief gains one line on a fresh island (city name, fish stock, each locked
 project and the first thing it needs). Polish: no tier toasts or alert sounds in a city's first 8 sim-seconds,
 while occupancy and staffing settle from their starting values (a fresh island used to flash "Food fell to
-Critical" at boot). Deferred: the trailer update.
+Critical" at boot). The trailer update shipped as D-079.
+
+## D-079 — One feature trailer, recorded against the showcase city (2026-11-01)
+
+`scripts/trailer.mjs` (the ~30s cinematic) is gone: `bun run trailer:feature` is the only trailer. The script now
+appends `scenario=founding-city` like snap/perf (before it booted the fresh island), gained a two-shot fireworks
+act — heart, butterfly, rings and a "BLOOM ♥" sky message, grand shows launched while the engine runs at speed 3
+so each 30-sim-second show spans ~3s of video, with a factory built through the agent if the city lacks one —
+closes Flora's console before the dawn shots, scales its timed actions with `--duration`, and encodes at
+crf 25 / preset slow so the mp4 stays small enough to commit as `public/assets/feature-trailer.mp4` (GitHub's
+pre-receive hook rejects blobs over 100 MB — a 131 MB crf-20 take was refused during the v0.1.6 release; ~70 MB
+for 76 s passes with only the over-50 MB warning).

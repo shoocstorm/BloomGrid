@@ -237,7 +237,7 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Phase 19: Visible damage (scorch, broken facilities, rubble) and interactive objects (turbine on/off, factory pause) (D-075; floodgates come with the tsunami in Phase 21)
 - [x] Phase 20: Logic and consequences: consequence rules, stocks and delays, Cause & effect feed, insurance and credit rating (D-074)
 - [x] Phase 21: Tornado and tsunami, risk model, prevention, damage reports and trends (D-076; Risk map lens deferred)
-- [x] Phase 22: Polish and balance: fresh-island pacing test (scripted steward) and retuned unlocks, Flora's `goals_status` / `start_project` and a progression line in her brief, no tier alarms while a new city settles (D-078; trailer update deferred)
+- [x] Phase 22: Polish and balance: fresh-island pacing test (scripted steward) and retuned unlocks, Flora's `goals_status` / `start_project` and a progression line in her brief, no tier alarms while a new city settles (D-078; the trailer update shipped as D-079)
 
 ---
 
