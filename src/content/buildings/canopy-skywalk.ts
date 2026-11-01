@@ -1,5 +1,5 @@
 import { defineBuilding, type Vec3 } from '../types';
-import { PALETTE, beam, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, beam, bench, door, flowers, grassTufts, lamp, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 const SEG = 20;
@@ -64,5 +64,23 @@ export default defineBuilding({
     b.add({ piece: 'concreteCyl', p: [0, 11.1, 0], s: [3.2, 0.2, 3.2], tint: 0xc8a57c });
     b.add({ piece: 'haloRing', p: [0, 11.6, 0], s: [3.2, 4, 3.2], glow: 1 });
     beam(b, 'timberBox', [0, Y, 0], pts[3]!, 0.5, { tint: 0xc8a57c });
+    // Visitors (D-097): a glass lift from the street up to the ring's front with a short bridge across, lamps at
+    // its door and benches under the trees.
+    const front = pts[SEG / 4]!;
+    b.add({
+      piece: 'glassCyl',
+      p: [0, 0.12, 4.5],
+      s: [0.7, front[1] + 0.5, 0.7],
+      tint: PALETTE.glassWarm,
+      glow: 0.4,
+    });
+    b.add({ piece: 'concreteCyl', p: [0, front[1] + 0.62, 4.5], s: [0.85, 0.1, 0.85], tint: 0xc8a57c });
+    for (const x of [-0.3, 0.3])
+      b.add({ piece: 'lumenRib', p: [x, 0.12, 4.82], s: [0.04, front[1] + 0.5, 0.04], glow: 0.7 });
+    beam(b, 'timberBox', [0, front[1], 4.15], [0, front[1], front[2] + 0.2], 0.5, { tint: 0xc8a57c });
+    door(b, 0, 0.12, 4.86, 0.22, 0.4);
+    for (const sx of [-1, 1]) lamp(b, sx * 0.6, 0.12, 4.75, 0.6);
+    bench(b, 3.0, 0.12, 0.6, 0.45, true, true);
+    bench(b, -3.0, 0.12, -0.6, 0.45, true);
   },
 });

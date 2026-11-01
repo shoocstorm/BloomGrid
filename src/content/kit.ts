@@ -286,3 +286,23 @@ export function lilies(b: KitBuilder, x: number, y: number, z: number, w: number
   for (let i = 0; i < count; i++)
     b.add({ piece: 'lily', p: [x + b.range(-w / 2, w / 2), y, z + b.range(-d / 2, d / 2)], s: b.range(0.16, 0.26), r: b.rand() * 6.28, tint: b.pick(PALETTE.blossoms) });
 }
+
+/** A round glass balustrade with a timber handrail, radius r round (x, z), in n straight segments. */
+export function railRing(b: KitBuilder, x: number, y: number, z: number, r: number, n = 24, h = 0.11): void {
+  const len = ((Math.PI * 2 * r) / n) * 1.02;
+  for (let k = 0; k < n; k++) {
+    const a = ((k + 0.5) / n) * Math.PI * 2;
+    // Yaw that turns the segment's x axis onto the circle's tangent.
+    const p: Vec3 = [x + Math.cos(a) * r, y, z + Math.sin(a) * r];
+    b.add({ piece: 'glassBox', p, s: [len, h, 0.015], r: -a - Math.PI / 2, tint: 0xe8f6f2 });
+    b.add({ piece: 'timberBox', p: [p[0], y + h, p[2]], s: [len, 0.022, 0.035], r: -a - Math.PI / 2, tint: PALETTE.timber });
+  }
+}
+
+/** A railed timber footbridge `len` long centred at (x, z), spanning along z (or x when `alongX`), deck at y. */
+export function footbridge(b: KitBuilder, x: number, y: number, z: number, len: number, w = 0.7, alongX = false): void {
+  b.add({ piece: 'timberBox', p: [x, y, z], s: alongX ? [len, 0.07, w] : [w, 0.07, len], tint: 0xc8a57c });
+  for (const s of [-1, 1])
+    if (alongX) railing(b, x, y + 0.07, z + s * (w / 2 - 0.03), len);
+    else railing(b, x + s * (w / 2 - 0.03), y + 0.07, z, len, true);
+}

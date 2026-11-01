@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts } from '../kit';
+import { PALETTE, TRIM, entrance, flowers, footbridge, grassTufts, lamp } from '../kit';
 
 const STRIPS = 22;
 
@@ -57,5 +57,19 @@ export default defineBuilding({
           tint: 0xe9f4ef,
         });
     }
+    // Street level (D-097): a bridge over the reflecting pool to the main doors, a second door on the tall hall,
+    // exhibition banners, a sculpture on a plinth and lamps by the bridge.
+    footbridge(b, -1.6, 0.22, 3.2, 1.2, 1.0);
+    entrance(b, -1.6, 0.2, 2.31, 1.2, 0.6, 0xff9aa2);
+    entrance(b, 2.6, 0.2, 1.81, 0.8, 0.5, 0xff9aa2);
+    for (const [x, c] of [
+      [-3.7, 0xff9aa2],
+      [-3.2, TRIM.teal],
+      [0.3, 0xffe08a],
+    ] as const)
+      b.add({ piece: 'slab', p: [x, 0.9, 2.33], s: [0.32, 1.3, 0.02], tint: c });
+    b.add({ piece: 'slab', p: [3.8, 0.2, 2.25], s: [0.45, 0.35, 0.45], tint: 0xe9e2d0 });
+    b.add({ piece: 'pod', p: [3.8, 0.55, 2.25], s: [0.5, 1.4, 0.5], r: 0.6, rz: 0.3, tint: 0xff9a8a });
+    for (const x of [-2.5, -0.7]) lamp(b, x, 0.2, 3.85, 0.6);
   },
 });

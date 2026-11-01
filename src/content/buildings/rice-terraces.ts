@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, grassTufts, tree } from '../kit';
+import { PALETTE, grassTufts, lamp, tree } from '../kit';
 
 const TIERS = 7;
 
@@ -61,5 +61,12 @@ export default defineBuilding({
         glow: 1,
       });
     }
+    // Detail (D-097): a stone stair up the front of the terraces beside the falls, and lamps at its foot.
+    for (let i = 0; i < TIERS; i++) {
+      const d = 9.8 - i * 1.3;
+      b.add({ piece: 'slab', p: [0.9, i * 0.55, d / 2 + 0.15], s: [0.6, 0.55, 0.3], tint: 0xb9b2a4 });
+      b.add({ piece: 'slab', p: [0.9, i * 0.55, d / 2 + 0.45], s: [0.6, 0.28, 0.3], tint: 0xb9b2a4 });
+    }
+    for (const x of [0.4, 1.4]) lamp(b, x, 0, 4.85, 0.6);
   },
 });

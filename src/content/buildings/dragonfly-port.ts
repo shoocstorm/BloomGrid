@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, ivyEdge, lamp } from '../kit';
 
 const TAU = Math.PI * 2;
 const H = 22;
@@ -62,5 +62,23 @@ export default defineBuilding({
     // Beacon crown.
     b.add({ piece: 'spireCone', p: [0, H + 0.3, 0], s: [1.0, 4, 1.0], tint: PALETTE.glassWarm, glow: 0.4 });
     b.add({ piece: 'haloRing', p: [0, H + 1.2, 0], s: [1.8, 4, 1.8], glow: 1 });
+    // Street level (D-097): a lit terminal door with a paved path to the street, lamps along it, benches and a
+    // ring of glowing bollards on the rim.
+    entrance(b, 0, 0.3, 1.7, 0.8, 0.5);
+    b.add({ piece: 'slab', p: [0, 0.38, 2.85], s: [0.9, 0.02, 2.3], tint: 0xe4dac8 });
+    for (const sx of [-1, 1]) {
+      lamp(b, sx * 0.65, 0.38, 3.2, 0.6);
+      bench(b, sx * 2.3, 0.38, 0, 0.5, true, sx < 0);
+    }
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * TAU + Math.PI / 8;
+      b.add({
+        piece: 'lumenRib',
+        p: [Math.cos(a) * 3.55, 0.3, Math.sin(a) * 3.55],
+        s: [0.08, 0.2, 0.08],
+        tint: 0xffd9a0,
+        glow: 0.9,
+      });
+    }
   },
 });

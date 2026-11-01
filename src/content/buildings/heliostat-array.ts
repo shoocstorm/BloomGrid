@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, grassTufts, flowers } from '../kit';
+import { PALETTE, entrance, flowers, grassTufts, lamp, railing } from '../kit';
 
 const TAU = Math.PI * 2;
 const H = 14;
@@ -49,5 +49,20 @@ export default defineBuilding({
         });
       }
     }
+    // Site detail (D-097): a lit control-room door at the tower's foot, a low fence round the field with a gap at
+    // the front, and lamps at its corners.
+    entrance(b, 0, 0.12, 1.3, 0.5, 0.42, 0xffe08a);
+    const e = 4.8;
+    railing(b, 0, 0.12, -e, 2 * e);
+    railing(b, e, 0.12, 0, 2 * e, true);
+    railing(b, -e, 0.12, 0, 2 * e, true);
+    for (const sx of [-1, 1]) railing(b, sx * 2.9, 0.12, e, 3.8);
+    for (const [x, z] of [
+      [-4.6, -4.6],
+      [4.6, -4.6],
+      [-1.1, 4.6],
+      [1.1, 4.6],
+    ] as const)
+      lamp(b, x, 0.12, z, 0.6);
   },
 });

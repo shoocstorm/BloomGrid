@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, entrance, flowers, footbridge, grassTufts, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 const TIERS = 7;
@@ -55,5 +55,20 @@ export default defineBuilding({
         s: [0.9 - i * 0.12, 4, 0.9 - i * 0.12],
         glow: 1,
       });
+    // Street level (D-097): a railed bridge over the front pool to a lit door, and stone lanterns along the way.
+    footbridge(b, 0, 0.42, 3.3, 1.2, 0.8);
+    entrance(b, 0, 0.4, 2.1, 0.8, 0.5, 0xffe08a);
+    for (const [x, z] of [
+      [-1.5, 2.3],
+      [1.5, 2.3],
+      [-3.2, 0.6],
+      [3.2, 0.6],
+    ] as const) {
+      b.add({ piece: 'slab', p: [x, 0.4, z], s: [0.26, 0.08, 0.26], tint: 0xd8d2c4 });
+      b.add({ piece: 'concreteCyl', p: [x, 0.48, z], s: [0.1, 0.32, 0.1], tint: 0xd8d2c4 });
+      b.add({ piece: 'lumenRib', p: [x, 0.8, z], s: [0.2, 0.15, 0.2], tint: 0xffd9a0, glow: 1 });
+      b.add({ piece: 'slab', p: [x, 0.95, z], s: [0.3, 0.05, 0.3], tint: 0xd8d2c4 });
+      b.add({ piece: 'spireCone', p: [x, 1.0, z], s: [0.18, 0.12, 0.18], tint: 0xd8d2c4 });
+    }
   },
 });

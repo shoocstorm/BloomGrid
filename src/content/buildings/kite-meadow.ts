@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, beam, flowers, grassTufts } from '../kit';
+import { PALETTE, beam, bench, entrance, flowers, grassTufts, lamp } from '../kit';
 
 /** Kites: winch x, z; kite x, height, z; heading. */
 const KITES = [
@@ -42,5 +42,20 @@ export default defineBuilding({
       });
       b.add({ piece: 'lumenRib', p: [kx, ky - 0.6, kz], s: [0.08, 1.2, 0.08], glow: 1 });
     }
+    // Visitors (D-097): a lit pavilion door, a path in from the street, picnic blankets on the lawn, benches and
+    // lamps.
+    entrance(b, 0, 0.12, 1.6, 0.6, 0.42);
+    b.add({ piece: 'slab', p: [0, 0.12, 3.3], s: [0.8, 0.02, 3.2], tint: 0xe4dac8 });
+    for (const sx of [-1, 1]) lamp(b, sx * 0.6, 0.12, 4.4, 0.6);
+    for (const [x, z, r, c] of [
+      [-2.0, 2.6, 0.3, 0xff9aa2],
+      [1.8, 3.2, -0.4, 0x9ee6ff],
+      [-1.6, -2.4, 0.8, 0xffe08a],
+    ] as const) {
+      b.add({ piece: 'slab', p: [x, 0.12, z], s: [0.7, 0.015, 0.55], r, tint: c });
+      b.add({ piece: 'slab', p: [x, 0.13, z], s: [0.35, 0.012, 0.55], r, tint: 0xfff4f0 });
+    }
+    bench(b, 1.2, 0.12, 1.9);
+    bench(b, -1.2, 0.12, 1.9);
   },
 });

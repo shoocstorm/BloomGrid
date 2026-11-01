@@ -1,5 +1,5 @@
 import { defineBuilding, type KitBuilder } from '../types';
-import { PALETTE, beam, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, beam, bench, flowers, grassTufts, lamp, tree } from '../kit';
 
 type Vec3 = [number, number, number];
 
@@ -262,5 +262,13 @@ export default defineBuilding({
     tree(b, HX - 1.2, G, -5.6, 0.9, 0.2);
     for (const x of [-7.4, 7.4]) flowers(b, x, G, gz + 1.6, 1.0, 18, 0.1, 0.7);
     grassTufts(b, 0, G, -0.4, 26, 0.8, 36);
+    // Promenade detail (D-097): lamps and benches along both edges of the main walk and the gate path.
+    for (const x of [-13, -9, -5, 5, 9, 13]) {
+      lamp(b, x, G, 0.5, 0.75);
+      lamp(b, x + 2, G, 3.1, 0.75);
+      bench(b, x + 1, G, 0.75);
+      bench(b, x - 1, G, 2.85, 0.42, false, true);
+    }
+    for (const z of [-6.5, -4, -1.5]) for (const s of [-1, 1]) lamp(b, s * 1.7, G, z, 0.75);
   },
 });

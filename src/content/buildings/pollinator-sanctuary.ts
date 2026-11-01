@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, bench, flowers, grassTufts, tree } from '../kit';
 
 export default defineBuilding({
   id: 'pollinator-sanctuary',
@@ -23,5 +23,11 @@ export default defineBuilding({
       b.add({ piece: 'flower', p: [x, 0.6, z], s: 0.22, tint: 0xffe08a, glow: 0.9, growAt: 0.2 });
     }
     tree(b, 0.6, 0.05, -0.6, 0.35, 0.3);
+    // Visitors (D-097): an insect hotel of drilled timber and a bench.
+    b.add({ piece: 'timberBox', p: [-0.6, 0.05, 0.6], s: [0.3, 0.32, 0.12], tint: 0x9b6e45 });
+    for (let i = 0; i < 6; i++)
+      b.add({ piece: 'concreteCyl', p: [-0.7 + (i % 3) * 0.1, 0.13 + Math.floor(i / 3) * 0.12, 0.66], s: [0.05, 0.02, 0.05], rx: Math.PI / 2, tint: 0x3b2f26 });
+    b.add({ piece: 'slab', p: [-0.6, 0.37, 0.6], s: [0.38, 0.03, 0.18], tint: 0xc8714f });
+    bench(b, 0.1, 0.05, 0.75);
   },
 });

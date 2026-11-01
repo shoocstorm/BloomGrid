@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, beam, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, TRIM, beam, bench, entrance, flowers, grassTufts, railRing, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 
@@ -58,5 +58,25 @@ export default defineBuilding({
         glow: 0.8,
       });
     }
+    // Street level (D-097): a lit door with stepping stones round the front tree, benches, a public telescope on a
+    // tripod in the garden, and a balustrade round the viewing deck.
+    entrance(b, 0, 0.3, 1.5, 0.6, 0.45, 0xc9b6ff);
+    for (const [x, z] of [
+      [0.25, 2.05],
+      [0.65, 2.5],
+      [0.8, 3.0],
+      [0.65, 3.5],
+    ] as const)
+      b.add({ piece: 'slab', p: [x, 0.38, z], s: [0.4, 0.03, 0.34], r: x, tint: 0xe4dac8 });
+    for (const x of [-1.4, 1.4]) bench(b, x, 0.38, 2.25);
+    const [sx, sz] = [-2.0, 1.4];
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * TAU;
+      beam(b, 'timberBox', [sx + Math.cos(a) * 0.22, 0.38, sz + Math.sin(a) * 0.22], [sx, 0.85, sz], 0.03, {
+        tint: TRIM.charcoal,
+      });
+    }
+    beam(b, 'concreteCyl', [sx - 0.2, 0.75, sz + 0.1], [sx + 0.25, 1.1, sz - 0.12], 0.12, { tint: 0xe9f4ef });
+    railRing(b, 0, 12.6, 0, 2.1, 20);
   },
 });

@@ -1,5 +1,5 @@
 import { defineBuilding, type KitBuilder } from '../types';
-import { beam, flowers, grassTufts } from '../kit';
+import { beam, bench, entrance, flowers, grassTufts, lamp } from '../kit';
 
 /** Standing pods: x, z, height. */
 const PODS = [
@@ -48,5 +48,11 @@ export default defineBuilding({
       const [x1, z1] = PODS[i + 1]!;
       beam(b, 'glassBox', [x0, 1.6, z0], [x1, 1.6, z1], 0.5, { tint: 0xe6f4e8, glow: 0.5 });
     }
+    // Street level (D-097): a lit door at the front pod's foot, a path to it, lamps and benches on the lawn.
+    entrance(b, -0.6, 0.25, 3.45, 0.5, 0.42, 0xc9b6ff);
+    b.add({ piece: 'slab', p: [-0.6, 0.25, 4.15], s: [0.7, 0.02, 1.0], tint: 0xe4dac8 });
+    for (const sx of [-1, 1]) lamp(b, -0.6 + sx * 0.55, 0.25, 4.3, 0.6);
+    bench(b, 1.0, 0.25, 0.6);
+    bench(b, -2.6, 0.25, 0.2);
   },
 });

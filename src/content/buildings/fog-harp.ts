@@ -1,5 +1,5 @@
 import { defineBuilding, type Vec3 } from '../types';
-import { PALETTE, beam, flowers, grassTufts } from '../kit';
+import { PALETTE, beam, bench, flowers, grassTufts, railRing } from '../kit';
 
 const TAU = Math.PI * 2;
 const H = 16;
@@ -64,5 +64,21 @@ export default defineBuilding({
         rz: 0.3,
         growAt: 0.2,
       });
+    // Visitors (D-097): a rail round the cistern's lip, benches under the lattice and bollards on the rim.
+    railRing(b, 0, 0.9, 0, 1.25, 16);
+    bench(b, 0, 0.36, 1.9, 0.5);
+    bench(b, 0, 0.36, -1.9, 0.5, false, true);
+    bench(b, 1.9, 0.36, 0, 0.5, true);
+    bench(b, -1.9, 0.36, 0, 0.5, true, true);
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * TAU + Math.PI / 8;
+      b.add({
+        piece: 'lumenRib',
+        p: [Math.cos(a) * 3.6, 0.3, Math.sin(a) * 3.6],
+        s: [0.08, 0.2, 0.08],
+        tint: 0xffd9a0,
+        glow: 0.9,
+      });
+    }
   },
 });

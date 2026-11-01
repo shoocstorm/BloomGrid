@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, TRIM, flowers, grassTufts, lamp, tree } from '../kit';
 
 /**
  * Street-level concourse of an Aeroline station. The platform overhead and the two Bloom Helix towers that climb
@@ -34,5 +34,25 @@ export default defineBuilding({
     b.add({ piece: 'lumenRib', p: [0, 0.98, -0.42], s: [2.1, 0.05, 0.05], glow: 0.9 });
     tree(b, -2.6, 0.1, -1.6, 0.5, 0.2);
     tree(b, 2.6, 0.1, -1.6, 0.5, 0.3);
+    // Street side (D-097; the forecourt faces -z): glazed doors under the lit lintel, a departures pillar, ticket
+    // machines, a bike rack and lamps along the kerb.
+    b.add({ piece: 'slab', p: [0, 0.1, -0.22], s: [1.0, 0.6, 0.04], tint: TRIM.charcoal });
+    for (const x of [-0.24, 0.24])
+      b.add({ piece: 'glassBox', p: [x, 0.1, -0.25], s: [0.44, 0.55, 0.02], tint: 0xcfefff, glow: 0.5 });
+    b.add({ piece: 'slab', p: [1.6, 0.1, -1.1], s: [0.16, 0.95, 0.16], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [1.6, 0.55, -1.19], s: [0.13, 0.4, 0.01], tint: 0xffd36b, glow: 1 });
+    for (const x of [-1.6, -1.35]) {
+      b.add({ piece: 'slab', p: [x, 0.1, -0.5], s: [0.18, 0.4, 0.12], tint: TRIM.teal });
+      b.add({ piece: 'slab', p: [x, 0.38, -0.565], s: [0.12, 0.08, 0.01], tint: 0x7ff7e6, glow: 0.8 });
+    }
+    for (let i = 0; i < 4; i++)
+      b.add({
+        piece: 'willowArch',
+        p: [2.0 + i * 0.16, 0.1, -1.6],
+        s: [0.14, 0.2, 0.02],
+        r: Math.PI / 2,
+        tint: TRIM.steel,
+      });
+    for (const x of [-2.6, -1.3, 1.3, 2.6]) lamp(b, x, 0.1, -1.85, 0.6);
   },
 });

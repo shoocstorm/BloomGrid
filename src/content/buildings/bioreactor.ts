@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, ivyEdge, roofMeadow, tree } from '../kit';
+import { PALETTE, TRIM, beam, door, ivyEdge, lamp, roofMeadow, tree } from '../kit';
 
 export default defineBuilding({
   id: 'bioreactor',
@@ -25,5 +25,11 @@ export default defineBuilding({
     }
     tree(b, 1.2, 0, 1.25, 0.4, 0.5);
     tree(b, 1.25, 0, -1.3, 0.35, 0.6);
+    // Detail (D-097): a door and lit sign on the hall, pipes from each tank into it, and a lamp.
+    door(b, -0.2, 0, 1.24, 0.24, 0.4);
+    b.add({ piece: 'slab', p: [-0.95, 0.5, 1.24], s: [0.5, 0.14, 0.03], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [-0.95, 0.53, 1.255], s: [0.42, 0.08, 0.01], tint: 0x8fd35a, glow: 0.9 });
+    for (let i = 0; i < 3; i++) beam(b, 'concreteCyl', [1.0, 1.15, -0.9 + i * 0.9], [0.5, 0.7, -0.9 + i * 0.9], 0.07, { tint: TRIM.steel });
+    lamp(b, 0.65, 0, 1.3, 0.5);
   },
 });

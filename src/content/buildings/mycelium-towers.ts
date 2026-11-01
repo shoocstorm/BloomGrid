@@ -1,5 +1,5 @@
 import { defineBuilding, type KitBuilder } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge } from '../kit';
+import { PALETTE, beam, bench, entrance, flowers, grassTufts, ivyEdge, lamp } from '../kit';
 
 const TAU = Math.PI * 2;
 
@@ -90,5 +90,18 @@ export default defineBuilding({
     // Root walkways linking the stalks at low level.
     b.add({ piece: 'slab', p: [0.3, 3.2, -0.9], s: [4.0, 0.12, 0.5], r: -0.25, tint: PALETTE.concrete });
     b.add({ piece: 'slab', p: [-1.0, 2.4, 0.5], s: [4.0, 0.12, 0.5], r: 1.3, tint: PALETTE.concrete });
+    // Street level (D-097): a timber boardwalk in from the street, branching to lit doors at each stalk's foot, a
+    // bench along it and lamps at its mouth.
+    b.add({ piece: 'timberBox', p: [0.9, 0.2, 2.5], s: [0.6, 0.05, 3.8], tint: 0xc8a57c });
+    beam(b, 'timberBox', [0.9, 0.2, 0.75], [-1.6, 0.2, -0.3], 0.55, { tint: 0xc8a57c });
+    beam(b, 'timberBox', [0.9, 0.2, 0.75], [2.2, 0.2, 0.45], 0.55, { tint: 0xc8a57c });
+    for (const [x, z, r] of [
+      [-1.6, -1.4, 0.97],
+      [2.2, -0.4, 0.76],
+      [-0.4, 2.5, 0.63],
+    ] as const)
+      entrance(b, x, 0.2, z + r + 0.02, 0.5, 0.4, 0xf2e6ff);
+    bench(b, 1.5, 0.2, 2.2, 0.42, true, true);
+    for (const x of [0.4, 1.4]) lamp(b, x, 0.2, 4.15, 0.6);
   },
 });

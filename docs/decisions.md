@@ -1488,14 +1488,15 @@ asked for roads that level up from a raw start, and for the rest of the common b
 **Consequences:** Draw calls unchanged (242 / 228 / 271), boot scenario ≈360 ms. `tests/roads.test.ts`.
 
 
-## D-097 — Industry, sports and twelve landmarks detailed; street-level kit helpers (2026-11-01)
+## D-097 — Street-level detail for the whole catalogue; street-level kit helpers (2026-11-01)
 
 **Context:** After D-095/D-096 the common buildings read as places, but industry and sports were bare boxes and the
 landmarks stood on empty slabs: no door, nowhere to sit, nothing lit at street level.
 
 **Decision:**
 - **Kit** (`content/kit.ts`): `bench` (facing ±z or ±x), `entrance` (glazed double door, timber canopy on posts, lit
-  name strip), `forecourt` (paving, planters, lamps, benches) and `lilies`. Existing pieces only.
+  name strip), `forecourt` (paving, planters, lamps, benches), `lilies`, `railRing` (round balustrade) and
+  `footbridge` (railed timber deck). Existing pieces only. All face +z, the street side of a recipe.
 - **Industry**: Mycelium Brickworks (shelved curing racks under a striped shade, window band, sign, roller door,
   kiln firing door, chimney bands, pallets, forklift), Fireworks Factory (hazard-striped magazine door, railed
   launch yard, shell-colour sign, sand barrels, shell crates), Circular Reclaimery (conveyor legs and belts, roller
@@ -1517,8 +1518,29 @@ landmarks stood on empty slabs: no door, nowhere to sit, nothing lit at street l
   truss, speakers, forecourt, ivy over the bowl's back wall), Glass Pine (vestibule through the lowest cone, benches
   in the winter garden, bollard ring), Elder Banyan (spiral stair up the trunk, lantern gate).
 
-**Consequences:** Draw calls +1 (175 / 214 / 273 / 281 downtown / Westbrook / Bloomtopia / overview against 174 /
+- **Second pass, the rest**: Wellspring Spire (eight railed footbridges over the moat clear of the falls, doors
+  between the front roots, plaza lamps, benches; a balustrade and benches on the sky-park), Supertree Grove (lamps
+  and benches along both paths, placed clear of trunks, pond and orchard), Lotus Pavilion (bridge rails, lamp),
+  Nautilus Library, Starlight Observatory (stepping stones, public telescope, deck balustrade), Quartz Spire
+  (footbridge to a visitor gallery, lilies), Mycelium Towers (boardwalk branching to a door per stalk), Lotus Pagoda
+  (bridge, stone lanterns), Wavecrest Gallery (bridge, banners, sculpture), Coral Arcology, Vertical Forest, Habitat
+  Cascade (promenade), Moss Monolith (doors and bridges either side of the fall, roof rail), Bamboo Cathedral (pews,
+  hanging lanterns, path), Travertine Baths (forecourt); utility: Aeroline Station (street side is −z: doors,
+  departures pillar, ticket machines, bike rack), Dragonfly Port, Fog Harp, Great Noria (pump house, footbridge,
+  viewing rail), Pod Interchange, Rain Vortex, Skylane Nexus, Zephyr Airport (windsock, baggage); energy: Aeolian
+  Reeds (boardwalk rails, marker posts), Algae Lantern, Heliostat Array (perimeter fence), Kite Meadow (picnic
+  blankets), Breeze Turbine (door); tech: Bioreactor, Seedpod Labs, Weather Radar (ladder, hut); nature and food:
+  Canopy Skywalk (a glass lift and bridge up to the ring: a stair there would be a 5.3-high ladder), Eco
+  Playground (swings, slide), Honeycomb Apiary (hive boxes), Levitating Gardens (stepping stones to a viewing deck),
+  Pollinator Sanctuary (insect hotel), Corkscrew Orchard, Rice Terraces (stone stair); Bloomtopia (promenade and
+  gate-path lamps and benches). Left as they are: Flora Hive and Mangrove Seawall (no street level to dress).
+
+**Consequences (second pass):** draw calls 176 / 214 / 277 / 283 (`?stress=1500` 196 / 235 / 310 / 317, unchanged);
+the idle probe alternates 265 / 312 between runs exactly as HEAD does (264 / 309: a frame with a shadow refresh);
+boot scenario ≈365 ms; flicker 0.035–0.18%.
+
+**Consequences (first pass):** Draw calls +1 (175 / 214 / 273 / 281 downtown / Westbrook / Bloomtopia / overview against 174 /
 213 / 273 / 281 at HEAD; `?stress=1500` 196 / 234 / 310 / 317 against 197 / 235 / 310 / 317), boot scenario
 ≈360 ms (unchanged). Flicker per building 0.035–0.2% against 0.057–0.183% for untouched ones (Hanging Gardens'
 terrace rails are the highest at mid zoom). The perf probe reads ≈22.5% main thread while panning on both this
-change and HEAD (the reference above is older; not caused here). Not done: 41 buildings (see the roadmap).
+change and HEAD (the reference above is older; not caused here).

@@ -1,5 +1,5 @@
 import { defineBuilding, type Vec3 } from '../types';
-import { beam, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, beam, bench, flowers, grassTufts, lamp, tree } from '../kit';
 
 const RIBS = 9;
 const SEG = 6;
@@ -72,5 +72,17 @@ export default defineBuilding({
           beam(b, 'timberBox', arch(x0, side, h0, t), arch(x1, side, h1, t), 0.14, { tint: BAMBOO });
       beam(b, 'lumenRib', apexes[i]!, apexes[i + 1]!, 0.12, { glow: 0.9 });
     }
+    // Visitors (D-097): pews either side of the nave walk, lanterns hanging under every rib, and a path in from the
+    // street between two ribs with lamps at its mouth.
+    for (const x of [-4, -2.6, 2.6, 4]) {
+      bench(b, x, 0.12, -1.15, 0.7);
+      bench(b, x, 0.12, 1.15, 0.7, false, true);
+    }
+    for (const a of apexes) {
+      b.add({ piece: 'timberBox', p: [a[0], a[1] - 1.6, 0], s: [0.012, 1.6, 0.012], tint: PALETTE.bark });
+      b.add({ piece: 'lumenRib', p: [a[0], a[1] - 1.85, 0], s: [0.22, 0.28, 0.22], tint: 0xffd9a0, glow: 1 });
+    }
+    b.add({ piece: 'timberBox', p: [0.62, 0.12, 2.75], s: [1.0, 0.04, 2.3], tint: 0xc8a57c });
+    for (const sx of [-1, 1]) lamp(b, 0.62 + sx * 0.7, 0.12, 3.75, 0.6);
   },
 });

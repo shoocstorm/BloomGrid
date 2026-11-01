@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts } from '../kit';
+import { PALETTE, TRIM, bench, crate, entrance, flowers, grassTufts, lamp } from '../kit';
 
 const TAU = Math.PI * 2;
 /** Mooring masts: x, z, height, heading of the moored airship. */
@@ -65,5 +65,14 @@ export default defineBuilding({
         glow: 0.8,
       });
     }
+    // Street level (D-097): a lit terminal entrance with a path out, lamps, benches, baggage crates and a windsock.
+    entrance(b, 0.6, 0.26, 2.41, 1.0, 0.55);
+    b.add({ piece: 'slab', p: [0.6, 0.26, 3.65], s: [1.2, 0.02, 2.4], tint: 0xe4dac8 });
+    for (const sx of [-1, 1]) lamp(b, 0.6 + sx * 0.8, 0.26, 3.9, 0.65);
+    bench(b, -1.2, 0.26, 3.2);
+    for (let i = 0; i < 3; i++)
+      crate(b, 2.2 + i * 0.3, 0.26, 2.9, 0.22, i * 0.3, i % 2 ? 0x5f9fb0 : 0xc9a06a);
+    b.add({ piece: 'timberBox', p: [-4.2, 0.26, 4.2], s: [0.06, 1.8, 0.06], tint: TRIM.steel });
+    b.add({ piece: 'spireCone', p: [-4.2, 1.95, 4.2], s: [0.3, 0.8, 0.3], rz: -1.35, tint: TRIM.orange });
   },
 });

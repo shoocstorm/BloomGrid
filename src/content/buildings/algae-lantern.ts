@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, lamp } from '../kit';
 
 const TAU = Math.PI * 2;
 const H = 19;
@@ -71,5 +71,22 @@ export default defineBuilding({
         rz: 0.4,
         growAt: 0.2,
       });
+    // Street level (D-097): a lit door between the tubes, a paved path, lamps and benches, bollards on the rim.
+    entrance(b, 0, 0.3, 1.32, 0.5, 0.45, 0x8fd35a);
+    b.add({ piece: 'slab', p: [0, 0.36, 2.15], s: [0.7, 0.02, 1.4], tint: 0xe4dac8 });
+    for (const sx of [-1, 1]) {
+      lamp(b, sx * 0.55, 0.36, 2.5, 0.6);
+      bench(b, sx * 1.6, 0.36, 1.8, 0.42, false);
+    }
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * TAU + Math.PI / 8;
+      b.add({
+        piece: 'lumenRib',
+        p: [Math.cos(a) * 2.7, 0.3, Math.sin(a) * 2.7],
+        s: [0.07, 0.18, 0.07],
+        tint: 0xffd9a0,
+        glow: 0.9,
+      });
+    }
   },
 });

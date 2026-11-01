@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts } from '../kit';
+import { PALETTE, door, flowers, grassTufts } from '../kit';
 
 /** Top of the tower (tiles above the plinth): the wind module mounts the nacelle and rotor here (D-047). */
 export const TURBINE_TOP = 11.3;
@@ -40,5 +40,7 @@ export default defineBuilding({
     b.add({ piece: 'concreteCyl', p: [0, 8.5, 0], s: [0.38, 2.8, 0.38], tint: 0xf7f5ee });
     b.add({ piece: 'lumenRib', p: [0, 4.3, 0], s: [0.62, 0.12, 0.62], glow: 0.7 });
     b.add({ piece: 'concreteCyl', p: [0, 11.25, 0], s: [0.5, 0.12, 0.5], tint: PALETTE.concrete });
+    // A service door at the tower's foot (D-097).
+    door(b, 0, 0.34, 0.29, 0.14, 0.26);
   },
 });

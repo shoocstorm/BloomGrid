@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, grassTufts, tree } from '../kit';
+import { PALETTE, forecourt, grassTufts, tree } from '../kit';
 
 const TIERS = 6;
 const STONE = 0xf6f2ea;
@@ -51,5 +51,7 @@ export default defineBuilding({
       tree(b, sx * 3.6, ty, -4.3, 0.8, 0.1);
     }
     b.add({ piece: 'haloRing', p: [0, 0.45, 3.3], s: [3, 4, 1.2], glow: 0.8 });
+    // Street level (D-097): a paved forecourt at the foot of the cascade, with planters, lamps and benches.
+    forecourt(b, 0, 0.2, 4.45, 9.0, 0.8, 4, 2);
   },
 });

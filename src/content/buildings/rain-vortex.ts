@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, ivyEdge, lamp, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 
@@ -79,5 +79,11 @@ export default defineBuilding({
         rz: 0.22,
         growAt: 0.2,
       });
+    // Street level (D-097): the market's lit main doors, lamps and benches along the front.
+    entrance(b, 0, 0.25, 4.1, 1.0, 0.6);
+    for (const sx of [-1, 1]) {
+      lamp(b, sx * 1.6, 0.25, 4.6, 0.65);
+      bench(b, sx * 2.8, 0.25, 4.5);
+    }
   },
 });

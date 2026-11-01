@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, grassTufts, tree } from '../kit';
+import { PALETTE, entrance, footbridge, grassTufts, lamp, railing, tree } from '../kit';
 
 const H = 16;
 const W = 6.2;
@@ -57,5 +57,17 @@ export default defineBuilding({
     for (let k = 0; k < 4; k++) tree(b, (k % 2 ? 1 : -1) * 1.6, top, (k < 2 ? 1 : -1) * 1.6, 0.9, 0.3);
     for (const x of [-1.6, 1.6]) b.add({ piece: 'pod', p: [x, top, 0], s: 1.0, r: 0.5, glow: 0.8 });
     b.add({ piece: 'haloRing', p: [0, top + 0.05, 0], s: [W * 1.3, 4, W * 1.3], glow: 0.7 });
+    // Street level and roof (D-097): two lit doors either side of the waterfall, each reached over the pool by a
+    // railed footbridge, lamps at the corners, and a balustrade round the roof forest.
+    for (const x of [-1.3, 1.3]) {
+      entrance(b, x, 0.2, 3.12, 0.6, 0.5);
+      footbridge(b, x, 0.22, 3.5, 0.7, 0.8);
+    }
+    for (const x of [-3.4, 3.4]) lamp(b, x, 0.2, 2.95, 0.6);
+    const e = W / 2 - 0.05;
+    railing(b, 0, top, e, W - 0.1);
+    railing(b, 0, top, -e, W - 0.1);
+    railing(b, e, top, 0, W - 0.1, true);
+    railing(b, -e, top, 0, W - 0.1, true);
   },
 });

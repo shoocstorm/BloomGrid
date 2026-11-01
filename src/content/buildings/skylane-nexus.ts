@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, TRIM, bench, entrance, flowers, grassTufts, lamp, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 /** Spine height and the transfer ring the pods circle (the mobility module draws the moving rings there). */
@@ -103,5 +103,13 @@ export default defineBuilding({
     b.add({ piece: 'spireCone', p: [0, H + 0.38, 0], s: [1.1, 6, 1.1], tint: PALETTE.glassWarm, glow: 0.5 });
     b.add({ piece: 'haloRing', p: [0, H + 1.4, 0], s: [1.8, 3, 1.8], glow: 1 });
     b.add({ piece: 'haloRing', p: [0, H + 2.8, 0], s: [1.1, 3, 1.1], glow: 1 });
+    // Street level (D-097): a lit concourse door, a paved path with lamps, a departures pillar and benches.
+    entrance(b, 0, 0.38, 1.6, 0.7, 0.5);
+    b.add({ piece: 'slab', p: [0, 0.38, 2.3], s: [0.8, 0.02, 1.4], tint: 0xe4dac8 });
+    for (const sx of [-1, 1]) lamp(b, sx * 0.6, 0.38, 2.6, 0.6);
+    b.add({ piece: 'slab', p: [1.1, 0.38, 1.9], s: [0.14, 0.85, 0.14], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [1.1, 0.75, 1.975], s: [0.11, 0.36, 0.01], tint: 0xffd36b, glow: 1 });
+    bench(b, 2.0, 0.38, 0, 0.45, true);
+    bench(b, -2.0, 0.38, 0, 0.45, true, true);
   },
 });

@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, beam, flowers, grassTufts } from '../kit';
+import { PALETTE, beam, entrance, flowers, footbridge, grassTufts, lamp } from '../kit';
 
 const TAU = Math.PI * 2;
 const TINTS = [0xd8e8ff, 0xe6dcff, 0xd6f2ee, 0xf0e6ff] as const;
@@ -64,6 +64,24 @@ export default defineBuilding({
       beam(b, 'glassBox', base, top, b.range(0.7, 1.2), { tint: TINTS[k % TINTS.length], glow: 0.55 });
       beam(b, 'lumenRib', [base[0], base[1] + 0.4, base[2]], [top[0], top[1] + 0.3, top[2]], 0.08, {
         glow: 0.9,
+      });
+    }
+    // Street level (D-097): a railed footbridge over the pool to a glazed visitor gallery at the crystal's foot,
+    // lamps on the platform and lilies round it.
+    footbridge(b, 0, 0.22, 3.95, 1.0, 0.8);
+    b.add({ piece: 'glassBox', p: [0, 0.48, 2.1], s: [1.4, 0.6, 0.7], tint: PALETTE.glassWarm, glow: 0.4 });
+    entrance(b, 0, 0.48, 2.46, 0.6, 0.42, 0xd8e8ff);
+    for (const x of [-0.9, 0.9]) lamp(b, x, 0.48, 2.55, 0.55);
+    for (let i = 0; i < 40; i++) {
+      const [x, z] = [b.range(-4, 4), b.range(-4, 4)];
+      const onGarden = Math.hypot(x - 3.6, z - 3.6) < 1 || Math.hypot(x + 3.6, z + 3.6) < 1;
+      if (Math.abs(x) + Math.abs(z) < 3.9 || (Math.abs(x) < 0.6 && z > 3) || onGarden) continue;
+      b.add({
+        piece: 'lily',
+        p: [x, 0.26, z],
+        s: b.range(0.16, 0.26),
+        r: b.rand() * TAU,
+        tint: b.pick(PALETTE.blossoms),
       });
     }
   },

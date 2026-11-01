@@ -1,6 +1,6 @@
 import { defineBuilding } from '../types';
 import type { KitBuilder, Vec3 } from '../types';
-import { PALETTE, beam, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, beam, bench, flowers, grassTufts, lamp, tree } from '../kit';
 
 /**
  * The island landmark, fully procedural (D-082): supertrees about 2.5× the tallest towers, each a steel core
@@ -124,6 +124,24 @@ export default defineBuilding({
       [-1.0, -0.4],
     ];
     for (const [x, z] of orchard) tree(b, x, 0.08, z, b.range(0.6, 0.9), 0.1);
+    // Street level (D-097): lamps and benches along both paths, kept clear of the trunks, the pond and the orchard.
+    const clear = (x: number, z: number) =>
+      [...TREES, FOURTH].every(([tx, tz]) => Math.hypot(x - tx, z - tz) > 1.3) &&
+      orchard.every(([ox, oz]) => Math.hypot(x - ox, z - oz) > 0.7) &&
+      !(Math.abs(x - POND[0]) < 1.6 && Math.abs(z - POND[2]) < 1.5) &&
+      Math.abs(x) < 4.6 &&
+      Math.abs(z) < 4.6;
+    let n = 0;
+    for (const r of [0.62, -0.9]) {
+      const [dx, dz] = [Math.cos(r), -Math.sin(r)];
+      [-3.2, -1.6, 1.6, 3.2].forEach((t, i) => {
+        const side = i % 2 ? 1 : -1;
+        const [x, z] = [t * dx - side * dz * 0.6, t * dz + side * dx * 0.6];
+        if (!clear(x, z)) return;
+        if (n++ % 2) lamp(b, x, 0.08, z, 0.65);
+        else bench(b, x, 0.08, z, 0.42, Math.abs(dz) > Math.abs(dx));
+      });
+    }
     for (const t of TREES) supertree(b, t);
     // Skywalks linking the three crowns at mid height.
     walkBetween(b, TREES[0]!, TREES[1]!, 6.4, 7.2, 0.3);

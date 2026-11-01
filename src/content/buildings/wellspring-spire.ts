@@ -1,5 +1,16 @@
 import { defineBuilding, type KitBuilder } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import {
+  PALETTE,
+  bench,
+  entrance,
+  flowers,
+  footbridge,
+  grassTufts,
+  ivyEdge,
+  lamp,
+  railRing,
+  tree,
+} from '../kit';
 
 const TAU = Math.PI * 2;
 const TIER = 1.28; // four glass floors
@@ -166,6 +177,12 @@ export default defineBuilding({
             glow: 0.6,
           });
         }
+        // A balustrade round the sky-park's rim and benches facing the view (D-097).
+        railRing(b, 0, py, 0, 5.62, 40);
+        bench(b, 0, py + 0.08, 3.4, 0.5);
+        bench(b, 0, py + 0.08, -3.4, 0.5, false, true);
+        bench(b, 3.4, py + 0.08, 0, 0.5, true);
+        bench(b, -3.4, py + 0.08, 0, 0.5, true, true);
         // Pods berthed on the rim (diagonals, clear of the waterfalls).
         for (let k = 0; k < 4; k++) {
           const a = (k / 4) * TAU + Math.PI / 4;
@@ -235,5 +252,21 @@ export default defineBuilding({
     ] as const)
       b.add({ piece: 'haloRing', p: [0, ly + 10.5 * k, 0], s: [d, 3, d], glow: 1 });
     b.add({ piece: 'lumenRib', p: [0, ly + 8.3, 0], s: [0.1, 3.4, 0.1], glow: 1 });
+    // Street level (D-097): railed footbridges over the moat (two a side, clear of the waterfalls), lit doors into
+    // the atrium between the front roots, lamps round the inner plaza and benches on the outer walk.
+    for (const s of [-1, 1])
+      for (const u of [-2.2, 2.2]) {
+        footbridge(b, u, Y + 0.02, s * 5.2, 1.6, 0.8);
+        footbridge(b, s * 5.2, Y + 0.02, u, 1.6, 0.8, true);
+      }
+    for (const x of [-1.15, 1.15]) entrance(b, x, Y, 2.78, 0.7, 0.55);
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * TAU + Math.PI / 8;
+      lamp(b, Math.cos(a) * 4.2, Y, Math.sin(a) * 4.2, 0.7);
+    }
+    for (const x of [-3.1, 3.1]) {
+      bench(b, x, Y, 6.25, 0.5, false, true);
+      bench(b, x, Y, -6.25, 0.5);
+    }
   },
 });

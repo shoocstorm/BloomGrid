@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import { PALETTE, bench, flowers, grassTufts, ivyEdge, lamp, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 /** Floating islands: x, z, height, radius. */
@@ -95,5 +95,19 @@ export default defineBuilding({
         });
       }
     });
+    // Visitors (D-097): stepping stones across the pond to a round viewing deck under the islands, with benches,
+    // and lamps at the front corners.
+    for (let i = 0; i < 6; i++)
+      b.add({
+        piece: 'slab',
+        p: [i % 2 ? 0.12 : -0.12, 0.15, 4.4 - i * 0.6],
+        s: [0.5, 0.1, 0.42],
+        r: (i % 3) * 0.2,
+        tint: 0xe4dac8,
+      });
+    b.add({ piece: 'concreteCyl', p: [0, 0.15, 0.6], s: [2.0, 0.12, 2.0], tint: 0xe4dac8 });
+    bench(b, -0.45, 0.27, 0.3);
+    bench(b, 0.45, 0.27, 0.9, 0.42, false, true);
+    for (const sx of [-1, 1]) lamp(b, sx * 4.6, 0.15, 4.6, 0.6);
   },
 });

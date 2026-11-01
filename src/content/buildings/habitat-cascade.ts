@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import { PALETTE, bench, flowers, grassTufts, ivyEdge, lamp, tree } from '../kit';
 
 const M = 1.7; // module width
 const MH = 1.05; // module height (three floors)
@@ -82,5 +82,9 @@ export default defineBuilding({
         if (b.rand() < 0.5) ivyEdge(b, x, y + MH, z + d / 2, w * 0.8, 0, 1, 2);
       }
     }
+    // The promenade (D-097): a paved walk along the street side with lamps and benches.
+    b.add({ piece: 'slab', p: [0, 0.2, 4.1], s: [10.4, 0.02, 0.55], tint: 0xe4dac8 });
+    for (const x of [-4.5, -1.5, 1.5, 4.5]) lamp(b, x, 0.22, 4.3, 0.6);
+    for (const x of [-3, 0, 3]) bench(b, x, 0.22, 4.0);
   },
 });

@@ -1,5 +1,17 @@
 import { defineBuilding, type Vec3 } from '../types';
-import { PALETTE, beam, grassTufts, tree } from '../kit';
+import {
+  PALETTE,
+  TRIM,
+  beam,
+  bench,
+  door,
+  footbridge,
+  gableRoof,
+  grassTufts,
+  lamp,
+  railing,
+  tree,
+} from '../kit';
 
 const TAU = Math.PI * 2;
 const R = 5.2; // wheel radius
@@ -51,5 +63,15 @@ export default defineBuilding({
     b.add({ piece: 'waterfall', p: [4.0, 0.45, -2.45], s: [0.9, CY + R - 0.6, 1], glow: 0.8 });
     tree(b, -3.8, 0.2, -3.6, 0.9, 0.1);
     tree(b, -3.8, 0.2, 3.6, 0.8, 0.1);
+    // Visitors (D-097): a timber pump house with a gable roof, a footbridge over the channel, a railed viewing
+    // edge along it, a bench facing the wheel and lamps.
+    b.add({ piece: 'timberBox', p: [-2.2, 0.2, 2.9], s: [1.6, 0.9, 1.0], tint: PALETTE.timber });
+    gableRoof(b, -2.2, 1.1, 2.9, 1.6, 1.0, { pitch: 0.55, ends: TRIM.cream });
+    door(b, -2.2, 0.2, 3.41, 0.26, 0.42);
+    footbridge(b, -4.0, 0.47, 0, 2.6, 0.8);
+    railing(b, 3.4, 0.45, 1.25, 2.4);
+    railing(b, -1.6, 0.45, 1.25, 2.4);
+    bench(b, 1.2, 0.2, 2.2, 0.5, false, true);
+    for (const x of [-3.0, 0.2, 3.0]) lamp(b, x, 0.2, 1.55, 0.6);
   },
 });

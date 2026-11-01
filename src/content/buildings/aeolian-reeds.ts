@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts } from '../kit';
+import { PALETTE, beam, bench, door, flowers, grassTufts } from '../kit';
 
 const REEDS = 72;
 
@@ -33,5 +33,36 @@ export default defineBuilding({
       b.add({ piece: 'concreteCyl', p: [x, 0.12, z], s: [0.12, h, 0.12], tint: 0xb8c79a });
       b.add({ piece: 'lumenRib', p: [x, 0.12 + h - 0.7, z], s: [0.15, 0.75, 0.15], glow: b.range(0.6, 1) });
     }
+    // Visitors (D-097): handrails on posts along the boardwalk, glowing marker posts beside it, a door into the
+    // pavilion and benches at its foot.
+    const [dx, dz] = [Math.cos(0.4), -Math.sin(0.4)];
+    for (const s of [-1, 1]) {
+      const [ox, oz] = [-dz * 0.38 * s, dx * 0.38 * s];
+      for (const [t0, t1] of [
+        [-4.7, -1.0],
+        [1.0, 4.7],
+      ] as const) {
+        beam(b, 'timberBox', [t0 * dx + ox, 0.48, t0 * dz + oz], [t1 * dx + ox, 0.48, t1 * dz + oz], 0.03, {
+          tint: PALETTE.timber,
+        });
+        for (let t = t0; t <= t1 + 0.01; t += (t1 - t0) / 3)
+          b.add({
+            piece: 'timberBox',
+            p: [t * dx + ox, 0.2, t * dz + oz],
+            s: [0.03, 0.3, 0.03],
+            tint: PALETTE.timber,
+          });
+      }
+      for (const t of [-3.4, -1.8, 1.8, 3.4])
+        b.add({
+          piece: 'lumenRib',
+          p: [t * dx + ox * 1.5, 0.12, t * dz + oz * 1.5],
+          s: [0.06, 0.18, 0.06],
+          tint: 0xffd9a0,
+          glow: 0.9,
+        });
+    }
+    door(b, 0, 0.22, 0.8, 0.22, 0.4);
+    bench(b, -1.2, 0.12, 0.9);
   },
 });

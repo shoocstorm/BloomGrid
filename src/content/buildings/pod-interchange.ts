@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import { PALETTE, TRIM, entrance, flowers, grassTufts, ivyEdge, lamp, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 
@@ -75,5 +75,11 @@ export default defineBuilding({
       [1.6, 1.6],
     ] as const)
       tree(b, x, 0.12, z, 0.45, 0.2);
+    // Street level (D-097): a lit concourse door, a paved path, lamps and a departures pillar.
+    entrance(b, 0, 0.12, 0.9, 0.5, 0.42);
+    b.add({ piece: 'slab', p: [0, 0.12, 1.45], s: [0.7, 0.02, 1.1], tint: 0xe4dac8 });
+    for (const sx of [-1, 1]) lamp(b, sx * 0.55, 0.12, 1.75, 0.55);
+    b.add({ piece: 'slab', p: [0.95, 0.12, 1.0], s: [0.12, 0.7, 0.12], tint: TRIM.charcoal });
+    b.add({ piece: 'slab', p: [0.95, 0.45, 1.065], s: [0.1, 0.28, 0.01], tint: 0xffd36b, glow: 1 });
   },
 });

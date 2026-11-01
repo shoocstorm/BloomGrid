@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, beam, flowers, grassTufts, ivyEdge, tree } from '../kit';
+import { PALETTE, beam, bench, entrance, flowers, forecourt, grassTufts, ivyEdge, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 const BANDS = 6;
@@ -74,5 +74,11 @@ export default defineBuilding({
         growAt: 0.2,
       });
     beam(b, 'timberBox', [tx, 5.6, tz], [tx * 0.55, 5.6, tz * 0.55], 0.3, { tint: 0xc8a57c });
+    // Street level (D-097): a lit door under the first gallery, a forecourt with lamps and benches, and reading
+    // benches either side of the rotunda.
+    entrance(b, 0, 0.2, 2.0, 0.9, 0.5, 0xffe08a);
+    forecourt(b, 0.6, 0.2, 3.6, 3.4, 1.2, 3, 2);
+    bench(b, 3.3, 0.2, 0, 0.5, true);
+    bench(b, -3.3, 0.2, 0, 0.5, true, true);
   },
 });

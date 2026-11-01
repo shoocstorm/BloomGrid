@@ -1,5 +1,5 @@
 import { defineBuilding, type KitBuilder, type Vec3 } from '../types';
-import { PALETTE, beam, flowers, grassTufts } from '../kit';
+import { PALETTE, beam, entrance, flowers, footbridge, grassTufts, lamp } from '../kit';
 
 const CORALS = [0xff9a8a, 0xffb48a, 0xf7c6d9, 0xffd0a0] as const;
 
@@ -75,5 +75,22 @@ export default defineBuilding({
       [-3.4, 3.2],
     ] as const)
       b.add({ piece: 'pod', p: [x, 0.25, z], s: 1.2, r: 0.6, glow: 0.8 });
+    // Street level (D-097): a railed boardwalk over the lagoon to a lit door at the front stem, lamps at its foot
+    // and lilies between the reefs.
+    footbridge(b, -0.4, 0.22, 3.65, 1.5, 0.7);
+    entrance(b, -0.4, 0.25, 2.72, 0.5, 0.4, 0xff9a8a);
+    for (const x of [-1.0, 0.2]) lamp(b, x, 0.2, 4.25, 0.6);
+    for (let i = 0; i < 30; i++) {
+      const [x, z] = [b.range(-3.9, 3.9), b.range(-3.9, 3.9)];
+      if (roots.some(([rx, rz]) => Math.hypot(x - rx, z - rz) < 1.4) || (Math.abs(x + 0.4) < 0.6 && z > 2.6))
+        continue;
+      b.add({
+        piece: 'lily',
+        p: [x, 0.26, z],
+        s: b.range(0.16, 0.26),
+        r: b.rand() * 6.28,
+        tint: b.pick(PALETTE.blossoms),
+      });
+    }
   },
 });

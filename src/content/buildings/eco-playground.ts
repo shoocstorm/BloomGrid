@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { flowers, grassTufts, tree } from '../kit';
+import { PALETTE, TRIM, beam, bench, flowers, grassTufts, tree } from '../kit';
 
 export default defineBuilding({
   id: 'eco-playground',
@@ -26,5 +26,18 @@ export default defineBuilding({
     tree(b, -1.1, 0.06, 1.15, 0.5, 0.4);
     for (let i = 0; i < 6; i++)
       b.add({ piece: 'fungus', p: [b.range(-1.3, 1.3), 0.06, b.range(-1.3, 1.3)], s: b.range(0.06, 0.1), tint: 0xbff6ff, glow: 1, growAt: 0.3 });
+    // Play equipment (D-097): a swing set, a little slide and a bench for the grown-ups.
+    for (const x of [0.3, 1.2]) {
+      beam(b, 'timberBox', [x, 0.06, -0.2], [x, 0.75, 0], 0.04, { tint: TRIM.orange });
+      beam(b, 'timberBox', [x, 0.06, 0.2], [x, 0.75, 0], 0.04, { tint: TRIM.orange });
+    }
+    b.add({ piece: 'timberBox', p: [0.75, 0.73, 0], s: [0.95, 0.04, 0.04], tint: TRIM.orange });
+    for (const x of [0.55, 0.95]) {
+      for (const dz of [-0.06, 0.06]) b.add({ piece: 'timberBox', p: [x, 0.3, dz], s: [0.008, 0.43, 0.008], tint: TRIM.steel });
+      b.add({ piece: 'slab', p: [x, 0.28, 0], s: [0.16, 0.02, 0.14], tint: TRIM.red });
+    }
+    b.add({ piece: 'timberBox', p: [-1.2, 0.06, -0.2], s: [0.3, 0.55, 0.3], tint: PALETTE.timber });
+    beam(b, 'slab', [-1.05, 0.6, -0.2], [-0.55, 0.08, 0.25], 0.22, { tint: 0x5fc2e0 });
+    bench(b, 0.2, 0.06, 1.25);
   },
 });

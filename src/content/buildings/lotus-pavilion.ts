@@ -1,6 +1,6 @@
 import { defineBuilding } from '../types';
 import type { KitBuilder } from '../types';
-import { PALETTE, beam, flowers, grassTufts } from '../kit';
+import { PALETTE, beam, flowers, grassTufts, lamp, railing } from '../kit';
 
 /**
  * Bayfront arts pavilion, fully procedural (D-082): a glass hall under an opening lotus on a round deck in a lily
@@ -63,6 +63,9 @@ export default defineBuilding({
       b.add({ piece: 'lily', p: [x, 0.1, z], s: b.range(0.16, 0.24), tint: b.pick(PALETTE.blossoms) });
     }
     for (const [x, z] of [[-1.5, -1.5], [1.5, 1.4], [1.45, -1.5]] as const) b.add({ piece: 'koi', p: [x, 0.08, z], s: 0.18, r: b.rand() * 6.28, tint: 0xff8a3d });
+    // Rails on the entry bridge and a lamp at its foot (D-097).
+    for (const x of [-0.23, 0.23]) railing(b, x, 0.16, 1.45, 1.0, true, 0.09);
+    lamp(b, 0.42, 0.06, 1.85, 0.45);
   },
   levels(b, tier) {
     if (tier === 1) {

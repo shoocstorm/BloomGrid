@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, lamp, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 const STEPS = 64;
@@ -67,5 +67,12 @@ export default defineBuilding({
       });
     }
     b.add({ piece: 'canopy', p: [0, H + 1.0, 0], s: 2.8, tint: 0x8fd35a, glow: 0.3, growAt: 0.5 });
+    // Street level (D-097): a lit door into the core under the first turn of the ramp, a path, lamps and benches.
+    entrance(b, 0, 0.31, 1.6, 0.5, 0.42, 0x8fd35a);
+    b.add({ piece: 'slab', p: [0, 0.31, 2.7], s: [0.7, 0.02, 2.2], tint: 0xe4dac8 });
+    for (const sx of [-1, 1]) {
+      lamp(b, sx * 0.55, 0.31, 3.4, 0.6);
+      bench(b, sx * 1.5, 0.31, 3.0);
+    }
   },
 });

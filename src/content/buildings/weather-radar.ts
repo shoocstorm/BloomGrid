@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, grassTufts } from '../kit';
+import { PALETTE, TRIM, door, grassTufts } from '../kit';
 
 export default defineBuilding({
   id: 'weather-radar',
@@ -27,5 +27,12 @@ export default defineBuilding({
     b.add({ piece: 'concreteCyl', p: [0, 3.1, 0], s: [0.9, 0.2, 0.9], tint: 0xe9eee8 });
     b.add({ piece: 'dome', p: [0, 3.0, 0], s: [1.3, 1.6, 1.3], tint: 0xf4f6f2 });
     b.add({ piece: 'lumenRib', p: [0, 4.3, 0], s: [0.12, 0.12, 0.12], glow: 1, tint: 0xff6a5a });
+    // Detail (D-097): a ladder up the front of the tower and an equipment hut with a door.
+    for (const x of [-0.1, 0.1])
+      b.add({ piece: 'timberBox', p: [x, 0.1, 0.44], s: [0.02, 2.9, 0.02], tint: TRIM.steel });
+    for (let i = 0; i < 11; i++)
+      b.add({ piece: 'timberBox', p: [0, 0.3 + i * 0.25, 0.44], s: [0.2, 0.015, 0.015], tint: TRIM.steel });
+    b.add({ piece: 'slab', p: [0.72, 0.1, -0.1], s: [0.4, 0.42, 0.6], tint: 0xdfe8e4 });
+    door(b, 0.93, 0.1, -0.1, 0.14, 0.28, true);
   },
 });

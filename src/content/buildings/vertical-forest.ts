@@ -1,5 +1,5 @@
 import { defineBuilding, type KitBuilder } from '../types';
-import { PALETTE, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, lamp, railing, tree } from '../kit';
 
 /** A tower wrapped in staggered cantilevered balconies, each carrying a tree. */
 function forestTower(b: KitBuilder, x: number, z: number, h: number, w: number): void {
@@ -63,5 +63,17 @@ export default defineBuilding({
     // Garden bridge between the two at the eighth floor.
     b.add({ piece: 'slab', p: [0.05, 8.0, 0.1], s: [2.6, 0.12, 0.9], tint: PALETTE.concrete });
     flowers(b, 0.05, 8.12, 0.1, 0.5, 8, 0.2, 0.8);
+    // Street level (D-097): a lit lobby at each tower's foot with a paved path to the street, lamps, a bench, and
+    // rails on the garden bridge.
+    for (const [x, zf] of [
+      [-2.4, 1.31],
+      [2.5, 1.41],
+    ] as const) {
+      entrance(b, x, 0.36, zf, 0.8, 0.5);
+      b.add({ piece: 'slab', p: [x, 0.36, (zf + 2.9) / 2], s: [0.9, 0.02, 2.9 - zf], tint: 0xe4dac8 });
+      for (const sx of [-1, 1]) lamp(b, x + sx * 0.65, 0.36, 2.55, 0.6);
+    }
+    bench(b, 0, 0.36, 2.2, 0.5);
+    for (const z of [0.53, -0.33]) railing(b, 0.05, 8.12, z, 2.6);
   },
 });
