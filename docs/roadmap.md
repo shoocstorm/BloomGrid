@@ -270,6 +270,13 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Awakening ceremony (Data Spire light column and shockwaves, sigil assembly, greeting, orb burst, chord)
 - **Accept:** ✅ `tests/flora.test.ts`; snaps of each stage and the phone card (D-092)
 
+## ✅ City moments (2026-11-01)
+
+- [x] Generic ceremony (tones, emblems, grand / minor, 3D column and shockwaves, sounds), Flora's awakening on it
+- [x] Triggers: unlocks, sea wonders, population milestones, golden age, reputation rules, weathered disasters, first top level
+- [x] Queue and baselines; Settings → Display → Moments (all / major / off)
+- **Accept:** ✅ snaps of four moments; no moment on load (D-094)
+
 ---
 
 ## Tech debt / open issues

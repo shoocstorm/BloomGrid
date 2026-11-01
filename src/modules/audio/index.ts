@@ -431,12 +431,32 @@ export const audioModule: GameModule = {
       ({ tier, prev }) =>
         ctx.city.tick >= 80 && tier > prev && tier >= 3 && s.tone(330, 0.5, 0.08, 'triangle', 247),
     );
-    // Flora wakes (D-092): a low swell, then a rising major arpeggio that blooms into a held chord and a shimmer.
-    bus.on('flora:awake', () => {
-      s.burst(2.4, 0.18, 'lowpass', 160, 900);
-      [262, 330, 392, 523, 659, 784, 1047].forEach((f, i) => s.tone(f, 2.6 - i * 0.12, 0.07, 'triangle', undefined, 1.6 + i * 0.13));
-      [523, 659, 784].forEach((f) => s.tone(f, 3.2, 0.05, 'sine', undefined, 2.6));
-      s.tone(2093, 1.6, 0.025, 'sine', 3136, 2.5);
+    // City moments (D-094): each ceremony has its sound. Flora wakes (D-092): a low swell, then a rising major
+    // arpeggio that blooms into a held chord and a shimmer.
+    bus.on('moment', ({ sound }) => {
+      if (sound === 'awake') {
+        s.burst(2.4, 0.18, 'lowpass', 160, 900);
+        [262, 330, 392, 523, 659, 784, 1047].forEach((f, i) => s.tone(f, 2.6 - i * 0.12, 0.07, 'triangle', undefined, 1.6 + i * 0.13));
+        [523, 659, 784].forEach((f) => s.tone(f, 3.2, 0.05, 'sine', undefined, 2.6));
+        s.tone(2093, 1.6, 0.025, 'sine', 3136, 2.5);
+      } else if (sound === 'triumph') {
+        // A fanfare: fifths climbing, then a bright held major chord.
+        s.burst(1.8, 0.14, 'lowpass', 200, 700);
+        [196, 294, 392, 587].forEach((f, i) => s.tone(f, 0.55, 0.08, 'sawtooth', undefined, 1.5 + i * 0.16));
+        [392, 494, 587, 784].forEach((f) => s.tone(f, 2.8, 0.05, 'triangle', undefined, 2.2));
+      } else if (sound === 'wonder') {
+        // The sea: a deep swell, a slow rising glissando and a shimmer.
+        s.burst(3.2, 0.22, 'lowpass', 90, 500);
+        s.tone(220, 2.6, 0.06, 'sine', 440, 1.2);
+        [440, 554, 659, 880].forEach((f, i) => s.tone(f, 2.4, 0.045, 'sine', undefined, 2 + i * 0.2));
+        s.tone(1760, 1.8, 0.02, 'sine', 2637, 2.6);
+      } else if (sound === 'milestone') {
+        [523, 659, 784, 1047].forEach((f, i) => s.tone(f, 0.9, 0.06, 'triangle', undefined, 1.1 + i * 0.1));
+      } else {
+        // Weathered: a minor chord resolving to major.
+        [220, 262, 330].forEach((f) => s.tone(f, 1.2, 0.05, 'triangle', undefined, 0.9));
+        [220, 277, 330].forEach((f) => s.tone(f, 1.8, 0.05, 'triangle', undefined, 2));
+      }
     });
     bus.on('crisis:forecast', () => {
       s.tone(440, 0.35, 0.08, 'square', undefined, 0);

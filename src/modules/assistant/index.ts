@@ -18,7 +18,7 @@ import { bulkTools } from '@/sim/bulkTools';
 import { proposeBuilds, type ProposalFocus } from '@/sim/proposals';
 import { floraBilled, floraBlocker, floraLocked, floraWake, type FloraPhase } from '@/sim/flora';
 import { diagnose } from '@/sim/proposals';
-import { Awakening } from './Awakening';
+import { Building } from '@/ecs/components';
 import { PROJECTS } from '@/sim/projects';
 import { allOverlays, getOverlay } from '@/sim/overlays';
 import { ISSUES, inventoryKinds } from '@/sim/inventory';
@@ -61,7 +61,6 @@ class Assistant {
   /** Fresh islands (D-092): her wake state as last shown (null right after a city change: no toasts then). */
   private phase: FloraPhase | null = null;
   private wakeTimer = 99;
-  readonly awakening: Awakening;
 
   constructor(private ctx: GameContext) {
     try {
@@ -81,7 +80,6 @@ class Assistant {
     // A new or loaded city starts a new conversation: the last city's history, ids and notices mean nothing here,
     // and the undo stack they pointed at is gone. A turn in flight is stopped.
     ctx.bus.on('city:reset', () => this.newCity());
-    this.awakening = new Awakening(ctx);
     ctx.bus.on('project:done', ({ id }) => id === 'flora' && !ctx.loading && this.awaken());
     this.engine.onChange((s) => {
       if (s.status !== 'ready' || !this.pending || this.busy) return;
@@ -234,7 +232,6 @@ class Assistant {
   /** 2 Hz: the console and orb follow her wake state; becoming wakeable is news. */
   update(dt: number): void {
     this.panel.update(dt);
-    this.awakening.update(dt);
     if ((this.wakeTimer += dt) < 0.5) return;
     this.wakeTimer = 0;
     this.syncWake();
@@ -242,7 +239,7 @@ class Assistant {
 
   private syncWake(): void {
     const w = floraWake(this.ctx.city);
-    if (this.awakening.playing) return;
+    if (this.ctx.services.tryGet('moments')?.playing) return;
     if (this.phase === 'asleep' && w.phase === 'ready')
       this.ctx.bus.emit('toast', { text: '✧ Flora can be woken: every condition is met. Open her orb (U) and wake her.', tone: 'ok' });
     this.phase = w.phase;
@@ -276,12 +273,34 @@ class Assistant {
     const greeting = `Hello, steward. I'm Flora, and I'm awake. ${city.growth.name || 'The city'} has ${fmtN(city.stats.population)} residents${
       trouble ? `, and ${trouble.replace(/ \(.*$/, '').replace(/^(\w+) /, '$1 is ')}` : ', and every system is holding'
     }. Ask me anything, or tell me what to build.`;
-    this.panel.toggle(false);
-    this.awakening.play(lines, greeting, this.panel.orb, () => {
+    const spire = city.buildingEntities().find((e) => city.buildingDef(e).id === 'data-spire');
+    const opened = () => {
       this.syncWake();
       this.panel.flash();
       this.panel.toggle(true);
-    });
+    };
+    this.panel.toggle(false);
+    // A city moment (D-094): her sigil assembles, the column rises from the Data Spire, the sigil flies into her orb.
+    const moments = this.ctx.services.tryGet('moments');
+    if (!moments) return opened();
+    moments.play(
+      {
+        id: 'flora',
+        scale: 'grand',
+        tone: 'bloom',
+        emblem: 'flora',
+        eyebrow: 'Civic intelligence · BG-01 · online',
+        title: 'Flora',
+        lines,
+        sub: greeting,
+        ...(spire !== undefined
+          ? { at: { x: Building.x[spire]! + Building.w[spire]! / 2, z: Building.z[spire]! + Building.d[spire]! / 2, height: 40 } }
+          : {}),
+        flyTo: this.panel.orb,
+        sound: 'awake',
+      },
+      opened,
+    );
   }
 
   /** Forgets the conversation: the log and the history the next turn would send to the model. */
@@ -625,9 +644,3 @@ declare module '@/core/Services' {
   }
 }
 
-declare module '@/core/EventBus' {
-  interface GameEvents {
-    /** Flora's awakening ceremony begins (D-092): the audio module plays her chord. */
-    'flora:awake': void;
-  }
-}

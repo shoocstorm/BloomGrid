@@ -204,6 +204,17 @@ export const settingsModule: GameModule = {
           render.power.setMode(m),
         ),
         ...(ctx.platform.setFullscreen ? [desktopSection(ctx.platform.setFullscreen.bind(ctx.platform))] : []),
+        ...(() => {
+          // City moments (D-094): full-screen ceremonies for the big events.
+          const moments = ctx.services.tryGet('moments');
+          return moments
+            ? [
+                h('h4', {}, 'Moments'),
+                h('p', { class: 'set-hint' }, 'Full-screen ceremonies for big events: Flora waking, unlocks, sea wonders, milestones. Click or Esc skips one.'),
+                radio('moments', { all: 'All moments', major: 'Major only', off: 'Off' }, moments.mode, (m) => (moments.mode = m)),
+              ]
+            : [];
+        })(),
         h('h4', {}, 'Graphics'),
         radio('quality', QUALITY_LABELS, ctx.quality.tier, (q) => {
           render.setQuality(q);

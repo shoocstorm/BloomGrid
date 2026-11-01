@@ -187,6 +187,11 @@ delighting residents and start to annoy them.
 **Wind power:** Breeze Turbines (☀ energy category) are cheap, clean and the cheapest power to run. The founding
 city already runs on them: a wind farm fills Windward Isle in the north-east and rows line the waterfront.
 
+**Moments:** the big events of your city's life play as short full-screen ceremonies: Flora waking, the Sky-lane
+charter and the Aeroline opening, a sea wonder rising, population milestones, a golden age (every system thriving),
+a disaster weathered, your first top-level building. Click or Esc skips one; ⚙ Settings → Display → Moments picks
+all, major only or off.
+
 **Settings** (⚙ in the top bar): graphics quality, and a power mode (Battery 30 fps · Balanced 60 fps · Max) that
 keeps laptops cool. The game idles at a lower frame rate when nothing moves.
 

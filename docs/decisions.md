@@ -1399,3 +1399,25 @@ awakening (D-092). It now takes 0.05 days (≈18 s at 1×, a few seconds at 3× 
 ring fill as a build-up. Cost and criteria are unchanged. Short projects show seconds in the Goals tab and the
 live reference.
 
+## D-094 — City moments: the awakening's ceremony for every big event (2026-11-01)
+
+**Context:** Flora's awakening (D-092) made her unlock feel like an event; every other milestone (the Aeroline
+opening, a sea wonder rising, a population landmark) was still one toast among many.
+
+**Decision:** A `moments` module. `Ceremony` (from `Awakening`, now removed) plays a `MomentSpec`: tone (bloom,
+gold, sky, sea, storm → CSS `--ma` / `--mb` and the 3D colours), emblem (Flora's core, or an icon on a plate inside
+the same hex / orbit / petals), eyebrow, title (letter by letter, sized to its length), lines, a closing sentence,
+an optional place (camera for grand moments, light column and shockwaves there) and a target the emblem flies into
+(Flora's orb). Scale `grand` (≈6.8 s) or `minor` (≈4.2 s, timings × 0.62 via `--k`, lighter veil). The `moment`
+bus event carries a sound: awake, triumph, wonder, milestone, weathered (synthesised in the audio module).
+Triggers: Flora awakens (the assistant calls `play`), the Sky-lane charter and the Aeroline complete, a sea wonder
+rises, a golden age (every system Stable+ and six Thriving for 20 s, once per city), population milestones (1k–100k;
+10k and up grand), the harmony-streak and transit-city rules come into force, an earthquake / tornado / tsunami of
+severity ≥ 0.8 ends (weathered, with its losses and what prevention saved), the first level-3 building.
+One at a time (queue, deduped, minor ones dropped when it backs up), never while loading, while the New Chapter
+dialog is open, or in the first seconds after a city change (baselines are taken then, so loading a big city
+celebrates nothing). Settings → Display → Moments: all, major only, off (per viewer, localStorage).
+
+**Consequences:** No sim state (baselines are re-derived per city). Steward replacement keeps its own modal.
+Snapped: sea wonder, Aeroline, a minor milestone, Flora; a save load produced no moment over 9 s.
+
