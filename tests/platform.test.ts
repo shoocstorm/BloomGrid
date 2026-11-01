@@ -12,6 +12,7 @@ import { LoopPath } from '@/modules/aeroline/path';
 import { findBridgeSpans } from '@/sim/bridges';
 import { terrainHeight } from '@/sim/terrain';
 import { WONDER_SITES } from '@/modules/scenery/sites';
+import { buildingTemplate, tierPieces } from '@/modules/construction/BuildingRenderer';
 import { makeSim } from './helpers';
 
 describe('save migrations', () => {
@@ -54,14 +55,20 @@ describe('save migrations', () => {
   });
 });
 
-describe('hero assets', () => {
-  it('GLB landmarks carry a procedural fallback so the game works without the files', () => {
-    const heroes = buildings.all().filter((d) => typeof d.recipe !== 'function');
-    expect(heroes.map((d) => d.id).sort()).toEqual(['lotus-pavilion', 'supertree-grove']);
-    for (const d of heroes) {
-      const r = d.recipe as { glb: string; fallback?: unknown };
-      expect(r.glb).toMatch(/^\/assets\/.+\.glb$/);
-      expect(typeof r.fallback).toBe('function');
+describe('hero models', () => {
+  it('landmarks are procedural (D-082): no GLB recipes, and designed levels add pieces at each tier', () => {
+    expect(buildings.all().filter((d) => typeof d.recipe !== 'function').map((d) => d.id)).toEqual([]);
+    for (const id of ['supertree-grove', 'lotus-pavilion']) {
+      const def = buildings.get(id);
+      expect(def.levels, id).toBeTypeOf('function');
+      expect(def.retrofit, id).toBe(false);
+      const t = buildingTemplate(def, 0);
+      const [l1, l2, l3] = [0, 1, 2].map((tier) => tierPieces(t, tier).length);
+      expect(l1, id).toBe(0);
+      expect(l2!, id).toBeGreaterThan(0);
+      expect(l3!, id).toBeGreaterThan(l2!);
+      // Same pieces every run (templates are cached per variant, levels are seeded on their own).
+      expect(tierPieces(t, 2)[0]!.piece).toBe(tierPieces(t, 1)[0]!.piece);
     }
   });
 });

@@ -1075,3 +1075,32 @@ for 76 s passes with only the over-50 MB warning).
   or Settings so Esc closes those first.
 - **No corner brackets.** The `.holo` corner brackets (`--hb`), the welcome card's reticle and the inspector
   stage's corners are gone; glass, edge glow and the header carry the look.
+- **Rounded 3D previews.** The building preview (Build tab float, inspector stage) draws into a rectangle of the
+  main canvas under its HTML frame, so the frame's border-radius never clipped it. HTML bars now hold the rounded
+  corners: a name bar on top of each (category icon and name on the float; live tag, name and close button in the
+  inspector) and the caption below the float, so the stage only meets straight edges. Rejected: a depth mask in the
+  preview scene writing the corner regions (fiddly per corner and backend, and it still looked wrong on a real
+  display). Only one stage renders at a time: showing a building in the Build tab closes the inspector, and the
+  inspector taking the stage hides the float. `bun run snap -- --dpr 2` renders at Retina density.
+
+## D-082 — Procedural heroes replace the Rodin GLBs; designed level overlays (2026-11-01)
+
+**Context:** The Supertree Grove and Lotus Arts Pavilion were Hyper3D Rodin GLBs (D-026, Phase 12). GLB parts are
+instanced with fixed params, so they never weathered with age, lit their windows with power, wilted, or showed a
+level: the generic level overlay (roof terrace, setback crown) was built from the fallback's bounds and floated over
+the grove's 10×10 open plot and the lotus's petals. `commuter-pod.glb` had been unused since D-051's procedural pod.
+
+**Decision:** Delete all three GLBs from `public/assets/`. Both heroes are plain procedural recipes (the old
+fallbacks, rebuilt: tapered steel supertrees with vertical gardens, lit lattice funnels, solar canopies and lit
+skywalks; a lotus of three petal whorls over a colonnaded glass hall on a round deck in a lily pond). A new
+`levels(b, tier)` on `BuildingDef` supplies designed additions per level, cumulative, run from their own seeded
+stream in `buildingTemplate` (so the base pieces never shift) and cached as the template's `tiers`, which
+`tierPieces` returns instead of the generic overlay. Grove: level 2 a fourth supertree, skywalks and a Cloud Forest
+dome; level 3 a crown walk round the tallest canopy, second halos and spires, a waterfall into the pond. Lotus:
+level 2 lily-pad galleries and a lantern arcade over the bridge; level 3 a lantern spire, golden crown and halos.
+`retrofit: false` keeps Bloom Retrofit off heroes whose bounds aren't a façade (the GLB recipe kept it off before).
+
+**Consequences:** Heroes weather, light and level like every building, and work offline with no asset fetch. The
+GLB path (`AssetManager.loadGlbPieces`, `optimize-glb`) stays for future use but nothing uses it. Piece counts:
+grove ≈ 500 instances at level 1 (one per island), lotus ≈ 110. `scripts/scenes/heroes.js` shows a hero at all three
+levels side by side.

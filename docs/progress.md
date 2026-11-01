@@ -42,7 +42,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 | Area            | Where                                                      | Notes                                                                                                                                                                                                       |
 | --------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Sim core        | `src/sim/`                                                 | `City`, `Grid`, `pulse.ts` (1 Hz management pulse), fields, bloom, night life, mobility, Flora-Net soil, coast (terrain edits, sea rise), weaver, crises, finance, upkeep, steward, seasons, scenario, save |
-| Content         | `src/content/buildings/*.ts`, `src/content/scenarios/*.ts` | 59 buildings (2 with Rodin GLBs; the central Wellspring Spire and its 40-building hero district are procedural), founding-city scenario; auto-discovered                                                                                                                                   |
+| Content         | `src/content/buildings/*.ts`, `src/content/scenarios/*.ts` | 59 buildings, all procedural (heroes with designed level overlays via `levels`, D-082; the central Wellspring Spire and its 40-building hero district), founding-city scenario; auto-discovered                                                                                                                                   |
 | Rendering       | `src/render/`, `src/assets/kit/pieces.ts`                  | `ChunkedInstancer` (static buffers, ≥1040 capacity, update ranges), TSL material library with lens/vitality/season support                                                                                  |
 | Feature modules | `src/modules/*`                                            | world, construction (buildings, roads, channels, tools), pulse, overlays, advisor, views, dashboard, settings, crises, bloom, mobility                                                                      |
 | HUD             | `src/ui/`                                                  | vanilla DOM; right column via `services.get('hud').right`                                                                                                                                                   |
@@ -66,8 +66,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 - Assistant follow-ups (Phase 14 deferred): Laya decisions, multi-action plans, proactive advice; measure with `bun run ai-probe`.
 - Phase 8 leftovers: canopy greenways, hyperloop, ferries, player-drawn sky-lanes.
 - KTX2 textures (install `toktx`, wire `KTX2Loader` + basis transcoder), Windows/Linux packaging and code signing.
-- Individual citizens (follow-cam targets), depth of field in photo mode, more Rodin hero assets (ask before generating:
-  paid credits).
+- Individual citizens (follow-cam targets), depth of field in photo mode.
 - Tech debt in the roadmap (WebGL2 warm-up, `BatchedMesh`, worker sim).
 
 ### Phase 11 follow-ups (deferred)

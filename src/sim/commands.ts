@@ -362,7 +362,7 @@ export function retrofitPlan(city: City, x: number, z: number, radius: number): 
   for (const e of city.buildingEntities()) {
     if (Building.level[e]) continue;
     const def = city.buildingDef(e);
-    if (typeof def.recipe !== 'function' || def.category === 'nature') continue;
+    if (typeof def.recipe !== 'function' || def.retrofit === false || def.category === 'nature') continue;
     const dx = Building.x[e]! + Building.w[e]! / 2 - x;
     const dz = Building.z[e]! + Building.d[e]! / 2 - z;
     if (dx * dx + dz * dz > radius * radius) continue;

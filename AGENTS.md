@@ -28,7 +28,7 @@ bun install
 bun run dev            # http://localhost:5173: a fresh island behind the New Game wizard; ?scenario=founding-city = the showcase (scripts default to it), ?wizard / ?nowizard  (?perf ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty ?difficulty=sandbox|relaxed|steward|hard ?drill=<crisis> ?nodynres)
 bun run check          # typecheck + lint + tests + production build (must pass before you finish)
 bun run test           # vitest only (NOT `bun test`: that is bun's own runner and skips the Vitest setup)
-bun run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500] [--mobile [--size 844x390]]
+bun run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500] [--mobile [--size 844x390]] [--dpr 2]
 bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--sound] [--profile 15]   # power/perf probe (see §8)
 bun run flicker -- [--pieces all|names|a,b] [--defs canopy-tower] [--day] [--diff shots/f.png]   # thin-detail flashing probe (D-070)
 bun run trailer:feature  # ~76s feature trailer against the showcase city (wind farm, Bloomtopia, train ride, a fireworks act with shaped bursts and a sky message, Flora console, dawn bloom) to shots/feature-trailer.mp4; encodes at crf 25 so it can be committed as public/assets/feature-trailer.mp4 (keep < 100 MB, D-079)
@@ -102,7 +102,7 @@ To light a fire from a snap eval: `(await import('/src/sim/hazards.ts')).ignite(
 | Global shader input                | `U` in `src/render/uniforms.ts`                                                                                                                                            |
 | Saved module state                 | `ctx.services.get('save').addHook({ id, save, load })`                                                                                                                     |
 | Boot progress stage                | `await onProgress(label, fraction)` in `src/game/createGame.ts`                                                                                                            |
-| Hero GLB model                     | building `recipe: { glb: '/assets/x.glb', fallback(b) {…} }`; raw files in `assets-raw/` (ignored), optimised in `public/assets/`                                          |
+| Hero building                      | procedural `recipe` + `levels(b, tier)` for designed level 2/3 additions (open plots where a roof terrace would float) and `retrofit: false`; check all three levels with `scripts/scenes/heroes.js` on `?scenario=empty` (D-082). A `{ glb, fallback }` recipe still loads, but GLB parts don't weather, light or level: avoid |
 | Native / desktop behaviour         | `src/platform/` (`web.ts`, `tauri.ts`); Rust commands in `src-tauri/src/lib.rs`                                                                                            |
 | Terrain / island shape             | `src/sim/terrain.ts` (pure height function)                                                                                                                                |
 | Starting city content              | `src/content/scenarios/<id>.ts` (`defineScenario`); builder in `src/sim/scenario.ts`                                                                                       |

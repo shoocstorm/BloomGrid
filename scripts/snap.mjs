@@ -39,7 +39,9 @@ const browser = await puppeteer.launch({
   args: ['--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', `--window-size=${w},${h}`],
 });
 const page = await browser.newPage();
-await page.setViewport({ width: w, height: h, ...(mobile ? { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : {}) });
+// `--dpr 2` renders like a Retina display (phones default to 2).
+const dpr = args.dpr ? Number(args.dpr) : mobile ? 2 : 1;
+await page.setViewport({ width: w, height: h, deviceScaleFactor: dpr, ...(mobile ? { isMobile: true, hasTouch: true } : {}) });
 let errors = 0;
 // Warnings/errors, plus the app's own tagged logs (e.g. "[boot] …", "[scenario] …").
 page.on('console', (m) => (['warn', 'error'].includes(m.type()) || /^\[[a-z]+\]/.test(m.text())) && console.log(`[${m.type()}] ${m.text()}`));

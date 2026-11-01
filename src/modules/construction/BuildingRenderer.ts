@@ -69,6 +69,28 @@ export function buildingTemplate(def: BuildingDef, variant: number): BuildingTem
   let t = templates.get(key);
   if (t) return t;
   const rng = new Rng(Math.floor(hash2(variant, 7, buildings.indexOf(def.id) + 1) * 2 ** 31));
+  const recipe = typeof def.recipe === 'function' ? def.recipe : def.recipe.fallback;
+  const run = runRecipe(def, rng, (b) => recipe?.(b));
+  const bounds = run.bounds;
+  if (bounds.minX === Infinity) Object.assign(bounds, { minX: -0.4, maxX: 0.4, minZ: -0.4, maxZ: 0.4, top: 0.5 });
+  t = { pieces: run.pieces, height: run.height, bounds, rng };
+  if (def.levels) {
+    // Designed level overlays (D-082): each level's additions, cumulative, from their own seeded stream so the
+    // base recipe's pieces never shift when a level is added.
+    const levels = def.levels;
+    const tiers: TemplatePiece[][] = [[]];
+    for (let tier = 1; tier <= 2; tier++) {
+      const add = runRecipe(def, new Rng(Math.floor(hash2(variant, 11 + tier, buildings.indexOf(def.id) + 1) * 2 ** 31)), (b) => levels(b, tier as 1 | 2));
+      tiers.push([...tiers[tier - 1]!, ...add.pieces]);
+    }
+    t.tiers = tiers;
+  }
+  templates.set(key, t);
+  return t;
+}
+
+/** Runs one recipe function against a fresh builder; returns its pieces, height and solid bounds. */
+function runRecipe(def: BuildingDef, rng: Rng, fn: (b: KitBuilder) => void): { pieces: TemplatePiece[]; height: number; bounds: BuildingTemplate['bounds'] } {
   const pieces: TemplatePiece[] = [];
   let height = 0.5;
   const bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, top: 0 };
@@ -92,13 +114,8 @@ export function buildingTemplate(def: BuildingDef, variant: number): BuildingTem
     pieces.push({ piece: spec.piece, local, tint: spec.tint ?? 0xffffff, glow: spec.glow ?? 0, growAt: spec.growAt ?? 0, seed: rng.next(), y: p[1] });
   };
   const [w, d] = def.footprint;
-  const builder: KitBuilder = { w, d, rand: () => rng.next(), range: (a, b) => rng.range(a, b), pick: (arr) => rng.pick(arr), add };
-  const recipe = typeof def.recipe === 'function' ? def.recipe : def.recipe.fallback;
-  recipe?.(builder);
-  if (bounds.minX === Infinity) Object.assign(bounds, { minX: -0.4, maxX: 0.4, minZ: -0.4, maxZ: 0.4, top: 0.5 });
-  t = { pieces, height, bounds, rng };
-  templates.set(key, t);
-  return t;
+  fn({ w, d, rand: () => rng.next(), range: (a, b) => rng.range(a, b), pick: (arr) => rng.pick(arr), add });
+  return { pieces, height, bounds };
 }
 
 /**
@@ -176,7 +193,8 @@ export function retrofitPieces(t: BuildingTemplate): TemplatePiece[] {
 /**
  * Level overlays (D-073), generic so no recipe changes: level 2 adds a roof terrace (a plate, planters at the
  * corners, a flower edge and two solar petals); level 3 adds a setback crown on top (two glass floors, a meadow
- * cap with a tree, and a lit spire). Built from the template's bounds; cached per template and level.
+ * cap with a tree, and a lit spire). Built from the template's bounds; cached per template and level. A def with
+ * `levels` (open-plan heroes, where a roof terrace would float) has its designed overlays baked in `buildingTemplate`.
  */
 export function tierPieces(t: BuildingTemplate, tier: number): TemplatePiece[] {
   const cache = (t.tiers ??= []);

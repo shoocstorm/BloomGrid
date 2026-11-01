@@ -154,9 +154,17 @@ export interface BuildingDef {
   style?: StyleId;
   /**
    * Procedural recipe, or a GLB hero model. A GLB recipe's `fallback` provides the building's
-   * volume (bounds, collision, retrofit overlays) and is drawn while the GLB is missing.
+   * volume (bounds, collision, retrofit overlays) and is drawn while the GLB is missing. GLB parts don't weather,
+   * light their windows or show levels, so prefer procedural recipes (D-082).
    */
   recipe: ((b: KitBuilder) => void) | { glb: string; scale?: number; fallback?: (b: KitBuilder) => void };
+  /**
+   * Designed level overlays (D-082), for heroes whose shape a generic roof terrace or crown doesn't fit: what the
+   * building adds at `tier` 1 (level 2) and 2 (level 3), in recipe space. Levels are cumulative (level 3 draws both).
+   */
+  levels?: (b: KitBuilder, tier: 1 | 2) => void;
+  /** False keeps a Bloom Retrofit from dressing it (a designed hero whose bounds aren't a façade). */
+  retrofit?: false;
 }
 
 /** Building finishes; the render side (`render/materials/styles.ts`) defines how each looks. */

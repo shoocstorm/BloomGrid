@@ -66,8 +66,21 @@ class Hud {
    * The building preview floats beside the console, outside its glass: the stage is a transparent window the
    * `preview` module renders into, and the console's backdrop would dim anything drawn under it.
    */
+  private stageName = h('b', { class: 'ix-stage-name' });
   private floatStage = h('div', { class: 'bp-float-stage', title: 'Drag to turn · wheel to zoom · double-click to reset' });
-  private float = h('div', { class: 'bp-float hidden' }, this.floatStage, h('div', { class: 'bp-float-cap' }, 'Preview · drag to turn'));
+  /**
+   * The floating preview: a name bar on top and a caption below hold the frame's rounded corners, so the 3D stage
+   * between them (drawn on the main canvas, which CSS can't round) only meets straight edges.
+   */
+  private floatName = h('b');
+  private floatIco = h('span', { class: 'bp-float-ico' });
+  private float = h(
+    'div',
+    { class: 'bp-float hidden' },
+    h('div', { class: 'bp-float-bar' }, this.floatIco, this.floatName),
+    this.floatStage,
+    h('div', { class: 'bp-float-cap' }, 'Preview · drag to turn'),
+  );
   /** Building cards of the open category, and the tool/category bar (a console may adopt both). */
   tray!: HTMLElement;
   toolbar!: HTMLElement;
@@ -528,6 +541,10 @@ class Hud {
       ),
     );
     this.placeFloat();
+    this.floatIco.replaceChildren(icon(`cat:${def.category}`, CATEGORY_ICONS[def.category]));
+    setText(this.floatName, def.name);
+    // One 3D stage at a time: the building preview takes it, so an open inspector closes.
+    if (!this.info.classList.contains('hidden')) this.closeInfo();
     ctx.services.tryGet('preview')?.showDef(this.floatStage, def.id);
   }
 
@@ -574,7 +591,6 @@ class Hud {
     this.stage = h(
       'div',
       { class: 'ix-stage', title: 'Drag to orbit · scroll to zoom · double-click to reset' },
-      h('span', { class: 'ix-stage-tag' }, h('i'), 'Live model'),
       h('span', { class: 'ix-stage-hint' }, icon('rotate'), isTouchDevice() ? 'Drag to orbit · double-tap to reset' : 'Drag to orbit · scroll to zoom'),
       h(
         'button',
@@ -586,6 +602,8 @@ class Hud {
       'div',
       { class: 'info panel holo hidden' },
       h('button', { class: 'ix-close', title: 'Close', 'aria-label': 'Close the inspector', onClick: () => this.closeInfo() }, icon('close')),
+      // Above the stage: holds the panel's rounded top corners (the stage is drawn on the canvas, which CSS can't round).
+      h('div', { class: 'ix-stage-bar' }, h('span', { class: 'ix-stage-tag' }, h('i'), 'Live model'), this.stageName),
       this.stage,
       this.infoBody,
     );
@@ -645,6 +663,7 @@ class Hud {
     const def = city.buildingDef(this.group[0]!);
     const preview = ctx.services.tryGet('preview');
     this.info.classList.toggle('staged', !!preview);
+    setText(this.stageName, `${this.group.length} × ${def.name}`);
     preview?.showDef(this.stage, def.id);
     let residents = 0;
     let jobs = 0;
@@ -697,6 +716,9 @@ class Hud {
     const preview = this.ctx.services.tryGet('preview');
     const on = eid !== null && !!preview;
     this.info.classList.toggle('staged', on);
+    if (on) setText(this.stageName, this.ctx.city.buildingDef(eid!).name);
+    // The inspector holds the 3D stage now: the Build tab's floating preview would be an empty window.
+    if (on) this.float.classList.add('hidden');
     if (on) preview!.show(this.stage, eid!);
     else preview?.hide();
   }

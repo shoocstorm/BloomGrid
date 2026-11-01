@@ -226,5 +226,5 @@ Releases: `bun run release [patch|minor|major|X.Y.Z]` (add `--dry-run` to previe
 - [`docs/architecture.md`](docs/architecture.md): layers and extension points
 - [`docs/decisions.md`](docs/decisions.md): decision log
 
-The hero models (Supertree Grove, Lotus Arts Pavilion, commuter pod) were generated with Hyper3D Rodin and optimised
-with `bun run optimize-glb`. If they are missing, the game falls back to procedural versions.
+Every model is procedural (kit pieces built in code), including the hero landmarks: the Supertree Grove and the Lotus
+Arts Pavilion grow designed additions at levels 2 and 3, weather with age and light their windows like any building.
