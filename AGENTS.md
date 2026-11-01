@@ -269,6 +269,12 @@ The knowledge base is never finished: treat it as part of every feature. Flora's
   constants undefined at load (`DAY_LENGTH` lives in `pulseConst.ts` for this reason).
 - Anything derived from terrain heights must refresh in `City.refreshTerrainDerived()` (sim) or on `terrain:changed`
   (render); edit corners only through `setCorners` so saves and the hash see the change.
+- Buildings grade their lot (`sim/grading.ts`, D-099): the `build` command and the scenario builder level the lot, lift it to a
+  higher street and cut rising banks to a ramp, never steeper than a highway allows; a scenario's levelled terraces are kept.
+  Check a scenario change with `tests/grading.test.ts` (no showcase building in a hollow).
+- Rest render things on the ground with `Grid.heightAt`: it follows the terrain mesh's triangles (D-098), a hand-rolled
+  bilinear blend floats or sinks them on twisted tiles. Highway surfaces are `ROAD_LIFT` above it; buildings re-seat on
+  `terrain:changed`.
 - Shader animation the CPU must match (follow-cams) uses `U.clock`, not TSL `time` (they drift apart). Ambient motion
   (particles, sway) stays subtle: sway amplitudes are world units, so tiny pieces need tiny amplitudes.
 - Explore modes change `camera.near/far` and the sky dome scale; anything depending on them must restore on exit.

@@ -4,6 +4,8 @@ import { createCollider, TREE_STRIDE } from '@/modules/explore/collider';
 import { findRoof, roofAt } from '@/modules/explore/roof';
 import { initPieces } from '@/assets/kit/pieces';
 import { BRIDGE_DECK } from '@/sim/City';
+import { Grid } from '@/sim/Grid';
+import { ROAD_LIFT } from '@/modules/construction/RoadRenderer';
 import { findLandRow, makeSim } from './helpers';
 
 describe('explore collider', () => {
@@ -28,6 +30,36 @@ describe('explore collider', () => {
     expect(c.groundAt(x0 + 7, z - 1, parkFeet)).toBeGreaterThanOrEqual(parkFeet);
     // Off the map is blocked.
     expect(c.blocked(-1, 5, 0, true, 0)).toBe(true);
+  });
+
+  it('ground height follows the drawn triangles, so feet meet the surface on a twisted tile', () => {
+    const g = new Grid(2, 2);
+    // One saddle tile: corners (0,0) and (1,1) high, (1,0) and (0,1) low. The mesh splits it along (1,0)–(0,1).
+    g.heights.set([1, 0, 0, 0, 1, 0, 0, 0, 0]);
+    for (const [x, z, h] of [
+      [0, 0, 1],
+      [1, 0, 0],
+      [0, 1, 0],
+      [1, 1, 1],
+    ] as const)
+      expect(g.heightAt(x, z)).toBeCloseTo(h, 5);
+    // On the diagonal both triangles give 0 (a bilinear blend said 0.5 at the centre: feet half a unit in the air).
+    expect(g.heightAt(0.5, 0.5)).toBeCloseTo(0, 5);
+    // Each half is a plane through its three corners.
+    expect(g.heightAt(0.25, 0.25)).toBeCloseTo(0.5, 5);
+    expect(g.heightAt(0.75, 0.75)).toBeCloseTo(0.5, 5);
+    // Continuous across the diagonal.
+    expect(Math.abs(g.heightAt(0.5 - 1e-4, 0.5 - 1e-4) - g.heightAt(0.5 + 1e-4, 0.5 + 1e-4))).toBeLessThan(1e-3);
+  });
+
+  it('walkers stand on the highway surface, not on the ground under it', () => {
+    const s = makeSim(42);
+    s.city.credits = 1e6;
+    const { x0, z } = findLandRow(s.city, 10);
+    const g = s.city.grid;
+    expect(s.commands.execute('road', { tiles: Array.from({ length: 6 }, (_, i) => g.index(x0 + i, z)) })).toBe(true);
+    const c = createCollider(s.city);
+    expect(c.groundAt(x0 + 2.3, z + 0.6, 99)).toBeCloseTo(g.heightAt(x0 + 2.3, z + 0.6) + ROAD_LIFT, 5);
   });
 
   it('water stops walkers but not boards; bridge decks carry you', () => {

@@ -3,6 +3,7 @@ import type { City } from '@/sim/City';
 import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
 import { NO_ENTITY } from '@/sim/Grid';
 import { placeBuilding } from '@/modules/construction/BuildingRenderer';
+import { ROAD_LIFT } from '@/modules/construction/RoadRenderer';
 import { getPiece } from '@/assets/kit/pieces';
 
 /** Player body radius, the tallest ledge it steps up without jumping, and its height (world units). */
@@ -201,7 +202,7 @@ export function createCollider(city: City, trees?: TreeLookup) {
     const g = city.grid;
     if (!g.inBounds(Math.floor(x), Math.floor(z))) return g.heightAt(x, z);
     const t = g.index(Math.floor(x), Math.floor(z));
-    let y = g.road[t] === BRIDGE ? BRIDGE_DECK + 0.035 : g.heightAt(x, z);
+    let y = g.road[t] === BRIDGE ? BRIDGE_DECK + ROAD_LIFT : g.heightAt(x, z) + (g.road[t] ? ROAD_LIFT : 0);
     for (const eid of buildingsNear(x, z, 0))
       for (const p of solids.get(eid)!.parts) {
         if (p.y1 < y || p.y0 > feet + STEP) continue;

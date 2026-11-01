@@ -454,6 +454,8 @@ export const exploreModule: GameModule = {
       phase: 'input',
       order: 2,
       update(_c, f) {
+        // Grass and flowers part round the walker's feet (off in every other mode).
+        U.walker.value.set(pos.x, pos.y, pos.z, mode === 'walk' ? 0.16 : 0);
         if (mode === 'city') return;
         const dt = Math.min(0.05, f.dt);
         const k = input.keys;

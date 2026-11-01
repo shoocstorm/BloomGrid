@@ -71,6 +71,19 @@ const swayed = (amp: number) => {
 };
 
 /**
+ * Plants part round the explore walker's feet: within `U.walker.w` of them, blade tips fold down to ankle height and
+ * lean away, so the steward's legs show in a meadow instead of vanishing into it. Off (w = 0) outside walk mode.
+ */
+const trampled = (p: Node<'vec3'>) => {
+  const w = U.walker.w;
+  const away = p.xz.sub(U.walker.xz);
+  const k = float(1).sub(length(away).div(max(w, float(1e-4)))).clamp(0, 1).mul(step(float(1e-4), w));
+  const above = p.y.sub(U.walker.y.add(0.012)).max(0);
+  const lean = away.div(max(length(away), float(1e-4))).mul(above).mul(k).mul(0.8);
+  return vec3(p.x.add(lean.x), p.y.sub(above.mul(k).mul(0.85)), p.z.add(lean.y));
+};
+
+/**
  * Pixel-footprint anti-aliasing (D-064): small lights pop in and out of pixels as the camera moves and bloom turns
  * that into flashing. `pieceCover` is how much of its glow a small piece keeps: full while the piece (unit extent in
  * its own geometry) spans `px` pixels or more, then in proportion. `stripes` is `step(edge, fract(v))` with
@@ -339,10 +352,10 @@ export function initMaterials(): void {
   });
 
   // Foliage (canopies, bushes, grass, ivy): flat-shaded low-poly with wind sway + bioluminescent tint.
-  const foliage = (amp: number, side = false) => () => {
+  const foliage = (amp: number, side = false, trample = false) => () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.9, flatShading: true });
     if (side) m.side = DoubleSide;
-    m.positionNode = swayed(amp);
+    m.positionNode = trample ? trampled(swayed(amp)) : swayed(amp);
     const v = mx_noise_float(positionWorld.mul(2.3)).mul(0.18);
     // Seasonal foliage: a gentle wash toward the season tint (golden Harvest, dusty Haze).
     m.colorNode = mix(color(0xffffff).add(v), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
@@ -354,7 +367,7 @@ export function initMaterials(): void {
   };
   define('canopy', foliage(0.015), { vitality: true });
   define('bush', foliage(0.015), { vitality: true });
-  define('grass', foliage(0.03, true), { vitality: true });
+  define('grass', foliage(0.03, true, true), { vitality: true });
   define('ivy', foliage(0.025, true), { vitality: true });
 
   define('bark', () => new MeshStandardNodeMaterial({ roughness: 1, flatShading: true }));
@@ -364,7 +377,7 @@ export function initMaterials(): void {
   // colour (shifted toward the season's tint) and glow. Divide out the instance tint for the bud.
   define('flower', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.6, flatShading: true });
-    m.positionNode = swayed(0.02);
+    m.positionNode = trampled(swayed(0.02));
     const open = smoothstep(0.12, 0.55, bloomAt(positionWorld.x, positionWorld.z));
     const tinted = mix(vec3(1), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
     m.colorNode = mix(vec3(0.44, 0.6, 0.29).div(max(instanceColor, vec3(0.08))), tinted, open);

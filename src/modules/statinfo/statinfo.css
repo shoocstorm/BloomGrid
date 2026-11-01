@@ -283,6 +283,24 @@
   overflow-y: auto;
   padding: 12px 14px 4px;
   overscroll-behavior: contain;
+  /* The console scrollbar (theme.css): a thin line-coloured thumb on a clear track, not the OS default. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-gutter: stable;
+}
+/* WebKit (the desktop app's WKWebView, Safari) ignores scrollbar-color; Chrome ignores these once it is set. */
+.si-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.si-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.si-scroll::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+}
+.si-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
 }
 .si-sec {
   display: flex;

@@ -6,6 +6,7 @@ import type { ScenarioBuilder } from '@/content/types';
 import { Service } from '@/ecs/components';
 import type { City } from './City';
 import { setCorners } from './coast';
+import { allLots, gradeLots } from './grading';
 import { SEA_LEVEL } from './Grid';
 import { RoadNetworks } from './networks';
 import { Rng } from './random';
@@ -151,6 +152,8 @@ export function applyScenario(city: City, id: string): { buildings: number; road
   const levelRects: [number, number, number, number, number][] = [];
   def.build(builder);
   setCorners(city, [...leveled]); // one shore/soil refresh for every terrace
+  // Grade every lot to its street and cut back banks that would leave a building in a hollow (D-099).
+  setCorners(city, gradeLots(city, allLots(city), (c) => leveled.has(c)));
   city.credits = def.credits;
   if (def.progression) {
     city.growth.progression = true;

@@ -286,6 +286,8 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Canopy Tower, Living Studio, Orchard Stack, Drone Fabricator, Pod Dock, Phyto Garden, Data Spire, Storm Shelter detailed (D-096)
 - [x] Industry (5), sports (5) and twelve landmarks detailed; `bench` / `entrance` / `forecourt` / `lilies` helpers (D-097)
 - [x] The rest of the catalogue at street level (39 more; `railRing`, `footbridge`); Flora Hive and Mangrove Seawall left as they are (D-097)
+- [x] Things meet the drawn ground: triangle heights, re-seated buildings, walkers on roads, parting grass (D-098)
+- [x] Lot grading: lots levelled and lifted to their street, rising banks cut to ramps; showcase hollows 23 → 3 (D-099)
 - **Accept:** ✅ snaps (day, night, WebGL), `tests/orient.test.ts`, draw calls and boot measured, flicker probe (D-095)
 
 ---

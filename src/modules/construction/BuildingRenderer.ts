@@ -305,6 +305,8 @@ export function placeBuilding(grid: Grid, def: BuildingDef, x: number, z: number
 
 interface Entry {
   handles: InstanceHandle[];
+  /** The terrain-meeting plinth it was placed with (re-seated when the ground under it changes). */
+  plinth: Matrix4;
   /** Membrane pieces whose shader reads live greenery. */
   moss: InstanceHandle[];
   /** Glass pieces whose lit windows follow power and occupancy (aParams.w). */
@@ -413,6 +415,19 @@ export class BuildingRenderer {
           this.removeRetrofit(entry);
           this.addRetrofit(entry, ctx.loading ? -1 : dist * 0.09, Building.level[eid]!);
         } else this.removeRetrofit(entry);
+      }
+    });
+    // Ground edits (land reclamation, scenario terraces) can lift a lot's corners after its building went up: re-seat
+    // every building whose lot touches the changed corners, or it ends up sunk into its own ground.
+    bus.on('terrain:changed', ({ x0, z0, x1, z1 }) => {
+      for (const [eid, entry] of [...this.entries]) {
+        const [x, z, w, d] = [Building.x[eid]!, Building.z[eid]!, Building.w[eid]!, Building.d[eid]!];
+        if (x > x1 || z > z1 || x + w < x0 || z + d < z0) continue;
+        const rec = ctx.city.buildingRecord(eid);
+        const place = placeBuilding(ctx.city.grid, buildings.get(rec.def), rec.x, rec.z, rec.rot);
+        if (Math.abs(place.base.elements[13]! - entry.base.elements[13]!) < 1e-3 && place.plinth.equals(entry.plinth)) continue;
+        this.remove(eid);
+        this.add(eid, false);
       }
     });
     // Bulk content (scenario) may exist before this renderer attaches.
@@ -527,6 +542,7 @@ export class BuildingRenderer {
       weather: 0,
       pending: [],
       base: place.base,
+      plinth: place.plinth,
       height: place.template.height,
       lastGreenery: rec.greenery,
       power: 1,

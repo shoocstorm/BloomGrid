@@ -48,7 +48,11 @@ export class Grid {
     return this.heights[z * (this.w + 1) + x]!;
   }
 
-  /** Bilinear height at a world-space position (1 tile = 1 unit). */
+  /**
+   * Height of the drawn ground at a world-space position (1 tile = 1 unit). It follows the terrain mesh's two
+   * triangles per tile (split along the (x+1, z)–(x, z+1) diagonal, see `world/Terrain.ts`), not a bilinear blend:
+   * on a twisted tile the two differ by up to a quarter of the twist, enough to sink a walker's feet or float a tree.
+   */
   heightAt(wx: number, wz: number): number {
     const x = Math.min(Math.max(wx, 0), this.w - 1e-4);
     const z = Math.min(Math.max(wz, 0), this.h - 1e-4);
@@ -60,7 +64,7 @@ export class Grid {
     const b = this.corner(xi + 1, zi);
     const c = this.corner(xi, zi + 1);
     const d = this.corner(xi + 1, zi + 1);
-    return a + (b - a) * tx + (c - a) * tz + (a - b - c + d) * tx * tz;
+    return tx + tz <= 1 ? a + (b - a) * tx + (c - a) * tz : d + (c - d) * (1 - tx) + (b - d) * (1 - tz);
   }
 
   /** Min/max corner heights over a tile rectangle. */

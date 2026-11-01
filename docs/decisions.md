@@ -1544,3 +1544,66 @@ boot scenario ≈365 ms; flicker 0.035–0.18%.
 ≈360 ms (unchanged). Flicker per building 0.035–0.2% against 0.057–0.183% for untouched ones (Hanging Gardens'
 terrace rails are the highest at mid zoom). The perf probe reads ≈22.5% main thread while panning on both this
 change and HEAD (the reference above is older; not caused here).
+
+## D-098 — Things meet the drawn ground: triangle heights, re-seated buildings, road surface, parting grass (2026-11-01)
+
+**Context:** The player saw buildings sunk into the ground and the explore walker's feet and legs buried. Measured
+(every piece of every founding-city building against the drawn terrain): no building is sunk on the ground it was
+placed on, since a building stands at its lot's highest corner. Burial came from four other places:
+- **Ground edits after placement:** reclaiming land raises shared corners to 1.0, lifting a shoreline lot (fishing
+  docks, water works) under a building that was never moved (0.15 into the ground in the probe).
+- **Height lookup:** `Grid.heightAt` blended the four corners bilinearly, while the terrain mesh draws two triangles
+  per tile split along the (x+1, z)–(x, z+1) diagonal. On a twisted tile the drawn ground is up to a quarter of the
+  twist higher (0.1 on the island's hills), against 0.06-long legs.
+- **Roads:** highway surfaces sit 0.035 above the terrain, but walkers stood on the terrain under them.
+- **Meadow grass:** grass tufts (0.08–0.16 tall) hide the 0.22-tall steward's legs.
+
+**Decision:**
+- `heightAt` follows the drawn triangles exactly. No sim code reads it (only rendering, explore, camera, flora), so
+  saves and the hash are unaffected.
+- `BuildingRenderer` re-seats every building whose lot touches a `terrain:changed` region (remove + add, unanimated)
+  when its base or plinth changed.
+- Highway tiles add `ROAD_LIFT` (exported from `RoadRenderer`) in the explore collider's `groundAt`.
+- Grass and flowers part round the walker: `U.walker` (feet xyz, radius w; set by the explore module, w = 0 outside
+  walk mode) folds blade tips inside 0.16 down to ankle height and leans them away (`trampled` in the material
+  library).
+
+**Rejected:** grading terrain under every new building (cut and fill via `setCorners`). It would change sim terrain
+and the hash, tilt shared road corners, and need undo and scenario re-balancing, to fix lots that the measurement
+showed are not sunk. 84 founding-city lots sit below ground rising beyond their edge (up to 0.85, at terrace cuts),
+but that ground rises *outward* from corners at or below the base, so nothing intersects.
+
+**Consequences:** `tests/explore.test.ts` (saddle tile heights, road surface). Draw calls and perf unchanged; the
+founding city still has no piece more than 0.1 into the ground.
+
+## D-099 — Lot grading: no building in a hollow (2026-11-01)
+
+**Context:** The player asked for buildings to fit the terrain (saves are not a concern: the game is unreleased).
+D-098's count of 84 "pit" lots was inflated: it counted corners under neighbouring buildings, which their plinths
+hide. Measured properly (ground beside a lot more than one 0.45 ramp step above the building's base, excluding other
+lots), the showcase city had 23: 19 beside a street that climbs past them (streets straddling two terrace blocks of
+the hero district and the towns, 0.8 across), 4 against rising open ground.
+
+**Decision:** `sim/grading.ts` `gradeLots(city, lots, keep)` returns corner heights for `setCorners`, in four steps:
+1. **Pads:** each lot stands at its highest corner, lifted to a street that is more than `KERB` (0.3) higher along its
+   edge or within `STREET` (3) tiles (less `BANK` a tile beyond the first), by at most `MAX_FILL` (1.2) and never more
+   than `CLIFF` (0.9) above a lower street or water beside it. The lot is levelled to its pad (its plinth covers it),
+   except corners a street rests on, and within `CLIFF` of the ground just outside. Repeats until no pad moves.
+2. **Banks:** open ground within `RAMP` (6) tiles is cut down to pad + k·`BANK` (0.45); every lot nearby has its say
+   and the lowest cap wins.
+3. **Seams:** a moved corner is brought within `CLIFF` of every neighbour grading left alone; a bank that would have
+   to rise above its cap to do so keeps its height.
+4. **Check:** a tile left steeper than `CLIFF` and steeper than it was gets its moved corners back (a queue; only
+   reverting, so it settles). Highways can still be laid wherever they could before.
+Never moved: other buildings' lots, street corners outside the lot, bridges, channels, water, and corners the caller
+keeps (the scenario's levelled terraces, unless a building stands on them). The scenario builder grades every lot
+after `def.build`; the `build` command grades the new lot, and undo restores the corners and terrain edits.
+`BuildingRenderer` re-seats on `terrain:changed` (D-098).
+
+**Rejected:** embankment fill (raising ground falling away from a lot): a lot several tiles away with a high pad
+raised flat ground into spikes and made hollows next to lower neighbours; plinths already handle falling ground.
+
+**Consequences:** showcase hollows 23 → 3 (2 against kept terrace ground, 1 street). Lifting lots to their street
+leaves taller plinths on their low side (lots more than 1.2 above the ground beside them: 83 → 106), the intended
+look of a building at street level on a slope. Scenario build ≈366 → ≈416 ms. Draw calls unchanged.
+`tests/grading.test.ts` (ramp and undo, street lift, no showcase hollows). Balance and pacing tests unchanged.

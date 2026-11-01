@@ -14,6 +14,7 @@ import { registerSwitchCommands } from './switches';
 import { registerDisasterCommands } from './disasters';
 import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from './floranet';
 import { RECLAIM_HEIGHT, cornersOf, reclaimPlan, setCorners } from './coast';
+import { gradeLots } from './grading';
 import { BANYAN_LEVEL, banyanPlan, bridgePlan, towerAt } from './weaver';
 import { Building, Greenery } from '@/ecs/components';
 
@@ -72,19 +73,31 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerReclaim(stack);
   registerWeaver(stack);
   registerRoadCommands(stack);
-  stack.register<BuildPayload, true>('build', {
+  stack.register<BuildPayload, { corners: [number, number][]; edits: [number, number | undefined][] }>('build', {
     apply({ city }, p) {
       const def = buildings.get(p.def);
       if (!city.checkPlacement(def, p.x, p.z, p.rot).ok) return null;
       city.credits -= def.stats.cost;
       city.addBuilding({ ...p, greenery: 0 });
-      return true;
+      // Grade the lot to its street and cut back banks round it (D-099); undo puts the ground back.
+      const [w, d] = city.footprint(def, p.rot);
+      const grade = gradeLots(city, [{ x: p.x, z: p.z, w, d }]);
+      const h = city.grid.heights;
+      const undo = {
+        corners: grade.map(([c]) => [c, h[c]!] as [number, number]),
+        edits: grade.map(([c]) => [c, city.terrainEdits.get(c)] as [number, number | undefined]),
+      };
+      setCorners(city, grade);
+      return undo;
     },
-    revert({ city }, p) {
+    revert({ city }, p, u) {
       const eid = city.buildingAt(p.x, p.z);
       if (eid === NO_ENTITY) return;
       city.releaseUid(city.removeBuilding(eid).uid!);
       city.credits += buildings.get(p.def).stats.cost;
+      setCorners(city, u.corners);
+      for (const [c, e] of u.edits) if (e === undefined) city.terrainEdits.delete(c);
+      else city.terrainEdits.set(c, e);
     },
   });
 

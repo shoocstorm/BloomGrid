@@ -1,4 +1,4 @@
-import { Color, Vector3 } from 'three/webgpu';
+import { Color, Vector3, Vector4 } from 'three/webgpu';
 import { uniform } from 'three/tsl';
 
 /**
@@ -46,4 +46,6 @@ export const U = {
   sparkScale: uniform(1),
   /** Map size in world units (for terrain-space lookups such as water depth). */
   mapSize: uniform(256),
+  /** Explore walker's feet (xyz) and the radius (w) in which grass and flowers bend away from them; w = 0 is off. */
+  walker: uniform(new Vector4(0, 0, 0, 0)),
 };

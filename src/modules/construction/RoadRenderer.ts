@@ -7,7 +7,9 @@ import { roadLevels } from '@/sim/roads';
 import type { InstanceHandle } from '@/render/Instancer';
 import type { GameContext } from '@/game/context';
 
-const LIFT = 0.035;
+/** Highway surfaces sit this far above the terrain (walkers stand on them, not on the ground below). */
+export const ROAD_LIFT = 0.035;
+const LIFT = ROAD_LIFT;
 const _m = new Matrix4();
 const _v = new Vector3();
 const _s = new Vector3();
