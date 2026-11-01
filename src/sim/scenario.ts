@@ -1,3 +1,4 @@
+import { seawardScore } from './orient';
 import { startWonders } from './wonders';
 import { buildings, scenarios } from '@/content';
 import type { ScenarioBuilder } from '@/content/types';
@@ -79,7 +80,21 @@ export function applyScenario(city: City, id: string): { buildings: number; road
           if (rng.next() > density) continue;
           const id = pick();
           const d = buildings.get(id);
-          for (let r = 0; r < 4; r++) {
+          // Waterside buildings try the rotations that face the sea first (D-095).
+          // Waterside buildings only take rotations that face the sea (D-095), best first; the scan moves on
+          // otherwise. Placement first (inland tiles fail there cheaply), then only valid rotations are scored.
+          const rots = d.placement?.nearWater
+            ? [0, 1, 2, 3]
+                .filter((r) => {
+                  const [w, dd] = city.footprint(d, r);
+                  return RoadNetworks.touchesRoad(g, x, z, w, dd) && city.checkPlacement(d, x, z, r).ok;
+                })
+                .map((r) => ({ r, s: seawardScore(city, d, x, z, r) }))
+                .filter((o) => o.s > 0)
+                .sort((a, b) => b.s - a.s || a.r - b.r)
+                .map((o) => o.r)
+            : [0, 1, 2, 3];
+          for (const r of rots) {
             const [w, dd] = city.footprint(d, r);
             if (!RoadNetworks.touchesRoad(g, x, z, w, dd)) continue;
             if (this.building(id, x, z, r)) {

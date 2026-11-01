@@ -8,6 +8,7 @@ import type { GameContext } from '@/game/context';
 import type { Tool } from '@/game/Tools';
 import type { GroundHit } from '@/world/Picking';
 import { selectInRect } from '@/sim/select';
+import { faceWater } from '@/sim/orient';
 import { placeBuilding, placementMatrices } from './BuildingRenderer';
 import type { Ghost } from './Ghost';
 
@@ -153,8 +154,13 @@ export function createTools(ghost: Ghost, build: BuildState) {
   };
 
   let lastKey = '';
+  /** R was pressed since this building was picked up: stop auto-facing the water. */
+  let manualRot = false;
   const anchor = (ctx: GameContext, hit: GroundHit) => {
     const def = buildings.get(build.def);
+    // Waterside buildings (docks, intakes) turn to face the water under the cursor until the steward rotates
+    // them by hand (D-095).
+    if (def.placement?.nearWater && !manualRot) build.rot = faceWater(ctx.city, def, hit.point.x, hit.point.z).rot;
     const [w, d] = ctx.city.footprint(def, build.rot);
     return { def, w, d, x: Math.floor(hit.point.x - w / 2 + 0.5), z: Math.floor(hit.point.z - d / 2 + 0.5) };
   };
@@ -166,6 +172,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
     grid: true,
     activate() {
       lastKey = '';
+      manualRot = false;
     },
     deactivate: () => ghost.hideAll(),
     hover(ctx, hit) {
@@ -210,6 +217,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
     },
     key(_ctx, e) {
       if (e.code === 'KeyR') {
+        manualRot = true;
         build.rot = (build.rot + (e.shiftKey ? 3 : 1)) % 4;
         lastKey = '';
         return true;

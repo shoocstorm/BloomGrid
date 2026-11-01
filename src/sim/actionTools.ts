@@ -3,6 +3,7 @@ import { buildings } from '@/content';
 import { CATEGORY_LABELS, type BuildingDef } from '@/content/types';
 import { Building } from '@/ecs/components';
 import { NO_ENTITY } from './Grid';
+import { seawardScore } from './orient';
 import type { City } from './City';
 import type { SimCtx } from './systems';
 import { DEMOLISH_REFUND, RETROFIT_RADIUS, roadTileCost } from './commands';
@@ -98,13 +99,16 @@ export function findSites(
   const cz = Math.round(centre.z);
   const seen = new Set<number>();
   // Ring by ring, so the first `limit` valid lots are the nearest ones (Chebyshev rings, sorted by distance).
-  for (let r = 0; r <= radius && out.length < limit * 3; r++) {
+  // Waterside buildings look further: many lots only touch water at a side, and those facing it are wanted.
+  const enough = limit * (def.placement?.nearWater ? 12 : 3);
+  for (let r = 0; r <= radius && out.length < enough; r++) {
     for (let dz = -r; dz <= r; dz++)
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
         const [x, z] = [cx + dx, cz + dz];
         if (!city.grid.inBounds(x, z)) continue;
-        for (let rot = 0; rot < (def.footprint[0] === def.footprint[1] ? 1 : 2); rot++) {
+        // Waterside buildings try every rotation (the sort below keeps the one facing the sea).
+        for (let rot = 0; rot < (def.placement?.nearWater ? 4 : def.footprint[0] === def.footprint[1] ? 1 : 2); rot++) {
           const key = (z * city.size + x) * 4 + rot;
           if (seen.has(key)) continue;
           seen.add(key);
@@ -120,6 +124,22 @@ export function findSites(
           });
         }
       }
+  }
+  if (def.placement?.nearWater) {
+    // One site per anchor: the rotation facing the most open water (D-095).
+    const best = new Map<string, Site & { s: number }>();
+    for (const site of out) {
+      const s = seawardScore(city, def, site.x, site.z, site.rot);
+      const k = `${site.x},${site.z}`;
+      if ((best.get(k)?.s ?? -1) < s) best.set(k, { ...site, s });
+    }
+    const all = [...best.values()];
+    // Lots that only touch water at a side come last-resort: offer those facing it when there are any.
+    const facing = all.some((x) => x.s > 0) ? all.filter((x) => x.s > 0) : all;
+    return facing
+      .sort((a, b) => a.distance - b.distance || b.s - a.s)
+      .slice(0, limit)
+      .map(({ s: _s, ...site }) => site);
   }
   return out.sort((a, b) => a.distance - b.distance).slice(0, limit);
 }

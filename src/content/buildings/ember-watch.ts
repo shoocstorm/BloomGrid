@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts, ivyEdge, roofMeadow } from '../kit';
+import { PALETTE, TRIM, flowers, grassTufts, ivyEdge, lamp, roofMeadow } from '../kit';
 
 export default defineBuilding({
   id: 'ember-watch',
@@ -39,5 +39,20 @@ export default defineBuilding({
     // Rain cistern and the firefighting drone over the yard.
     b.add({ piece: 'algaeTank', p: [-1.0, 0.1, 0.55], s: [0.6, 1.2, 0.6], tint: 0x6fc6ff, glow: 0.4 });
     b.add({ piece: 'drone', p: [0.4, 2.1, 0.9], s: 0.3, glow: 1 });
+    // Detail (D-095): a fire engine on the apron, red trims, the hall's windows, a siren and a flag on the tower.
+    const [ex, ez] = [0.85, 1.12];
+    b.add({ piece: 'slab', p: [ex, 0.16, ez], s: [0.36, 0.2, 0.62], tint: TRIM.red });
+    b.add({ piece: 'slab', p: [ex, 0.36, ez + 0.2], s: [0.34, 0.13, 0.2], tint: TRIM.red });
+    b.add({ piece: 'glassBox', p: [ex, 0.38, ez + 0.305], s: [0.3, 0.08, 0.01], tint: 0x2a3a44 });
+    b.add({ piece: 'slab', p: [ex, 0.36, ez - 0.12], s: [0.2, 0.05, 0.36], tint: TRIM.steel });
+    b.add({ piece: 'lumenRib', p: [ex, 0.5, ez + 0.2], s: [0.22, 0.03, 0.05], tint: 0x6aa8ff, glow: 1 });
+    for (const sx of [-1, 1]) for (const z of [ez - 0.2, ez + 0.18]) b.add({ piece: 'concreteCyl', p: [ex + sx * 0.18, 0.1, z], s: [0.04, 0.12, 0.12], rz: Math.PI / 2, tint: 0x222222 });
+    b.add({ piece: 'slab', p: [0.35, 1.08, 0.86], s: [2.02, 0.05, 0.03], tint: TRIM.red });
+    for (const x of [-0.45, 1.15]) b.add({ piece: 'glassBox', p: [x, 0.55, 0.86], s: [0.24, 0.2, 0.02], tint: 0xd6f2ee });
+    for (let k = 0; k < 4; k++) b.add({ piece: 'glassBox', p: [-1.0, 0.8 + k * 0.6, -0.54], s: [0.16, 0.22, 0.02], tint: 0xd6f2ee });
+    b.add({ piece: 'concreteCyl', p: [-0.82, 3.42, -0.68], s: [0.08, 0.1, 0.08], tint: TRIM.steel });
+    b.add({ piece: 'timberBox', p: [1.35, 0.1, 1.3], s: [0.03, 1.4, 0.03], tint: TRIM.steel });
+    b.add({ piece: 'slab', p: [1.24, 1.3, 1.3], s: [0.22, 0.13, 0.008], tint: TRIM.red });
+    lamp(b, -0.25, 0.1, 1.35);
   },
 });

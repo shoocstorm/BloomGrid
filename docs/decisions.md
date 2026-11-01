@@ -1421,3 +1421,37 @@ celebrates nothing). Settings → Display → Moments: all, major only, off (per
 **Consequences:** No sim state (baselines are re-derived per city). Steward replacement keeps its own modal.
 Snapped: sea wonder, Aeroline, a minor milestone, Flora; a save load produced no moment over 9 s.
 
+## D-095 — The first buildings a player sees, rebuilt with real detail; waterside buildings face the water (2026-11-01)
+
+**Context:** A fresh island opens on a fishing hamlet, and its models were the simplest in the game: boxy boats
+as long as a house, a dock that was a platform and a box, a near-invisible Work Dome, three plain silos for the
+water works, and plain terraced homes. First impressions decide whether a player stays.
+
+**Decision:**
+- **Detail vocabulary** in `content/kit.ts` (`gableRoof`, `solarArray`, `louvres`, `planter`, `lamp`, `railing`,
+  `awning`, `barrel`, `crate`, `piles`, `door`, `TRIM` colours), composed from existing pieces only: more
+  instances, no new piece types, so no new draw calls per chunk.
+- **Rebuilt**: Garden Residence (timber-framed glass storeys, front balconies with glass rails and planters, sun
+  fins, a door under a canopy, a lamp, then a pitched terracotta / slate / sage roof or a roof garden with a pergola
+  and solar array; 6 variants), Fishing Boat Dock (planked quay, a jetty on piles with bollards and a lamp, a net
+  shed with a pitched roof and lit doorway, a fish stall under a striped awning, a derrick crane, drying nets and
+  floats, barrels, crates, lobster pots), Mycelium Work Dome (a timber-ribbed geodesic dome with a solar-petal
+  crown, an entrance vestibule, desks, deck furniture), NEWater Works (sawtooth glass roof, banded membrane tanks
+  with a catwalk and ladder, an intake pipe to a pump head, stepped reed beds). Added detail to the Ember Watch
+  (fire engine, siren, flag, windows, trims), Sunflower Spire (kiosk, service ring, helical rib) and Bloom Park
+  (path, stepping stones, benches, a gazebo, lamps).
+- **Boats** (`modules/fishing/boat.ts`): a lofted hull with sheer, chine and V bottom, boot stripe and red bottom;
+  a teal trawler and a red longliner (two instanced meshes) at ≈1.3 tiles long, running lights, and a soft foam
+  wake scaled by speed.
+- **Facing the water** (`sim/orient.ts`): recipes put their sea side at local +z; `seawardScore` counts water ahead
+  of a rotation. The scenario fill only takes sea-facing rotations for `nearWater` buildings (valid placements
+  first, then scored; scoring every tile cost 2.5 s), `findSites` keeps the sea-facing rotation per lot and prefers
+  lots that face the water, and the Build tool turns a waterside building to face the water under the cursor
+  until R is pressed.
+- `scripts/scenes/showroom.js`: buildings side by side on `?scenario=empty` for close review.
+
+**Consequences:** Founding city ≈255k piece instances (garden residences ×668 ≈138 each, parks ×700 ≈101); boot
+scenario ≈365 ms (was ≈280), draw calls 242 downtown / 225 Westbrook / 271 overview (was ~same), the default boot's
+perf probe 262 draws (246 before); flicker per building in the range of untouched ones (≈0.05–0.1%). Not done:
+the Living Highway's look, other categories' buildings.
+

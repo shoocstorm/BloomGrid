@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, flowers, grassTufts } from '../kit';
+import { PALETTE, TRIM, beam, flowers, grassTufts, lamp, railing } from '../kit';
 
 export default defineBuilding({
   id: 'solar-spire',
@@ -38,5 +38,22 @@ export default defineBuilding({
         });
       }
     }
+    // Detail (D-095): a stone apron, the inverter kiosk with a lit sign, a service ring halfway up and a slim
+    // helical rib round the shaft.
+    b.add({ piece: 'slab', p: [0, 0.12, 0.55], s: [1.1, 0.03, 0.4], tint: 0xe4dac8 });
+    b.add({ piece: 'timberBox', p: [0.5, 0.12, -0.45], s: [0.3, 0.26, 0.24], tint: 0xb48d63 });
+    b.add({ piece: 'slab', p: [0.5, 0.38, -0.45], s: [0.36, 0.03, 0.3], tint: TRIM.pv });
+    b.add({ piece: 'slab', p: [0.5, 0.26, -0.32], s: [0.18, 0.05, 0.01], tint: 0xffd23f, glow: 0.6 });
+    b.add({ piece: 'concreteCyl', p: [0, 0.12 + h * 0.55, 0], s: [0.62, 0.035, 0.62], tint: TRIM.cream });
+    railing(b, 0, 0.12 + h * 0.55 + 0.035, 0.3, 0.5, false, 0.06);
+    for (let k = 0; k < 14; k++) {
+      const a0 = k * 0.75;
+      const a1 = (k + 1) * 0.75;
+      const y0 = 0.5 + (k / 14) * h * 0.9;
+      const y1 = 0.5 + ((k + 1) / 14) * h * 0.9;
+      beam(b, 'timberBox', [Math.cos(a0) * 0.235, y0, Math.sin(a0) * 0.235], [Math.cos(a1) * 0.235, y1, Math.sin(a1) * 0.235], 0.02, { tint: 0xe9e1d0 });
+    }
+    b.add({ piece: 'timberBox', p: [-0.45, 0.12, 0.55], s: [0.36, 0.06, 0.1], tint: 0xa47c56 });
+    lamp(b, 0.62, 0.12, 0.62, 0.45);
   },
 });

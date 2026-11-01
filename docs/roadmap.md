@@ -277,6 +277,14 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Queue and baselines; Settings → Display → Moments (all / major / off)
 - **Accept:** ✅ snaps of four moments; no moment on load (D-094)
 
+## ✅ First-impression models (2026-11-01)
+
+- [x] Kit detail helpers; Garden Residence, Fishing Dock, Work Dome, Water Works rebuilt; Ember Watch, Solar Spire, Bloom Park detailed
+- [x] Fishing boats: lofted hulls, two designs, wakes, believable scale
+- [x] Waterside buildings face the water (scenario, site finder, Build tool)
+- [ ] Living Highway look; the rest of the catalogue to the same standard
+- **Accept:** ✅ snaps (day, night, WebGL), `tests/orient.test.ts`, draw calls and boot measured, flicker probe (D-095)
+
 ---
 
 ## Tech debt / open issues

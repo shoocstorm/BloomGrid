@@ -165,7 +165,7 @@ fly there, or press **.** to step through the fires, hottest first.
 one), found a **New island** (name it, roll another name, choose how hard the world pushes back) or browse the
 **Showcase** city, already built. The city waits while you choose; Enter takes the highlighted choice. A new island
 starts as a fishing hamlet, and the guide walks you through the first steps (⚙ Settings → How to play reopens it;
-**H** or Settings → Controls shows every control). Early on, **Fishing Boat Docks** (free; Build → Food; must touch the sea) pay the bills:
+**H** or Settings → Controls shows every control). Early on, **Fishing Boat Docks** (free; Build → Food; must touch the sea, and turn to face it by themselves until you press R) pay the bills:
 two or three fish the sea best, more overfish it, and a polluted coast spoils the catch. The **Goals** tab in City
 Pulse lists what to unlock next: the *Sky-lane charter* (pod docks), the *Aeroline* and *Wake Flora* (the city
 assistant needs a power plant and a Data Spire, and each request then costs credits), plus the sea wonders still

@@ -1,38 +1,15 @@
-import {
-  BoxGeometry,
-  ConeGeometry,
-  CylinderGeometry,
-  InstancedMesh,
-  Matrix4,
-  Quaternion,
-  SphereGeometry,
-  Vector3,
-} from 'three/webgpu';
+import { InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three/webgpu';
 import type { GameModule } from '@/game/context';
 import { Building, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import { getMaterial } from '@/render/materials/library';
-import { GeoBuilder, tf } from '@/render/bake';
+import { longlinerGeometry, trawlerGeometry, wakeGeometry } from './boat';
 import { U } from '@/render/uniforms';
 
 /** Seconds for a boat's round trip: out, a slow circle over the fishing ground, home. */
 const TRIP = 70;
 /** Capacity ≤ 1024 (UBO): boats are re-posed every frame anyway. */
 const CAP = 512;
-
-function boatGeometry() {
-  const b = new GeoBuilder();
-  // Hull: a tapered box with a pointed bow, white topsides and a sea-green waterline band.
-  b.add(new BoxGeometry(0.9, 0.35, 2.2), tf(0, 0.12, 0), 0xf4f1e8);
-  b.add(new ConeGeometry(0.45, 0.8, 4), tf(0, 0.12, 1.45, Math.PI / 2, Math.PI / 4, 0, 1, 1, 0.8), 0xf4f1e8);
-  b.add(new BoxGeometry(0.92, 0.08, 2.22), tf(0, -0.02, 0), 0x2f8f86);
-  // Wheelhouse with a solar roof, a mast and a lamp that glows at night.
-  b.add(new BoxGeometry(0.6, 0.45, 0.6), tf(0, 0.5, -0.35), 0xe7ddc9);
-  b.add(new BoxGeometry(0.66, 0.05, 0.66), tf(0, 0.75, -0.35), 0x2f6f78, 0.3);
-  b.add(new CylinderGeometry(0.03, 0.03, 1.1, 5), tf(0, 1.0, 0.25), 0x6b4f3a);
-  b.add(new SphereGeometry(0.08, 8, 6), tf(0, 1.58, 0.25), 0xffd27a, 3);
-  return b.build();
-}
 
 interface Route {
   eid: number;
@@ -55,19 +32,24 @@ const UP = new Vector3(0, 1, 0);
 /**
  * Fishing boats (D-072): each Fishing Boat Dock's boats sail out to a fishing ground, circle it slowly and come
  * home, on a loop from `U.clock`; they stay moored while the dock is unstaffed. A dock's heading is the direction
- * with the longest run of open sea. One instanced mesh, CPU-posed per frame (a handful of boats); no shadows.
+ * with the longest run of open sea. Two boat designs and their wakes (`boat.ts`, D-095), CPU-posed per frame; no shadows.
  */
 export const fishingModule: GameModule = {
   id: 'fishing',
   deps: ['world'],
   init(ctx) {
     const { city } = ctx;
-    const boats = new InstancedMesh(boatGeometry(), getMaterial('scenery'), CAP);
-    boats.count = 0;
-    boats.frustumCulled = false;
-    boats.castShadow = false;
-    boats.name = 'fishing-boats';
-    ctx.scene.add(boats);
+    // Two boat designs (D-095), alternating along a dock, and a foam wake under each boat under way.
+    const mat = getMaterial('scenery');
+    const fleets = [new InstancedMesh(trawlerGeometry(), mat, CAP), new InstancedMesh(longlinerGeometry(), mat, CAP)];
+    const wakes = new InstancedMesh(wakeGeometry(), mat, CAP);
+    for (const m of [...fleets, wakes]) {
+      m.count = 0;
+      m.frustumCulled = false;
+      m.castShadow = false;
+      m.name = 'fishing-boats';
+      ctx.scene.add(m);
+    }
     const routes = new Map<number, Route>();
 
     const plan = (eid: number): Route | null => {
@@ -124,15 +106,18 @@ export const fishingModule: GameModule = {
       phase: 'sync',
       update() {
         const t = U.clock.value;
-        let n = 0;
+        const n = [0, 0];
+        let nw = 0;
         for (const r of routes.values()) {
           const working = Service.occupancy[r.eid]! > 0.1;
           const [px, pz] = [-r.dz, r.dx];
-          for (let i = 0; i < r.boats && n < CAP; i++) {
-            const lane = (i - (r.boats - 1) / 2) * 2.2;
-            let x = r.x + px * lane * 0.6;
-            let z = r.z + pz * lane * 0.6;
+          for (let i = 0; i < r.boats && n[0]! + n[1]! < CAP; i++) {
+            const lane = (i - (r.boats - 1) / 2) * 1.6;
+            // Moored side by side off the dock, bows to the sea.
+            let x = r.x + px * lane * 0.38;
+            let z = r.z + pz * lane * 0.38;
             let yaw = Math.atan2(r.dx, r.dz);
+            let speed = 0;
             if (working) {
               // 0–0.35 out, 0.35–0.65 a slow circle on the ground, 0.65–1 home.
               const u = (t / TRIP + r.phase + i * 0.17) % 1;
@@ -140,6 +125,8 @@ export const fishingModule: GameModule = {
               const d = r.reach * (out * out * (3 - 2 * out));
               x = r.x + r.dx * d + px * lane;
               z = r.z + r.dz * d + pz * lane;
+              // Under way: fastest mid-passage, slow while circling the ground.
+              speed = u < 0.35 || u >= 0.65 ? 6 * out * (1 - out) * 1.2 + 0.15 : 0.35;
               if (u >= 0.35 && u < 0.65) {
                 const a = ((u - 0.35) / 0.3) * Math.PI * 2;
                 x += Math.cos(a) * 3 - 3;
@@ -147,13 +134,19 @@ export const fishingModule: GameModule = {
                 yaw = -a;
               } else if (u >= 0.65) yaw += Math.PI;
             }
-            const bob = Math.sin(t * 1.3 + i * 2 + r.phase * 9) * 0.04;
+            const bob = Math.sin(t * 1.3 + i * 2 + r.phase * 9) * 0.025;
             _q.setFromAxisAngle(UP, yaw);
-            boats.setMatrixAt(n++, _m.compose(_v.set(x, 0.02 + bob, z), _q, _s));
+            const k = i % 2;
+            fleets[k]!.setMatrixAt(n[k]!++, _m.compose(_v.set(x, 0.01 + bob, z), _q, _s.set(1, 1, 1)));
+            if (speed > 0.05 && nw < CAP) wakes.setMatrixAt(nw++, _m.compose(_v.set(x, 0, z), _q, _s.set(0.7 + speed * 0.2, 1, Math.min(1, 0.4 + speed * 0.5))));
           }
         }
-        boats.count = n;
-        if (n) boats.instanceMatrix.needsUpdate = true;
+        fleets.forEach((m, k) => {
+          m.count = n[k]!;
+          if (n[k]) m.instanceMatrix.needsUpdate = true;
+        });
+        wakes.count = nw;
+        if (nw) wakes.instanceMatrix.needsUpdate = true;
       },
     });
   },
