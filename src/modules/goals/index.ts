@@ -120,7 +120,7 @@ export const goalsModule: GameModule = {
               h(
                 'span',
                 {},
-                `◈${fmt(def.cost)} · ${def.days * DAY_LENGTH >= DAY_LENGTH ? `${def.days} day${def.days > 1 ? 's' : ''}` : `${Math.round(def.days * 24)} h`} of work`,
+                `◈${fmt(def.cost)} · ${def.days >= 1 ? `${def.days} day${def.days > 1 ? 's' : ''}` : def.days * 24 >= 2 ? `${Math.round(def.days * 24)} h` : `${Math.round(def.days * DAY_LENGTH)} s`} of work`,
               ),
               h(
                 'button',

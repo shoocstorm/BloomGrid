@@ -1392,3 +1392,10 @@ Finishing the project changed nothing visible.
 
 **Consequences:** `tests/flora.test.ts` walks asleep → ready → waking → awake. Snapped on WebGPU and phone.
 
+## D-093 — Waking Flora takes ≈18 s, not 3 minutes (2026-11-01)
+
+The "Wake Flora" project ran half a sim day (180 s at 1×): a long dead wait between the Wake button and the
+awakening (D-092). It now takes 0.05 days (≈18 s at 1×, a few seconds at 3× / 8×), long enough to see the progress
+ring fill as a build-up. Cost and criteria are unchanged. Short projects show seconds in the Goals tab and the
+live reference.
+

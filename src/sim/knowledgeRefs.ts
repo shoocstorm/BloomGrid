@@ -11,6 +11,7 @@ import { ISSUES } from './inventory';
 import { DIFFICULTIES } from './difficulty';
 import { PROJECTS } from './projects';
 import { FAIL_SECONDS } from './steward';
+import { DAY_LENGTH } from './pulseConst';
 import { RESPONSE_COST } from './hazards';
 import { EVACUATE_COST, GATES_COST } from './disasters';
 import { LEVEL_DAYS, OLD_DAYS, TIER_SIZE, TIER_UPKEEP } from './levels';
@@ -166,7 +167,7 @@ function rulesOfPlayDoc(): KnowledgeDoc {
       '',
       `${p.description} **Unlocks:** ${p.unlocks}`,
       '',
-      `Costs ◈${fmt(p.cost)} and takes ${p.days} sim day${p.days === 1 ? '' : 's'} once started.`,
+      `Costs ◈${fmt(p.cost)} and takes ${p.days >= 1 ? `${p.days} sim day${p.days === 1 ? '' : 's'}` : `about ${Math.round(p.days * DAY_LENGTH)} s at normal speed`} once started.`,
       '',
     ]),
     '## Fixed costs',
