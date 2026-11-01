@@ -2,6 +2,8 @@ import type { CommandStack } from '@/core/Commands';
 import type { City } from './City';
 import type { SimCtx } from './systems';
 import { isOpen } from './growthState';
+import { PROJECTS, projectProgress, projectStatus, type Criterion } from './projects';
+import { DAY_LENGTH } from './pulseConst';
 
 /**
  * Flora's bill (Phase 16, D-072): on a fresh island the city assistant must be woken (the `flora` project) and
@@ -44,4 +46,35 @@ export function registerFloraCommands(stack: CommandStack<SimCtx>): void {
       city.growth.floraSpent -= u.cost;
     },
   });
+}
+
+export type FloraPhase = 'asleep' | 'ready' | 'waking' | 'awake';
+
+export interface FloraWake {
+  phase: FloraPhase;
+  /** What waking her needs (the "Wake Flora" project's criteria), each with how to meet it. */
+  criteria: Criterion[];
+  cost: number;
+  /** 0..1 while waking. */
+  progress: number;
+  /** Sim seconds left while waking. */
+  secondsLeft: number;
+}
+
+/**
+ * Where Flora stands on a fresh island (D-092): asleep (criteria unmet or credits short), ready to wake, waking
+ * (the project is running), or awake. Without progression she is always awake.
+ */
+export function floraWake(city: City): FloraWake {
+  const def = PROJECTS.flora;
+  const st = projectStatus(city, 'flora');
+  const run = city.growth.projects.find((p) => p.id === 'flora');
+  const phase: FloraPhase = st === 'open' ? 'awake' : st === 'running' ? 'waking' : st === 'ready' ? 'ready' : 'asleep';
+  return {
+    phase,
+    criteria: phase === 'awake' ? [] : def.criteria(city),
+    cost: def.cost,
+    progress: run ? projectProgress(city, run) : phase === 'awake' ? 1 : 0,
+    secondsLeft: run ? Math.max(0, (run.endTick - city.tick) / 10) : phase === 'awake' ? 0 : def.days * DAY_LENGTH,
+  };
 }

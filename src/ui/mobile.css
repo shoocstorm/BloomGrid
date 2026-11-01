@@ -543,3 +543,24 @@ body.compact.flora-open #hud > :not(.ai) {
   margin-right: 0;
   border-right: 0;
 }
+
+/* ── Indicator guides (D-092): no hover card; the panel is a bottom sheet ─── */
+.compact .si-card {
+  display: none;
+}
+.compact .si-panel {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  top: auto;
+  bottom: 8px;
+  width: auto;
+  max-height: 72vh;
+  transform: none !important;
+}
+.compact .si-panel::before {
+  display: none;
+}
+.compact .si-row {
+  grid-template-columns: 96px 1fr 58px;
+}

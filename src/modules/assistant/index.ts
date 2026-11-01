@@ -16,7 +16,9 @@ import { growthTools } from '@/sim/growthTools';
 import { proposalTools } from '@/sim/proposalTools';
 import { bulkTools } from '@/sim/bulkTools';
 import { proposeBuilds, type ProposalFocus } from '@/sim/proposals';
-import { floraBilled, floraBlocker, floraLocked } from '@/sim/flora';
+import { floraBilled, floraBlocker, floraLocked, floraWake, type FloraPhase } from '@/sim/flora';
+import { diagnose } from '@/sim/proposals';
+import { Awakening } from './Awakening';
 import { PROJECTS } from '@/sim/projects';
 import { allOverlays, getOverlay } from '@/sim/overlays';
 import { ISSUES, inventoryKinds } from '@/sim/inventory';
@@ -56,6 +58,10 @@ class Assistant {
   private lastNotice = new Map<string, number>();
   /** A question asked before any core was downloaded: sent as soon as one comes online. */
   private pending: string | null = null;
+  /** Fresh islands (D-092): her wake state as last shown (null right after a city change: no toasts then). */
+  private phase: FloraPhase | null = null;
+  private wakeTimer = 99;
+  readonly awakening: Awakening;
 
   constructor(private ctx: GameContext) {
     try {
@@ -69,11 +75,14 @@ class Assistant {
       clear: () => this.clear(),
       setAutoApprove: (on) => this.setAutoApprove(on),
       autoApprove: () => this.autoApprove,
+      wake: () => this.startWaking(),
     });
     this.watch();
     // A new or loaded city starts a new conversation: the last city's history, ids and notices mean nothing here,
     // and the undo stack they pointed at is gone. A turn in flight is stopped.
     ctx.bus.on('city:reset', () => this.newCity());
+    this.awakening = new Awakening(ctx);
+    ctx.bus.on('project:done', ({ id }) => id === 'flora' && !ctx.loading && this.awaken());
     this.engine.onChange((s) => {
       if (s.status !== 'ready' || !this.pending || this.busy) return;
       const request = this.pending;
@@ -95,6 +104,8 @@ class Assistant {
   private watch(): void {
     const { bus } = this.ctx;
     const notice = (topic: string, text: string, ask?: string, proposals?: ProposalCard[]) => {
+      // Asleep, she says nothing (D-092): the City Pulse toasts carry the news until she is woken.
+      if (floraLocked(this.ctx.city)) return;
       const now = performance.now();
       if (now - (this.lastNotice.get(topic) ?? -Infinity) < 30_000) return;
       this.lastNotice.set(topic, now);
@@ -210,12 +221,67 @@ class Assistant {
 
   /** Switching city: stops any turn, forgets the conversation, alerts and recent actions, and says so. */
   private newCity(): void {
+    this.phase = null;
+    this.wakeTimer = 99;
     this.busy?.abort();
     this.pending = null;
     this.history = [];
     this.lastNotice.clear();
     // The city's name is set after the reset (new island or loaded save): greet once it is.
     setTimeout(() => this.panel.reset(this.ctx.city.growth.name));
+  }
+
+  /** 2 Hz: the console and orb follow her wake state; becoming wakeable is news. */
+  update(dt: number): void {
+    this.panel.update(dt);
+    this.awakening.update(dt);
+    if ((this.wakeTimer += dt) < 0.5) return;
+    this.wakeTimer = 0;
+    this.syncWake();
+  }
+
+  private syncWake(): void {
+    const w = floraWake(this.ctx.city);
+    if (this.awakening.playing) return;
+    if (this.phase === 'asleep' && w.phase === 'ready')
+      this.ctx.bus.emit('toast', { text: '✧ Flora can be woken: every condition is met. Open her orb (U) and wake her.', tone: 'ok' });
+    this.phase = w.phase;
+    this.panel.setWake(w);
+  }
+
+  /** The Wake button: starts the "Wake Flora" project. */
+  private startWaking(): void {
+    const w = floraWake(this.ctx.city);
+    if (w.phase !== 'ready') return;
+    if (!this.ctx.commands.execute('startProject', { id: 'flora' }))
+      return void this.ctx.bus.emit('toast', { text: 'Flora could not be woken: check the credits.', tone: 'bad' });
+    this.ctx.bus.emit('toast', { text: '✧ Flora is waking on the Data Spire…', tone: 'ok' });
+    this.wakeTimer = 99;
+  }
+
+  /** The project finished: the ceremony, then her console opens with the welcome. */
+  private awaken(): void {
+    const { city } = this.ctx;
+    const fmtN = (n: number) => Math.round(n).toLocaleString();
+    const docs = this.ctx.services.tryGet('knowledge')?.base.all().length ?? 0;
+    const tools = this.ctx.services.get('agent').list().length;
+    const lines = [
+      `Linking the city grid · ${fmtN(city.stats.population)} residents`,
+      `Indexing ${fmtN(city.buildingEntities().length)} buildings in ${city.districts.length || 1} district${city.districts.length === 1 ? '' : 's'}`,
+      ...(docs ? [`Reading the Seedvault · ${docs} docs`] : []),
+      `Binding ${tools} agent tools`,
+      'Data Spire core · stable',
+    ];
+    const trouble = diagnose(city)[0];
+    const greeting = `Hello, steward. I'm Flora, and I'm awake. ${city.growth.name || 'The city'} has ${fmtN(city.stats.population)} residents${
+      trouble ? `, and ${trouble.replace(/ \(.*$/, '').replace(/^(\w+) /, '$1 is ')}` : ', and every system is holding'
+    }. Ask me anything, or tell me what to build.`;
+    this.panel.toggle(false);
+    this.awakening.play(lines, greeting, this.panel.orb, () => {
+      this.syncWake();
+      this.panel.flash();
+      this.panel.toggle(true);
+    });
   }
 
   /** Forgets the conversation: the log and the history the next turn would send to the model. */
@@ -229,6 +295,14 @@ class Assistant {
     const request = text.trim();
     if (!request || this.busy) return '';
     if (request.toLowerCase() === '/clear') return (this.clear(), '');
+    // Asleep (D-092): show what waking her needs instead of a reply nobody can see.
+    if (floraLocked(this.ctx.city)) {
+      this.syncWake();
+      this.panel.toggle(true);
+      const msg = floraBlocker(this.ctx.city) ?? 'Flora is asleep.';
+      this.ctx.bus.emit('toast', { text: `✧ ${msg}`, tone: 'info' });
+      return msg;
+    }
     this.panel.user(request);
     // On a fresh island Flora must be woken first, and requests need credits (D-072).
     const why = floraBlocker(this.ctx.city);
@@ -540,7 +614,7 @@ export const assistantModule: GameModule = {
       id: 'assistant',
       phase: 'render',
       order: 135,
-      update: (_c, f) => a.panel.update(f.dt),
+      update: (_c, f) => a.update(f.dt),
     });
   },
 };
@@ -548,5 +622,12 @@ export const assistantModule: GameModule = {
 declare module '@/core/Services' {
   interface GameServices {
     assistant: AssistantService;
+  }
+}
+
+declare module '@/core/EventBus' {
+  interface GameEvents {
+    /** Flora's awakening ceremony begins (D-092): the audio module plays her chord. */
+    'flora:awake': void;
   }
 }

@@ -3,10 +3,17 @@ id: basics-reading-the-city
 title: Reading the city
 category: basics
 summary: Where to look to know what is going on: City Pulse tiers, the inspector, lenses, the dashboard, inventory and map.
-tags: [city pulse, tier, lens, inspector, dashboard, inventory, map, hud, monitor]
+tags: [top bar, indicator, credits, residents, harmony, best move, city pulse, tier, lens, inspector, dashboard, inventory, map, hud, monitor]
 related: [reference-lenses, reference-issues, runbook-triage]
 order: 4
 ---
+
+## The top bar's numbers
+
+Hover credits, residents, energy, water, ecology or harmony for a quick read: its tier, a gauge, what is happening
+and the **best move**. Click one for the full picture: what adds to it and what takes away, the trend over the last
+15 minutes, and buttons that act at once (build the right type, show the lens, change the tax, borrow, or build a
+suggested plan already sited and sized). Every one of them undoes with ⌘Z.
 
 ## City Pulse (P)
 
@@ -35,4 +42,4 @@ inventory lists every object with filters such as `status:critical`, `issue:powe
 
 Districts and zones at a glance, plus active fires.
 
-> **Tip:** When something turns red, go from the top: City Pulse tells you *what*, a lens tells you *where*, the inspector tells you *why*. Then follow [Triage](kb:runbook-triage).
+> **Tip:** When something turns red, go from the top: click the number in the top bar, or City Pulse tells you *what*, a lens tells you *where*, the inspector tells you *why*. Then follow [Triage](kb:runbook-triage).

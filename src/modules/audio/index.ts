@@ -431,6 +431,13 @@ export const audioModule: GameModule = {
       ({ tier, prev }) =>
         ctx.city.tick >= 80 && tier > prev && tier >= 3 && s.tone(330, 0.5, 0.08, 'triangle', 247),
     );
+    // Flora wakes (D-092): a low swell, then a rising major arpeggio that blooms into a held chord and a shimmer.
+    bus.on('flora:awake', () => {
+      s.burst(2.4, 0.18, 'lowpass', 160, 900);
+      [262, 330, 392, 523, 659, 784, 1047].forEach((f, i) => s.tone(f, 2.6 - i * 0.12, 0.07, 'triangle', undefined, 1.6 + i * 0.13));
+      [523, 659, 784].forEach((f) => s.tone(f, 3.2, 0.05, 'sine', undefined, 2.6));
+      s.tone(2093, 1.6, 0.025, 'sine', 3136, 2.5);
+    });
     bus.on('crisis:forecast', () => {
       s.tone(440, 0.35, 0.08, 'square', undefined, 0);
       s.tone(440, 0.35, 0.08, 'square', undefined, 0.5);

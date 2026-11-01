@@ -11,6 +11,8 @@ import { listObjects, summarize } from '@/sim/inventory';
 import { buildings } from '@/content';
 import type { BuildingCategory } from '@/content/types';
 import { Dossier, STATUS_ICON, led } from './Dossier';
+import { DormantView } from './Dormant';
+import type { FloraWake } from '@/sim/flora';
 import { SlashMenu } from './Slash';
 
 const ID_SPLIT = /(\b(?:LIV|NRG|UTL|TEC|WRK|IND|SPT|NAT|FOD|HWY|BRG|SKY|CHN|DST|LMK)-[0-9A-Z][0-9A-Z.-]*[0-9A-Z]\b)/g;
@@ -72,6 +74,8 @@ export interface PanelActions {
   clear(): void;
   setAutoApprove(on: boolean): void;
   autoApprove(): boolean;
+  /** Starts waking Flora (the "Wake Flora" project, D-092). */
+  wake(): void;
 }
 
 /** One assistant reply as it happens: the process log (tool calls), then the streamed answer. */
@@ -188,6 +192,11 @@ export class AssistantPanel {
   private booted = false;
   /** Tool name → calls this session (shown on the tool cards). */
   private uses = new Map<string, number>();
+  /** Flora asleep on a fresh island (D-092): the card the console shows instead, and the orb's states. */
+  private dormant: DormantView;
+  private wake: FloraWake | null = null;
+  private orbRing!: SVGCircleElement;
+  private callout = h('span', { class: 'ai-callout hidden' }, icon('sparkle'), 'Ready to wake');
 
   constructor(
     private ctx: GameContext,
@@ -247,6 +256,7 @@ export class AssistantPanel {
       icon('maximize'),
     ) as HTMLButtonElement;
     this.link.append(this.linkLed, this.linkText);
+    this.dormant = new DormantView(ctx, { wake: () => this.actions.wake(), close: () => this.toggle(false) });
     this.dossier = new Dossier(ctx, engine, {
       send: (text) => (this.setView('console'), this.actions.send(text)),
       compose: (text) => {
@@ -376,6 +386,7 @@ export class AssistantPanel {
           { class: 'ai-main', 'data-view': 'console' },
           this.dossier.profile,
           this.dossier.tools,
+          this.dormant.el,
           this.models,
           this.ignite,
           this.log,
@@ -403,7 +414,9 @@ export class AssistantPanel {
       'button',
       { class: 'ai-fab ai-launch panel', title: 'Flora, city assistant (U)', 'aria-label': 'Open Flora', onClick: () => this.toggle() },
       sigil(),
+      this.orbRingSvg(),
       this.badge,
+      this.callout,
     ) as HTMLButtonElement;
     ctx.services.get('hud').dockRow.append(this.launcher);
     this.buildIgnition();
@@ -415,6 +428,62 @@ export class AssistantPanel {
     } catch {
       /* ignore */
     }
+  }
+
+  /** The waking progress ring round the orb (pathLength 100: the dash offset is the part still to go). */
+  private orbRingSvg(): SVGSVGElement {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 50 50');
+    svg.setAttribute('class', 'ai-orb-ring');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = '<circle class="t" cx="25" cy="25" r="23" pathLength="100"/><circle class="p" cx="25" cy="25" r="23" pathLength="100"/>';
+    this.orbRing = svg.lastElementChild as SVGCircleElement;
+    return svg;
+  }
+
+  /** Her orb in the dock (the awakening's sigil flies into it). */
+  get orb(): HTMLElement {
+    return this.launcher;
+  }
+
+  /** A one-shot burst on the orb (she just woke). */
+  flash(): void {
+    this.launcher.classList.remove('fl-burst');
+    void this.launcher.offsetWidth;
+    this.launcher.classList.add('fl-burst');
+    setTimeout(() => this.launcher.classList.remove('fl-burst'), 1600);
+  }
+
+  get dormantNow(): boolean {
+    return !!this.wake && this.wake.phase !== 'awake';
+  }
+
+  /**
+   * Flora's wake state (D-092), a few times a second: the console swaps its chat for the dormant card, and the orb
+   * shows asleep (dim, folded, drifting z's), ready (a pulse and a "Ready to wake" callout) or waking (a progress
+   * ring). Awake, everything is as before.
+   */
+  setWake(w: FloraWake): void {
+    const was = this.wake?.phase;
+    this.wake = w;
+    const asleep = w.phase !== 'awake';
+    this.el.classList.toggle('dormant', asleep);
+    for (const p of ['asleep', 'ready', 'waking'] as const) this.launcher.classList.toggle(`fl-${p}`, w.phase === p);
+    this.launcher.title =
+      w.phase === 'asleep'
+        ? 'Flora is asleep: see what she needs (U)'
+        : w.phase === 'ready'
+          ? 'Flora is ready to wake (U)'
+          : w.phase === 'waking'
+            ? `Flora is waking: ${Math.round(w.progress * 100)}% (U)`
+            : 'Flora, city assistant (U)';
+    this.orbRing.style.strokeDashoffset = String(100 - w.progress * 100);
+    this.callout.classList.toggle('hidden', w.phase !== 'ready' || this.open);
+    if (asleep && this.open) this.dormant.render(w);
+    if (asleep || was !== 'awake') this.sync(this.engine.state);
+    // Fell asleep again (a new island): the welcome plays again once she wakes.
+    if (asleep && was === 'awake') this.booted = false;
   }
 
   setView(v: View): void {
@@ -475,6 +544,14 @@ export class AssistantPanel {
     this.launcher.classList.toggle('on', open);
     document.body.classList.toggle('flora-open', open);
     this.applyMax();
+    this.callout.classList.toggle('hidden', open || this.wake?.phase !== 'ready');
+    if (open && this.dormantNow) {
+      // Asleep: the dormant card, no boot sequence, no model core yet.
+      this.dormant.render(this.wake!);
+      this.setView('console');
+      this.models.classList.add('hidden');
+      return;
+    }
     if (open) {
       this.boot();
       this.setView(this.view);
@@ -953,7 +1030,11 @@ export class AssistantPanel {
     const def = this.engine.loaded;
     setText(
       this.linkText,
-      s.status === 'ready' && def
+      this.dormantNow
+        ? this.wake!.phase === 'waking'
+          ? `Waking · ${Math.round(this.wake!.progress * 100)}%`
+          : 'Dormant'
+        : s.status === 'ready' && def
         ? `Link · ${def.name}${s.tokPerSec ? ` · ${Math.round(s.tokPerSec)} tok/s` : ''}`
         : s.status === 'loading' && s.progress
           ? `${s.progress.phase} ${s.progress.total ? Math.round((s.progress.loaded / s.progress.total) * 100) : 0}%`

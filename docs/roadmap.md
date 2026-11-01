@@ -263,6 +263,13 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Conversation, alerts and recent actions reset on a new or loaded city
 - **Accept:** ✅ `tests/bulk.test.ts`, `bun run test:rust`, ai-probe (D-091)
 
+## ✅ Waking Flora (2026-11-01)
+
+- [x] Dormant orb (asleep / ready / waking ring) and a dormant console card with one-click Build per condition
+- [x] Ready toast and callout; Wake button starts the project; progress while waking
+- [x] Awakening ceremony (Data Spire light column and shockwaves, sigil assembly, greeting, orb burst, chord)
+- **Accept:** ✅ `tests/flora.test.ts`; snaps of each stage and the phone card (D-092)
+
 ---
 
 ## Tech debt / open issues

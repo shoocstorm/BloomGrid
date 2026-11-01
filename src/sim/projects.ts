@@ -13,6 +13,12 @@ import { UNLOCK_NAMES, isOpen, type ProjectRun, type UnlockId } from './growthSt
 export interface Criterion {
   label: string;
   ok: boolean;
+  /** A building type that meets it: the HUD offers to build one (D-092). */
+  build?: string;
+  /** 0..1 toward it, for numeric targets (residents, credits). */
+  progress?: number;
+  /** A treasury target: the HUD points at the budget. */
+  credits?: boolean;
 }
 
 export interface ProjectDef {
@@ -29,6 +35,13 @@ export interface ProjectDef {
 }
 
 const has = (city: City, id: string) => city.buildingEntities().some((e) => city.buildingDef(e).id === id);
+/** The cheapest building the city may place now that makes power (what "build a power plant" should pick). */
+const cheapestPower = (city: City) =>
+  buildings
+    .all()
+    .filter((d) => d.category === 'energy' && d.stats.energy > 0 && !d.landmark && !lockReason(city, d.id))
+    .sort((a, b) => a.stats.cost - b.stats.cost || a.id.localeCompare(b.id))[0]?.id;
+const toward = (have: number, need: number) => Math.max(0, Math.min(1, have / need));
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
 export const PROJECTS: Record<UnlockId, ProjectDef> = {
@@ -42,8 +55,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
     cost: 3000,
     days: 1,
     criteria: (city) => [
-      { label: `${fmt(2000)} residents (${fmt(city.stats.population)})`, ok: city.stats.population >= 2000 },
-      { label: 'A Drone Fabricator to build the pods', ok: has(city, 'drone-fabricator') },
+      { label: `${fmt(2000)} residents (${fmt(city.stats.population)})`, ok: city.stats.population >= 2000, progress: toward(city.stats.population, 2000), build: 'garden-residence' },
+      { label: 'A Drone Fabricator to build the pods', ok: has(city, 'drone-fabricator'), build: 'drone-fabricator' },
     ],
   },
   aeroline: {
@@ -55,10 +68,12 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
     cost: 15000,
     days: 2,
     criteria: (city) => [
-      { label: `${fmt(5000)} residents (${fmt(city.stats.population)})`, ok: city.stats.population >= 5000 },
+      { label: `${fmt(5000)} residents (${fmt(city.stats.population)})`, ok: city.stats.population >= 5000, progress: toward(city.stats.population, 5000), build: 'garden-residence' },
       {
         label: `Power to spare: 110% of demand (${Math.round(city.pulse.energyRatio * 100)}%)`,
         ok: city.pulse.energyRatio >= 1.1,
+        progress: toward(city.pulse.energyRatio, 1.1),
+        build: cheapestPower(city),
       },
       { label: 'The Sky-lane charter', ok: isOpen(city.growth, 'skylanes') },
     ],
@@ -76,9 +91,15 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
       {
         label: 'A power plant',
         ok: city.buildingEntities().some((e) => city.buildingDef(e).stats.energy > 0),
+        build: cheapestPower(city),
       },
-      { label: 'A Data Spire', ok: has(city, 'data-spire') },
-      { label: `Treasury of ${fmt(1500)} credits (${fmt(city.credits)})`, ok: city.credits >= 1500 },
+      { label: 'A Data Spire', ok: has(city, 'data-spire'), build: 'data-spire' },
+      {
+        label: `Treasury of ${fmt(1500)} credits (${fmt(city.credits)})`,
+        ok: city.credits >= 1500,
+        progress: toward(city.credits, 1500),
+        credits: true,
+      },
     ],
   },
 };

@@ -1,3 +1,4 @@
+import { buildings } from '@/content';
 import type { GameModule } from '@/game/context';
 import { PROJECTS, PROJECT_IDS, projectProgress, projectStatus } from '@/sim/projects';
 import { WONDERS } from '@/sim/wonders';
@@ -96,7 +97,21 @@ export const goalsModule: GameModule = {
               'ul',
               { class: 'gl-crit' },
               ...crit.map((c) =>
-                h('li', { class: c.ok ? 'ok' : '' }, icon(c.ok ? 'st-ok' : 'st-off'), c.label),
+                h(
+                  'li',
+                  { class: c.ok ? 'ok' : '' },
+                  icon(c.ok ? 'st-ok' : 'st-off'),
+                  c.label,
+                  // One click to pick up what meets it (D-092).
+                  !c.ok && c.build && buildings.has(c.build)
+                    ? h(
+                        'button',
+                        { class: 'gl-do', title: `Build a ${buildings.get(c.build).name}`, onClick: () => ctx.services.get('construction').startBuilding(c.build!) },
+                        icon('build'),
+                        'Build',
+                      )
+                    : null,
+                ),
               ),
             ),
             h(

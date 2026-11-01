@@ -103,7 +103,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Select & remove    | Click a building to inspect it · **Ctrl/⌘-drag** a box to select every building of one type inside it (the type under where you start) · **Delete** (or ⌫) returns the selection to nature, as does the inspector's *Return to nature* (one undo restores it all) |
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **Z** Bloom Retrofit · **Y** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
-| Watch your city    | **P** (or the pulse button at the left of the top bar's actions) shows / hides the City Pulse console (tabs: Pulse, Lenses, Flora-Net, Goals; on phones, separate sheets) · **L** data lenses (each explained in City Pulse → Lenses; **Esc** or ✕ on the legend turns one off) · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **M** city map (the map button in the top bar's actions: every district named; click one to fly there) |
+| Watch your city    | Hover any number in the top bar (credits, residents, energy, water, ecology, harmony) for what it means and the best move; click it for the breakdown, the trend and one-click fixes (build, lens, tax, loan, suggested builds) · **P** (or the pulse button at the left of the top bar's actions) shows / hides the City Pulse console (tabs: Pulse, Lenses, Flora-Net, Goals; on phones, separate sheets) · **L** data lenses (each explained in City Pulse → Lenses; **Esc** or ✕ on the legend turns one off) · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **M** city map (the map button in the top bar's actions: every district named; click one to fly there) |
 | Learn             | **?** or **F1** Seedvault: guides, incident runbooks, live reference and your field logs and notes |
 | Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console · **Esc** or ✕ closes it · type **/** for commands (Tab completes) (the glowing orb bottom-right, **Ask Flora** on any selected object: it loads a downloaded model if none is running) |
 | Explore            | phones: the ◇ button in the top bar picks a view; a joystick moves, ▲ ▼ rise and sink, and the top bar hides so only the round **◇** (top-left) is left to return to the city view · **N** walk / hoverboard / drone / balloon / rooftop / ride a pod / ride the Aeroline (**Tab** next pod, train or landmark; **V** first person or the balloon's basket view; **Esc** back) · **J** photo mode (**P** saves a PNG); or the ◇ view-mode menu at the end of the top bar |
@@ -169,7 +169,9 @@ starts as a fishing hamlet, and the guide walks you through the first steps (⚙
 two or three fish the sea best, more overfish it, and a polluted coast spoils the catch. The **Goals** tab in City
 Pulse lists what to unlock next: the *Sky-lane charter* (pod docks), the *Aeroline* and *Wake Flora* (the city
 assistant needs a power plant and a Data Spire, and each request then costs credits), plus the sea wonders still
-to be discovered: they rise from the sea as your city earns them.
+to be discovered: they rise from the sea as your city earns them. While Flora sleeps her orb is dim with a "z": open
+it to see what she still needs, each with a **Build** button; when it pulses *Ready to wake*, wake her and watch her
+come online over the Data Spire.
 
 **Fireworks:** build a Fireworks Factory (Industry ⚙). Staffed and powered, it makes peony, willow, halo ring,
 palm and crackle shells (materials cost credits) and fires a show over the city every night at 21:00. Launch one

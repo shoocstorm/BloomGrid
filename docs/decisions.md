@@ -1339,3 +1339,56 @@ at buildings that no longer existed.
 turbines" each made one correct call (110 turbines), "renovate all canopy towers in Westbrook" one correct call.
 Grammar fixture updated. `tests/bulk.test.ts`.
 
+
+## D-092 — Top-bar indicators explain themselves (2026-11-01)
+
+**Context:** the six top-bar indicators (credits, residents, energy, water, ecology, harmony) were bare numbers
+with a one-word tooltip. Players could not tell what moved them, why one turned red, or what to do about it without
+reading City Pulse, the dashboard and the Seedvault.
+
+**Decision:** pure guides in `sim/statGuide.ts` (`statGuide(city, id)`), read from the same numbers the pulse uses,
+shown by `modules/statinfo`:
+
+- **Hover** (mouse only, 160 ms delay): a card under the stat with the value, tier chip, one gauge (supply ÷ demand,
+  homes filled, eco per building, harmony vs its target), the situation in a sentence and the **best move**.
+- **Click** (tap on phones, Enter/Space with the keyboard): a pinned panel with the breakdown (signed bars either
+  side of zero for sums: cash flow, supply and demand, harmony factors; fill bars for residents' move-in factors,
+  the limiting one marked), a 15-minute trend sparkline from `pulse.history`, "What this measures" with tips,
+  ranked one-click **levers** and up to two sited, sized **build proposals** (`proposeBuilds`, D-089). Footer:
+  City dashboard and Ask Flora (when unlocked). Esc, ✕, a click elsewhere or the same stat close it.
+- Levers are data (`LeverAction`: open a build category, put a type in hand, show a lens, set the tax, take a
+  loan, open Causes or Incidents) the module turns into commands and services, so all of it undoes. Suggested types
+  come from `bestFor` (most of the stat per credit among unlocked types), so a fresh island never sees a locked one.
+- Refresh: on `stats:updated`, at most every 500 ms; levers and proposals re-render only when they change (no DOM
+  churn under the pointer), proposals re-plan at most every 8 s (`findSites` walks lots).
+
+**Consequences:** the stats' native `title` tooltips are gone (the card replaces them). Phones show the panel as a
+bottom sheet (`ui/mobile.css`). `tests/statGuide.test.ts`; scene `scripts/scenes/statinfo.js`.
+
+## D-092 — Waking Flora: a clear dormant state, one-click conditions, a ready call, an awakening ceremony (2026-11-01)
+
+**Context:** On a fresh island Flora is an unlock (D-072), but asleep she looked like any orb: opening her showed
+the chat and a model picker, a request answered with a line of text, and her criteria lived only in the Goals tab.
+Finishing the project changed nothing visible.
+
+**Decision:**
+- **Sim**: `Criterion` gains optional `build` (a type that meets it: the cheapest unlocked power plant, the Data
+  Spire, homes, a Drone Fabricator), `progress` (0..1 for numeric targets) and `credits`. `floraWake(city)` (pure)
+  gives the phase (`asleep` / `ready` / `waking` / `awake`), criteria, cost, progress and seconds left.
+- **Orb**: asleep it is dim with folded petals, a slow breath and a "z" badge; ready it pings and a "Ready to wake"
+  callout bobs over it (plus a toast the moment the last condition is met); waking, a progress ring fills round it.
+- **Console asleep**: the chat, quick ops, rail and model picker give way to a dormant card: a sleeping sigil with
+  drifting z's, what she needs (each unmet condition with **Build …** that picks the building up, or **Budget**; met
+  building conditions can be located), and **Wake Flora · ◈cost** (enabled when ready; it starts the project), then
+  a progress bar. The header link reads Dormant / Waking %. Requests while asleep open the card with a toast, and
+  her alerts stay quiet until she wakes. The Goals tab's criteria got the same Build buttons.
+- **Awakening** (`assistant/Awakening.ts`, on `project:done` for `flora`): the camera comes down over the Data
+  Spire, a column of light rises from it and two shockwaves race across the island (unlit `beacon`, removed after);
+  a full-screen veil, her sigil drawing itself (hex, orbit, six petals one by one, the core flaring with rings and
+  slow light rays), F·L·O·R·A letter by letter, boot lines with live numbers (residents, buildings, Seedvault docs,
+  tools), a greeting that names the most urgent system; then the sigil flies into her orb, which bursts, and her
+  console opens with the usual welcome. ≈6.8 s; click / Enter / Space / Esc skips. `flora:awake` plays a rising chord
+  in the audio module. Transform / opacity / stroke-dashoffset only; reduced motion collapses it.
+
+**Consequences:** `tests/flora.test.ts` walks asleep → ready → waking → awake. Snapped on WebGPU and phone.
+

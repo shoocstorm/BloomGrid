@@ -159,3 +159,26 @@
 .compact .goals .gl-desc {
   display: none;
 }
+
+/* One-click Build beside an unmet criterion (D-092). */
+.gl-do {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 1px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.gl-do:hover {
+  background: var(--bg-hover);
+}
+.gl-do .ico {
+  width: 11px;
+  height: 11px;
+}

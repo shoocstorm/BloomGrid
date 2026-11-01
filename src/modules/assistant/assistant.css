@@ -2510,3 +2510,716 @@ body.flora-open:not(.compact) .ai.panel:not(.max) {
   align-items: center;
   gap: 4px;
 }
+
+/* ══ Flora asleep and waking (D-092) ═══════════════════════════════════════
+ * Transform / opacity / stroke-dashoffset animations only; no animated shadows or layout (§7½). */
+
+/* The console while she sleeps: the dormant card instead of the chat. */
+.ai-dormant {
+  display: none;
+}
+.ai.dormant .ai-main[data-view='console'] .ai-dormant {
+  display: flex;
+}
+.ai.dormant .ai-main[data-view='console'] > :is(.ai-log, .ai-quick, .ai-compose, .ai-models, .ai-ignite),
+.ai.dormant .ai-rail,
+.ai.dormant .ai-hacts .ai-hbtn {
+  display: none !important;
+}
+.ai-dormant {
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 18px 18px;
+  overflow-y: auto;
+  text-align: center;
+}
+.fd-hero {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  margin-bottom: 4px;
+}
+.fd-sigil {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--ink-faint);
+  stroke-width: 0.9;
+  animation: fd-breathe 4.5s ease-in-out infinite;
+}
+.fd-sigil .s-orbit {
+  stroke-dasharray: 2 5;
+}
+.fd-sigil .s-petals {
+  transform: scale(0.42);
+  transition: transform 1.2s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+.fd-sigil .s-petals ellipse {
+  fill: rgba(134, 170, 160, 0.16);
+}
+.fd-sigil .s-core {
+  fill: var(--ink-faint);
+  stroke: none;
+}
+.ai-dormant[data-phase='ready'] .fd-sigil,
+.ai-dormant[data-phase='waking'] .fd-sigil {
+  stroke: var(--accent);
+}
+.ai-dormant[data-phase='ready'] .fd-sigil .s-petals {
+  transform: scale(0.7);
+}
+.ai-dormant[data-phase='waking'] .fd-sigil .s-petals {
+  transform: scale(0.85);
+}
+.ai-dormant[data-phase='waking'] .fd-sigil .s-orbit {
+  animation: ai-orbit 2.4s linear infinite;
+}
+.ai-dormant[data-phase='ready'] .s-core,
+.ai-dormant[data-phase='waking'] .s-core {
+  fill: var(--accent-2);
+}
+@keyframes fd-breathe {
+  50% {
+    transform: scale(0.94);
+    opacity: 0.7;
+  }
+}
+.fd-z {
+  position: absolute;
+  right: 6px;
+  top: 18px;
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 13px;
+  color: var(--ink-soft);
+  opacity: 0;
+  animation: fd-z 3.6s ease-out infinite;
+}
+.fd-z:nth-of-type(2) {
+  animation-delay: 1.2s;
+  font-size: 11px;
+}
+.fd-z:nth-of-type(3) {
+  animation-delay: 2.4s;
+  font-size: 15px;
+}
+.ai-dormant:not([data-phase='asleep']) .fd-z {
+  display: none;
+}
+@keyframes fd-z {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(16px, -34px) scale(1.15);
+    opacity: 0;
+  }
+}
+.fd-eyebrow {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.ai-dormant[data-phase='ready'] .fd-eyebrow,
+.ai-dormant[data-phase='waking'] .fd-eyebrow {
+  color: var(--accent);
+}
+.fd-title {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.fd-sub {
+  max-width: 340px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.fd-crit {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 6px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.fd-crit li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.fd-crit li.ok {
+  color: var(--ink-soft);
+  border-color: rgba(142, 240, 122, 0.3);
+}
+.fd-st .ico {
+  width: 15px;
+  height: 15px;
+  color: var(--ink-faint);
+}
+.fd-crit li.ok .fd-st .ico {
+  color: var(--accent-2);
+}
+.fd-l {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.fd-mini {
+  height: 3px;
+  border-radius: var(--pill);
+  background: rgba(95, 242, 218, 0.12);
+  overflow: hidden;
+}
+.fd-mini i,
+.fd-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transform-origin: left;
+}
+.fd-do {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--pill);
+  background: rgba(20, 224, 189, 0.12);
+  color: var(--accent);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fd-do:hover {
+  background: var(--accent);
+  color: #062a26;
+}
+.fd-do.ghost {
+  padding: 4px 6px;
+  border-color: var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+}
+.fd-do .ico {
+  width: 13px;
+  height: 13px;
+}
+.fd-wake {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 11px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  background: transparent;
+  color: var(--ink-faint);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: not-allowed;
+}
+.fd-wake .ico {
+  width: 17px;
+  height: 17px;
+}
+.ai-dormant[data-phase='ready'] .fd-wake {
+  position: relative;
+  border-color: var(--accent);
+  background: linear-gradient(90deg, #14e0bd, #8ef07a);
+  color: #052a24;
+  cursor: pointer;
+}
+/* A ring that pulses out from the ready button (transform / opacity). */
+.ai-dormant[data-phase='ready'] .fd-wake::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--accent);
+  border-radius: inherit;
+  animation: fd-ping 1.8s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes fd-ping {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.25, 1.6);
+    opacity: 0;
+  }
+}
+.fd-progress {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+.fd-bar {
+  height: 6px;
+  border-radius: var(--pill);
+  background: rgba(95, 242, 218, 0.12);
+  overflow: hidden;
+}
+.fd-bar i {
+  transition: transform 0.5s linear;
+}
+.fd-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.ai-dormant .hidden {
+  display: none;
+}
+
+/* ── Her orb: asleep, ready, waking ── */
+.ai-orb-ring {
+  position: absolute;
+  inset: 2px;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  transform: rotate(-90deg);
+  fill: none;
+  pointer-events: none;
+  display: none;
+}
+.ai-orb-ring .t {
+  stroke: rgba(95, 242, 218, 0.15);
+  stroke-width: 2.5;
+}
+.ai-orb-ring .p {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transition: stroke-dashoffset 0.5s linear;
+}
+.ai-fab.fl-waking .ai-orb-ring {
+  display: block;
+}
+.ai-fab.fl-asleep .ai-sigil {
+  stroke: var(--ink-faint);
+  animation: fd-breathe 4.5s ease-in-out infinite;
+}
+.ai-fab.fl-asleep .ai-sigil .s-petals,
+.ai-fab.fl-ready .ai-sigil .s-petals,
+.ai-fab.fl-waking .ai-sigil .s-petals {
+  transform: scale(0.45);
+  transition: transform 1.2s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+.ai-fab.fl-ready .ai-sigil .s-petals {
+  transform: scale(0.72);
+}
+.ai-fab.fl-waking .ai-sigil .s-petals {
+  transform: scale(0.85);
+}
+.ai-fab.fl-asleep .ai-sigil .s-petals ellipse {
+  fill: rgba(134, 170, 160, 0.2);
+}
+.ai-fab.fl-asleep .ai-sigil .s-core {
+  fill: var(--ink-faint);
+}
+.ai-fab.fl-asleep .ai-sigil .s-orbit {
+  animation: none;
+}
+/* Asleep: a small moon badge so it reads as "not available yet". */
+.ai-fab.fl-asleep::after {
+  content: 'z';
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #1b3a3a;
+  border: 1px solid var(--line-strong);
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--ink-soft);
+}
+/* Ready: a ping ring round the orb. */
+.ai-fab.fl-ready::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  animation: fd-orb-ping 1.8s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes fd-orb-ping {
+  from {
+    transform: scale(0.8);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+.ai-fab.fl-waking .ai-sigil .s-orbit {
+  animation-duration: 1.6s;
+}
+/* The "Ready to wake" callout over the orb. */
+.ai-callout {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  white-space: nowrap;
+  border-radius: var(--pill);
+  background: linear-gradient(90deg, #14e0bd, #8ef07a);
+  color: #052a24;
+  font-size: 11.5px;
+  font-weight: 600;
+  animation: fd-bob 2.4s ease-in-out infinite;
+}
+.ai-callout .ico {
+  width: 13px;
+  height: 13px;
+}
+.ai-callout.hidden {
+  display: none;
+}
+@keyframes fd-bob {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+/* Just woke: one burst. */
+.ai-fab.fl-burst::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid #c8fff4;
+  animation: fd-burst 1.4s ease-out both;
+  pointer-events: none;
+}
+@keyframes fd-burst {
+  from {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  to {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+/* ══ The awakening ceremony ══ */
+body.flora-waking #hud {
+  pointer-events: none;
+}
+.fa-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  overflow: hidden;
+  color: var(--ink);
+}
+.fa-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(3, 14, 15, 0.2) 0%, rgba(3, 14, 15, 0.78) 55%, rgba(2, 8, 9, 0.96) 100%);
+  animation: fa-in 0.8s ease-out both;
+}
+.fa-rays {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 160vmax;
+  height: 160vmax;
+  margin: -80vmax 0 0 -80vmax;
+  background: repeating-conic-gradient(from 0deg, rgba(95, 242, 218, 0.07) 0deg 4deg, transparent 4deg 15deg);
+  mask-image: radial-gradient(circle, #000 0%, transparent 45%);
+  opacity: 0;
+  animation:
+    fa-in 1.2s ease-out 1.9s both,
+    fa-spin 40s linear 1.9s infinite;
+}
+.fa-core {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: min(300px, 56vmin);
+  height: min(300px, 56vmin);
+  transform: translate(-50%, -50%);
+}
+.fa-sigil {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #5ff2da;
+  stroke-width: 0.55;
+  overflow: visible;
+}
+.fa-sigil .s-hex,
+.fa-sigil .s-orbit {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+.fa-sigil .s-hex {
+  animation: fa-draw 1.1s cubic-bezier(0.6, 0, 0.3, 1) 0.35s both;
+}
+.fa-sigil .s-orbit {
+  stroke-dasharray: 100;
+  stroke: rgba(95, 242, 218, 0.6);
+  animation: fa-draw 1s ease-in-out 0.9s both;
+}
+.fa-sigil .p {
+  fill: rgba(95, 242, 218, 0.22);
+  stroke: #5ff2da;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transform: scale(0, 0.2);
+  opacity: 0;
+  animation: fa-petal 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  animation-delay: calc(1.1s + var(--i) * 0.13s);
+}
+.fa-sigil .s-core {
+  fill: #8ef07a;
+  stroke: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+  animation: fa-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) 1.85s both;
+}
+.fa-sigil .s-flare {
+  fill: #e8fffa;
+  stroke: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: fa-flare 1.1s ease-out 1.9s both;
+}
+.fa-rings i {
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  border: 2px solid rgba(142, 240, 122, 0.8);
+  opacity: 0;
+  animation: fa-ring 1.8s cubic-bezier(0.1, 0.6, 0.3, 1) both;
+}
+.fa-rings i:nth-child(1) {
+  animation-delay: 1.95s;
+}
+.fa-rings i:nth-child(2) {
+  animation-delay: 2.25s;
+  border-color: rgba(95, 242, 218, 0.7);
+}
+.fa-rings i:nth-child(3) {
+  animation-delay: 2.6s;
+  border-width: 1px;
+}
+.fa-text {
+  position: absolute;
+  left: 50%;
+  top: calc(42% + min(170px, 31vmin));
+  width: min(560px, 90vw);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.fa-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--accent);
+  animation: fa-rise 0.6s ease-out 2.1s both;
+}
+.fa-name {
+  display: flex;
+  gap: 0.32em;
+  font-size: clamp(34px, 7vmin, 64px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+.fa-name span {
+  /* Solid colour with a static glow: background-clip text breaks on transformed spans (AGENTS gotcha). */
+  color: #d4fff6;
+  text-shadow: 0 0 22px rgba(95, 242, 218, 0.65);
+  animation: fa-letter 0.7s cubic-bezier(0.2, 1.2, 0.3, 1) both;
+  animation-delay: calc(2.25s + var(--i) * 0.11s);
+}
+.fa-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.fa-lines div {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  animation: fa-rise 0.4s ease-out both;
+  animation-delay: calc(3s + var(--i) * 0.28s);
+}
+.fa-lines span {
+  color: var(--accent);
+}
+.fa-greet {
+  margin-top: 8px;
+  max-width: 480px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+  animation: fa-rise 0.8s ease-out 4.7s both;
+}
+.fa-skip {
+  position: absolute;
+  bottom: 22px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  animation: fa-in 0.6s ease-out 1.5s both;
+}
+/* The end: the sigil flies into her orb, everything else fades. */
+.fa-stage.fa-out {
+  pointer-events: none;
+}
+.fa-stage.fa-out .fa-veil,
+.fa-stage.fa-out .fa-rays,
+.fa-stage.fa-out .fa-text,
+.fa-stage.fa-out .fa-skip,
+.fa-stage.fa-out .fa-rings {
+  animation: fa-fade 0.6s ease-in forwards;
+}
+.fa-stage.fa-out .fa-core {
+  transition: transform 0.85s cubic-bezier(0.6, 0, 0.3, 1);
+  transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, -60vh))) scale(0.15);
+}
+@keyframes fa-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fa-fade {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes fa-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fa-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes fa-petal {
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes fa-pop {
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes fa-flare {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(9);
+    opacity: 0;
+  }
+}
+@keyframes fa-ring {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+@keyframes fa-rise {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+@keyframes fa-letter {
+  from {
+    transform: translateY(0.5em) scale(0.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fa-stage *,
+  .ai-fab::before,
+  .ai-callout,
+  .fd-sigil,
+  .fd-z {
+    animation-duration: 0.01s !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+  }
+}

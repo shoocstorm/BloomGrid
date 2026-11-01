@@ -1,0 +1,598 @@
+/*
+ * Top-bar indicator guides (D-092): the hover card and the pinned panel under a stat.
+ * Power rules (§7½): transform/opacity animations only, static shadows, no backdrop-filter.
+ */
+.stats .stat {
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.stats .stat:hover,
+.stats .stat.si-on {
+  background: var(--bg-hover);
+}
+.stats .stat.si-on {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.stats .stat:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.si-card,
+.si-panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 40;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.4;
+  background: var(--bg-strong);
+  border: 1px solid var(--line);
+}
+.si-card.hidden,
+.si-panel.hidden {
+  display: none;
+}
+/* A small nub pointing at the stat. */
+.si-card::before,
+.si-panel::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: calc(var(--nub, 50%) - 6px);
+  width: 10px;
+  height: 10px;
+  background: var(--bg-strong);
+  border-left: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  transform: rotate(45deg);
+}
+
+/* ── Hover card ───────────────────────────────────────────────────────────── */
+.si-card {
+  width: 268px;
+  padding: 11px 13px 10px;
+  pointer-events: none;
+  animation: si-pop 0.14s ease-out;
+}
+@keyframes si-pop {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+.si-h {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.si-h > b {
+  flex: 1;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.si-ic {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-xs);
+  color: var(--accent);
+  background: var(--bg-raise);
+  border: 1px solid var(--line);
+}
+.si-ic.big {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-md);
+  font-size: 18px;
+}
+.si-val {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 7px 0 6px;
+  font-family: var(--mono);
+}
+.si-val b {
+  font-size: 22px;
+  font-weight: 600;
+}
+.si-val span {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.si-status {
+  margin: 7px 0 0;
+  color: var(--ink);
+}
+.si-status.big {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+.si-best {
+  margin-top: 9px;
+  padding: 7px 9px;
+  border-radius: var(--r-sm);
+  background: rgba(142, 240, 122, 0.08);
+  border: 1px solid rgba(142, 240, 122, 0.28);
+}
+.si-best > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 7px;
+  align-items: center;
+  margin-top: 3px;
+  color: var(--accent-2);
+}
+.si-best b {
+  color: var(--ink);
+}
+.si-best small {
+  grid-column: 2;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.si-hint {
+  margin-top: 8px;
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ── Tier chip ────────────────────────────────────────────────────────────── */
+.si-tier {
+  --c: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px 1px 6px;
+  border-radius: var(--pill);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+}
+.si-tier i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c);
+}
+.si-tier[data-t='0'] {
+  --c: var(--accent-2);
+}
+.si-tier[data-t='2'] {
+  --c: var(--warn);
+}
+.si-tier[data-t='3'],
+.si-tier[data-t='4'] {
+  --c: var(--crit);
+}
+
+/* ── Gauge ────────────────────────────────────────────────────────────────── */
+.si-gauge {
+  --c: var(--accent);
+  margin: 4px 0 2px;
+}
+.si-gauge.t0 {
+  --c: var(--accent-2);
+}
+.si-gauge.t2 {
+  --c: var(--warn);
+}
+.si-gauge.t3,
+.si-gauge.t4 {
+  --c: var(--crit);
+}
+.si-gauge-h {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  margin-bottom: 4px;
+}
+.si-gauge-h b {
+  font-family: var(--mono);
+  color: var(--c);
+}
+.si-track {
+  position: relative;
+  height: 8px;
+  border-radius: var(--pill);
+  background: rgba(95, 242, 218, 0.1);
+}
+.si-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--pill);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 55%, transparent), var(--c));
+}
+.si-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ink);
+  opacity: 0.75;
+}
+
+/* ── Pinned panel ─────────────────────────────────────────────────────────── */
+.si-panel {
+  width: 372px;
+  max-height: min(78vh, 640px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
+}
+.si-panel.si-in {
+  animation: si-pop 0.18s ease-out;
+}
+.si-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 13px 11px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.si-titles {
+  flex: 1;
+  min-width: 0;
+}
+.si-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.si-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  margin-top: 3px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.si-v {
+  font-family: var(--mono);
+  color: var(--accent);
+}
+.si-title small {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+.si-x {
+  align-self: flex-start;
+}
+.si-scroll {
+  overflow-y: auto;
+  padding: 12px 14px 4px;
+  overscroll-behavior: contain;
+}
+.si-sec {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 6px;
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.si-best .si-sec {
+  margin: 0;
+}
+.si-sec b {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--mono);
+  letter-spacing: 0;
+  color: var(--ink-soft);
+}
+.si-sec b.up {
+  color: var(--accent-2);
+}
+.si-sec b.down {
+  color: var(--crit);
+}
+
+/* Breakdown rows: label · bar · value. */
+.si-parts {
+  display: grid;
+  gap: 5px;
+}
+.si-row {
+  --c: var(--accent);
+  display: grid;
+  grid-template-columns: 112px 1fr 64px;
+  align-items: center;
+  gap: 8px;
+}
+.si-row.good {
+  --c: var(--accent-2);
+}
+.si-row.bad {
+  --c: var(--crit);
+}
+.si-row.warn {
+  --c: var(--warn);
+}
+.si-row.neutral {
+  --c: var(--ink-soft);
+}
+.si-l {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 11.5px;
+}
+.si-l small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-faint);
+  font-size: 9.5px;
+}
+.si-l em {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--crit);
+}
+.si-row > b {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--c);
+}
+.si-bar {
+  position: relative;
+  height: 7px;
+  border-radius: var(--pill);
+  background: rgba(95, 242, 218, 0.07);
+}
+.si-bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--pill);
+  background: var(--c);
+  opacity: 0.85;
+}
+/* Signed bars grow out from a centre zero line. */
+.si-bar.mid::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--line-strong);
+}
+.si-bar.mid i.pos {
+  left: 50%;
+}
+.si-bar.mid i.neg {
+  left: auto;
+  right: 50%;
+}
+
+/* Trend sparkline. */
+.si-spark {
+  display: block;
+  width: 100%;
+  height: 46px;
+}
+.si-spark .line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.si-spark .area {
+  fill: rgba(95, 242, 218, 0.1);
+}
+.si-spark .zero {
+  stroke: var(--ink-faint);
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.si-about {
+  margin: 12px 0 2px;
+  padding: 7px 9px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+}
+.si-about summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-size: 11px;
+  list-style: none;
+}
+.si-about summary::-webkit-details-marker {
+  display: none;
+}
+.si-about p {
+  margin: 7px 0 4px;
+}
+.si-about ul {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--ink-soft);
+}
+.si-about li + li {
+  margin-top: 3px;
+}
+
+/* Levers: one-click actions, best first. */
+.si-levers {
+  display: grid;
+  gap: 5px;
+}
+.si-lever {
+  display: grid;
+  grid-template-columns: 28px 1fr 14px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--bg-raise);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.si-lever:hover {
+  background: var(--bg-hover);
+  border-color: var(--line-strong);
+}
+.si-lever.best {
+  border-color: rgba(142, 240, 122, 0.45);
+  background: rgba(142, 240, 122, 0.08);
+}
+.si-lever-i {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-xs);
+  color: var(--accent);
+  background: rgba(95, 242, 218, 0.08);
+}
+.si-lever.best .si-lever-i {
+  color: var(--accent-2);
+}
+.si-lever-t {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.si-lever-t b {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+.si-lever-t em {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+.si-lever-t small {
+  color: var(--ink-soft);
+  font-size: 10.5px;
+}
+.si-go {
+  color: var(--ink-faint);
+}
+.si-lever:hover .si-go {
+  color: var(--accent);
+}
+
+/* Suggested builds. */
+.si-props:empty {
+  display: none;
+}
+.si-prop {
+  padding: 8px 10px;
+  margin-bottom: 5px;
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--line-strong);
+}
+.si-prop.done {
+  border-style: solid;
+  border-color: rgba(142, 240, 122, 0.45);
+}
+.si-prop-h {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+}
+.si-prop-h b {
+  color: var(--ink);
+}
+.si-prop-h span {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-size: 10.5px;
+}
+.si-prop-gain {
+  margin: 3px 0 7px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent-2);
+}
+.si-prop-btns {
+  display: flex;
+  gap: 6px;
+}
+.si-build,
+.si-chip,
+.si-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 11px;
+  border-radius: var(--pill);
+  cursor: pointer;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: var(--bg-raise);
+}
+.si-build {
+  color: #06201a;
+  font-weight: 600;
+  border-color: transparent;
+  background: var(--accent-2);
+}
+.si-build:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.si-chip:hover,
+.si-link:hover {
+  background: var(--bg-hover);
+}
+.si-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 14px 11px;
+  border-top: 1px solid var(--line);
+}
+.si-link.ask {
+  color: var(--accent);
+  border-color: var(--line-strong);
+}
