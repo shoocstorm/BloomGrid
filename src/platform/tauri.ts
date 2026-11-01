@@ -1,4 +1,4 @@
-import type { KeyValueStorage, Platform } from './types';
+import type { DocStore, KeyValueStorage, Platform } from './types';
 
 /** Lazily loaded so the web build never pulls in the Tauri bridge. */
 const invoke = async <T>(cmd: string, args?: Record<string, unknown>): Promise<T> => (await import('@tauri-apps/api/core')).invoke<T>(cmd, args);
@@ -24,6 +24,26 @@ class TauriStorage implements KeyValueStorage {
   }
 }
 
+/** Seedvault's journal as Markdown files in the app data `knowledge` folder (`kb_*` commands in lib.rs). */
+class TauriDocs implements DocStore {
+  where = 'the app’s knowledge folder';
+  constructor() {
+    void invoke<string>('kb_dir').then(
+      (dir) => (this.where = dir),
+      () => undefined,
+    );
+  }
+  list(): Promise<{ id: string; text: string }[]> {
+    return invoke<{ id: string; text: string }[]>('kb_list');
+  }
+  async put(id: string, text: string): Promise<void> {
+    await invoke('kb_put', { id, text });
+  }
+  async remove(id: string): Promise<void> {
+    await invoke('kb_remove', { id });
+  }
+}
+
 export function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
@@ -32,6 +52,7 @@ export function createTauriPlatform(): Platform {
   return {
     name: 'tauri',
     storage: new TauriStorage(),
+    knowledge: new TauriDocs(),
     async exportFile(name, data) {
       const path = await invoke<string>('export_file', { name, data });
       console.info('[platform] exported', path);

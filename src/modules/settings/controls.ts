@@ -42,6 +42,7 @@ export function controlsPane(ctx: GameContext): HTMLElement[] {
         ['Inspect', '~tap a building'],
         ['City Pulse, lenses, Flora-Net', '~chips under the top bar'],
         ['Fold every sheet', '~tap the city'],
+        ['Seedvault: guides, runbooks, logs', '~book in the top bar'],
       ]),
     ];
   const key = (id: string) => ctx.tools.get(id)?.hotkey?.replace('Key', '') ?? '';
@@ -78,6 +79,7 @@ export function controlsPane(ctx: GameContext): HTMLElement[] {
       ['Undo · redo', `${MOD}Z`, `⇧${MOD}Z`],
       ['Save · load', `${MOD}S`, `${MOD}L`],
       ['Ask Flora', 'U'],
+      ['Seedvault: guides, runbooks, logs', '?', 'F1'],
       ['Mute', ','],
       ['Controls (this tab)', 'H'],
       ['Performance overlay', 'F3'],

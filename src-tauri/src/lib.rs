@@ -59,6 +59,68 @@ fn save_keys(app: AppHandle) -> Result<Vec<String>, String> {
         .collect())
 }
 
+/// Seedvault's journal (D-088): Markdown docs in `<app data>/knowledge/<id>.md`, one file per doc, so the
+/// steward can read, back up or drop in their own notes with any editor.
+fn kb_base(app: &AppHandle) -> Result<PathBuf, String> {
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?.join("knowledge");
+    fs::create_dir_all(&base).map_err(|e| e.to_string())?;
+    Ok(base)
+}
+
+fn kb_path(app: &AppHandle, id: &str) -> Result<PathBuf, String> {
+    if id.is_empty() || id.len() > 120 || id.starts_with('.') || !id.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c)) {
+        return Err(format!("invalid doc id {id:?}"));
+    }
+    Ok(kb_base(app)?.join(format!("{id}.md")))
+}
+
+#[derive(serde::Serialize)]
+struct KbDoc {
+    id: String,
+    text: String,
+}
+
+#[tauri::command]
+fn kb_dir(app: AppHandle) -> Result<String, String> {
+    Ok(kb_base(&app)?.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn kb_list(app: AppHandle) -> Result<Vec<KbDoc>, String> {
+    let Ok(entries) = fs::read_dir(kb_base(&app)?) else { return Ok(vec![]) };
+    Ok(entries
+        .filter_map(|e| e.ok())
+        .filter_map(|e| {
+            let name = e.file_name().to_str()?.to_owned();
+            let id = name.strip_suffix(".md")?.to_owned();
+            if id.starts_with('.') {
+                return None;
+            }
+            // Cap what one file may bring in (a stray huge file must not stall the game).
+            if e.metadata().ok()?.len() > 512 * 1024 {
+                return None;
+            }
+            Some(KbDoc { id, text: fs::read_to_string(e.path()).ok()? })
+        })
+        .collect())
+}
+
+#[tauri::command]
+fn kb_put(app: AppHandle, id: String, text: String) -> Result<(), String> {
+    let path = kb_path(&app, &id)?;
+    let tmp = path.with_extension("md.tmp");
+    fs::write(&tmp, text).map_err(|e| e.to_string())?;
+    fs::rename(&tmp, &path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn kb_remove(app: AppHandle, id: String) -> Result<(), String> {
+    match fs::remove_file(kb_path(&app, &id)?) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),
+        _ => Ok(()),
+    }
+}
+
 /// Writes an exported file (a save as JSON) into the app's exports folder and returns its path.
 #[tauri::command]
 fn export_file(app: AppHandle, name: String, data: String) -> Result<String, String> {
@@ -79,6 +141,10 @@ pub fn run() {
             save_delete,
             save_keys,
             export_file,
+            kb_dir,
+            kb_list,
+            kb_put,
+            kb_remove,
             llm::llm_status,
             llm::llm_write_chunk,
             llm::llm_finish,

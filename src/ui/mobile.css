@@ -383,6 +383,31 @@ body.compact .ai.panel.max {
   flex: 1 0 100%;
 }
 
+/* Seedvault (D-088): one column; the navigator folds to a short scrolling strip above the reader. */
+.compact .kb-head .db-hint,
+.compact .kb-btn span {
+  display: none;
+}
+.compact .kb-find {
+  order: 3;
+  flex: 1 0 100%;
+}
+.compact .kb-body {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+.compact .kb-nav {
+  max-height: 26dvh;
+}
+.compact .kb-doc {
+  padding: 0 2px 16px;
+}
+.compact .kb-title {
+  font-size: 19px;
+}
+
 /* Landscape phones: one top row (clock, stats, actions) so the city keeps its height. */
 @media (min-width: 700px) {
   body.compact {

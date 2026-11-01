@@ -104,6 +104,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Lay infrastructure | **G** living highway · **C** filtration channel                                                    |
 | Grow and heal      | **Z** Bloom Retrofit · **Y** Flora-Net mist · **V** Green Weaver · **T** reclaim land              |
 | Watch your city    | **P** (or the pulse button at the left of the top bar's actions) shows / hides the City Pulse console (tabs: Pulse, Lenses, Flora-Net, Goals; on phones, separate sheets) · **L** data lenses (each explained in City Pulse → Lenses; **Esc** or ✕ on the legend turns one off) · **F** Flora-Net tab · **K** dashboard · **I** inventory · **O** overview · **M** city map (the map button in the top bar's actions: every district named; click one to fly there) |
+| Learn             | **?** or **F1** Seedvault: guides, incident runbooks, live reference and your field logs and notes |
 | Ask for help       | **U** Flora, the city assistant · **Shift+U** maximize her console · **Esc** or ✕ closes it · type **/** for commands (Tab completes) (the glowing orb bottom-right, **Ask Flora** on any selected object: it loads a downloaded model if none is running) |
 | Explore            | phones: the ◇ button in the top bar picks a view; a joystick moves, ▲ ▼ rise and sink, and the top bar hides so only the round **◇** (top-left) is left to return to the city view · **N** walk / hoverboard / drone / balloon / rooftop / ride a pod / ride the Aeroline (**Tab** next pod, train or landmark; **V** first person or the balloon's basket view; **Esc** back) · **J** photo mode (**P** saves a PNG); or the ◇ view-mode menu at the end of the top bar |
 | Find a fire        | **.** fly to the next fire (⌖ Next in the fire panel) · click a 🔥 pin, an alert toast or a map pin |
@@ -126,6 +127,14 @@ a model under ⚙ (it downloads once from Hugging Face, ≈0.6–1 GB; on an App
 natively, much faster). Without a model, slash commands work: type `/help`. The **Autonomous mode** switch in the Profile tab lets her act without asking. Clear the chat with the eraser in her header (or `/clear`): earlier messages are then no longer sent to the model. The log keeps the latest 40 entries; older ones fade away. The **◈ Profile** tab shows who Flora
 is and the exact instructions (system prompts) her model gets each turn, plus the live city brief she reads; the
 **⚒ Tools** tab lists every tool she can use, with its parameters, and lets you run one directly.
+
+**Seedvault** (**?** or F1, or the book in the top bar): the city's knowledge base. Guides to every system, what
+causes what, step-by-step incident runbooks (fires, quakes, floods, blackouts, tornadoes, tsunamis, debt, the fail
+clock…), playbooks, and a live reference generated from the game's own rules. It also keeps a journal on your device:
+your notes, and field logs the city writes itself after every incident, consequence and recovery (what it cost, what
+helped, what you did to fix it), so lessons carry over to every city you found. Flora reads it too: ask her *"how do
+I stop fires spreading?"* and she finds the runbook, reads the right section and answers; *"remember that…"* saves a
+note. In the desktop app the journal is a folder of Markdown files (app data `knowledge/`) you can edit or add to.
 
 **Inventory** (**I**): every building, highway network, bridge, sky-bridge, channel, district and sea wonder, each
 with a readable id such as `LIV-0042` or `HWY-118.204`. Search by name, id or district, or filter with `issue:power`,

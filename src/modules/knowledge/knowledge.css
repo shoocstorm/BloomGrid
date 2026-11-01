@@ -1,0 +1,461 @@
+/* Seedvault (D-088): the knowledge dialog. Chrome comes from `.db` + `.holo`; this lays out the navigator and
+ * the reader, each scrolling on its own. Instrument theme tokens only (ui/theme.css). */
+.kb.db {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: min(1180px, calc(100vw - 32px));
+}
+.kb-head {
+  flex-wrap: wrap;
+}
+.kb-head .hh {
+  flex: 1 1 auto;
+}
+.kb-find {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 340px;
+  min-width: 180px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  background: var(--bg-raise);
+  color: var(--ink-soft);
+}
+.kb-find:focus-within {
+  border-color: var(--line-strong);
+}
+.kb-search {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+.kb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  background: var(--bg-raise);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.kb-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--line-strong);
+}
+.kb-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #062a26;
+}
+.kb-btn.danger:hover {
+  border-color: var(--crit);
+  color: var(--crit);
+}
+.kb-btn .ico {
+  width: 15px;
+  height: 15px;
+}
+.kb-body {
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: 18px;
+  flex: 1;
+  min-height: 0;
+  margin-top: 14px;
+}
+.kb-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+}
+.kb-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.kb-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.kb-chip:hover {
+  color: var(--ink);
+  background: var(--bg-hover);
+}
+.kb-chip.on {
+  color: #062a26;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.kb-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.kb-group + .kb-group {
+  margin-top: 10px;
+}
+.kb-group-h {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 2px 4px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.kb-group-h span {
+  color: var(--ink-faint);
+}
+.kb-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kb-item:hover {
+  background: var(--bg-hover);
+}
+.kb-item.on {
+  background: var(--bg-raise);
+  border-color: var(--line-strong);
+}
+.kb-item-t {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.kb-item-t b {
+  font-weight: 500;
+  font-size: 12.5px;
+}
+.kb-snip {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.kb-snip i {
+  font-style: normal;
+  color: var(--accent);
+}
+.kb-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.kb-dot.s-reference {
+  background: #9ab8ff;
+}
+.kb-dot.s-journal {
+  background: var(--warn);
+}
+.kb-empty {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* ── Reader ── */
+.kb-doc {
+  position: relative;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 16px 24px 4px;
+  scrollbar-color: var(--line-strong) transparent;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.kb-crumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.kb-crumb code {
+  margin-left: auto;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-faint);
+}
+.kb-title {
+  margin: 6px 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.kb-summary {
+  margin: 0 0 10px;
+  color: var(--ink-soft);
+}
+.kb-outline,
+.kb-related {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin: 8px 0 12px;
+}
+.kb-related {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.kb-content p,
+.kb-content ul,
+.kb-content ol {
+  margin: 0 0 10px;
+}
+.kb-content ul,
+.kb-content ol {
+  padding-left: 22px;
+}
+.kb-content li {
+  margin: 2px 0;
+}
+.kb-content li > ul,
+.kb-content li > ol {
+  margin: 2px 0 4px;
+}
+.kb-h {
+  margin: 20px 0 8px;
+  font-weight: 600;
+  line-height: 1.3;
+  scroll-margin-top: 12px;
+}
+.kb-h2 {
+  font-size: 16.5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.kb-h3 {
+  font-size: 14.5px;
+}
+.kb-h4 {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.kb-h.flash {
+  animation: kb-flash 1.4s ease-out;
+}
+@keyframes kb-flash {
+  from {
+    color: var(--accent);
+  }
+}
+.kb-content code,
+.kb-crumb code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+}
+.kb-content code {
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+  background: var(--bg-raise);
+}
+.kb-content pre {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.25);
+}
+.kb-content pre code {
+  padding: 0;
+  background: none;
+}
+.kb-content hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 16px 0;
+}
+.kb-content blockquote {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--line-strong);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--bg-raise);
+}
+.kb-content blockquote > :last-child {
+  margin-bottom: 0;
+}
+.kb-call.tip {
+  border-left-color: var(--accent-2);
+}
+.kb-call.warn {
+  border-left-color: var(--warn);
+  background: rgba(255, 207, 106, 0.07);
+}
+.kb-call.do {
+  border-left-color: var(--accent);
+}
+.kb-link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--line-strong);
+  cursor: pointer;
+}
+.kb-link:hover {
+  border-bottom-style: solid;
+}
+.kb-link.missing {
+  color: var(--ink-soft);
+  border-bottom: 0;
+  cursor: default;
+}
+.kb-content a:not(.kb-link) {
+  color: var(--accent);
+}
+.kb-table {
+  margin: 0 0 12px;
+  overflow-x: auto;
+}
+.kb-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.kb-table th,
+.kb-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.kb-table th {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.kb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.kb-where {
+  font-size: 11px;
+  color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+.kb-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.kb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+.kb-card:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--bg-hover);
+}
+.kb-card:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.kb-card b {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.kb-card b span {
+  font-family: var(--mono);
+  font-weight: 400;
+  color: var(--accent);
+}
+
+/* ── Note editor ── */
+.kb-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kb-row {
+  display: flex;
+  gap: 8px;
+}
+.kb-row > :last-child {
+  flex: 1;
+}
+.kb-in {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+.kb-in:focus {
+  outline: 0;
+  border-color: var(--line-strong);
+}
+.kb-ta {
+  min-height: 240px;
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+}

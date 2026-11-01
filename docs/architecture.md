@@ -111,4 +111,7 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Dashboard chart          | `new LineChart({ format, step })` from `modules/dashboard/LineChart.ts` (one series per chart)                    |
 | Inventory object kind    | `registerInventoryKind({ kind, label, icon, prefixes, description, list, get?, details? })` in `sim/inventory.ts` (or a module); issue codes via `registerIssue` |
 | Agent tool (LLM / script)| `ctx.services.get('agent').register({ name, description, input, effect, run })` (`core/AgentTools.ts`); pure-sim tools go in `sim/*Tools.ts` |
+| Knowledge doc (Seedvault)| a Markdown file with front matter in `docs/knowledge/<category>/` (format in `docs/knowledge/README.md`); numbers that live in code go in `sim/knowledgeRefs.ts` (live reference) instead (D-088) |
+| Device-local documents   | `ctx.platform.knowledge` (`DocStore`: `list` / `put` / `remove`): IndexedDB on the web, `<app data>/knowledge/*.md` on the desktop |
+| Agent tool follow-ups    | `narrow(schema, { request, observed })` holds arguments to what the turn has seen; `follow(result)` names the obvious next read the loop makes without a decision (D-088) |
 | Agent tool the assistant offers | register with `effect: 'mutate'` for anything that changes the city (asked first, must run a command); `option` (one menu line) and `llmArgs` (the few arguments a model writes) |

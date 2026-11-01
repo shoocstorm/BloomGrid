@@ -35,7 +35,20 @@ export interface AgentTool<Ctx, A = Record<string, unknown>> {
   /** Extra words a request may use for this tool (menu selection matches them, e.g. `pause` for set_speed). */
   keywords?: readonly string[];
   effect: ToolEffect;
+  /**
+   * Narrows the schema the model fills from what the turn knows: the request and the results it has observed
+   * so far (e.g. a doc id held to the ids a catalog just returned). Called after the host's own narrowing.
+   */
+  narrow?(
+    schema: JsonSchema & { type: 'object' },
+    turn: { request: string; observed: string },
+  ): JsonSchema & { type: 'object' };
   run(ctx: Ctx, args: A): unknown;
+  /**
+   * The obvious next call after a successful run, made by the agent loop without a decision (e.g. a catalog
+   * search followed by reading its best hit). Small models often answered from a search snippet instead.
+   */
+  follow?(result: unknown): { tool: string; args: Record<string, unknown> } | null;
 }
 
 export interface ToolSpec {

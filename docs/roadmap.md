@@ -240,6 +240,15 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Phase 21: Tornado and tsunami, risk model, prevention, damage reports and trends (D-076; the Risk lens followed in D-080)
 - [x] Phase 22: Polish and balance: fresh-island pacing test (scripted steward) and retuned unlocks, Flora's `goals_status` / `start_project` and a progression line in her brief, no tier alarms while a new city settles (D-078; the trailer update shipped as D-079)
 
+## ✅ Seedvault: city knowledge base (2026-11-01)
+
+- [x] Shipped guides in `docs/knowledge/` (basics, systems, cause & effect, 14 incident runbooks, playbooks)
+- [x] Live reference generated from the game's registries (crises, consequences, lenses, issues, rules, buildings)
+- [x] Journal on the device (IndexedDB / desktop `knowledge` folder): notes, field logs per incident kind, consequences, recoveries (fix log)
+- [x] Seedvault dialog (**?** / F1, top-bar book): search, source filters, categories, reader with outline and links, note editor, phone layout
+- [x] Flora: `knowledge_catalog` → `knowledge_read` (two-level retrieval with `narrow` / `follow`), `knowledge_note`, `knowledge_open`; verified with `bun run ai-probe` (qwen3-1.7b)
+- **Accept:** ✅ `tests/knowledge.test.ts`; snaps on WebGPU, WebGL and `--mobile` (D-088)
+
 ---
 
 ## Tech debt / open issues

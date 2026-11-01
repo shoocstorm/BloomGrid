@@ -135,6 +135,11 @@ export function plainIntent(request: string): string | null {
   const question = isQuestion(r);
   const rules: [RegExp, string][] = [
     [/^\s*undo\b/, 'undo'],
+    // Seedvault (D-088): a note to keep, a doc to open, then how-to and runbook questions (before the topics
+    // below, so "how do we handle a fire?" reads the runbook rather than listing fires).
+    [/\b(remember (this|that)|note (this|that)( down)?|write (this|that) down|(add|save|keep|make|write) (a |an |this |that )?(note|lesson))\b/, 'knowledge_note'],
+    [/\b(open|show( me)?|bring up|pull up)\b.*\b(runbooks?|playbooks?|guides?|manuals?|handbook|seedvault|knowledge base|field logs?)\b/, 'knowledge_open'],
+    [/\bhow (do|can|should|would|to)\b|\b(runbooks?|playbooks?|manuals?|handbook|seedvault|knowledge base|guides?|procedures?|tutorials?|field logs?|lessons?( learned)?|best practices?|strateg(y|ies)|tips? (for|on))\b|\bwhat (does|do) .+ (mean|do)\b/, 'knowledge_catalog'],
     // Fireworks (D-068) before hazards: "fire the fireworks" is a show, not a fire.
     [/\b(stop|turn off|switch off|disable|cancel|turn on|switch on|enable|resume)\b.*\b(nightly|automatic|every night)\b.*\bfireworks?\b|\b(nightly|automatic) fireworks?\b.*\b(on|off)\b/, 'fireworks_nightly'],
     [/\b(launch|set off|let off|fire( off)?|light|start|put on|celebrate)\b(?!.*\bfactor(y|ies)\b).*\bfireworks?\b/, 'launch_fireworks'],
@@ -178,6 +183,7 @@ export function plainIntent(request: string): string | null {
     [/\b(find|list|which|how many|search)\b/, 'inventory_search'],
   ];
   const lookups = new Set([
+    'knowledge_catalog',
     'object_select',
     'inventory_search',
     'budget_breakdown',
@@ -197,6 +203,7 @@ export function plainIntent(request: string): string | null {
 
 /** Always on the menu when offered: the lookups and the general remedies most requests need. */
 export const CORE_TOOLS = [
+  'knowledge_catalog',
   'inventory_search',
   'inventory_inspect',
   'advisor_tips',
@@ -389,6 +396,8 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
   const offered = o.tools.list().filter((t) => policy(t) !== 'off' && !(question && t.effect === 'mutate'));
   const menu = selectMenu(o.request, offered);
   const maxSteps = o.maxSteps ?? 4;
+  /** A call a tool's `follow` asked for: the next step makes it without deciding or filling. */
+  const pending: { next: { tool: AgentTool<unknown>; args: Record<string, unknown> } | null } = { next: null };
 
   for (let step = 1; step <= maxSteps; step++) {
     o.signal?.throwIfAborted();
@@ -399,8 +408,10 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
       "Reply to the steward now (the request is done, it's a question I can answer, or I need their input)",
     ];
     let chosen: AgentTool<unknown> | null = null;
+    const forced = pending.next;
+    pending.next = null;
     const intent = step === 1 ? plainIntent(o.request) : null;
-    const routed = intent ? (menu.find((t) => t.name === intent) ?? null) : null;
+    const routed: AgentTool<unknown> | null = forced?.tool ?? (intent ? (menu.find((t) => t.name === intent) ?? null) : null);
     if (routed) chosen = routed;
     else
       try {
@@ -431,12 +442,17 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
           ),
         }
       : chosen.input;
-    const base = o.narrow ? o.narrow(chosen, offeredArgs, o.request) : offeredArgs;
+    const hosted = o.narrow ? o.narrow(chosen, offeredArgs, o.request) : offeredArgs;
+    // A tool may narrow further from what the turn has observed (e.g. doc ids a catalog returned).
+    const base = chosen.narrow
+      ? chosen.narrow({ ...hosted, type: 'object' }, { request: o.request, observed: steps.map((s) => s.observation).join('\n') })
+      : hosted;
     const schema = narrowIds(base, known, named);
     let args: Record<string, unknown> | null = null;
     let errors: string[] = [];
     const props = Object.keys(schema.properties ?? {});
-    for (let attempt = 0; attempt < 2 && props.length; attempt++) {
+    if (forced && !checkArgs(schema, forced.args)) args = forced.args;
+    for (let attempt = 0; attempt < 2 && props.length && !args; attempt++) {
       const messages: ChatMessage[] = [
         {
           role: 'system',
@@ -469,7 +485,7 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
         errors = [(e as Error).message];
       }
     }
-    if (!props.length) args = {};
+    if (!props.length) args ??= {};
     const call: ToolCall = { step, tool: chosen.name, args: args ?? {}, effect: chosen.effect };
     if (!args) {
       const record: StepRecord = {
@@ -518,6 +534,10 @@ export async function runTurn(o: TurnOptions): Promise<TurnResult> {
       if (!known.includes(id)) known.unshift(id);
     }
     emit({ type: 'result', record });
+    // A tool that names its obvious next call gets it (only tools this turn may use, and never an action).
+    const next = record.ok ? chosen.follow?.(record.result) : null;
+    const nextTool = next ? offered.find((t) => t.name === next.tool && t.effect !== 'mutate') : undefined;
+    if (next && nextTool && step < maxSteps) pending.next = { tool: nextTool, args: next.args };
     // One action per request: after it succeeds the turn answers, and the steward asks for the next one.
     // Small models otherwise kept "fixing" what the action had just created.
     if (record.ok && chosen.effect === 'mutate') break;

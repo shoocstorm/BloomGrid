@@ -1189,3 +1189,45 @@ desktops. City Pulse is also hidden while the New Chapter dialog is open (`body.
   (`tight`). Every action button has a border so icon-only buttons still read as buttons. Repair / rebuild /
   dispatch keep dark text on orange (the theme's generic `.tool` colour had won).
 - **Top bar:** the dashboard button moved into the leading view group, right after City Pulse.
+
+## D-088 — Seedvault: the city knowledge base, with two-level retrieval for Flora (2026-11-01)
+
+**Context:** Players had no in-game manual: how systems work, what causes what, and what to do in a crisis lived
+only in tooltips, the README and the guide. Flora could look up the city but not explain how to run it.
+
+**Decision:** A `knowledge` module, **Seedvault** (**?** / F1, the book in the top bar), over three sources with
+one format (Markdown with a small front-matter subset, `content/knowledge.ts`):
+
+- **Guides**: `docs/knowledge/<category>/*.md`, bundled raw through `import.meta.glob` (READMEs and `_*` skipped).
+  Categories: basics, systems, cause-effect, runbooks, playbooks. Runbooks list the incident kinds they `covers`.
+- **Live reference**: generated at runtime from the registries (`sim/knowledgeRefs.ts`: crises, consequence rules,
+  lenses, issue codes, difficulty / fail clock / projects / costs / levels, every building by category), so the
+  numbers never drift. Guides link to it instead of copying numbers.
+- **Journal** on the device (`Platform.knowledge: DocStore`): IndexedDB database `bloomgrid-knowledge` on the web,
+  `<app data>/knowledge/<id>.md` in the desktop app (`kb_*` commands; hand-dropped `.md` files are read too). It
+  outlives any one city: the steward's and Flora's notes, and **field logs** the city writes itself: one per
+  incident kind (from `incident:logged`: outcomes, costs, what prevention did, derived lessons, recent table),
+  consequences that came into force, and **recoveries** (a system at Strained or worse back to Stable, with the
+  steward's commands in between, summarised from `commands.log`: the fix log). Field logs keep raw entries in a
+  trailing `<!-- seedvault:data … -->` comment and regenerate their Markdown on each entry (last 30 kept).
+
+**Retrieval** (`modules/knowledge/search.ts`): BM25 over doc sections with field boosts (title, tags, summary,
+heading), a coverage factor, a title-match bonus, a player-words synonym table and a light stemmer. Flora gets two
+levels (`modules/knowledge/tools.ts`): `knowledge_catalog` (search → best docs with the matching section and a
+snippet; no query → ids by category) and `knowledge_read` (one doc's outline, related ids and one section, by
+heading or free words, capped at ~820 characters so it fits an observation). Plus `knowledge_note` (mutate: asks
+first) and `knowledge_open` (view). Two generic agent-loop hooks on `AgentTool` make this reliable on a 1.7B
+model: `narrow(schema, { request, observed })` (the read's doc id is held to the ids the catalog returned) and
+`follow(result)` (after a search the loop reads the top hit's section without a decision: small models answered
+from the snippet otherwise). `plainIntent` routes how-to / runbook / procedure questions to the catalog, "remember
+that…" to a note, "open the … runbook" to the reader; `knowledge_catalog` is a core menu tool.
+
+**Rendering:** a small Markdown parser to blocks (`markdown.ts`, tested) rendered with DOM calls only (no
+`innerHTML`: journal docs are user content). `kb:<id>` and `.md` links navigate inside the dialog.
+
+**Consequences:** Boot cost ≈5 ms (docs parse and reference generation happen at module init). The top-bar
+button never gives way when the bar is tight (one icon). Not in the save: the journal is per device, not per city.
+`bun run test` checks every shipped doc parses, links resolve, sections stay under 1,400 characters and every
+crisis has a runbook. Rejected: embeddings / a vector index (a model download for ~50 docs; lexical search with
+synonyms finds the right section in the probe set), storing the journal in the save (lessons should carry over).
+
