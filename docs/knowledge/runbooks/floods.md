@@ -25,7 +25,7 @@ order: 12
 ## Prevention
 
 - **Mangrove Seawalls** hold back the sea over a stretch of low coast.
-- **Reclaim land** (**T**) to raise the lowest shore.
+- **Reclaim land** (Build → Reclaim) to raise the lowest shore.
 - Avoid building on low riverbanks; floodproof waterfront buildings ignore floods.
 - A bare coast (no natural shoreline left) makes floods do more damage (*bare coast* consequence): keep beaches,
   mangroves and parks along the shore.

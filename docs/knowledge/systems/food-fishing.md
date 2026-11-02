@@ -28,7 +28,7 @@ bare coast (no mangroves, beaches or parks) shrinks the catch too.
 ## Fixing a food shortage
 
 1. Build farms on networks with water, away from pollution.
-2. Mist dry soil (**Y**) or add a Drone Hive.
+2. Mist dry soil (Build → **Mist**) or add a Drone Hive.
 3. Don't add more docks if the stock is falling: let it recover.
 
 Building numbers: [Food buildings](kb:reference-buildings-food).

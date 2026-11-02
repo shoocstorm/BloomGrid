@@ -154,7 +154,7 @@ function soilLens(key: 'hydration' | 'nutrients') {
     }
   };
 }
-registerOverlay({ id: 'hydration', label: 'Soil water', icon: '❖', legend: ['Parched', 'Moist'], about: 'Moisture in the Flora-Net soil, smoothed across each zone.', read: 'Blue-green is moist, pale is parched: dry soil wilts plants and the bloom.', act: 'Mist with Drone Hives (Y), run channels nearby, and watch it in the Haze and droughts.', smooth: true, compute: soilLens('hydration') });
+registerOverlay({ id: 'hydration', label: 'Soil water', icon: '❖', legend: ['Parched', 'Moist'], about: 'Moisture in the Flora-Net soil, smoothed across each zone.', read: 'Blue-green is moist, pale is parched: dry soil wilts plants and the bloom.', act: 'Mist with Drone Hives (Build → Mist), run channels nearby, and watch it in the Haze and droughts.', smooth: true, compute: soilLens('hydration') });
 registerOverlay({ id: 'nutrients', label: 'Nutrients', icon: '✿', legend: ['Depleted', 'Rich'], about: 'Nutrients in the Flora-Net soil, smoothed across each zone. Farms draw them down.', read: 'Rich is green, depleted is pale: poor soil weakens farms and plants.', act: 'Drone Hives tend and pollinate within reach; spread farms out and plant gardens among them.', smooth: true, compute: soilLens('nutrients') });
 registerOverlay({
   id: 'flood',

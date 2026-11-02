@@ -264,7 +264,6 @@ export function createTools(ghost: Ghost, build: BuildState) {
     id: 'road',
     label: 'Living Highway',
     icon: '≋',
-    hotkey: 'KeyG',
     grid: true,
     activate: () => (dragStart = null),
     deactivate: () => ghost.hideAll(),
@@ -307,7 +306,6 @@ export function createTools(ghost: Ghost, build: BuildState) {
     id: 'bulldoze',
     label: 'Return to Nature',
     icon: '⌫',
-    hotkey: 'KeyX',
     activate: () => ghost.setValid(false),
     deactivate: () => ghost.hideAll(),
     hover(ctx, hit) {
@@ -363,7 +361,6 @@ export function createTools(ghost: Ghost, build: BuildState) {
     id: 'channel',
     label: 'Filtration Channel',
     icon: '≈',
-    hotkey: 'KeyC',
     grid: true,
     activate: () => (chStart = null),
     deactivate: () => ghost.hideAll(),
@@ -395,7 +392,6 @@ export function createTools(ghost: Ghost, build: BuildState) {
     id: 'retrofit',
     label: 'Bloom Retrofit',
     icon: '✾',
-    hotkey: 'KeyZ',
     deactivate: () => ghost.hideAll(),
     hover(ctx, hit) {
       if (!hit?.inBounds) {
@@ -426,7 +422,6 @@ export function createTools(ghost: Ghost, build: BuildState) {
     id: 'mist',
     label: 'Flora-Net Mist',
     icon: '☂',
-    hotkey: 'KeyY',
     deactivate: () => ghost.hideAll(),
     hover(ctx, hit) {
       if (!hit?.inBounds) {
@@ -459,7 +454,6 @@ export function createTools(ghost: Ghost, build: BuildState) {
     id: 'reclaim',
     label: 'Reclaim Land',
     icon: '⛰',
-    hotkey: 'KeyT',
     grid: true,
     activate: () => (sea = null),
     deactivate: () => ghost.hideAll(),
@@ -507,7 +501,6 @@ export function createTools(ghost: Ghost, build: BuildState) {
     id: 'weave',
     label: 'Green Weaver',
     icon: '❦',
-    hotkey: 'KeyV',
     activate: () => (weaveFrom = null),
     deactivate: () => {
       weaveFrom = null;

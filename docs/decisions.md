@@ -1634,3 +1634,20 @@ materials or draw calls. Boot, draw calls and the power probe match the previous
 (scenario ≈440 ms, 304 draws; 320 with all 2,349 founding-city buildings at level 3, the same as before). Upgrading
 every founding-city building twice leaves the sky-lanes at `clipped: 0`. `scripts/scenes/heroes.js` now shows any
 building's three levels side by side, with one finish (`window.STYLE`) and one variant (`window.VARIANT`).
+
+## D-101 — About dialog, version from package.json, steady side panels, click-only build actions (2026-11-02)
+
+- **About / credits:** clicking the top-left brand opens a holographic credits card (`src/modules/about/`): a
+  blooming emblem with orbiting rings and drifting petals, the title, the slogan "Grow a city that grows back.", the
+  version, the author (Aldrick Wan), when it was made (November 2026) and the source link
+  (github.com/shoocstorm/BloomGrid) with Star and Copy link buttons. Copy link is there because the Tauri shell has
+  no opener plugin, so `target="_blank"` links may not leave the app. Animations run only while the card is open and
+  move transform and opacity alone (§7½).
+- **Version:** `vite.config.ts` reads `package.json` and defines `__APP_VERSION__`, so the brand's sub-line and the
+  card show the version `bun run release` just bumped. Nothing hard-codes a version (the brand used to read "v12").
+- **Steady panels:** on desktops the Build panel and the City Pulse console have a fixed full height
+  (`calc(100vh - 88px)`), and their content scrolls inside. Hovering different buildings or switching tabs used to
+  resize them under the pointer. Phones keep their sheets.
+- **Build actions have no hotkeys:** Highway, Channel, Remove, Retrofit, Mist, Weaver and Reclaim are picked by
+  clicking them in the Build panel (G, C, X, Z, Y, V, T are free again). Advisor tips, lens text, guides and the
+  README now say "Build → …". The Controls list reads tool keys from the tools, so it dropped them on its own.

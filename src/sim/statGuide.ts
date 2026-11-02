@@ -338,7 +338,7 @@ function ecology(city: City): StatGuide {
     history: 'eco',
     tips: [
       'Greenery only counts when watered: dry gardens give 30%, grown ones the full value.',
-      'Factories paired with their symbiosis partner pollute far less; Bloom Retrofits (Z) add 50% eco.',
+      'Factories paired with their symbiosis partner pollute far less; Bloom Retrofits add 50% eco.',
       'Keep industry away from homes and the shore: the Pollution lens shows where it spreads.',
     ],
     levers: sorted([

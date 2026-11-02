@@ -17,7 +17,7 @@ unshaded districts lose harmony. Heatwaves can start fires.
 ## Prepare (in the warning window)
 
 1. Bring power and water to **115%+**: a 100% margin turns Critical in a heatwave.
-2. Water the gardens: mist dry soil (**Y**). Mature, watered greenery blunts the harmony loss.
+2. Water the gardens: mist dry soil (Build → **Mist**). Mature, watered greenery blunts the harmony loss.
 
 ## During
 

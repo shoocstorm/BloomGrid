@@ -17,8 +17,8 @@ bloom and harmony). Ecologically rich districts lose far less.
 ## Response
 
 1. Ecology lens: find the browning district.
-2. Keep its soil watered (mist, **Y**) so greenery regrows when the blight passes.
-3. Afterwards, **Bloom Retrofit** (**Z**) tired buildings to bring their greenery back.
+2. Keep its soil watered (Build → **Mist**) so greenery regrows when the blight passes.
+3. Afterwards, **Bloom Retrofit** (Build → Retrofit) tired buildings to bring their greenery back.
 
 ## Prevention
 

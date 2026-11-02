@@ -1,0 +1,363 @@
+/*
+ * About BloomGrid (D-101): the credits card. Instrument-theme tokens from ui/theme.css. Every animation moves
+ * transform or opacity only and runs only while the card is shown (§7½); no backdrop-filter.
+ */
+.brand {
+  cursor: pointer;
+}
+.brand:hover .logo {
+  transform: rotate(90deg);
+}
+.brand .logo {
+  transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.2, 1.2);
+}
+
+.ab-scrim {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(95, 242, 218, 0.16), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(255, 159, 196, 0.12), transparent 55%),
+    rgba(2, 10, 12, 0.72);
+  z-index: 30;
+  animation: ab-fade 0.35s ease-out both;
+}
+.ab-scrim.hidden {
+  display: none;
+}
+@keyframes ab-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.about {
+  --bg: #061315;
+  position: relative;
+  overflow: hidden;
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 26px 28px 18px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(95, 242, 218, 0.18), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(142, 240, 122, 0.08), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(255, 159, 196, 0.08), transparent 50%),
+    var(--bg);
+  border: 1px solid var(--line-strong);
+}
+.about > *:not(.ab-petals) {
+  position: relative;
+  z-index: 1;
+}
+.ab-close {
+  position: absolute !important;
+  top: 10px;
+  right: 10px;
+}
+
+/* Petals drifting up through the card, each on its own clock (--d delay, --t duration, --h hue). */
+.ab-petals {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.ab-petals i {
+  position: absolute;
+  left: var(--x);
+  bottom: -16px;
+  width: 9px;
+  height: 12px;
+  border-radius: 80% 0 80% 0;
+  background: hsl(var(--h) 85% 78%);
+  opacity: 0;
+  animation: ab-drift var(--t) linear var(--d) infinite;
+}
+@keyframes ab-drift {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.55;
+  }
+  80% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translate3d(28px, -620px, 0) rotate(540deg);
+    opacity: 0;
+  }
+}
+
+/* The emblem: the brand's diamond gem, petals unfolding round it, three tilted orbits with riders, a halo. */
+.ab-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ab-emblem {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin: 4px 0 14px;
+}
+.ab-emblem > span {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+.ab-gem {
+  width: 46px;
+  height: 46px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: conic-gradient(from 45deg, var(--accent), var(--accent-2), #ff9fc4, var(--warn), var(--accent));
+  animation: ab-gem 6s ease-in-out infinite;
+}
+@keyframes ab-gem {
+  50% {
+    transform: scale(1.12) rotate(180deg);
+  }
+}
+.ab-halo {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(95, 242, 218, 0.45), rgba(95, 242, 218, 0) 65%);
+  animation: ab-breathe 3.2s ease-in-out infinite;
+}
+@keyframes ab-breathe {
+  50% {
+    transform: scale(1.25);
+    opacity: 0.55;
+  }
+}
+.ab-leaf {
+  width: 20px;
+  height: 40px;
+  border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+  background: linear-gradient(to top, rgba(142, 240, 122, 0.85), rgba(95, 242, 218, 0.15));
+  transform-origin: 50% 100%;
+  transform: translateY(-20px) rotate(var(--r)) scaleY(0.2);
+  opacity: 0;
+  animation: ab-unfold 0.9s cubic-bezier(0.2, 0.9, 0.2, 1.2) 0.25s forwards;
+}
+@keyframes ab-unfold {
+  to {
+    transform: translateY(-20px) rotate(var(--r)) scaleY(1);
+    opacity: 0.75;
+  }
+}
+.ab-orbit {
+  border-radius: 50%;
+  border: 1px solid rgba(95, 242, 218, 0.35);
+}
+.ab-orbit b {
+  position: absolute;
+  top: -4px;
+  left: calc(50% - 4px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.ab-orbit.o1 {
+  width: 132px;
+  height: 132px;
+  animation: ab-spin 9s linear infinite;
+}
+.ab-orbit.o2 {
+  width: 112px;
+  height: 112px;
+  border-color: rgba(255, 159, 196, 0.35);
+  animation: ab-spin 6s linear infinite reverse;
+}
+.ab-orbit.o2 b {
+  background: #ff9fc4;
+}
+.ab-orbit.o3 {
+  width: 76px;
+  height: 76px;
+  border-color: rgba(255, 207, 106, 0.4);
+  border-style: dashed;
+  animation: ab-spin 14s linear infinite;
+}
+.ab-orbit.o3 b {
+  background: var(--warn);
+  width: 6px;
+  height: 6px;
+  left: calc(50% - 3px);
+  top: -3px;
+}
+@keyframes ab-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ab-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.ab-title {
+  margin: 8px 0 4px;
+  font-family: var(--ui);
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1;
+  /* Plain text only: background-clip: text doesn't paint through transformed children (AGENTS.md §8). */
+  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 35%, #ff9fc4 65%, var(--warn) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ab-slogan {
+  margin: 10px 0 0;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.ab-tag {
+  margin: 6px auto 0;
+  max-width: 380px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.ab-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 22px 0 16px;
+  text-align: left;
+}
+.ab-fact {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+  min-width: 0;
+}
+.ab-fact.wide {
+  grid-column: 1 / -1;
+}
+.ab-fi {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  background: rgba(95, 242, 218, 0.12);
+  color: var(--accent);
+}
+.ab-fi .ico {
+  width: 16px;
+  height: 16px;
+}
+.ab-fl {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.ab-fv {
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ab-fv code {
+  font-family: var(--mono);
+  color: var(--accent);
+}
+.ab-fv a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.ab-fv a:hover {
+  text-decoration: underline;
+}
+
+.ab-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: var(--pill);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.15s;
+}
+.ab-btn:hover {
+  transform: translateY(-2px);
+}
+.ab-btn .ico {
+  width: 15px;
+  height: 15px;
+}
+.ab-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06201c;
+}
+
+.ab-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
+/* Phones (D-045): one column of facts, a smaller emblem and title. */
+.compact .about {
+  padding: 20px 16px 14px;
+}
+.compact .ab-facts {
+  grid-template-columns: 1fr;
+}
+.compact .ab-title {
+  font-size: 32px;
+}
+.compact .ab-emblem {
+  transform: scale(0.8);
+  margin: -8px 0 4px;
+}

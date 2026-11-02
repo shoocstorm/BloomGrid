@@ -787,6 +787,8 @@ kbd,
   display: flex;
   flex-direction: column;
   width: 350px;
+  /* A fixed full height: tabs and hover cards change the content, never the frame (no jumping). */
+  height: calc(100vh - 88px);
   max-height: calc(100vh - 88px);
   overflow: hidden;
   padding-bottom: 8px;

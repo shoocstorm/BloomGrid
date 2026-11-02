@@ -92,7 +92,7 @@ registerAdvisorRule((city) => {
     severity: count > 10 ? 2 : 1,
     title: `${count} building${count > 1 ? 's' : ''} cut off from the grid`,
     detail: 'Without a Living Highway touching them they get no power or water, and residents cannot reach work.',
-    fix: 'Draw a Living Highway (G) to their edge.',
+    fix: 'Draw a Living Highway (Build → Highway) to their edge.',
     focus,
   };
 });
@@ -292,7 +292,7 @@ registerAdvisorRule((city) => {
     severity: blocked > 20 ? 2 : 1,
     title: `${blocked} highway tile${blocked > 1 ? 's' : ''} overgrown`,
     detail: 'Reclaimed highways no longer carry power or water, which can split districts off the grid.',
-    fix: 'Redraw the highway (G) over the overgrown stretch to clear it, and fund maintenance.',
+    fix: 'Redraw the highway (Build → Highway) over the overgrown stretch to clear it, and fund maintenance.',
     focus: { x: (first % city.grid.w) + 0.5, z: ((first / city.grid.w) | 0) + 0.5 },
   };
 });
@@ -329,7 +329,7 @@ registerAdvisorRule((city) => {
     severity: 0,
     title: `Bloom is low (${Math.round(city.pulse.bloomIndex * 100)}%)`,
     detail: 'Bloom speeds greenery, pollinates farms (more food) and lifts harmony. It needs pollinators, water, clean air and clean energy.',
-    fix: 'Add Pollinator Sanctuaries and Bloom Parks, dig Filtration Channels (C), and favour Sunflower Spires.',
+    fix: 'Add Pollinator Sanctuaries and Bloom Parks, dig Filtration Channels (Build → Channel), and favour Sunflower Spires.',
     build: 'pollinator-sanctuary',
   };
 });
@@ -344,7 +344,7 @@ registerAdvisorRule((city) => {
     severity: 0,
     title: 'The treasury can fund a Bloom Retrofit',
     detail: 'Transform a district: flowering façades, sunflower roofs, lily-pad channels. Ecology ×1.5, less power and water use.',
-    fix: 'Build (B) → Retrofit (Z) and click the heart of a busy district.',
+    fix: 'Build (B) → Retrofit and click the heart of a busy district.',
   };
 });
 
@@ -390,7 +390,7 @@ registerAdvisorRule((city) => {
     severity: count > 8 ? 2 : 1,
     title: `${count} garden zone${count > 1 ? 's are' : ' is'} parched`,
     detail: 'Dry soil starves living walls and roof meadows even when the taps run, and cuts harvests. Haze season and heatwaves dry it fastest.',
-    fix: 'Dispatch a Flora-Net mist (Y) over them, dig Filtration Channels (C), or place a Drone Hive (drones mist dry gardens).',
+    fix: 'Dispatch a Flora-Net mist (Build → Mist) over them, dig Filtration Channels (Build → Channel), or place a Drone Hive (drones mist dry gardens).',
     focus,
     build: 'flora-hive',
   };
@@ -422,7 +422,7 @@ registerAdvisorRule((city) => {
     severity: drowned ? 2 : count > 10 ? 1 : 0,
     title: drowned ? `The risen sea is flooding ${drowned} building${drowned > 1 ? 's' : ''}` : `${count} coastal building${count > 1 ? 's' : ''} at risk from the rising sea`,
     detail: `Sea level is up ${rise.toFixed(2)} m and still rising; king tides add about 0.35 m on top.`,
-    fix: 'Build Mangrove Seawalls on the shore in front of them (each protects 9 tiles up to 1.4 m), or reclaim higher land (T) further out.',
+    fix: 'Build Mangrove Seawalls on the shore in front of them (each protects 9 tiles up to 1.4 m), or reclaim higher land (Build → Reclaim) further out.',
     focus,
     build: 'mangrove-seawall',
   };

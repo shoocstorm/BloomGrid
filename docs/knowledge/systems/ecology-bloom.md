@@ -22,13 +22,13 @@ keep them away from homes and the shore, and plant parks between.
 
 ## Soil (Flora-Net)
 
-Gardens dry out and farms exhaust soil. Mist dry zones (**Y**), dig filtration channels (**C**) or build a Drone
+Gardens dry out and farms exhaust soil. Mist dry zones (Build → **Mist**), dig filtration channels (Build → **Channel**) or build a Drone
 Hive whose drones pollinate, harvest and trim the jungle back from neglected highways.
 
 ## The Bloom
 
 The bloom index grows with pollinators, clean energy and healthy greenery and peaks in the bloom season. It adds
-up to +6 harmony. A **Bloom Retrofit** (**Z**) refreshes a district's tired buildings with greenery.
+up to +6 harmony. A **Bloom Retrofit** (Build → Retrofit) refreshes a district's tired buildings with greenery.
 
 ## Seasons
 

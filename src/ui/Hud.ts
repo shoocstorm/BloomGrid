@@ -246,7 +246,21 @@ class Hud {
     const topbar = h(
       'div',
       { class: 'topbar' },
-      h('div', { class: 'brand panel' }, h('span', { class: 'logo' }), h('b', {}, 'BloomGrid', this.brandSub)),
+      h(
+        'div',
+        {
+          class: 'brand panel',
+          role: 'button',
+          tabindex: '0',
+          title: 'About BloomGrid',
+          'aria-label': 'About BloomGrid',
+          // The credits (D-101) live in the about module.
+          onClick: () => ctx.services.tryGet('about')?.open(),
+          onKeydown: (e: KeyboardEvent) => e.key === 'Enter' && ctx.services.tryGet('about')?.open(),
+        },
+        h('span', { class: 'logo' }),
+        h('b', {}, 'BloomGrid', this.brandSub),
+      ),
       h('div', { class: 'clock panel' }, this.timeEl, seg),
       stats,
       actions,
@@ -256,7 +270,7 @@ class Hud {
     // The city's name under the brand and in the window title (D-072).
     const named = () => {
       const name = ctx.city.growth.name;
-      setText(this.brandSub, name === 'BloomGrid' ? 'Island OS · v12' : name);
+      setText(this.brandSub, name === 'BloomGrid' ? `Island OS · v${__APP_VERSION__}` : name);
       document.title = name === 'BloomGrid' ? 'BloomGrid' : `${name} · BloomGrid`;
     };
     named();
