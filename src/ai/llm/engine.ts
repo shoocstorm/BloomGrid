@@ -1,6 +1,20 @@
 import type { ModelManager, Wllama } from '@wllama/wllama';
 import { verifyBlobs } from './integrity';
 import { defaultBuildRuns, forceCompat, isFatalLog, type WorkerResources } from './wasm';
+import {
+  MAX_LEVEL,
+  crashMessage,
+  describeLoadError,
+  device,
+  failedLevel,
+  loadPlan,
+  markAttempt,
+  planText,
+  setFailedLevel,
+  startLevel,
+  takeCrashedAttempt,
+  type LoadPlan,
+} from './device';
 import { MODELS, isMlx, modelById, type MlxDef, type ModelDef, type WllamaDef } from './models';
 import {
   downloadCheckpoint,
@@ -24,7 +38,8 @@ import {
  * Callers don't care which: `generate` streams the same way on both.
  *
  * GGUF models are cached in OPFS by wllama's ModelManager and checked against the catalog's pinned
- * size and sha256 before loading; MLX checkpoints live in Rust's verified store. wllama itself is
+ * size and sha256 before loading; MLX checkpoints live in Rust's verified store. Phones load lighter and a
+ * page iOS killed mid-load is recognised on the next launch (`device.ts`). wllama itself is
  * loaded lazily (a dynamic import) so the game never pays for it until the assistant loads a model.
  */
 
@@ -92,13 +107,6 @@ class WarmTimeout extends Error {
   }
 }
 
-/** iPhone, iPod or iPad (iPadOS reports a Mac user agent but has touch points); Tauri's macOS webview has none. */
-function appleMobile(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent;
-  return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-}
-
 export const isAbort = (e: unknown) =>
   e instanceof Error && (e.name === 'AbortError' || e.name === 'WllamaAbortError');
 
@@ -120,6 +128,32 @@ export class LlmEngine {
   private wllama: Wllama | null = null;
   private manager: ModelManager | null = null;
   private lib: typeof import('@wllama/wllama') | null = null;
+  /** A model the page died loading last launch: never autoloaded again this session. */
+  private crashedId: string | null = null;
+
+  constructor() {
+    if (typeof window !== 'undefined') this.checkCrashedLoad();
+  }
+
+  /**
+   * A load that never finished because the page was closed under it (iOS gives no error to catch): says so
+   * and makes the next try lighter. Autoload skips that model, or it would close the page on every launch.
+   */
+  private checkCrashedLoad(): void {
+    const a = takeCrashedAttempt(Date.now());
+    if (!a) return;
+    const def = modelById(a.id);
+    const n = def?.n_ctx ?? 4096;
+    const next = a.level < MAX_LEVEL ? loadPlan(n, a.level + 1) : null;
+    setFailedLevel(a.id, Math.min(MAX_LEVEL, a.level + 1));
+    this.crashedId = a.id;
+    console.warn('[ai] the page closed while a model was warming up', a);
+    this.state = {
+      ...this.state,
+      status: 'error',
+      error: crashMessage(def?.name ?? a.id, loadPlan(n, a.level), next, device),
+    };
+  }
 
   onChange(fn: (s: EngineState) => void): () => void {
     this.listeners.add(fn);
@@ -179,6 +213,7 @@ export class LlmEngine {
       error: null,
       progress: { loaded: 0, total: def.bytes, speed: 0, phase: 'Connecting…' },
     });
+    let plan: LoadPlan | null = null;
     try {
       if (isMlx(def)) {
         await this.ensureNative(def);
@@ -186,21 +221,27 @@ export class LlmEngine {
         this.set({ info: { backend: `MLX · Metal (native, ${loaded.bits}-bit)`, context: loaded.nCtx } });
       } else {
         const model = await this.openVerified(def);
-        // On iOS, llama.cpp's WebGPU warm-up in the compat build can stall forever, so phones and tablets run
-        // on the CPU; elsewhere a GPU warm-up that stalls falls back to the CPU instead of spinning forever.
-        let cpu = appleMobile();
+        // Phones start on the CPU at a smaller context (iOS closes a tab past its memory limit, and the city
+        // shares it); a memory or GPU failure, or a stalled warm-up, steps down a level and is remembered.
+        const first = startLevel(device, failedLevel(id));
         let loaded: { w: Wllama; gpu: { layers: number; total: number } | null } | null = null;
-        while (!loaded) {
+        for (let level = first; !loaded; level++) {
+          plan = loadPlan(def.n_ctx, level);
+          const phase = `Retrying lighter (${planText(plan)})…`;
+          if (level > first) this.set({ progress: { loaded: def.bytes, total: def.bytes, speed: 0, phase } });
           try {
-            loaded = await this.warm(model, def, cpu);
+            loaded = await this.warm(model, def, plan);
           } catch (e) {
-            if (cpu || !(e instanceof WarmTimeout)) throw e;
-            console.warn('[ai] GPU warm-up stalled; retrying on the CPU');
-            cpu = true;
+            const raw = e instanceof Error ? e.message : String(e);
+            const failure = describeLoadError(raw, def.name, plan, device);
+            if (!failure.retryLighter || level >= MAX_LEVEL) throw e;
+            console.warn(`[ai] ${def.name} failed at ${planText(plan)}; trying less`, e);
+            setFailedLevel(id, level + 1);
           }
         }
         const { w, gpu: g } = loaded;
         this.wllama = w;
+        const cpu = !plan!.gpu;
         const backend = cpu
           ? 'WASM · CPU'
           : g
@@ -213,7 +254,7 @@ export class LlmEngine {
         this.set({
           info: {
             backend: `${backend} · ${w.isMultithread() ? `${w.getNumThreads()} threads` : '1 thread'}`,
-            context: def.n_ctx,
+            context: plan!.n_ctx,
           },
         });
       }
@@ -225,11 +266,12 @@ export class LlmEngine {
       }
     } catch (e) {
       console.error('[ai] load failed', e);
+      const raw = e instanceof Error ? e.message : String(e);
       this.set({
         status: 'error',
         loadingId: null,
         progress: null,
-        error: e instanceof Error ? e.message : String(e),
+        error: isMlx(def) ? raw : describeLoadError(raw, def.name, plan, device).message,
       });
     } finally {
       await this.refresh();
@@ -259,11 +301,16 @@ export class LlmEngine {
     await this.refresh();
   }
 
-  /** The model loaded last, if it's still downloaded. */
+  /** Whether a model may load without the steward asking (not one the page died loading last launch). */
+  autoloadable(id: string): boolean {
+    return id !== this.crashedId;
+  }
+
+  /** The model loaded last, if it's still downloaded (and didn't take the page down last launch). */
   lastUsed(): ModelDef | undefined {
     try {
       const def = modelById(localStorage.getItem(LAST_KEY));
-      return def && this.state.cached.has(def.id) ? def : undefined;
+      return def && def.id !== this.crashedId && this.state.cached.has(def.id) ? def : undefined;
     } catch {
       return undefined;
     }
@@ -332,11 +379,14 @@ export class LlmEngine {
     }
   }
 
-  /** Starts a wllama worker and loads the model into it, giving up (and freeing the worker) after `WARM_MS`. */
+  /**
+   * Starts a wllama worker and loads the model into it at `plan`, giving up (and freeing the worker) after
+   * `WARM_MS`. The attempt is marked in localStorage until it settles, so a page killed under it is known.
+   */
   private async warm(
     model: Awaited<ReturnType<LlmEngine['openVerified']>>,
     def: WllamaDef,
-    cpu: boolean,
+    plan: LoadPlan,
   ): Promise<{ w: Wllama; gpu: { layers: number; total: number } | null }> {
     let gpu: { layers: number; total: number } | null = null;
     // A fatal native line (wllama only logs it; its promise never settles) fails the warm-up at once.
@@ -350,12 +400,14 @@ export class LlmEngine {
       },
     );
     let timer = 0;
+    markAttempt({ id: def.id, level: plan.level, at: Date.now() });
     try {
       await Promise.race([
         w.loadModel(model, {
-          n_ctx: def.n_ctx,
+          n_ctx: plan.n_ctx,
           reasoning_format: 'none',
-          ...(cpu ? { n_gpu_layers: 0 } : {}),
+          // CPU only: wllama then doesn't initialise WebGPU at all
+          ...(plan.gpu ? {} : { n_gpu_layers: 0 }),
         } as Parameters<Wllama['loadModel']>[1]),
         new Promise<never>((_, reject) => {
           timer = window.setTimeout(() => reject(new WarmTimeout(def.name)), WARM_MS);
@@ -370,6 +422,7 @@ export class LlmEngine {
       throw e;
     } finally {
       clearTimeout(timer);
+      markAttempt(null);
     }
     return { w, gpu };
   }

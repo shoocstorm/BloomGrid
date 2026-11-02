@@ -3,6 +3,7 @@ import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { stripThink, type StepRecord, type ToolCall } from '@/ai/agent';
 import type { EngineState, LlmEngine } from '@/ai/llm/engine';
+import { device } from '@/ai/llm/device';
 import { availableModels, memoryFit, modelById, recommendedModel, type ModelDef } from '@/ai/llm/models';
 import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
@@ -1145,7 +1146,7 @@ export class AssistantPanel {
   /** The model core drawer: one card per core, with its state and a single clear action. */
   private renderModels(s: EngineState): void {
     const mlx = s.native.supported;
-    const rec = recommendedModel(mlx);
+    const rec = recommendedModel(mlx, device.mobile);
     const busy = s.status === 'loading';
     const card = (m: ModelDef, i: number) => {
       const cached = s.cached.has(m.id);

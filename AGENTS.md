@@ -32,7 +32,7 @@ bun run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo
 bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--sound] [--profile 15]   # power/perf probe (see §8)
 bun run flicker -- [--pieces all|names|a,b] [--defs canopy-tower] [--day] [--diff shots/f.png]   # thin-detail flashing probe (D-070)
 bun run trailer          # ~75s trailer against the showcase city (wind farm, Bloomtopia, street walk, Aeroline ride, a fireworks act with shaped bursts and a sky message, Flora console, dawn bloom) to shots/trailer.mp4, shots joined with crossfades; encodes at crf 25 so it can be committed as public/assets/trailer.mp4 (keep < 100 MB, D-079)
-bun run showcase-map   # redraws public/assets/showcase-map.webp (the New Chapter dialog's showcase map, D-085) from the live founding city: rerun after changing that scenario
+bun run showcase       # redraws public/assets/showcase-overview.webp (the New Chapter dialog's showcase overview, D-085/D-103: a rendered bird's-eye of the live founding city, HUD hidden by the scene) from the live founding city: rerun after changing that scenario
 bun run optimize-glb -- raw.glb public/assets/x.glb --footprint 3 --height 4 [--ratio 0.5] [--yaw 90] [--tex 1024]
 bun run tauri:dev      # desktop shell (Tauri v2) against the dev server; tauri:build packages it (needs Rust)
 bun run release [patch|minor|major|X.Y.Z] [--dry-run] [--yes]   # tag + deploy to Firebase (see §10; ask first)
@@ -261,6 +261,7 @@ The knowledge base is never finished: treat it as part of every feature. Flora's
   without a decision (`follow`, never an action): small models answer from a search snippet otherwise (D-088).
   Tool grammars are mirrored in `src-tauri/tests/fixtures/llm/bloomgrid-grammars.json` (the Rust engine compiles
   each); after changing a tool's input run `UPDATE_GRAMMARS=1 bun run test`, then `bun run test:rust`.
+- Phones load web cores CPU-only at ≤ 2,048 tokens and step down after a failure or a page iOS killed mid-load (`src/ai/llm/device.ts`, D-103): iOS gives no error before it reloads the tab, so test model changes against the phone plan, not just the desktop one.
 - wllama needs the page cross-origin isolated (COOP/COEP in `vite.config.ts` and `firebase.json`): any new
   cross-origin resource needs CORS or `crossorigin`. `bun install` copies its wasm into `public/wllama/`
   (`scripts/copy-wllama.mjs`); keep `@wllama/wllama` and `-compat` on the same pinned version. Import wllama only

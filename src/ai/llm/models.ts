@@ -97,7 +97,7 @@ export const MODELS: ModelDef[] = [
     bytes: 1_107_409_472,
     url: HF('unsloth/Qwen3-1.7B-GGUF', 'd7f544eead698dbd1f15126ef60b45a1e1933222', 'Qwen3-1.7B-Q4_K_M.gguf'),
     sha256: 'b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897',
-    note: 'Recommended in the browser: smart enough to plan actions; WebGPU makes it usable.',
+    note: 'Recommended in a desktop browser: smart enough to plan actions; WebGPU makes it usable. Often too big for a phone beside the city.',
     thinking: true,
     n_ctx: 4096,
   },
@@ -110,7 +110,7 @@ export const MODELS: ModelDef[] = [
     bytes: 639_446_688,
     url: HF('Qwen/Qwen3-0.6B-GGUF', '23749fefcc72300e3a2ad315e1317431b06b590a', 'Qwen3-0.6B-Q8_0.gguf'),
     sha256: '9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031',
-    note: 'Fast and small; good for lookups and status reports.',
+    note: 'Fast and small; good for lookups and status reports. Recommended on phones.',
     thinking: true,
     n_ctx: 4096,
   },
@@ -138,8 +138,12 @@ export const isMlx = (def: ModelDef | undefined): def is MlxDef => def?.engine =
 /** The models this computer can run: MLX ones only where Rust reports MLX (Apple Silicon desktop). */
 export const availableModels = (mlx: boolean) =>
   MODELS.filter((m) => (mlx || m.engine !== 'mlx') && m.id !== 'stories-260k');
-/** What to suggest first: natively on MLX where it runs (much faster), else the browser default. */
-export const recommendedModel = (mlx: boolean): ModelDef => modelById(mlx ? 'qwen3-1.7b-mlx' : 'qwen3-1.7b')!;
+/**
+ * What to suggest first: natively on MLX where it runs (much faster), else the browser default; phones get
+ * the 0.6B core, since iOS closes a tab past its memory limit and the 3D city already holds much of it.
+ */
+export const recommendedModel = (mlx: boolean, mobile = false): ModelDef =>
+  modelById(mlx ? 'qwen3-1.7b-mlx' : mobile ? 'qwen3-0.6b' : 'qwen3-1.7b')!;
 
 /**
  * Whether a native model likely fits this Mac: its weights plus about 20% for the KV cache and 1 GB,

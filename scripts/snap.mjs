@@ -8,7 +8,7 @@
  *   bun run snap -- --times 300,1500,3000,6000 --out shots/boot.png   # timed frames: boot-300.png …
  *   bun run snap -- --mobile --out shots/phone.png                      # 390×844 touch phone (--size overrides)
  *
- *   bun run snap -- --eval @scripts/scenes/showcase-map.js --eval-out public/assets/showcase-map.webp   # eval → file
+ *   bun run snap -- --eval @scripts/scenes/showcase-shot.js --eval-out public/assets/showcase-overview.webp   # eval → file
  *
  * Prints page console warnings/errors; exits 1 on uncaught page errors.
  */

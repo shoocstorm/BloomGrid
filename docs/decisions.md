@@ -1665,3 +1665,26 @@ starts one dissolve earlier. README images moved from 1280×720 to 2560×1440 (c
 with `?quality=ultra`, downsampled with sips), and the README gained a Signature moments gallery (Aeroline,
 fireworks, street walks, rooftop, Flora) — the old 25-line landmark paragraph folded into it and the planned-city
 paragraph.
+
+## D-103 — Phones load Flora's web core lighter, and a page iOS killed mid-load is recognised (2026-11-02)
+
+On an iPhone, waking Flora and loading a web core reloaded the whole page: iOS closes a Safari tab past its memory
+limit with no error reaching JS, and BloomGrid loaded phones at the catalog's 4,096-token context (Qwen3 1.7B:
+1.1 GB of weights plus ~470 MB of KV cache, on top of the 3D city in the same tab). Ported Andai's loader, proven
+on the same iPhone (`src/ai/llm/device.ts`): phones start CPU-only at ≤ 2,048 tokens (level 1), then 1,024 (level
+2); a caught memory/GPU error or a stalled warm-up steps down a level and remembers it per model
+(`bloomgrid.ai.loadLevel`); each warm-up writes `bloomgrid.ai.loadAttempt` until it settles, and a fresh marker at
+the next launch means the page died under it: the drawer says so, the next level is saved, and that model is not
+autoloaded this session (`LlmEngine.autoloadable`), or every open would crash again. Phones recommend Qwen3 0.6B.
+`EngineInfo.context` reports the context that actually loaded. Not measured on a real iPhone here (headless Chrome
+with an iPhone user agent confirms the CPU-only plan and the crash path).
+
+## D-103 — New Chapter dialog shows a rendered overview, not a painted map (2026-11-02)
+
+The showcase pane's image is now `public/assets/showcase-overview.webp`, a bird's-eye render of the live founding
+city (`canvas.toDataURL('image/webp')` on the renderer canvas — the WebGPU front buffer reads back fine in
+Chrome), made by `bun run showcase` (`scripts/scenes/showcase-shot.js`: hides the HUD and Flora's orb, frames the
+island overview, pins late-morning light). It replaces `showcase-map.webp`, the 2-D painted district map with its
+zone legend — a photo needs no key, so the pane's legend is gone too (`legend()` stays for the saved-city and
+new-island canvases, which are still painted). The error fallback (a painted bare island when the asset is
+missing) is unchanged.

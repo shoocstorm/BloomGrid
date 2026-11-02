@@ -354,7 +354,8 @@ class Assistant {
       await e.refresh();
       if (status() !== 'loading' && status() !== 'ready') {
         const def =
-          e.lastUsed() ?? availableModels(e.state.native.supported).find((m) => e.state.cached.has(m.id));
+          e.lastUsed() ??
+          availableModels(e.state.native.supported).find((m) => e.state.cached.has(m.id) && e.autoloadable(m.id));
         if (!def) return false;
         void e.load(def.id);
       }

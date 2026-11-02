@@ -166,8 +166,8 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   );
 
   // ── Showcase ──
-  // A snapshot of the real showcase (scripts/scenes/showcase-map.js); the bare island if it is missing.
-  const showMap = h('img', { class: 'ch-map', alt: 'Map of the showcase city', src: '/assets/showcase-map.webp', draggable: 'false' }) as HTMLImageElement;
+  // A rendered overview of the real showcase (scripts/scenes/showcase-shot.js); the bare island if it is missing.
+  const showMap = h('img', { class: 'ch-map', alt: 'The showcase city seen from above', src: '/assets/showcase-overview.webp', draggable: 'false' }) as HTMLImageElement;
   showMap.addEventListener('error', () => {
     const c = h('canvas', { class: 'ch-map' }) as HTMLCanvasElement;
     drawIsland(c, SHOWCASE_SEED, size);
@@ -176,7 +176,7 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   const showcase = h(
     'div',
     { class: 'ch-pane p-showcase' },
-    h('div', { class: 'ch-mapbox' }, h('div', { class: 'ch-mapwrap' }, showMap, h('span', { class: 'ch-map-cap' }, 'The founding city')), legend(true)),
+    h('div', { class: 'ch-mapbox' }, h('div', { class: 'ch-mapwrap' }, showMap, h('span', { class: 'ch-map-cap' }, 'The founding city'))),
     h(
       'div',
       { class: 'ch-detail' },

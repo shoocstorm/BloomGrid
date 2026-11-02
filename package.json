@@ -13,7 +13,7 @@
     "test": "rm -rf node_modules/.vitest-cache && vitest run",
     "format": "prettier --write .",
     "snap": "node scripts/snap.mjs",
-    "showcase-map": "bun run snap -- --eval @scripts/scenes/showcase-map.js --eval-out public/assets/showcase-map.webp --out shots/showcase-map.png",
+    "showcase": "bun run snap -- --size 1024x1024 --dpr 2 --path '/?quality=ultra&nodynres' --eval @scripts/scenes/showcase-shot.js --eval-out public/assets/showcase-overview.webp --out shots/showcase-overview.png",
     "trailer": "node scripts/trailer.mjs",
     "check": "tsc --noEmit && eslint src tests && bun run test && vite build",
     "perf": "node scripts/perf.mjs",
