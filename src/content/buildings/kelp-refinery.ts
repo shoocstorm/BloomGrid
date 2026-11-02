@@ -47,8 +47,11 @@ export default defineBuilding({
     }
     // Control hall with a living roof.
     b.add({ piece: 'slab', p: [1.6, 0.12, -1.0], s: [1.4, 1.2, 2.2], tint: PALETTE.concrete });
-    b.add({ piece: 'mossBox', p: [1.6, 1.32, -1.0], s: [1.45, 0.08, 2.25] });
-    tree(b, 1.6, 1.4, -1.0, 0.45, 0.4);
+    const roof = (y: number) => {
+      b.add({ piece: 'mossBox', p: [1.6, y, -1.0], s: [1.45, 0.08, 2.25] });
+      tree(b, 1.6, y + 0.08, -1.0, 0.45, 0.4);
+    };
+    b.upTo(1, () => roof(1.32));
     beam(b, 'concreteCyl', [-2.0, 1.6, -1.4], [0.9, 1.6, -1.4], 0.14, { tint: 0xd8dfd6 });
     // Detail (D-097): a steel catwalk with rails along the tank tops, ladders, pipe trestles, kelp drying lines,
     // a door, window band and lit sign on the control hall, drums of finished resin and yard lamps.
@@ -85,5 +88,32 @@ export default defineBuilding({
       barrel(b, 1.95 + (i % 2) * 0.28, 0.12, 0.45 + Math.floor(i / 2) * 0.3, 0.13, 0x2f8f86);
     lamp(b, 2.3, 0.12, 2.25, 0.6);
     lamp(b, -2.3, 0.12, 2.25, 0.6);
+
+    // Levels (D-100). Level 2: a glass lab storey on the office block (its roof garden lifted on top) and a
+    // third digester dome on the street side.
+    const lab = () => {
+      b.add({ piece: 'glassBox', p: [1.6, 1.32, -1.0], s: [1.3, 0.62, 2.1], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'slab', p: [1.6, 1.94, -1.0], s: [1.45, 0.06, 2.25], tint: PALETTE.concrete });
+    };
+    b.level(2, () => {
+      lab();
+      b.upTo(2, () => roof(2.0));
+      b.add({ piece: 'concreteCyl', p: [2.0, 0.12, 1.75], s: [0.9, 0.3, 0.9], tint: 0xe6efe6 });
+      b.add({ piece: 'dome', p: [2.0, 0.42, 1.75], s: [0.9, 0.8, 0.9], tint: 0xbfe8d8 });
+    });
+    // Level 3: a spray-drying tower rises between the tanks and domes (lit glass bands, a halo and a steam cowl),
+    // and the lab roof carries a sea-green wind sail.
+    b.level(3, () => {
+      lab();
+      roof(2.0);
+      b.add({ piece: 'concreteCyl', p: [2.0, 0.12, 1.75], s: [0.9, 0.3, 0.9], tint: 0xe6efe6 });
+      b.add({ piece: 'dome', p: [2.0, 0.42, 1.75], s: [0.9, 0.8, 0.9], tint: 0xbfe8d8 });
+      b.add({ piece: 'concreteCyl', p: [0.05, 0.12, 0.35], s: [0.6, 3.6, 0.6], tint: 0xe6efe6 });
+      for (const y of [1.0, 1.9, 2.8]) b.add({ piece: 'glassCyl', p: [0.05, y, 0.35], s: [0.64, 0.25, 0.64], tint: 0x7ff7e6, glow: 0.8 });
+      b.add({ piece: 'dome', p: [0.05, 3.72, 0.35], s: [0.62, 0.4, 0.62], tint: TRIM.steel });
+      b.add({ piece: 'haloRing', p: [0.05, 3.5, 0.35], s: [0.9, 2, 0.9], tint: 0x7ff7e6, glow: 1 });
+      beam(b, 'concreteCyl', [0.05, 2.4, 0.35], [-0.5, 2.0, -0.4], 0.09, { tint: 0xd8dfd6 });
+      b.add({ piece: 'solarLeaf', p: [1.6, 2.1, -1.4], s: [0.9, 1, 1.3], r: 0.4, rz: -0.5, tint: 0x9fe6d0 });
+    });
   },
 });

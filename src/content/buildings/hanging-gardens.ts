@@ -72,21 +72,24 @@ export default defineBuilding({
             glow: 0.7,
           });
     }
-    // Tree of Life crown with a glowing root ring.
-    b.add({ piece: 'trunk', p: [0, y, 0], s: [0.7, 3.2, 0.7], tint: PALETTE.bark });
-    for (let k = 0; k < 5; k++) {
-      const a = (k / 5) * TAU;
-      b.add({
-        piece: 'canopy',
-        p: [Math.cos(a) * 1.0, y + 2.5 + (k % 2) * 0.4, Math.sin(a) * 1.0],
-        s: 1.9,
-        tint: PALETTE.leaves[k % PALETTE.leaves.length],
-        glow: k % 2 ? 0.5 : 0,
-        growAt: 0.2 + k * 0.05,
-      });
-    }
-    b.add({ piece: 'canopy', p: [0, y + 3.3, 0], s: 2.2, tint: 0x8fd35a, glow: 0.4, growAt: 0.3 });
-    b.add({ piece: 'haloRing', p: [0, y + 0.15, 0], s: [2.4, 4, 2.4], glow: 0.9 });
+    // Tree of Life crown with a glowing root ring; a level grows a terrace under it (D-100).
+    const crown = (y: number, sc = 1) => {
+      b.add({ piece: 'trunk', p: [0, y, 0], s: [0.7 * sc, 3.2 * sc, 0.7 * sc], tint: PALETTE.bark });
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * TAU;
+        b.add({
+          piece: 'canopy',
+          p: [Math.cos(a) * sc, y + (2.5 + (k % 2) * 0.4) * sc, Math.sin(a) * sc],
+          s: 1.9 * sc,
+          tint: PALETTE.leaves[k % PALETTE.leaves.length],
+          glow: k % 2 ? 0.5 : 0,
+          growAt: 0.2 + k * 0.05,
+        });
+      }
+      b.add({ piece: 'canopy', p: [0, y + 3.3 * sc, 0], s: 2.2 * sc, tint: 0x8fd35a, glow: 0.4, growAt: 0.3 });
+      b.add({ piece: 'haloRing', p: [0, y + 0.15, 0], s: [2.4, 4, 2.4], glow: 0.9 });
+    };
+    b.upTo(1, () => crown(y));
     // Street level and terraces (D-097): two lit entrances either side of the front cascade, and on every terrace
     // a glass balustrade, corner lamps and a bench looking out.
     for (const x of [-2.4, 2.4]) entrance(b, x, 0, 4.81, 0.9, 0.5);
@@ -104,5 +107,36 @@ export default defineBuilding({
         bench(b, sx * 1.4, ty, e - 0.32);
       }
     }
+
+    // Levels (D-100). One more terrace of the ziggurat (index i), planted and railed like the rest.
+    const terrace = (i: number, y0: number) => {
+      const size = 9.6 - i * 1.4;
+      b.add({ piece: 'slab', p: [0, y0, 0], s: [size, LH, size], tint: i % 2 ? 0xe9e2d0 : PALETTE.concrete });
+      b.add({ piece: 'glassBox', p: [0, y0 + 0.2, 0], s: [size + 0.04, LH * 0.45, size - 0.4], tint: PALETTE.glassWarm, glow: 0.3 });
+      const y1 = y0 + LH;
+      b.add({ piece: 'mossBox', p: [0, y1, 0], s: [size - 0.15, 0.1, size - 0.15] });
+      flowers(b, 0, y1 + 0.1, 0, size * 0.4, 8, 0.1, 0.7);
+      const e = size / 2 - 0.12;
+      railing(b, 0, y1 + 0.1, e, size - 0.3);
+      railing(b, 0, y1 + 0.1, -e, size - 0.3);
+      return y1;
+    };
+    // Level 2: a seventh terrace, the Tree of Life replanted on it, and the cascades run on down from the old top.
+    b.level(2, () => {
+      const y2 = terrace(LEVELS, y);
+      b.upTo(2, () => crown(y2 + 0.1));
+      for (const r of [0, Math.PI]) b.add({ piece: 'waterfall', p: [Math.sin(r) * 0.82, y - LH, Math.cos(r) * 0.82], s: [0.5, LH, 1], r, glow: 0.7 });
+    });
+    // Level 3: an eighth, smallest terrace and a great Tree of Life a third larger, with fruit lanterns and a
+    // second halo.
+    b.level(3, () => {
+      const y3 = terrace(LEVELS + 1, terrace(LEVELS, y));
+      crown(y3 + 0.1, 1.3);
+      b.add({ piece: 'haloRing', p: [0, y3 + 3.0, 0], s: [4.2, 4, 4.2], tint: 0xffd56b, glow: 1 });
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * TAU + 0.2;
+        b.add({ piece: 'flower', p: [Math.cos(a) * 1.7, y3 + 2.8 + (k % 2) * 0.5, Math.sin(a) * 1.7], s: 0.28, tint: 0xffb48a, glow: 1 });
+      }
+    });
   },
 });

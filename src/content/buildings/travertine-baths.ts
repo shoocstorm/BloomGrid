@@ -53,5 +53,39 @@ export default defineBuilding({
     b.add({ piece: 'haloRing', p: [0, 0.45, 3.3], s: [3, 4, 1.2], glow: 0.8 });
     // Street level (D-097): a paved forecourt at the foot of the cascade, with planters, lamps and benches.
     forecourt(b, 0, 0.2, 4.45, 9.0, 0.8, 4, 2);
+
+    // Levels (D-100). Level 2: steam pavilions (timber shelters with lit roofs) on two of the terraces, and the
+    // bathhouse gains wings either side of its dome.
+    const pavilions = () => {
+      for (const [x, i] of [
+        [-2.6, 1],
+        [2.4, 3],
+      ] as const) {
+        const z = 3.9 - i * 1.25 - 0.65;
+        const top = 0.4 + i * 0.55;
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add({ piece: 'timberBox', p: [x + sx * 0.45, top, z + sz * 0.35], s: [0.05, 0.7, 0.05], tint: PALETTE.timber });
+        b.add({ piece: 'slab', p: [x, top + 0.7, z], s: [1.1, 0.06, 0.9], tint: 0xc8a57c });
+        b.add({ piece: 'lumenRib', p: [x, top + 0.66, z], s: [0.9, 0.03, 0.7], tint: 0xffd9a0, glow: 0.7 });
+      }
+      for (const sx of [-1, 1]) {
+        b.add({ piece: 'glassBox', p: [sx * 2.2, ty, -4.3], s: [1.4, 0.9, 1.0], tint: PALETTE.glassWarm, glow: 0.5 });
+        b.add({ piece: 'slab', p: [sx * 2.2, ty + 0.9, -4.3], s: [1.6, 0.06, 1.2], tint: STONE });
+      }
+    };
+    b.level(2, pavilions);
+    // Level 3: a sky pool on the bathhouse roof (an infinity basin above the dome's shoulders with a waterfall
+    // down the back) and a lit colonnade along the top terrace.
+    b.level(3, () => {
+      pavilions();
+      for (const sx of [-1, 1]) b.add({ piece: 'pool', p: [sx * 2.2, ty + 0.96, -4.3], s: [1.3, 0.05, 0.9] });
+      b.add({ piece: 'waterfall', p: [0, 0.2, -4.92], s: [2.4, ty + 1.8, 1], r: Math.PI, glow: 0.7 });
+      const z = 3.9 - (TIERS - 1) * 1.25 - 1.1;
+      for (let k = 0; k < 7; k++) {
+        const x = -2.7 + k * 0.9;
+        b.add({ piece: 'concreteCyl', p: [x, ty, z], s: [0.14, 1.0, 0.14], tint: STONE });
+        b.add({ piece: 'lumenRib', p: [x, ty + 1.0, z], s: [0.2, 0.06, 0.2], tint: 0xffd9a0, glow: 1 });
+      }
+      b.add({ piece: 'slab', p: [0, ty + 1.06, z], s: [6.4, 0.08, 0.3], tint: STONE });
+    });
   },
 });

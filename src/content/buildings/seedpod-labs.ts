@@ -54,5 +54,26 @@ export default defineBuilding({
     for (const sx of [-1, 1]) lamp(b, -0.6 + sx * 0.55, 0.25, 4.3, 0.6);
     bench(b, 1.0, 0.25, 0.6);
     bench(b, -2.6, 0.25, 0.2);
+
+    // Levels (D-100). Level 2: a sixth pod sprouts in the east meadow, linked by tube, and the oldest pod puts out
+    // a green shoot: a leafy sprout with two leaves from its tip.
+    b.level(2, () => {
+      seedPod(b, 3.4, 0.6, 6);
+      beam(b, 'glassBox', [2.2, 1.6, -1.2], [3.4, 1.6, 0.6], 0.5, { tint: 0xe6f4e8, glow: 0.5 });
+      b.add({ piece: 'trunk', p: [-1.8, 11.2, -1.6], s: [0.12, 1.6, 0.12], tint: 0x6fbf4a });
+      for (const s of [-1, 1]) b.add({ piece: 'solarLeaf', p: [-1.8, 12.4, -1.6], s: [1.2, 1, 0.7], r: s > 0 ? 0 : Math.PI, rz: 0.4, tint: 0x8fd35a });
+    });
+    // Level 3: a seventh pod by the gate, the sprout grows into a sapling with a lit bud, and a seed-vault
+    // lantern ring circles the cluster.
+    b.level(3, () => {
+      seedPod(b, 3.4, 0.6, 6);
+      seedPod(b, -3.4, -0.6, 7.5);
+      beam(b, 'glassBox', [2.2, 1.6, -1.2], [3.4, 1.6, 0.6], 0.5, { tint: 0xe6f4e8, glow: 0.5 });
+      beam(b, 'glassBox', [-1.8, 1.6, -1.6], [-3.4, 1.6, -0.6], 0.5, { tint: 0xe6f4e8, glow: 0.5 });
+      b.add({ piece: 'trunk', p: [-1.8, 11.2, -1.6], s: [0.16, 2.6, 0.16], tint: 0x6fbf4a });
+      for (let k = 0; k < 4; k++) b.add({ piece: 'solarLeaf', p: [-1.8, 12.4 + (k % 2) * 0.6, -1.6], s: [1.3, 1, 0.7], r: (k / 4) * Math.PI * 2, rz: 0.4, tint: 0x8fd35a });
+      b.add({ piece: 'flower', p: [-1.8, 13.8, -1.6], s: 0.6, tint: 0xc9b6ff, glow: 1 });
+      b.add({ piece: 'haloRing', p: [0, 2.2, 0.5], s: [8.2, 4, 7.6], tint: 0xc9b6ff, glow: 0.8 });
+    });
   },
 });

@@ -54,5 +54,34 @@ export default defineBuilding({
       awning(b, x, 0.9, 2.25, 0.8, 0.3, 0xf5efe4, c, 4);
     }
     for (const x of [-4.4, -1.6, 1.6, 4.4]) lamp(b, x, 0.25, 2.7, 0.6);
+
+    // Levels (D-100). Level 2: a glass sky-lounge wraps the hub, and two more kiosks join the arcade under the
+    // wheel, with strings of festoon lights between the lamps.
+    b.level(2, () => {
+      b.add({ piece: 'glassCyl', p: [0, HUB - 0.9, 0], s: [1.9, 1.8, 1.9], tint: PALETTE.glassWarm, glow: 0.6 });
+      b.add({ piece: 'concreteCyl', p: [0, HUB + 0.9, 0], s: [2.1, 0.12, 2.1], tint: 0xe9f4ef });
+      for (const [x, c] of [
+        [-1.6, TRIM.orange],
+        [1.6, TRIM.seaBlue],
+      ] as const) {
+        b.add({ piece: 'timberBox', p: [x, 0.25, -1.9], s: [0.7, 0.55, 0.5], tint: PALETTE.timber });
+        awning(b, x, 0.9, -1.55, 0.8, 0.3, 0xf5efe4, c, 4);
+      }
+      for (const x of [-3, 0, 3]) beam(b, 'lumenRib', [x - 1.4, 0.83, 2.7], [x + 1.4, 0.83, 2.7], 0.03, { tint: 0xffd9a0, glow: 0.9 });
+    });
+    // Level 3: a second, outer rim of light carries a gondola for every car, the legs get light ribs, and a
+    // fountain basin opens on the plaza.
+    b.level(3, () => {
+      for (const z of [-0.5, 0.5]) b.add({ piece: 'haloRing', p: [0, HUB, z], s: [R * 2.25, R * 2.25, R * 2.25], rx: Math.PI / 2, tint: 0xffb7d5, glow: 1 });
+      for (let k = 0; k < CARS; k++) {
+        const a = ((k + 0.5) / CARS) * TAU;
+        b.add({ piece: 'flower', p: [Math.cos(a) * R * 1.125, HUB + Math.sin(a) * R * 1.125, 0.55], s: 0.3, tint: k % 2 ? 0xffe08a : 0xffb7d5, glow: 1 });
+      }
+      for (const z of [-1.6, 1.0])
+        for (const sx of [-1, 1]) beam(b, 'lumenRib', [sx * 3.4, 0.25, z + 0.25], [sx * 0.2, HUB, z * 0.4 + 0.25], 0.06, { glow: 0.8 });
+      b.add({ piece: 'concreteCyl', p: [0, 0.25, -2.2], s: [2.0, 0.18, 1.0], tint: 0xe9f4ef });
+      b.add({ piece: 'pool', p: [0, 0.3, -2.2], s: [1.7, 0.1, 0.8] });
+      b.add({ piece: 'waterfall', p: [0, 0.4, -2.2], s: [0.2, 0.7, 1], glow: 0.8 });
+    });
   },
 });

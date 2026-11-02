@@ -73,5 +73,29 @@ export default defineBuilding({
     crate(b, 0.2, 0.12, 1.6, 0.2, 0.3);
     crate(b, 0.45, 0.12, 1.75, 0.18, -0.2, 0xb48d5a);
     barrel(b, 0.25, 0.12, 2.0, 0.12, 0x3f8fb0);
+
+    // Levels (D-100). Level 2: a raised launch deck on steel legs over the west half of the hall, with a lit pad
+    // and drones parked on it.
+    const deck = (x: number) => {
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add({ piece: 'timberBox', p: [x + sx * 0.8, 2.44, -0.5 + sz * 1.1], s: [0.06, 0.6, 0.06], tint: TRIM.orange });
+      b.add({ piece: 'slab', p: [x, 3.04, -0.5], s: [1.8, 0.08, 2.4], tint: 0xdfe8e4 });
+      b.add({ piece: 'haloRing', p: [x, 3.13, -0.5], s: [1.2, 2, 1.2], tint: TRIM.orange, glow: 1 });
+      for (let i = 0; i < 3; i++) b.add({ piece: 'drone', p: [x - 0.5 + i * 0.5, 3.18, -1.4], s: 0.2, glow: 1 });
+    };
+    b.level(2, () => deck(-1.7));
+    // Level 3: a second deck, a control tower with a glass cab over the east block, and a swarm circling it.
+    b.level(3, () => {
+      deck(-1.7);
+      deck(0.3);
+      b.add({ piece: 'concreteCyl', p: [2.1, 1.52, -1.5], s: [0.4, 1.6, 0.4], tint: 0xe9eee8 });
+      b.add({ piece: 'glassCyl', p: [2.1, 3.12, -1.5], s: [0.8, 0.45, 0.8], tint: PALETTE.glassWarm, glow: 0.6 });
+      b.add({ piece: 'concreteCyl', p: [2.1, 3.57, -1.5], s: [0.9, 0.06, 0.9], tint: 0xe9eee8 });
+      b.add({ piece: 'timberBox', p: [2.1, 3.63, -1.5], s: [0.02, 0.6, 0.02], tint: TRIM.steel });
+      b.add({ piece: 'haloRing', p: [2.1, 3.3, -1.5], s: [1.6, 2, 1.6], tint: TRIM.teal, glow: 1 });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        b.add({ piece: 'drone', p: [2.1 + Math.cos(a) * 0.95, 3.4 + (i % 2) * 0.25, -1.5 + Math.sin(a) * 0.95], s: 0.18, r: -a, glow: 1 });
+      }
+    });
   },
 });

@@ -59,15 +59,18 @@ export default defineBuilding({
         ivyEdge(b, nx * r * 0.92, y, nz * r * 0.92, r, nx, nz, 2);
     }
     // Solar leaf crown and corner trees.
-    for (let i = 0; i < 10; i++)
-      b.add({
-        piece: 'solarLeaf',
-        p: [0, 6.5, 0],
+    const crown = (y: number) => {
+      for (let i = 0; i < 10; i++)
+        b.add({
+          piece: 'solarLeaf',
+          p: [0, y, 0],
         s: [1.2, 1, 1.0],
         r: (i / 10) * TAU,
-        rz: 0.4,
-        growAt: 0.3,
-      });
+          rz: 0.4,
+          growAt: 0.3,
+        });
+    };
+    b.upTo(1, () => crown(6.5));
     for (const [x, z] of [
       [-1.6, -1.6],
       [1.6, -1.6],
@@ -81,5 +84,36 @@ export default defineBuilding({
     for (const sx of [-1, 1]) lamp(b, sx * 0.55, 0.12, 1.75, 0.55);
     b.add({ piece: 'slab', p: [0.95, 0.12, 1.0], s: [0.12, 0.7, 0.12], tint: TRIM.charcoal });
     b.add({ piece: 'slab', p: [0.95, 0.45, 1.065], s: [0.1, 0.28, 0.01], tint: 0xffd36b, glow: 1 });
+
+    // Levels (D-100): the stack keeps adding berthing tiers in the same shrinking rhythm.
+    const tierAt = (k: number) => {
+      const y = 1.6 + k * 1.5;
+      const r = Math.max(0.6, 1.75 - k * 0.3);
+      b.add({ piece: 'concreteCyl', p: [0, y, 0], s: [r * 2, 0.1, r * 2], tint: 0xe9f4ef, glow: 0.3 });
+      b.add({ piece: 'haloRing', p: [0, y + 0.1, 0], s: [r * 2.02, 2, r * 2.02], glow: 0.9 });
+      const berths = Math.max(2, 8 - k * 2);
+      for (let i = 0; i < berths; i++) {
+        const a = (i / berths) * TAU + k * 0.4;
+        b.add({ piece: 'pod', p: [Math.cos(a) * (r - 0.25), y + 0.1, Math.sin(a) * (r - 0.25)], s: 0.42, r: -a, glow: 0.8 });
+      }
+    };
+    const core = (h: number) => b.add({ piece: 'concreteCyl', p: [0, 6.52, 0], s: [0.6, h, 0.6], tint: PALETTE.concrete });
+    // Level 2: a fourth tier, the core and crown raised, and a covered bike hub at the concourse.
+    b.level(2, () => {
+      core(1.5);
+      tierAt(3);
+      b.upTo(2, () => crown(8.0));
+      b.add({ piece: 'slab', p: [-1.2, 0.5, 1.0], s: [0.9, 0.03, 0.5], tint: TRIM.teal });
+      for (const x of [-1.6, -0.8]) b.add({ piece: 'timberBox', p: [x, 0.12, 1.2], s: [0.03, 0.38, 0.03], tint: TRIM.charcoal });
+    });
+    // Level 3: a fifth tier and a lit control lantern with a halo where the crown was.
+    b.level(3, () => {
+      core(3.0);
+      tierAt(3);
+      tierAt(4);
+      b.add({ piece: 'glassCyl', p: [0, 9.5, 0], s: [1.2, 0.6, 1.2], tint: PALETTE.glassWarm, glow: 0.7 });
+      crown(10.1);
+      b.add({ piece: 'haloRing', p: [0, 10.4, 0], s: [1.6, 3, 1.6], tint: 0x7ff7e6, glow: 1 });
+    });
   },
 });

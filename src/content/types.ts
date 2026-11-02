@@ -57,6 +57,13 @@ export interface KitBuilder {
   range(a: number, b: number): number;
   pick<T>(arr: readonly T[]): T;
   add(spec: PieceSpec): void;
+  /**
+   * Designed levels (D-100): pieces added inside `fn` appear from level `n` (2 or 3) on, drawn from their own
+   * seeded stream so the level-1 pieces never shift. Write them inline in the recipe so they can use its sizes.
+   */
+  level(n: 2 | 3, fn: () => void): void;
+  /** Pieces added inside `fn` show only up to level `n`: a roof or crown a later level replaces (D-100). */
+  upTo(n: 1 | 2, fn: () => void): void;
 }
 
 export type BuildingCategory = 'residential' | 'energy' | 'utility' | 'tech' | 'commercial' | 'industry' | 'sports' | 'nature' | 'food';

@@ -32,7 +32,7 @@ export default defineBuilding({
     grassTufts(b, 1.6, 0.12, -1.3, 1.2, 0.8, 6);
     // Workshop hall: timber with a meadow roof and lantern-lit doors.
     b.add({ piece: 'timberBox', p: [-1.1, 0.12, -0.55], s: [2.4, 1.3, 2.4], tint: PALETTE.timber });
-    roofMeadow(b, 1.42, 2.4, 2.4);
+    b.upTo(1, () => roofMeadow(b, 1.42, 2.4, 2.4));
     b.add({ piece: 'slab', p: [-1.1, 0.12, 0.66], s: [1.0, 0.8, 0.04], tint: 0xd8463a, glow: 0.25 });
     b.add({ piece: 'lumenRib', p: [-1.1, 1.0, 0.7], s: [1.4, 0.08, 0.05], glow: 0.9, tint: 0xffc94a });
     ivyEdge(b, -1.1, 1.4, -1.76, 2.2, 0, -1, 5);
@@ -77,8 +77,10 @@ export default defineBuilding({
         });
       }
     // Safety beacon mast over the yard.
-    b.add({ piece: 'timberBox', p: [2.15, 0.12, 1.6], s: [0.12, 2.4, 0.12], tint: PALETTE.bark });
-    b.add({ piece: 'haloRing', p: [2.15, 2.5, 1.6], s: [0.5, 2, 0.5], glow: 1 });
+    b.upTo(2, () => {
+      b.add({ piece: 'timberBox', p: [2.15, 0.12, 1.6], s: [0.12, 2.4, 0.12], tint: PALETTE.bark });
+      b.add({ piece: 'haloRing', p: [2.15, 2.5, 1.6], s: [0.5, 2, 0.5], glow: 1 });
+    });
     // Detail (D-097): a hazard-striped steel door into the magazine berm, a railed launch yard on a gravel pad,
     // a shell-coloured sign over the hall, red sand barrels, crates of packed shells and yard lamps.
     b.add({ piece: 'slab', p: [1.5, 0.12, -0.31], s: [0.5, 0.5, 0.04], tint: TRIM.steel });
@@ -96,5 +98,32 @@ export default defineBuilding({
     crate(b, 0.05, 0.12, 1.2, 0.2, 0.5, 0xc9a06a);
     lamp(b, -2.3, 0.12, 1.75, 0.6);
     lamp(b, 0.3, 0.12, -1.75, 0.6);
+
+    // Levels (D-100). Level 2: the hall roof becomes a launch terrace: a railed deck with a battery of mortar
+    // tubes, each capped with a shell colour, and a meadow strip along its back.
+    const terrace = () => {
+      b.add({ piece: 'slab', p: [-1.1, 1.42, -0.55], s: [2.4, 0.05, 2.4], tint: 0xb9b2a4 });
+      b.add({ piece: 'mossBox', p: [-1.1, 1.47, -1.45], s: [2.3, 0.05, 0.5] });
+      for (let i = 0; i < 4; i++)
+        for (let k = 0; k < 3; k++) {
+          const [x, z] = [-1.95 + i * 0.55, -0.85 + k * 0.5];
+          b.add({ piece: 'concreteCyl', p: [x, 1.47, z], s: [0.18, 0.4, 0.18], rz: (i - 1.5) * 0.08, tint: 0x3a4a48 });
+          b.add({ piece: 'lumenRib', p: [x, 1.88, z], s: [0.14, 0.04, 0.14], tint: SHELLS[(i + k) % SHELLS.length], glow: 1 });
+        }
+      for (const z of [-1.72, 0.62]) railing(b, -1.1, 1.47, z, 2.36);
+      railing(b, -2.28, 1.47, -0.55, 2.36, true);
+    };
+    b.level(2, terrace);
+    // Level 3: a launch gantry tower replaces the signal pole: a lattice with light rings, a starburst of
+    // shell-coloured petals at its head, and a second magazine dome.
+    b.level(3, () => {
+      terrace();
+      const [x, z] = [2.15, 1.55];
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add({ piece: 'timberBox', p: [x + sx * 0.18, 0.12, z + sz * 0.18], s: [0.05, 3.6, 0.05], tint: PALETTE.bark });
+      for (let k = 0; k < 5; k++) b.add({ piece: 'haloRing', p: [x, 0.7 + k * 0.7, z], s: [0.55, 2, 0.55], tint: SHELLS[k], glow: 1 });
+      for (let k = 0; k < 8; k++) b.add({ piece: 'sunPetal', p: [x, 3.8, z], s: [0.6, 1, 0.35], r: (k / 8) * Math.PI * 2, rz: 0.9, tint: SHELLS[k % SHELLS.length], glow: 1 });
+      b.add({ piece: 'concreteCyl', p: [0.55, 0.12, -1.35], s: [0.75, 0.4, 0.75], tint: 0xdcd5c6 });
+      b.add({ piece: 'dome', p: [0.55, 0.52, -1.35], s: [0.75, 0.5, 0.75], tint: 0x7ccf7a });
+    });
   },
 });

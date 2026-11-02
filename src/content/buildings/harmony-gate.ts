@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, beam, bench, entrance, flowers, grassTufts, ivyEdge, lamp, lilies, tree } from '../kit';
+import { PALETTE, beam, bench, entrance, flowers, gableRoof, grassTufts, ivyEdge, lamp, lilies, tree } from '../kit';
 
 const H = 18;
 
@@ -61,5 +61,29 @@ export default defineBuilding({
     }
     bench(b, -2.55, 0.2, -1.6, 0.5, true);
     bench(b, 2.55, 0.2, -1.6, 0.5, true, true);
+
+    // Levels (D-100). Level 2: a glass sky-bridge with a garden floor joins the two leaning towers half-way up,
+    // and a tea pavilion stands on stepping stones in the pool.
+    b.level(2, () => {
+      const y = H * 0.5;
+      b.add({ piece: 'glassBox', p: [0, y, 0], s: [3.4, 1.1, 2.2], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'slab', p: [0, y + 1.1, 0], s: [3.6, 0.1, 2.4], tint: PALETTE.concrete });
+      b.add({ piece: 'mossBox', p: [0, y + 1.2, 0], s: [3.2, 0.06, 2.0] });
+      flowers(b, 0, y + 1.26, 0, 0.9, 12, 0.1, 0.7);
+      for (const nz of [-1, 1]) ivyEdge(b, 0, y, nz * 1.1, 3.0, 0, nz, 4);
+      b.add({ piece: 'timberBox', p: [0, 0.25, 1.9], s: [1.2, 0.06, 1.0], tint: 0xc8a57c });
+      for (const sx of [-1, 1])
+        for (const sz of [-1, 1]) b.add({ piece: 'timberBox', p: [sx * 0.5, 0.3, 1.9 + sz * 0.4], s: [0.06, 0.55, 0.06], tint: PALETTE.timber });
+      gableRoof(b, 0, 0.85, 1.9, 1.4, 1.2, { pitch: 0.45, tint: 0x5f6b73, overhang: 0.12 });
+    });
+    // Level 3: a glass pavilion and lit spire crown the roof garden, a second halo rings it, and a waterfall falls
+    // from the sky-bridge into the pool.
+    b.level(3, () => {
+      b.add({ piece: 'dome', p: [1.6, H + 1.08, 0], s: [2.0, 2.4, 2.0], tint: PALETTE.glass });
+      b.add({ piece: 'spireCone', p: [-1.6, H + 1.08, 0], s: [0.5, 5.0, 0.5], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'haloRing', p: [-1.6, H + 4.2, 0], s: [1.4, 3, 1.4], glow: 1 });
+      b.add({ piece: 'haloRing', p: [0, H + 2.0, 0], s: [6.0, 4, 6.0], tint: 0xffd9a0, glow: 0.8 });
+      b.add({ piece: 'waterfall', p: [0, 0.25, -1.12], s: [1.2, H * 0.5 - 0.05, 1], r: Math.PI, glow: 0.8 });
+    });
   },
 });

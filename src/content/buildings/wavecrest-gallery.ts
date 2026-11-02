@@ -71,5 +71,38 @@ export default defineBuilding({
     b.add({ piece: 'slab', p: [3.8, 0.2, 2.25], s: [0.45, 0.35, 0.45], tint: 0xe9e2d0 });
     b.add({ piece: 'pod', p: [3.8, 0.55, 2.25], s: [0.5, 1.4, 0.5], r: 0.6, rz: 0.3, tint: 0xff9a8a });
     for (const x of [-2.5, -0.7]) lamp(b, x, 0.2, 3.85, 0.6);
+
+    // Levels (D-100). Level 2: a sculpture garden on the lawn behind the halls (three pieces on plinths) and a
+    // glass rooftop café under the wave's low end.
+    const garden = () => {
+      for (const [x, c, h] of [
+        [-3.4, 0xffe08a, 0.9],
+        [-1.6, 0x9ee6ff, 1.3],
+        [0.4, 0xc9b6ff, 0.8],
+      ] as const) {
+        b.add({ piece: 'slab', p: [x, 0.2, -3.0], s: [0.4, 0.3, 0.4], tint: 0xe9e2d0 });
+        b.add({ piece: 'pod', p: [x, 0.5, -3.0], s: [0.4, h, 0.4], r: x, rz: 0.2, tint: c });
+      }
+    };
+    b.level(2, () => {
+      garden();
+      b.add({ piece: 'glassBox', p: [-3.6, 2.8, 0], s: [1.6, 0.5, 2.6], tint: 0xfff2c8, glow: 0.6 });
+    });
+    // Level 3: a second, smaller wave rises over a new east wing on the back lawn, its crest lit like the first.
+    b.level(3, () => {
+      garden();
+      b.add({ piece: 'glassBox', p: [-3.6, 2.8, 0], s: [1.6, 0.5, 2.6], tint: 0xfff2c8, glow: 0.6 });
+      b.add({ piece: 'glassBox', p: [3.5, 0.2, -3.0], s: [2.0, 1.6, 1.3], tint: PALETTE.glassWarm, glow: 0.5 });
+      const n = 8;
+      for (let i = 0; i < n; i++) {
+        const [x0, x1] = [2.4 + (i / n) * 2.3, 2.4 + ((i + 1) / n) * 2.3];
+        const wave = (x: number) => 1.95 + Math.sin((x - 2.4) * 1.6) * 0.45;
+        const [y0, y1] = [wave(x0), wave(x1)];
+        const len = Math.hypot(x1 - x0, y1 - y0) + 0.02;
+        const tilt = Math.atan2(y1 - y0, x1 - x0);
+        b.add({ piece: 'slab', p: [(x0 + x1) / 2, (y0 + y1) / 2 - 0.06, -3.0], s: [len, 0.12, 1.7], rz: tilt, tint: i % 2 ? 0xf6f2ea : PALETTE.concrete });
+        b.add({ piece: 'lumenRib', p: [(x0 + x1) / 2, (y0 + y1) / 2 - 0.1, -2.15], s: [len, 0.05, 0.05], rz: tilt, glow: 0.8 });
+      }
+    });
   },
 });

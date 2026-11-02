@@ -1,5 +1,5 @@
 import { defineBuilding, type Vec3 } from '../types';
-import { PALETTE, beam, bench, flowers, grassTufts } from '../kit';
+import { PALETTE, TRIM, beam, bench, flowers, gableRoof, grassTufts, railRing } from '../kit';
 
 const TAU = Math.PI * 2;
 const lerp = (a: Vec3, c: Vec3, t: number): Vec3 => [
@@ -163,5 +163,55 @@ export default defineBuilding({
         r: b.range(-0.3, 0.3),
         tint: 0xb9b2a4,
       });
+
+    // Levels (D-100). The branch for room k, as the recipe grows it.
+    const limb = (k: number): [Vec3, Vec3] => {
+      const a = (k / 7) * TAU + 0.3;
+      const y0 = 8.2 + (k % 3) * 1.3;
+      return [
+        [Math.cos(a) * 0.9, y0, Math.sin(a) * 0.9],
+        [Math.cos(a) * 4.5, y0 + 2.4, Math.sin(a) * 4.5],
+      ];
+    };
+    // Level 2: tree-house rooms on the three bare limbs, rope bridges to their neighbours, and lanterns hanging
+    // from every limb.
+    b.level(2, () => {
+      for (const k of [1, 3, 5]) {
+        const [base, tip] = limb(k);
+        const r = lerp(base, tip, 0.55);
+        b.add({ piece: 'concreteCyl', p: [r[0], r[1] + 0.1, r[2]], s: [1.5, 0.12, 1.5], tint: 0xc8a57c });
+        b.add({ piece: 'timberBox', p: [r[0], r[1] + 0.22, r[2]], s: [1.0, 0.8, 1.0], r: k, tint: 0xa47c56 });
+        b.add({ piece: 'glassBox', p: [r[0], r[1] + 0.35, r[2]], s: [1.04, 0.35, 0.7], r: k, tint: PALETTE.glassWarm, glow: 0.6 });
+        gableRoof(b, r[0], r[1] + 1.02, r[2], 1.1, 1.1, { pitch: 0.55, tint: 0x6f8a5a, overhang: 0.08 });
+        for (const n of [k - 1, k + 1]) {
+          const [b2, t2] = limb((n + 7) % 7);
+          const o = lerp(b2, t2, 0.5);
+          beam(b, 'timberBox', [r[0], r[1] + 0.15, r[2]], [o[0], o[1] + 0.15, o[2]], 0.16, { tint: 0xd9c49a });
+        }
+      }
+      for (let k = 0; k < 7; k++) {
+        const [base, tip] = limb(k);
+        const m = lerp(base, tip, 0.85);
+        b.add({ piece: 'timberBox', p: [m[0], m[1] - 0.9, m[2]], s: [0.02, 0.9, 0.02], tint: TRIM.rope });
+        b.add({ piece: 'lumenRib', p: [m[0], m[1] - 1.05, m[2]], s: [0.16, 0.18, 0.16], tint: 0xffc58a, glow: 1 });
+      }
+    });
+    // Level 3: a crown lookout breaks through the canopy (a timber deck round the trunk with a glass room, a
+    // spire and a halo) and curtains of aerial roots fall round the old trunk.
+    b.level(3, () => {
+      b.add({ piece: 'trunk', p: [0, 13.6, 0], s: [1.0, 3.9, 1.0], tint: PALETTE.bark });
+      b.add({ piece: 'concreteCyl', p: [0, 17.4, 0], s: [3.6, 0.15, 3.6], tint: 0xc8a57c });
+      railRing(b, 0, 17.55, 0, 1.75, 20);
+      b.add({ piece: 'glassCyl', p: [0, 17.55, 0], s: [1.6, 0.9, 1.6], tint: PALETTE.glassWarm, glow: 0.6 });
+      b.add({ piece: 'dome', p: [0, 18.45, 0], s: [1.7, 1.0, 1.7], tint: PALETTE.glass });
+      b.add({ piece: 'spireCone', p: [0, 18.9, 0], s: [0.25, 2.2, 0.25], tint: 0xffe08a, glow: 0.6 });
+      b.add({ piece: 'haloRing', p: [0, 18.0, 0], s: [4.2, 4, 4.2], tint: 0xffe08a, glow: 0.9 });
+      for (let k = 0; k < 14; k++) {
+        const a = (k / 14) * TAU + 0.1;
+        const r = 1.7 + (k % 2) * 0.35;
+        const h = 6.5 + (k % 3) * 0.8;
+        b.add({ piece: 'trunk', p: [Math.cos(a) * r, 0.15, Math.sin(a) * r], s: [0.12, h, 0.12], tint: 0x8a6a50, growAt: 0.3 });
+      }
+    });
   },
 });

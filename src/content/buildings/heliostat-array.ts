@@ -22,10 +22,13 @@ export default defineBuilding({
     // Receiver tower.
     b.add({ piece: 'concreteCyl', p: [0, 0.12, 0], s: [1.6, H, 1.6], tint: PALETTE.concrete });
     b.add({ piece: 'concreteCyl', p: [0, 0.12, 0], s: [2.6, 1.2, 2.6], tint: 0xe9f4ef });
-    b.add({ piece: 'glassCyl', p: [0, H, 0], s: [2.2, 2.0, 2.2], tint: 0xffe08a, glow: 1 });
-    for (let i = 0; i < 4; i++)
-      b.add({ piece: 'haloRing', p: [0, H + 0.2 + i * 0.5, 0], s: [2.6, 4, 2.6], glow: 1 });
-    b.add({ piece: 'spireCone', p: [0, H + 2, 0], s: [1.6, 2.0, 1.6], tint: PALETTE.glassWarm, glow: 0.5 });
+    const receiver = (y: number, k = 1) => {
+      b.add({ piece: 'glassCyl', p: [0, y, 0], s: [2.2 * k, 2.0 * k, 2.2 * k], tint: 0xffe08a, glow: 1 });
+      for (let i = 0; i < 4; i++)
+        b.add({ piece: 'haloRing', p: [0, y + (0.2 + i * 0.5) * k, 0], s: [2.6 * k, 4, 2.6 * k], glow: 1 });
+      b.add({ piece: 'spireCone', p: [0, y + 2 * k, 0], s: [1.6 * k, 2.0 * k, 1.6 * k], tint: PALETTE.glassWarm, glow: 0.5 });
+    };
+    b.upTo(1, () => receiver(H));
     // Heliostats in rings, each mirror tilted to face the receiver.
     let n = 0;
     for (const [r, count] of [
@@ -64,5 +67,34 @@ export default defineBuilding({
       [1.1, 4.6],
     ] as const)
       lamp(b, x, 0.12, z, 0.6);
+
+    // Levels (D-100). A ring of heliostats on stands at radius r.
+    const ring = (r: number, count: number, h: number) => {
+      for (let k = 0; k < count; k++) {
+        const a = (k / count) * TAU + r * 1.3;
+        const [x, z] = [Math.cos(a) * r, Math.sin(a) * r];
+        b.add({ piece: 'concreteCyl', p: [x, 0.12, z], s: [0.08, h, 0.08], tint: 0xe9f4ef });
+        b.add({ piece: 'solarLeaf', p: [x + Math.cos(a) * 0.35, 0.12 + h, z + Math.sin(a) * 0.35], s: [0.7, 1, 1.4], r: Math.PI - a, rz: 0.65 });
+      }
+    };
+    // Level 2: the tower climbs three units to a bigger receiver, and a raised ring of mirrors fills the gaps
+    // between the inner rings.
+    b.level(2, () => {
+      b.add({ piece: 'concreteCyl', p: [0, H, 0], s: [1.4, 3, 1.4], tint: PALETTE.concrete });
+      b.upTo(2, () => receiver(H + 3, 1.15));
+      ring(2.9, 14, 1.1);
+    });
+    // Level 3: a molten-salt store (two lit tanks) by the gate and a receiver half again as large with a crown of
+    // light.
+    b.level(3, () => {
+      b.add({ piece: 'concreteCyl', p: [0, H, 0], s: [1.4, 3, 1.4], tint: PALETTE.concrete });
+      ring(2.9, 14, 1.1);
+      receiver(H + 3, 1.4);
+      b.add({ piece: 'haloRing', p: [0, H + 6.4, 0], s: [4.2, 4, 4.2], tint: 0xffb36b, glow: 1 });
+      for (const x of [-3.9, 3.9]) {
+        b.add({ piece: 'concreteCyl', p: [x, 0.12, 3.9], s: [0.9, 1.2, 0.9], tint: 0xe9f4ef });
+        b.add({ piece: 'haloRing', p: [x, 0.9, 3.9], s: [0.95, 2, 0.95], tint: 0xffb36b, glow: 1 });
+      }
+    });
   },
 });

@@ -45,14 +45,16 @@ export default defineBuilding({
       tint: 0xd8e8ff,
       glow: 0.6,
     });
-    b.add({
-      piece: 'spireCone',
-      p: [0, 14.48, 0],
-      s: [2.6, 3.2, 2.6],
-      r: Math.PI / 4,
-      tint: 0xe6f4ff,
-      glow: 0.7,
-    });
+    const tip = (y: number, k: number) =>
+      b.add({
+        piece: 'spireCone',
+        p: [0, y, 0],
+        s: [2.6 * k, 3.2 * k, 2.6 * k],
+        r: Math.PI / 4,
+        tint: 0xe6f4ff,
+        glow: 0.7,
+      });
+    b.upTo(2, () => tip(14.48, 1));
     // Lesser shards leaning out from the root, tallest nearest the master.
     for (let k = 0; k < 9; k++) {
       const a = (k / 9) * TAU + b.range(-0.2, 0.2);
@@ -84,5 +86,34 @@ export default defineBuilding({
         tint: b.pick(PALETTE.blossoms),
       });
     }
+
+    // Levels (D-100). A crystal shard leaning out from (a, d) to height h.
+    const shard = (a: number, d: number, h: number, lean: number, w: number, tint: number) => {
+      const base: [number, number, number] = [Math.cos(a) * d, 0.48, Math.sin(a) * d];
+      const top: [number, number, number] = [Math.cos(a) * (d + lean), h, Math.sin(a) * (d + lean)];
+      beam(b, 'glassBox', base, top, w, { tint, glow: 0.6 });
+      beam(b, 'lumenRib', [base[0], base[1] + 0.4, base[2]], [top[0], top[1] + 0.3, top[2]], 0.08, { glow: 0.9 });
+    };
+    // Level 2: a second cluster of rose and amber shards grows from the plinth's edge.
+    b.level(2, () => {
+      for (const [a, h] of [
+        [0.4, 6.5],
+        [2.2, 8.0],
+        [3.9, 5.5],
+        [5.3, 7.2],
+      ] as const)
+        shard(a, 1.9, h, 1.3, 0.8, a > 3 ? 0xffd9e6 : 0xffe9c8);
+    });
+    // Level 3: the spire grows past its old tip into a taller needle with a larger point, halo rings, and a
+    // cluster of small shards at its waist.
+    b.level(3, () => {
+      b.add({ piece: 'glassBox', p: [0, 14.48, 0], s: [1.5, 4.2, 1.5], r: Math.PI / 4, tint: 0xd8e8ff, glow: 0.6 });
+      tip(18.68, 1.2);
+      for (const y of [15.5, 17.0]) b.add({ piece: 'haloRing', p: [0, y, 0], s: [2.4, 3, 2.4], tint: 0xe6dcff, glow: 1 });
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * TAU;
+        beam(b, 'glassBox', [Math.cos(a) * 0.6, 9.5, Math.sin(a) * 0.6], [Math.cos(a) * 1.6, 11.6 + (k % 2), Math.sin(a) * 1.6], 0.45, { tint: TINTS[k % TINTS.length], glow: 0.6 });
+      }
+    });
   },
 });

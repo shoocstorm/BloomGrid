@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { TRIM, flowers, gableRoof, grassTufts, lamp, tree } from '../kit';
+import { TRIM, awning, flowers, gableRoof, grassTufts, lamp, tree } from '../kit';
 
 export default defineBuilding({
   id: 'pocket-park',
@@ -41,5 +41,26 @@ export default defineBuilding({
     gableRoof(b, gx, 0.4, gz, 0.46, 0.46, { pitch: 0.7, tint: 0x6f9a6a });
     lamp(b, 0.85, 0.06, 0.85, 0.45);
     lamp(b, -0.9, 0.06, 0.45, 0.45);
+
+    // Levels (D-100). Level 2: a little café kiosk with a striped awning and two bistro tables by the pond.
+    b.level(2, () => {
+      b.add({ piece: 'timberBox', p: [0.55, 0.06, -0.78], s: [0.5, 0.36, 0.3], tint: 0xb48a62 });
+      b.add({ piece: 'glassBox', p: [0.55, 0.16, -0.62], s: [0.36, 0.14, 0.02], tint: 0xfff2c8, glow: 0.6 });
+      awning(b, 0.55, 0.45, -0.55, 0.56, 0.2, 0xf5efe4, TRIM.terracotta, 4);
+      for (const x of [0.05, 0.85]) {
+        b.add({ piece: 'concreteCyl', p: [x, 0.06, 0.2], s: [0.03, 0.18, 0.03], tint: TRIM.charcoal });
+        b.add({ piece: 'concreteCyl', p: [x, 0.24, 0.2], s: [0.16, 0.015, 0.16], tint: TRIM.cream });
+      }
+    });
+    // Level 3: the gazebo becomes a bandstand (a lit dome over a round deck), with a fountain jet in the pond and
+    // a rose arch over the path.
+    b.level(3, () => {
+      b.add({ piece: 'concreteCyl', p: [gx, 0.06, gz], s: [0.62, 0.04, 0.62], tint: 0xe9e1d0 });
+      b.add({ piece: 'dome', p: [gx, 0.58, gz], s: [0.5, 0.3, 0.5], tint: 0x6f9a6a });
+      b.add({ piece: 'haloRing', p: [gx, 0.4, gz], s: [0.56, 2, 0.56], tint: 0xffd9a0, glow: 0.9 });
+      b.add({ piece: 'lumenRib', p: [0.35, 0.08, -0.3], s: [0.03, 0.35, 0.03], tint: 0x9ee6ff, glow: 0.9 });
+      b.add({ piece: 'willowArch', p: [0.05, 0.06, 0.48], s: [0.42, 0.5, 0.42], r: 0.2, tint: 0x6b4f3a });
+      flowers(b, 0.05, 0.06, 0.48, 0.22, 5, 0.1, 0.6);
+    });
   },
 });

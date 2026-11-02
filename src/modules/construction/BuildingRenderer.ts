@@ -20,6 +20,11 @@ export interface TemplatePiece {
   seed: number;
   /** Local base height, used to stagger the bottom-up construction animation. */
   y: number;
+  /** Tier range (0 = level 1) a designed level piece shows in (D-100); unset = always. */
+  from?: number;
+  to?: number;
+  /** Local top of a designed level piece, for the level's height. */
+  top?: number;
 }
 
 export interface BuildingTemplate {
@@ -32,6 +37,11 @@ export interface BuildingTemplate {
   retrofit?: TemplatePiece[];
   /** Level overlays per tier (D-073), built on demand. */
   tiers?: TemplatePiece[][];
+  /**
+   * Designed level pieces (D-100: `b.level` / `b.upTo` in the recipe, or a def's `levels`), each with its tier
+   * range. Empty for a recipe with no designed levels, which gets the generic overlay instead.
+   */
+  ranged: TemplatePiece[];
   /** Banyan merge overlay (aerial roots, buttresses, crown), built on demand. */
   banyan?: TemplatePiece[];
   rng: Rng;
@@ -70,36 +80,52 @@ export function buildingTemplate(def: BuildingDef, variant: number): BuildingTem
   if (t) return t;
   const rng = new Rng(Math.floor(hash2(variant, 7, buildings.indexOf(def.id) + 1) * 2 ** 31));
   const recipe = typeof def.recipe === 'function' ? def.recipe : def.recipe.fallback;
-  const run = runRecipe(def, rng, (b) => recipe?.(b));
+  // Each level draws from its own seeded stream (D-082), so the base pieces never shift when a level is designed.
+  const idx = buildings.indexOf(def.id) + 1;
+  const tierRng = [1, 2].map((tier) => new Rng(Math.floor(hash2(variant, 11 + tier, idx) * 2 ** 31)));
+  const levels = def.levels;
+  const run = runRecipe(def, rng, (b) => {
+    recipe?.(b);
+    // A def's `levels` hook (the first designed heroes) is the same as `b.level` blocks at the end of the recipe.
+    if (levels) for (const tier of [1, 2] as const) b.level((tier + 1) as 2 | 3, () => levels(b, tier));
+  }, tierRng);
   const bounds = run.bounds;
   if (bounds.minX === Infinity) Object.assign(bounds, { minX: -0.4, maxX: 0.4, minZ: -0.4, maxZ: 0.4, top: 0.5 });
-  t = { pieces: run.pieces, height: run.height, bounds, rng };
-  if (def.levels) {
-    // Designed level overlays (D-082): each level's additions, cumulative, from their own seeded stream so the
-    // base recipe's pieces never shift when a level is added.
-    const levels = def.levels;
-    const tiers: TemplatePiece[][] = [[]];
-    for (let tier = 1; tier <= 2; tier++) {
-      const add = runRecipe(def, new Rng(Math.floor(hash2(variant, 11 + tier, buildings.indexOf(def.id) + 1) * 2 ** 31)), (b) => levels(b, tier as 1 | 2));
-      tiers.push([...tiers[tier - 1]!, ...add.pieces]);
-    }
-    t.tiers = tiers;
-  }
+  t = { pieces: run.pieces, ranged: run.ranged, height: run.height, bounds, rng };
   templates.set(key, t);
   return t;
 }
 
-/** Runs one recipe function against a fresh builder; returns its pieces, height and solid bounds. */
-function runRecipe(def: BuildingDef, rng: Rng, fn: (b: KitBuilder) => void): { pieces: TemplatePiece[]; height: number; bounds: BuildingTemplate['bounds'] } {
+/**
+ * Runs one recipe function against a fresh builder; returns its pieces, height and solid bounds (level-1 pieces
+ * only). Pieces inside `b.level` / `b.upTo` blocks go to `ranged` with their tier range; `b.level` blocks draw from
+ * `tierRng` (per tier) so they never move the base stream.
+ */
+function runRecipe(
+  def: BuildingDef,
+  rng: Rng,
+  fn: (b: KitBuilder) => void,
+  tierRng: Rng[] = [],
+): { pieces: TemplatePiece[]; ranged: TemplatePiece[]; height: number; bounds: BuildingTemplate['bounds'] } {
   const pieces: TemplatePiece[] = [];
+  const ranged: TemplatePiece[] = [];
   let height = 0.5;
   const bounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity, top: 0 };
+  // Current tier range (0 = level 1) and the stream it draws from.
+  let from = 0;
+  let to = 2;
+  let cur = rng;
   const add = (spec: PieceSpec) => {
     const p = spec.p ?? [0, 0, 0];
     const s = spec.s ?? 1;
     const sv = typeof s === 'number' ? _s.set(s, s, s) : _s.set(s[0], s[1], s[2]);
     _q.setFromEuler(_e.set(spec.rx ?? 0, spec.r ?? 0, spec.rz ?? 0, 'YXZ'));
     const local = new Matrix4().compose(_v.set(p[0], p[1], p[2]), _q, sv);
+    const piece: TemplatePiece = { piece: spec.piece, local, tint: spec.tint ?? 0xffffff, glow: spec.glow ?? 0, growAt: spec.growAt ?? 0, seed: cur.next(), y: p[1] };
+    if (from > 0 || to < 2) {
+      if (from <= to) ranged.push(Object.assign(piece, { from, to, top: p[1] + (spec.piece === 'ivy' ? 0 : sv.y) }));
+      return;
+    }
     height = Math.max(height, p[1] + (spec.piece === 'ivy' ? 0 : sv.y));
     if (SOLID_PIECES.has(spec.piece)) {
       // Rotated half-extents of a unit piece (pivot at base centre).
@@ -111,11 +137,45 @@ function runRecipe(def: BuildingDef, rng: Rng, fn: (b: KitBuilder) => void): { p
       bounds.maxZ = Math.max(bounds.maxZ, p[2] + hz);
       bounds.top = Math.max(bounds.top, p[1] + sv.y);
     }
-    pieces.push({ piece: spec.piece, local, tint: spec.tint ?? 0xffffff, glow: spec.glow ?? 0, growAt: spec.growAt ?? 0, seed: rng.next(), y: p[1] });
+    pieces.push(piece);
+  };
+  const within = (f: number, t: number, body: () => void) => {
+    const saved = [from, to, cur] as const;
+    from = Math.max(from, f);
+    to = Math.min(to, t);
+    // A level block draws from that level's stream; an `upTo` block keeps the stream it is in.
+    if (f > saved[0]) cur = tierRng[from - 1] ?? cur;
+    try {
+      body();
+    } finally {
+      [from, to, cur] = saved;
+    }
   };
   const [w, d] = def.footprint;
-  fn({ w, d, rand: () => rng.next(), range: (a, b) => rng.range(a, b), pick: (arr) => rng.pick(arr), add });
-  return { pieces, height, bounds };
+  fn({
+    w,
+    d,
+    rand: () => cur.next(),
+    range: (a, b) => cur.range(a, b),
+    pick: (arr) => cur.pick(arr),
+    add,
+    level: (n, body) => within(n - 1, 2, body),
+    upTo: (n, body) => within(0, n - 1, body),
+  });
+  return { pieces, ranged, height, bounds };
+}
+
+/** Top of the tallest piece a building shows at `tier` (0 = level 1): sky-lanes clear it, alert markers float over it. */
+export function heightAt(t: BuildingTemplate, tier: number): number {
+  let h = t.height;
+  for (const p of t.ranged) if (p.from! <= tier && tier <= p.to!) h = Math.max(h, p.top!);
+  return h;
+}
+
+/** Every template piece a building shows at `tier` (0 = level 1): the base plus its designed level pieces. */
+export function piecesAt(t: BuildingTemplate, tier: number): TemplatePiece[] {
+  if (!t.ranged.length) return t.pieces;
+  return [...t.pieces, ...t.ranged.filter((p) => p.from! <= tier && tier <= p.to!)];
 }
 
 /**
@@ -193,12 +253,14 @@ export function retrofitPieces(t: BuildingTemplate): TemplatePiece[] {
 /**
  * Level overlays (D-073), generic so no recipe changes: level 2 adds a roof terrace (a plate, planters at the
  * corners, a flower edge and two solar petals); level 3 adds a setback crown on top (two glass floors, a meadow
- * cap with a tree, and a lit spire). Built from the template's bounds; cached per template and level. A def with
- * `levels` (open-plan heroes, where a roof terrace would float) has its designed overlays baked in `buildingTemplate`.
+ * cap with a tree, and a lit spire). Built from the template's bounds; cached per template and level. A recipe with
+ * designed levels (D-100: `b.level` / `b.upTo`, or a def's `levels`) returns those pieces instead, at every tier
+ * (level 1 included: an `upTo` roof shows until a level replaces it).
  */
 export function tierPieces(t: BuildingTemplate, tier: number): TemplatePiece[] {
   const cache = (t.tiers ??= []);
   if (cache[tier]) return cache[tier]!;
+  if (t.ranged.length) return (cache[tier] = t.ranged.filter((p) => p.from! <= tier && tier <= p.to!));
   const out: TemplatePiece[] = [];
   const { minX, maxX, minZ, maxZ, top } = t.bounds;
   const rng = new Rng(Math.floor((minX * 31 + maxZ * 17 + top * 13 + tier) * 1000) >>> 0);
@@ -321,6 +383,8 @@ interface Entry {
   retro: InstanceHandle[];
   /** Level overlay instances (D-073) and the concrete walls that weather with age (aParams.w = 1 − weathering). */
   tierH: InstanceHandle[];
+  /** The template piece each `tierH` handle draws (same order), so a level change keeps what both levels show. */
+  tierP: TemplatePiece[];
   walls: InstanceHandle[];
   /** Glass and timber pieces: their weathering rides on aParams.x (1 = clean), which those materials don't use. */
   skins: InstanceHandle[];
@@ -389,7 +453,7 @@ export class BuildingRenderer {
     // Levels (D-073): a new level's overlay grows in with a little fanfare; renovation clears the weathering.
     bus.on('building:tier', ({ eid, tier }) => {
       const entry = this.entries.get(eid);
-      if (entry) this.setTier(entry, tier, ctx.loading ? -1 : 0);
+      if (entry) this.setTier(entry, tier, ctx.loading ? -1 : 0, Greenery.value[eid]!);
     });
     bus.on('building:renovated', () => this.syncService());
     // Ruins collapse; a repair rebuilds (D-075).
@@ -478,7 +542,7 @@ export class BuildingRenderer {
       if (!recipe.fallback) return out;
     }
     const style = def.style ?? 'classic';
-    for (const p of buildingTemplate(def, 0).pieces) {
+    for (const p of piecesAt(buildingTemplate(def, 0), 0)) {
       const styled = isStyled(p.piece);
       out.push({
         piece: p.piece,
@@ -535,6 +599,7 @@ export class BuildingRenderer {
       template: typeof def.recipe === 'function' || def.recipe.fallback ? place.template : null,
       retro: [],
       tierH: [],
+      tierP: [],
       walls: [],
       skins: [],
       rubble: [],
@@ -590,7 +655,7 @@ export class BuildingRenderer {
       );
     } else spawnTemplate();
     if (Building.level[eid]) this.addRetrofit(entry, animate ? 0.3 : -1, Building.level[eid]!);
-    if (Building.tier[eid]) this.setTier(entry, Building.tier[eid]!, animate ? 0.5 : -1);
+    if (Building.tier[eid] || entry.template?.ranged.length) this.setTier(entry, Building.tier[eid]!, animate ? 0.5 : -1, rec.greenery);
     if (city.steward.ruins.includes(Building.uid[eid]!)) this.collapse(entry, false);
   }
 
@@ -613,15 +678,15 @@ export class BuildingRenderer {
         return false;
       });
     entry.handles = keep(entry.handles);
-    entry.glass = entry.glass.filter((h) => entry.handles.includes(h));
-    entry.walls = entry.walls.filter((h) => entry.handles.includes(h));
-    entry.skins = entry.skins.filter((h) => entry.handles.includes(h));
     for (const h of [...entry.retro, ...entry.tierH]) {
       if (animate) instancer.removeAnimated(h, 0.2, 0.4);
       else instancer.remove(h);
     }
     entry.retro = [];
     entry.tierH = [];
+    entry.tierP = [];
+    const live = new Set(entry.handles);
+    this.forget(entry, (h) => !live.has(h));
     const t = entry.template;
     const b = t?.bounds ?? { minX: -0.5, maxX: 0.5, minZ: -0.5, maxZ: 0.5, top: 0.5 };
     const rng = new Rng(Math.floor(base * 1000 + b.maxX * 77) >>> 0);
@@ -634,17 +699,46 @@ export class BuildingRenderer {
     }
   }
 
-  /** Swaps a building's level overlay: the new one grows in from the roof (`delay` < 0 = instant). */
-  private setTier(entry: Entry, tier: number, delay: number): void {
-    for (const h of entry.tierH) this.ctx.instancer.removeAnimated(h, 0, 0.3);
-    entry.tierH = [];
-    if (!entry.template || tier <= 0) return;
-    for (const p of tierPieces(entry.template, tier)) {
-      _params.set([1, p.seed, p.glow, 1]);
-      const world = _m.multiplyMatrices(entry.base, p.local);
-      const d = delay < 0 ? -1 : delay + Math.random() * 0.3;
-      entry.tierH.push(this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(p.tint), _params, d, 0.7));
+  /**
+   * Shows a building's level (D-073, D-100): pieces the new level drops fold away, its new pieces grow in from the
+   * roof (`delay` < 0 = instant) and pieces both levels share stay put. Level pieces take the building's finish,
+   * lit windows, weathering and wilting like its base.
+   */
+  private setTier(entry: Entry, tier: number, delay: number, greenery: number): void {
+    const want = entry.template && !entry.collapsed ? tierPieces(entry.template, tier) : [];
+    const keep = new Set(want);
+    const handles: InstanceHandle[] = [];
+    const pieces: TemplatePiece[] = [];
+    const gone = new Set<InstanceHandle>();
+    entry.tierP.forEach((p, i) => {
+      const h = entry.tierH[i]!;
+      if (keep.has(p)) {
+        handles.push(h);
+        pieces.push(p);
+        keep.delete(p);
+      } else {
+        gone.add(h);
+        this.ctx.instancer.removeAnimated(h, 0, 0.3);
+      }
+    });
+    if (gone.size) this.forget(entry, (h) => gone.has(h));
+    entry.tierH = handles;
+    entry.tierP = pieces;
+    if (entry.template) entry.height = heightAt(entry.template, tier);
+    for (const p of keep) {
+      const d = delay < 0 ? -1 : delay + Math.max(0, p.y - entry.height * 0.6) * 0.12 + Math.random() * 0.3;
+      entry.tierH.push(this.spawn(entry, p, greenery, d, false));
+      entry.tierP.push(p);
     }
+  }
+
+  /** Drops handles from the per-material lists that live service updates write to. */
+  private forget(entry: Entry, drop: (h: InstanceHandle) => boolean): void {
+    entry.glass = entry.glass.filter((h) => !drop(h));
+    entry.walls = entry.walls.filter((h) => !drop(h));
+    entry.skins = entry.skins.filter((h) => !drop(h));
+    entry.plants = entry.plants.filter((h) => !drop(h));
+    entry.moss = entry.moss.filter((h) => !drop(h));
   }
 
   /** Adds the retrofit (and, at level 2, banyan) overlay; `delay` < 0 = instant, else pop-in bottom-up. */
@@ -664,7 +758,7 @@ export class BuildingRenderer {
     entry.retro = [];
   }
 
-  private spawn(entry: Entry, p: TemplatePiece, greenery: number, delay: number): void {
+  private spawn(entry: Entry, p: TemplatePiece, greenery: number, delay: number, base = true): InstanceHandle {
     _params[0] = greenery;
     const styled = isStyled(p.piece);
     // Styled pieces carry the style index in the seed's integer part (the shaders split it off).
@@ -678,12 +772,13 @@ export class BuildingRenderer {
     const world = _m.multiplyMatrices(entry.base, p.local);
     const tint = styled ? restyle(p.piece, p.tint, entry.style, entry.shade) : p.tint;
     const h = this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(tint), _params, delay, PIECE_GROW);
-    entry.handles.push(h);
+    if (base) entry.handles.push(h);
     if (p.piece === 'mossBox') entry.moss.push(h);
     if (p.piece === 'slab' || p.piece === 'concreteCyl') entry.walls.push(h);
     if (skin) entry.skins.push(h);
     if (glass) entry.glass.push(h);
     else if (plant) entry.plants.push(h);
+    return h;
   }
 
   /**
@@ -711,6 +806,7 @@ export class BuildingRenderer {
     entry.handles = [];
     entry.retro = [];
     entry.tierH = [];
+    entry.tierP = [];
     this.entries.delete(eid);
     this.sprout(entry.base, Building.w[eid]!, Building.d[eid]!);
   }

@@ -81,5 +81,26 @@ export default defineBuilding({
     railing(b, -1.45, 0.1, -1.95, 2.7);
     railing(b, 1.45, 0.1, -1.95, 2.7);
     lamp(b, 0, 0.1, 1.25, 0.5);
+
+    // Levels (D-100). Level 2: a timber clubhouse with changing rooms and a viewing terrace on its roof, beside a
+    // scoreboard; the stand gains a fourth row.
+    const clubhouse = () => {
+      b.add({ piece: 'timberBox', p: [0, 0.1, -1.55], s: [0.5, 0.55, 0.6], tint: 0xb48a62 });
+      b.add({ piece: 'glassBox', p: [0, 0.25, -1.24], s: [0.4, 0.3, 0.02], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'slab', p: [0, 0.65, -1.55], s: [0.6, 0.04, 0.7], tint: PALETTE.timber });
+      railing(b, 0, 0.69, -1.22, 0.6);
+      b.add({ piece: 'timberBox', p: [0, 0.1 + 3 * 0.18, 1.55 + 3 * 0.18], s: [5.2, 0.18, 0.2], tint: PALETTE.timber });
+    };
+    b.level(2, clubhouse);
+    // Level 3: a membrane canopy over the stand on tall masts, flags along its edge, and a running track painted
+    // round both pitches.
+    b.level(3, () => {
+      clubhouse();
+      for (const x of [-2.5, 0, 2.5]) b.add({ piece: 'timberBox', p: [x, 1.05, 2.0], s: [0.07, 1.0, 0.07], tint: TRIM.steel });
+      for (const x of [-1.3, 1.3]) b.add({ piece: 'solarLeaf', p: [x, 1.95, 1.95], s: [2.8, 1, 1.4], r: Math.PI / 2, rz: 0.2, tint: 0xf4f1ea });
+      const FLAGS = [TRIM.red, 0xffd36b, TRIM.seaBlue, TRIM.teal, TRIM.orange] as const;
+      for (let i = 0; i < 5; i++) b.add({ piece: 'slab', p: [-2.2 + i * 1.1, 2.15, 2.35], s: [0.22, 0.14, 0.01], tint: FLAGS[i]! });
+      b.add({ piece: 'slab', p: [0, 0.12, -0.2], s: [5.75, 0.012, 3.35], tint: 0xc8714f });
+    });
   },
 });

@@ -129,5 +129,43 @@ export default defineBuilding({
     b.add({ piece: 'glassBox', p: [2.2, 0.55, 5.56], s: [0.45, 0.2, 0.02], tint: 0xd6f2ee, glow: 0.4 });
     awning(b, 2.2, 0.9, 5.6, 0.7, 0.3, 0xf4f1ea, 0x2fbfa6, 4);
     for (const x of [-3.0, 3.6]) lamp(b, x, 0.3, 5.5, 0.8);
+
+    // Levels (D-100). A stand tier on the oval at level t (the recipe's three are t = 0..2).
+    const tier = (t: number) => {
+      const [ra, rb] = [3.7 + t * 0.85, 2.7 + t * 0.85];
+      const n = 36 + t * 6;
+      const len = (TAU * Math.sqrt((ra * ra + rb * rb) / 2)) / n + 0.08;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * TAU;
+        // Leave the scoreboard end open.
+        if (Math.abs(a - Math.PI * 1.5) < 0.35) continue;
+        const [tx, tz] = [-Math.sin(a) * ra, Math.cos(a) * rb];
+        b.add({ piece: 'slab', p: [Math.cos(a) * ra, 0.3, Math.sin(a) * rb], s: [len, 0.55 + t * 0.6, 0.6], r: Math.atan2(-tz, tx), tint: SEATS[(k + t * 2) % SEATS.length]! });
+      }
+    };
+    // Level 2: a fourth, upper tier of seats behind the others, and the light masts taller with a second bank.
+    b.level(2, () => {
+      tier(3);
+      for (const [x, z] of [
+        [-5.3, -5.3],
+        [5.3, -5.3],
+        [-5.3, 5.3],
+        [5.3, 5.3],
+      ] as const) {
+        b.add({ piece: 'concreteCyl', p: [x, 5.7, z], s: [0.14, 1.4, 0.14], tint: 0xf4f1ea });
+        b.add({ piece: 'lumenRib', p: [x, 7.1, z], s: [0.7, 0.3, 0.3], r: Math.atan2(z, -x), glow: 1 });
+      }
+    });
+    // Level 3: the roof closes into a petal crown: a second ring of larger solar petals cantilevered over the
+    // upper tier, a lit crown ring, and garlands of pink light round the rim.
+    b.level(3, () => {
+      for (let k = 0; k < 24; k++) {
+        const a = (k / 24) * TAU + 0.13;
+        const [x, z] = [Math.cos(a) * 5.3, Math.sin(a) * 4.5];
+        b.add({ piece: 'sunPetal', p: [x, 3.4, z], s: [2.6, 1, 1.4], r: Math.atan2(z, -x) + Math.PI, rz: -0.35, tint: k % 2 ? 0xffb7d5 : 0xf4f1ea, glow: 0.4 });
+      }
+      b.add({ piece: 'haloRing', p: [0, 4.1, 0], s: [8.6, 3, 7.0], tint: 0xffb7d5, glow: 1 });
+      b.add({ piece: 'haloRing', p: [0, 3.9, 0], s: [11.6, 3, 9.8], tint: 0x5ff2da, glow: 0.9 });
+    });
   },
 });

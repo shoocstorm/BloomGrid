@@ -60,8 +60,11 @@ export default defineBuilding({
       b.add({ piece: 'haloRing', p: [0, y + 0.05, 0], s: [span * 0.55, 4, span * 0.55], glow: 0.6 });
     }
     // Beacon crown.
-    b.add({ piece: 'spireCone', p: [0, H + 0.3, 0], s: [1.0, 4, 1.0], tint: PALETTE.glassWarm, glow: 0.4 });
-    b.add({ piece: 'haloRing', p: [0, H + 1.2, 0], s: [1.8, 4, 1.8], glow: 1 });
+    const crown = (y: number) => {
+      b.add({ piece: 'spireCone', p: [0, y + 0.3, 0], s: [1.0, 4, 1.0], tint: PALETTE.glassWarm, glow: 0.4 });
+      b.add({ piece: 'haloRing', p: [0, y + 1.2, 0], s: [1.8, 4, 1.8], glow: 1 });
+    };
+    b.upTo(1, () => crown(H));
     // Street level (D-097): a lit terminal door with a paved path to the street, lamps along it, benches and a
     // ring of glowing bollards on the rim.
     entrance(b, 0, 0.3, 1.7, 0.8, 0.5);
@@ -80,5 +83,39 @@ export default defineBuilding({
         glow: 0.9,
       });
     }
+
+    // Levels (D-100). A wing tier t (the recipe has t = 0..3), short and turned like the rest.
+    const wings = (t: number) => {
+      const y = 5 + t * 4;
+      const span = Math.max(2.4, 7.2 - t * 1.1);
+      const yaw = t * (Math.PI / 4);
+      b.add({ piece: 'concreteCyl', p: [0, y - 0.2, 0], s: [2.0, 0.4, 2.0], tint: 0xe9f4ef });
+      for (let w = 0; w < 4; w++) {
+        const a = yaw + (w / 4) * TAU;
+        b.add({ piece: 'solarLeaf', p: [0, y + 0.1, 0], s: [span * 0.55, 1, 2.2], r: a, rz: 0.05 });
+        b.add({ piece: 'pod', p: [Math.cos(a) * span * 0.4, y + 0.08, -Math.sin(a) * span * 0.4], s: 0.6, r: a, glow: 0.8 });
+      }
+      b.add({ piece: 'haloRing', p: [0, y + 0.05, 0], s: [span * 0.55, 4, span * 0.55], glow: 0.6 });
+    };
+    const mast = (y0: number, h: number) => {
+      b.add({ piece: 'concreteCyl', p: [0, y0, 0], s: [1.0, h, 1.0], tint: PALETTE.concrete });
+      b.add({ piece: 'glassCyl', p: [0, y0, 0], s: [1.3, h, 1.3], tint: PALETTE.glass, glow: 0.1 });
+    };
+    // Level 2: the mast climbs four more units with a fifth tier of wings, the beacon riding on top.
+    b.level(2, () => {
+      mast(H, 4);
+      wings(4);
+      b.upTo(2, () => crown(H + 4));
+    });
+    // Level 3: a sixth tier, a glass sky-lounge ring at the top of the mast and a taller beacon.
+    b.level(3, () => {
+      mast(H, 8);
+      wings(4);
+      wings(5);
+      b.add({ piece: 'glassCyl', p: [0, H + 6.5, 0], s: [2.4, 1.0, 2.4], tint: PALETTE.glassWarm, glow: 0.6 });
+      b.add({ piece: 'concreteCyl', p: [0, H + 7.5, 0], s: [2.6, 0.1, 2.6], tint: 0xe9f4ef });
+      crown(H + 8);
+      b.add({ piece: 'haloRing', p: [0, H + 10.4, 0], s: [1.0, 3, 1.0], tint: 0xffd9a0, glow: 1 });
+    });
   },
 });

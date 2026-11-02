@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, TRIM, bench, crate, entrance, flowers, grassTufts, lamp } from '../kit';
+import { PALETTE, TRIM, beam, bench, crate, entrance, flowers, grassTufts, lamp } from '../kit';
 
 const TAU = Math.PI * 2;
 /** Mooring masts: x, z, height, heading of the moored airship. */
@@ -30,7 +30,7 @@ export default defineBuilding({
     b.add({ piece: 'glassCyl', p: [0.6, 0.26, 0.4], s: [4.0, 2.4, 4.0], tint: PALETTE.glassWarm, glow: 0.5 });
     b.add({ piece: 'concreteCyl', p: [0.6, 2.66, 0.4], s: [4.4, 0.2, 4.4], tint: PALETTE.concrete });
     flowers(b, 0.6, 2.86, 0.4, 1.8, 26, 0.1, 0.7);
-    for (const [x, z, h, yaw] of MASTS) {
+    const mast = (x: number, z: number, h: number, yaw: number) => {
       b.add({ piece: 'concreteCyl', p: [x, 0.26, z], s: [0.5, h, 0.5], tint: 0xe9f4ef });
       b.add({ piece: 'haloRing', p: [x, h * 0.6, z], s: [1.2, 4, 1.2], glow: 0.7 });
       b.add({ piece: 'lumenRib', p: [x, h + 0.26, z], s: [0.14, 0.8, 0.14], glow: 1 });
@@ -55,7 +55,8 @@ export default defineBuilding({
           r: yaw + Math.PI + fin * 0.5,
           rz: 0.25,
         });
-    }
+    };
+    for (const [x, z, h, yaw] of MASTS) mast(x, z, h, yaw);
     for (let k = 0; k < 10; k++) {
       const a = (k / 10) * TAU;
       b.add({
@@ -74,5 +75,24 @@ export default defineBuilding({
       crate(b, 2.2 + i * 0.3, 0.26, 2.9, 0.22, i * 0.3, i % 2 ? 0x5f9fb0 : 0xc9a06a);
     b.add({ piece: 'timberBox', p: [-4.2, 0.26, 4.2], s: [0.06, 1.8, 0.06], tint: TRIM.steel });
     b.add({ piece: 'spireCone', p: [-4.2, 1.95, 4.2], s: [0.3, 0.8, 0.3], rz: -1.35, tint: TRIM.orange });
+
+    // Levels (D-100). Level 2: a fourth mooring mast on the east lawn with its own airship, and a covered boarding
+    // gangway from the terminal roof.
+    b.level(2, () => {
+      mast(3.6, 3.6, 10, 5.6);
+      beam(b, 'glassBox', [1.9, 2.86, 1.6], [3.4, 9.2, 3.4], 0.4, { tint: PALETTE.glassWarm, glow: 0.4 });
+    });
+    // Level 3: a control tower rises from the terminal's planted roof (a lit glass cab with a halo and a beacon),
+    // and a fifth mast moors a sky-yacht at the north edge.
+    b.level(3, () => {
+      mast(3.6, 3.6, 10, 5.6);
+      beam(b, 'glassBox', [1.9, 2.86, 1.6], [3.4, 9.2, 3.4], 0.4, { tint: PALETTE.glassWarm, glow: 0.4 });
+      mast(-4.0, -0.4, 7, 1.6);
+      b.add({ piece: 'concreteCyl', p: [0.6, 2.86, 0.4], s: [0.6, 3.6, 0.6], tint: 0xe9f4ef });
+      b.add({ piece: 'glassCyl', p: [0.6, 6.46, 0.4], s: [1.5, 0.7, 1.5], tint: PALETTE.glassWarm, glow: 0.7 });
+      b.add({ piece: 'concreteCyl', p: [0.6, 7.16, 0.4], s: [1.7, 0.1, 1.7], tint: PALETTE.concrete });
+      b.add({ piece: 'haloRing', p: [0.6, 6.8, 0.4], s: [2.0, 3, 2.0], tint: TRIM.orange, glow: 1 });
+      b.add({ piece: 'lumenRib', p: [0.6, 7.26, 0.4], s: [0.06, 0.8, 0.06], tint: 0xff6a5a, glow: 1 });
+    });
   },
 });

@@ -1,7 +1,8 @@
 import { Box3, Matrix4, Vector3 } from 'three/webgpu';
+import { Building } from '@/ecs/components';
 import { getPiece } from '@/assets/kit/pieces';
 import type { City } from '@/sim/City';
-import { placeBuilding } from '@/modules/construction/BuildingRenderer';
+import { piecesAt, placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { HERO_IDS } from '@/content/scenarios/founding-city';
 
 /**
@@ -63,7 +64,7 @@ export function findRoof(city: City, eid: number): Roof | null {
   const parts: { inv: Matrix4; world: Matrix4; round: boolean }[] = [];
   // Everything else, as world boxes: obstacles where they reach into a roof's headroom.
   const others: Box3[] = [];
-  for (const p of place.template.pieces) {
+  for (const p of piecesAt(place.template, Building.tier[eid]!)) {
     const round = ROUND.has(p.piece);
     const world = new Matrix4().multiplyMatrices(place.base, p.local);
     if (!round && !FLAT.has(p.piece)) {

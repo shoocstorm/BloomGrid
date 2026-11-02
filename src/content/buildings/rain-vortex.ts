@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, bench, entrance, flowers, grassTufts, ivyEdge, lamp, tree } from '../kit';
+import { PALETTE, bench, entrance, flowers, grassTufts, ivyEdge, lamp, railRing, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 
@@ -85,5 +85,37 @@ export default defineBuilding({
       lamp(b, sx * 1.6, 0.25, 4.6, 0.65);
       bench(b, sx * 2.8, 0.25, 4.5);
     }
+
+    // Levels (D-100). Level 2: rain gutters (a ring of leaf canopies round the dome's foot that shade the market
+    // doors) and four rain-barrel planters.
+    const gutters = () => {
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * TAU + 0.1;
+        b.add({ piece: 'solarLeaf', p: [Math.cos(a) * 4.3, 1.55, Math.sin(a) * 4.3], s: [1.2, 1, 0.9], r: -a, rz: -0.2, tint: 0xd6f2ee });
+      }
+    };
+    b.level(2, () => {
+      gutters();
+      for (const [sx, sz] of [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+      ] as const) {
+        b.add({ piece: 'concreteCyl', p: [sx * 4.55, 0.25, sz * 4.55], s: [0.4, 0.5, 0.4], tint: 0x6fa8c8 });
+        flowers(b, sx * 4.55, 0.75, sz * 4.55, 0.18, 4, 0.1, 0.6);
+      }
+    });
+    // Level 3: a sky-walk ring round the dome at mid-height on slender columns, railed, with lanterns.
+    b.level(3, () => {
+      gutters();
+      const [r, y, n] = [4.7, 4.2, 28];
+      for (let k = 0; k < n; k++) {
+        const a = ((k + 0.5) / n) * TAU;
+        b.add({ piece: 'slab', p: [Math.cos(a) * r, y, Math.sin(a) * r], s: [(TAU * r) / n + 0.04, 0.08, 0.55], r: -a - Math.PI / 2, tint: PALETTE.concrete });
+        if (k % 4 === 0) b.add({ piece: 'concreteCyl', p: [Math.cos(a) * r, 0.25, Math.sin(a) * r], s: [0.12, y - 0.25, 0.12], tint: 0xe9e2d0 });
+        if (k % 4 === 2) b.add({ piece: 'lumenRib', p: [Math.cos(a) * (r + 0.22), y + 0.08, Math.sin(a) * (r + 0.22)], s: [0.08, 0.3, 0.08], tint: 0xffd9a0, glow: 1 });
+      }
+      railRing(b, 0, y + 0.08, 0, r + 0.26, n);
+    });
   },
 });

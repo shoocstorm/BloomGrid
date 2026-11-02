@@ -249,5 +249,6 @@ Releases: `bun run release [patch|minor|major|X.Y.Z]` (add `--dry-run` to previe
 - [`docs/architecture.md`](docs/architecture.md): layers and extension points
 - [`docs/decisions.md`](docs/decisions.md): decision log
 
-Every model is procedural (kit pieces built in code), including the hero landmarks: the Supertree Grove and the Lotus
-Arts Pavilion grow designed additions at levels 2 and 3, weather with age and light their windows like any building.
+Every model is procedural (kit pieces built in code), including the hero landmarks. Every building grows its own
+designed additions at levels 2 and 3 (a storey and a lifted roof, new tower segments, a treehouse, an upper stand, a
+taller spire), and weathers with age and lights its windows like the rest of it.

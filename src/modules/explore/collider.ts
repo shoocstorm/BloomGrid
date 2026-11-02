@@ -1,8 +1,9 @@
 import { Matrix4, Vector3 } from 'three/webgpu';
+import { Building } from '@/ecs/components';
 import type { City } from '@/sim/City';
 import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
 import { NO_ENTITY } from '@/sim/Grid';
-import { placeBuilding } from '@/modules/construction/BuildingRenderer';
+import { piecesAt, placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { ROAD_LIFT } from '@/modules/construction/RoadRenderer';
 import { getPiece } from '@/assets/kit/pieces';
 
@@ -100,7 +101,7 @@ export function createCollider(city: City, trees?: TreeLookup) {
     const r = city.buildingRecord(eid);
     const place = placeBuilding(city.grid, city.buildingDef(eid), r.x, r.z, r.rot);
     const parts: Part[] = [partOf('plinth', place.plinth.clone())];
-    for (const p of place.template.pieces) {
+    for (const p of piecesAt(place.template, Building.tier[eid]!)) {
       if (PASSABLE.has(p.piece)) continue;
       parts.push(partOf(p.piece, new Matrix4().multiplyMatrices(place.base, p.local)));
     }

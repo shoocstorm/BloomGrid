@@ -38,7 +38,10 @@ export default defineBuilding({
     }
     // Solar-inductive leaf crown.
     const top = h + 0.1;
-    for (let i = 0; i < 8; i++) b.add({ piece: 'solarLeaf', p: [0, top, 0], s: [0.75, 1, 0.75], r: (i / 8) * Math.PI * 2, rz: 0.45, growAt: 0.3 + i * 0.04 });
+    const crown = (y: number) => {
+      for (let i = 0; i < 8; i++) b.add({ piece: 'solarLeaf', p: [0, y, 0], s: [0.75, 1, 0.75], r: (i / 8) * Math.PI * 2, rz: 0.45, growAt: 0.3 + i * 0.04 });
+    };
+    b.upTo(1, () => crown(top));
     // Detail (D-096): a waiting shelter with a bench and a lit departures pillar, the lift door in the core,
     // glass rails round both docking rings and a paved approach.
     b.add({ piece: 'slab', p: [0, 0.1, 0.72], s: [1.2, 0.025, 0.42], tint: 0xe4dac8 });
@@ -50,5 +53,30 @@ export default defineBuilding({
     b.add({ piece: 'slab', p: [0, 0.12, 0.25], s: [0.2, 0.36, 0.02], tint: 0x2a3a44 });
     b.add({ piece: 'lumenRib', p: [0, 0.5, 0.27], s: [0.16, 0.02, 0.02], tint: 0x7ff7e6, glow: 0.8 });
     lamp(b, -0.8, 0.1, 0.85, 0.45);
+
+    // Levels (D-100): the mast grows and a ring of berths with it. A berth ring at y, radius r.
+    const ring = (y: number, r: number, berths: number, k: number) => {
+      b.add({ piece: 'concreteCyl', p: [0, y, 0], s: [r * 2, 0.07, r * 2], tint: 0xe9f4ef, glow: 0.3 });
+      for (let i = 0; i < berths; i++) {
+        const a = (i / berths) * Math.PI * 2 + k * 0.6;
+        b.add({ piece: 'pod', p: [Math.cos(a) * (r - 0.12), y + 0.07, Math.sin(a) * (r - 0.12)], s: 0.32, r: -a, glow: 0.8 });
+      }
+    };
+    // Level 2: a third, smaller ring above the others with the solar crown lifted over it.
+    b.level(2, () => {
+      b.add({ piece: 'concreteCyl', p: [0, top, 0], s: [0.28, 0.6, 0.28], tint: PALETTE.concrete });
+      ring(top + 0.1, 0.55, 3, 2);
+      b.upTo(2, () => crown(top + 0.6));
+    });
+    // Level 3: two rings more, a glazed waiting lounge round the foot of the mast and a lit beacon crown.
+    b.level(3, () => {
+      b.add({ piece: 'concreteCyl', p: [0, top, 0], s: [0.26, 1.2, 0.26], tint: PALETTE.concrete });
+      ring(top + 0.1, 0.55, 3, 2);
+      ring(top + 0.7, 0.45, 2, 3);
+      crown(top + 1.2);
+      b.add({ piece: 'haloRing', p: [0, top + 1.3, 0], s: [0.6, 2, 0.6], tint: 0x7ff7e6, glow: 1 });
+      b.add({ piece: 'glassCyl', p: [0, 0.1, 0], s: [0.85, 0.42, 0.85], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'concreteCyl', p: [0, 0.52, 0], s: [0.95, 0.04, 0.95], tint: 0xe9f4ef });
+    });
   },
 });

@@ -96,5 +96,35 @@ export default defineBuilding({
         4,
       );
     }
+
+    // Levels (D-100). Level 2: a timber pergola shades the top rows, wound with flowering vines, and two lighting
+    // and speaker towers rise at the ends of the bowl.
+    const rows = (i: number) => [2.4 + i * 0.62, 0.15 + i * 0.32] as const;
+    b.level(2, () => {
+      const [r, y] = rows(ROWS - 2);
+      for (let s = 1; s < SEG; s += 2) {
+        const a = Math.PI * (0.08 + ((s + 0.5) / SEG) * 0.84);
+        const [x, z] = [Math.cos(a) * r, -3.4 + Math.sin(a) * r];
+        if (Math.abs(x) > 4.5 || z > 4.5) continue;
+        b.add({ piece: 'timberBox', p: [x, y + 0.3, z], s: [0.06, 0.9, 0.06], tint: PALETTE.timber });
+        b.add({ piece: 'timberBox', p: [x, y + 1.2, z], s: [0.9, 0.05, 0.9], r: Math.PI / 2 - a, tint: PALETTE.timber });
+        flowers(b, x, y + 1.25, z, 0.35, 4, 0.1, 0.7);
+      }
+      for (const sx of [-1, 1]) {
+        b.add({ piece: 'slab', p: [sx * 4.3, 0.15, -1.2], s: [0.22, 3.6, 0.22], tint: TRIM.charcoal });
+        b.add({ piece: 'slab', p: [sx * 4.3, 3.0, -1.35], s: [0.6, 0.6, 0.3], tint: 0x2a2d30 });
+        for (const dy of [3.1, 3.4]) b.add({ piece: 'lumenRib', p: [sx * 4.3, dy, -1.52], s: [0.45, 0.06, 0.04], tint: 0xffd9a0, glow: 1 });
+      }
+    });
+    // Level 3: the stage gets its shell: a great sunset fan of glowing petals behind it, arched by a timber
+    // band shell, and a lit ring over the pit.
+    b.level(3, () => {
+      for (let k = 0; k < 9; k++) {
+        const a = Math.PI / 2 + ((k - 4) / 4) * 1.05;
+        b.add({ piece: 'sunPetal', p: [0, 0.6, -4.5], s: [8.4, 1, 2.0], r: a, rz: 1.25, tint: [0xffb48a, 0xffd56b, 0xff9aa2][k % 3], glow: 0.7 });
+      }
+      for (const z of [-4.2, -3.5, -2.8]) b.add({ piece: 'willowArch', p: [0, 0.6, z], s: [5.4, 4.2, 1.2], tint: 0xc8a57c });
+      b.add({ piece: 'haloRing', p: [0, 0.75, -1.2], s: [3.4, 3, 3.4], tint: 0xffd56b, glow: 1 });
+    });
   },
 });

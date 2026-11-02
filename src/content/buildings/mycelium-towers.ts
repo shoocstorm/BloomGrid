@@ -103,5 +103,30 @@ export default defineBuilding({
       entrance(b, x, 0.2, z + r + 0.02, 0.5, 0.4, 0xf2e6ff);
     bench(b, 1.5, 0.2, 2.2, 0.42, true, true);
     for (const x of [0.4, 1.4]) lamp(b, x, 0.2, 4.15, 0.6);
+
+    // Levels (D-100). Level 2: a fourth, young mushroom tower sprouts in the west meadow, joined to the tallest by
+    // a glass sky-bridge, and spore lanterns float among the stalks.
+    b.level(2, () => {
+      mushroom(b, -3.3, 2.9, 6, 2.2, 0xffe6f2);
+      b.add({ piece: 'slab', p: [-2.45, 5.2, 0.75], s: [0.5, 0.12, 4.0], r: 0.4, tint: PALETTE.concrete });
+      b.add({ piece: 'glassBox', p: [-2.45, 5.32, 0.75], s: [0.46, 0.36, 3.9], r: 0.4, tint: PALETTE.glassWarm, glow: 0.4 });
+      for (let k = 0; k < 9; k++) {
+        const a = (k / 9) * TAU + 0.3;
+        b.add({ piece: 'fungus', p: [Math.cos(a) * 3.4, 2.5 + (k % 3) * 1.4, Math.sin(a) * 3.4], s: 0.22, tint: 0xf2e6ff, glow: 1 });
+      }
+    });
+    // Level 3: a fifth tower by the boardwalk and a bioluminescent crown: halo rings breathing over every cap.
+    b.level(3, () => {
+      mushroom(b, -3.3, 2.9, 6, 2.2, 0xffe6f2);
+      mushroom(b, 3.0, 2.8, 7.5, 2.6, 0xe6f2ff);
+      for (const [x, z, h, cap] of [
+        [-1.6, -1.4, 17, 4.6],
+        [2.2, -0.4, 12.5, 3.6],
+        [-0.4, 2.5, 9, 3.0],
+      ] as const) {
+        b.add({ piece: 'haloRing', p: [x, h + cap * 0.35, z], s: [cap * 1.1, 4, cap * 1.1], tint: 0xc9b6ff, glow: 1 });
+        b.add({ piece: 'lumenRib', p: [x, h + cap * 0.1, z], s: [0.08, cap * 0.5, 0.08], tint: 0xc9b6ff, glow: 1 });
+      }
+    });
   },
 });

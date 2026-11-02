@@ -1607,3 +1607,30 @@ raised flat ground into spikes and made hollows next to lower neighbours; plinth
 leaves taller plinths on their low side (lots more than 1.2 above the ground beside them: 83 → 106), the intended
 look of a building at street level on a slope. Scenario build ≈366 → ≈416 ms. Draw calls unchanged.
 `tests/grading.test.ts` (ramp and undo, street lift, no showcase hollows). Balance and pacing tests unchanged.
+
+## D-100 — Designed levels for every building: `b.level` / `b.upTo` in the recipe (2026-11-02)
+
+**Context:** Only three heroes had designed levels (D-082). Every other building, about 75 of them, drew the generic
+overlay from `tierPieces`: a roof terrace at level 2 and a glass setback crown at level 3, built from the template's
+bounds. So a garden home, a fireworks factory and a stadium all levelled the same way, as "a flat floor on top". The
+overlay also ignored the building's finish, window lighting, weathering and wilting.
+
+**Decision:** `KitBuilder` gains `level(n, fn)` (pieces shown from level n, 2 or 3) and `upTo(n, fn)` (pieces shown
+only up to level n: a roof or crown a later level replaces). Recipes write their levels inline, so a level reuses the
+recipe's own sizes and helpers: a home adds a storey and lifts its pitched roof onto it, a tower adds segments, a
+park adds a treehouse, a stadium an upper tier, a kite meadow a lead kite. `runRecipe` tags those pieces with a tier
+range (`from` / `to`, 0 = level 1) and keeps them in the template's `ranged` list. Each `level` block draws from the
+level's own seeded stream (the D-082 streams), so the level-1 pieces never move; `upTo` blocks stay on the stream they
+are in. A def's `levels(b, tier)` hook still works: it runs as `b.level` blocks at the end of the recipe. `tierPieces`
+returns the ranged pieces visible at a tier, level 1 included, and falls back to the generic overlay only for a recipe
+with none. `setTier` now diffs. Pieces both levels show stay put, dropped ones fold away, new ones grow in from the
+roof. All of them spawn through `spawn`, so they take the building's style, lit windows, weathering and vitality.
+`heightAt(template, tier)` gives the level's height: sky-lanes clear it (`building:tier` marks rooftops dirty) and
+alert markers float over it. The explore collider and roofs use `piecesAt(template, tier)`.
+
+**Consequences:** Each building levels in its own architectural language, and level 3 always shows something level 2
+doesn't (`tests/levelLooks.test.ts` guards every building that can level, at every variant). No new pieces,
+materials or draw calls. Boot, draw calls and the power probe match the previous commit, measured in a worktree
+(scenario ≈440 ms, 304 draws; 320 with all 2,349 founding-city buildings at level 3, the same as before). Upgrading
+every founding-city building twice leaves the sky-lanes at `clipped: 0`. `scripts/scenes/heroes.js` now shows any
+building's three levels side by side, with one finish (`window.STYLE`) and one variant (`window.VARIANT`).

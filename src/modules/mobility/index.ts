@@ -50,7 +50,7 @@ import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
 import { mobilityLayers } from '@/sim/mobility';
 import { hash2 } from '@/sim/random';
 import { Building } from '@/ecs/components';
-import { placeBuilding } from '@/modules/construction/BuildingRenderer';
+import { heightAt, placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { podGeometry } from './podModel';
 import { arcProfile, arcProfileNode, arcY, orientNode, podInfo as packPodInfo, podPathAt, podPathNode } from './skypath';
 
@@ -410,7 +410,7 @@ export const mobilityModule: GameModule = {
     let tops = new Float32Array(0);
     let owner = new Int32Array(0);
     let topsDirty = true;
-    for (const ev of ['building:added', 'building:removed', 'terrain:changed', 'city:reset'] as const)
+    for (const ev of ['building:added', 'building:removed', 'building:tier', 'terrain:changed', 'city:reset'] as const)
       ctx.bus.on(ev, () => (topsDirty = true));
     const refreshTops = () => {
       const n = g.w * g.h;
@@ -423,7 +423,7 @@ export const mobilityModule: GameModule = {
       for (const eid of city.buildingEntities()) {
         const rec = city.buildingRecord(eid);
         const p = placeBuilding(g, city.buildingDef(eid), rec.x, rec.z, rec.rot);
-        const top = p.base.elements[13]! + p.template.height;
+        const top = p.base.elements[13]! + heightAt(p.template, Building.tier[eid]!);
         const [x0, z0] = [Building.x[eid]!, Building.z[eid]!];
         for (let z = z0; z < z0 + Building.d[eid]!; z++)
           for (let x = x0; x < x0 + Building.w[eid]!; x++) {

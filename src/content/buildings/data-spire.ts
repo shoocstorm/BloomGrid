@@ -18,19 +18,23 @@ export default defineBuilding({
     b.add({ piece: 'glassCyl', p: [0, 0.12, 0], s: [1.0, 4.2, 1.0], tint: PALETTE.glass, glow: 0.6 });
     for (let i = 0; i < 5; i++)
       b.add({ piece: 'haloRing', p: [0, 0.6 + i * 0.8, 0], s: [1.3, 2, 1.3], glow: 1 });
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      b.add({
-        piece: 'slab',
-        p: [Math.cos(a) * 0.55, 4.3, Math.sin(a) * 0.55],
-        s: [0.08, 0.6, 0.3],
-        r: -a,
-        tint: 0xe9eee8,
-      });
-    }
-    roofMeadow(b, 4.32, 0.7, 0.7);
-    b.add({ piece: 'spireCone', p: [0, 4.6, 0], s: [0.35, 0.9, 0.35], tint: PALETTE.glassWarm, glow: 0.5 });
-    b.add({ piece: 'lumenRib', p: [0, 5.5, 0], s: [0.14, 0.14, 0.14], glow: 1, tint: 0x7ff7e6 });
+    // The crown (fins, roof meadow, spire and beacon): a level lifts it onto the storeys it adds (D-100).
+    const crown = (y: number, k = 1) => {
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        b.add({
+          piece: 'slab',
+          p: [Math.cos(a) * 0.55, y - 0.02, Math.sin(a) * 0.55],
+          s: [0.08, 0.6, 0.3],
+          r: -a,
+          tint: 0xe9eee8,
+        });
+      }
+      roofMeadow(b, y, 0.7, 0.7);
+      b.add({ piece: 'spireCone', p: [0, y + 0.28, 0], s: [0.35, 0.9 * k, 0.35], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'lumenRib', p: [0, y + 0.28 + 0.9 * k, 0], s: [0.14, 0.14, 0.14], glow: 1, tint: 0x7ff7e6 });
+    };
+    b.upTo(1, () => crown(4.32));
     // Detail (D-096): a podium of server racks with blinking status strips, cooling pipes running up the core,
     // a glazed entrance with a canopy, and a fence of light posts round the lot.
     for (let k = 0; k < 4; k++) {
@@ -47,5 +51,27 @@ export default defineBuilding({
       b.add({ piece: 'timberBox', p: [Math.cos(a) * 0.9, 0.12, Math.sin(a) * 0.9], s: [0.03, 0.28, 0.03], tint: TRIM.charcoal });
       b.add({ piece: 'lumenRib', p: [Math.cos(a) * 0.9, 0.4, Math.sin(a) * 0.9], s: [0.04, 0.03, 0.04], tint: 0x7ff7e6, glow: 0.8 });
     }
+
+    // Levels: the spire grows a narrower glass drum ringed with light per level, and the crown rides on top.
+    const drum = (y: number, h: number, d: number) => {
+      b.add({ piece: 'glassCyl', p: [0, y, 0], s: [d, h, d], tint: PALETTE.glass, glow: 0.6 });
+      b.add({ piece: 'concreteCyl', p: [0, y - 0.04, 0], s: [d + 0.2, 0.06, d + 0.2], tint: 0xe9eee8 });
+      for (let i = 0; i < 2; i++) b.add({ piece: 'haloRing', p: [0, y + 0.35 + i * 0.6, 0], s: [d + 0.25, 2, d + 0.25], glow: 1 });
+    };
+    // Level 2: one drum more and a second bank of server cabinets.
+    b.level(2, () => {
+      drum(4.32, 1.4, 0.82);
+      b.upTo(2, () => crown(5.72));
+      b.add({ piece: 'slab', p: [-0.65, 0.12, 0], s: [0.28, 0.5, 0.5], tint: 0x3b4248 });
+      for (let r = 0; r < 3; r++) b.add({ piece: 'lumenRib', p: [-0.5, 0.22 + r * 0.12, 0], s: [0.02, 0.012, 0.42], tint: 0x9fd0ff, glow: 0.7 });
+    });
+    // Level 3: a third drum, a satellite dish and a taller beacon spire.
+    b.level(3, () => {
+      drum(4.32, 1.4, 0.82);
+      drum(5.72, 1.2, 0.66);
+      crown(6.92, 1.8);
+      b.add({ piece: 'dome', p: [0.45, 5.2, 0.2], s: [0.6, 0.25, 0.6], rx: -0.9, r: 0.6, tint: 0xe9eee8 });
+      b.add({ piece: 'concreteCyl', p: [0.32, 5.0, 0.15], s: [0.04, 0.3, 0.04], rz: 0.8, tint: TRIM.steel });
+    });
   },
 });

@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, TRIM, beam, crate, flowers, grassTufts, lamp, roofMeadow } from '../kit';
+import { PALETTE, TRIM, awning, beam, crate, flowers, grassTufts, lamp, roofMeadow } from '../kit';
 
 export default defineBuilding({
   id: 'circular-reclaimery',
@@ -81,5 +81,28 @@ export default defineBuilding({
     b.add({ piece: 'pod', p: [1.3, 0.12, 0.25], s: [0.8, 0.62, 0.62], tint: 0xf4f1e8 });
     lamp(b, 2.25, 0.12, -0.3, 0.6);
     lamp(b, -2.3, 0.12, 0.85, 0.6);
+
+    // Levels (D-100). Level 2: a glazed sorting loft on the hall roof, fed by a covered conveyor from the
+    // digesters, and a repair café under an awning at the hall's east end.
+    const loft = () => {
+      b.add({ piece: 'glassBox', p: [-0.9, 1.27, 1.4], s: [1.9, 0.55, 1.0], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'slab', p: [-0.9, 1.82, 1.4], s: [2.0, 0.05, 1.1], tint: 0x6f8a86 });
+      beam(b, 'slab', [0.2, 1.3, -0.4], [0.05, 1.5, 0.95], 0.3, { tint: 0xbac4c4 });
+    };
+    b.level(2, () => {
+      loft();
+      awning(b, 1.25, 1.0, 2.25, 0.9, 0.35, 0xf5efe4, TRIM.teal, 4);
+      for (const x of [0.95, 1.55]) b.add({ piece: 'concreteCyl', p: [x, 0.12, 2.3], s: [0.22, 0.24, 0.22], tint: PALETTE.timber });
+    });
+    // Level 3: a glowing biogas holder by the compost bays, and a ventilation stack with a wind cowl and halo.
+    b.level(3, () => {
+      loft();
+      b.add({ piece: 'concreteCyl', p: [2.0, 0.12, -0.15], s: [0.9, 0.2, 0.9], tint: 0xe8e2d4 });
+      b.add({ piece: 'dome', p: [2.0, 0.32, -0.15], s: [0.9, 1.3, 0.9], tint: 0xbfe8a0, glow: 0.4 });
+      b.add({ piece: 'concreteCyl', p: [-2.1, 0.12, -1.9], s: [0.28, 3.4, 0.28], tint: 0xe8e2d4 });
+      b.add({ piece: 'dome', p: [-2.1, 3.52, -1.9], s: [0.42, 0.35, 0.42], rz: 1.2, tint: TRIM.steel });
+      b.add({ piece: 'haloRing', p: [-2.1, 3.2, -1.9], s: [0.5, 2, 0.5], tint: 0x8fd35a, glow: 1 });
+      for (const y of [1.2, 2.2]) b.add({ piece: 'concreteCyl', p: [-2.1, y, -1.9], s: [0.31, 0.04, 0.31], tint: TRIM.steel });
+    });
   },
 });

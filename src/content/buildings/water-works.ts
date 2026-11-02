@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, TRIM, beam, door, flowers, grassTufts, lamp, louvres, railing } from '../kit';
+import { PALETTE, TRIM, beam, door, flowers, grassTufts, lamp, louvres, railing, solarArray } from '../kit';
 
 export default defineBuilding({
   id: 'water-works',
@@ -55,5 +55,30 @@ export default defineBuilding({
     }
     b.add({ piece: 'waterfall', p: [1.15, 0.12, 0.0], s: [0.3, 0.07, 1], tint: 0xbfefff });
     lamp(b, -1.4, 0.06, 0.88);
+
+    // Levels (D-100). Level 2: a timber-clad water tower on legs over the pump hall's back corner, and solar
+    // panels on the hall's sawtooth roof.
+    const tower = () => {
+      const [x, z] = [-1.1, -0.55];
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add({ piece: 'timberBox', p: [x + sx * 0.17, 0.66, z + sz * 0.17], s: [0.035, 0.6, 0.035], tint: TRIM.steel });
+      b.add({ piece: 'concreteCyl', p: [x, 1.26, z], s: [0.5, 0.42, 0.5], tint: 0xb48d63 });
+      for (const y of [1.36, 1.56]) b.add({ piece: 'concreteCyl', p: [x, y, z], s: [0.51, 0.025, 0.51], tint: TRIM.charcoal });
+      b.add({ piece: 'spireCone', p: [x, 1.68, z], s: [0.56, 0.2, 0.56], tint: 0x5f6b73 });
+    };
+    b.level(2, () => {
+      tower();
+      solarArray(b, hx + 0.25, 0.88, hz + 0.1, 0.7, 0.9, 2, 2, 0.35);
+    });
+    // Level 3: the three filters are joined by a lit UV pavilion of glass, the reed beds gain a third, lower
+    // pool and a fountain jet, and the tower gets a lit band.
+    b.level(3, () => {
+      tower();
+      solarArray(b, hx + 0.25, 0.88, hz + 0.1, 0.7, 0.9, 2, 2, 0.35);
+      b.add({ piece: 'haloRing', p: [-1.1, 1.47, -0.55], s: [0.52, 2, 0.52], tint: TRIM.seaBlue, glow: 1 });
+      b.add({ piece: 'glassBox', p: [0.02, 0.06, 0.6], s: [0.32, 0.5, 0.5], tint: 0xcfe6ff, glow: 0.7 });
+      b.add({ piece: 'slab', p: [0.02, 0.56, 0.6], s: [0.38, 0.03, 0.56], tint: TRIM.steel });
+      b.add({ piece: 'pool', p: [1.15, 0.06, 0.82], s: [0.54, 0.02, 0.2] });
+      b.add({ piece: 'lumenRib', p: [1.15, 0.08, -0.45], s: [0.025, 0.4, 0.025], tint: 0x9ee6ff, glow: 0.9 });
+    });
   },
 });

@@ -64,5 +64,32 @@ export default defineBuilding({
     }
     door(b, 0, 0.22, 0.8, 0.22, 0.4);
     bench(b, -1.2, 0.12, 0.9);
+
+    // Levels (D-100). Level 2: a listening tower on the pavilion roof (a timber lookout with a lit cap, where the
+    // reeds' hum is loudest) and a second ring of shorter, warm-lit reeds round it.
+    const tower = () => {
+      b.add({ piece: 'timberBox', p: [0, 1.32, 0], s: [0.7, 1.5, 0.7], tint: 0xb48a62 });
+      b.add({ piece: 'slab', p: [0, 2.82, 0], s: [1.1, 0.08, 1.1], tint: PALETTE.concrete });
+      b.add({ piece: 'glassBox', p: [0, 2.9, 0], s: [0.8, 0.45, 0.8], tint: PALETTE.glassWarm, glow: 0.6 });
+      b.add({ piece: 'spireCone', p: [0, 3.35, 0], s: [1.0, 0.6, 1.0], tint: 0x6f8a5a });
+    };
+    b.level(2, () => {
+      tower();
+      for (let k = 0; k < 14; k++) {
+        const a = (k / 14) * Math.PI * 2;
+        const h = 1.6 + (k % 3) * 0.4;
+        b.add({ piece: 'concreteCyl', p: [Math.cos(a) * 1.15, 0.12, Math.sin(a) * 1.15], s: [0.08, h, 0.08], tint: 0xc8d7a8 });
+        b.add({ piece: 'lumenRib', p: [Math.cos(a) * 1.15, 0.12 + h - 0.4, Math.sin(a) * 1.15], s: [0.1, 0.42, 0.1], tint: 0xffd9a0, glow: 0.9 });
+      }
+    });
+    // Level 3: a giant central reed (a lit stem twice the others' height with a seed-head crown) and wind
+    // ribbons strung between the tallest reeds.
+    b.level(3, () => {
+      tower();
+      b.add({ piece: 'concreteCyl', p: [0, 3.95, 0], s: [0.2, 9.0, 0.2], tint: 0xb8c79a });
+      b.add({ piece: 'lumenRib', p: [0, 11.0, 0], s: [0.3, 2.0, 0.3], glow: 1 });
+      for (let k = 0; k < 8; k++) b.add({ piece: 'solarLeaf', p: [0, 12.9, 0], s: [0.9, 1, 0.4], r: (k / 8) * Math.PI * 2, rz: 0.9, tint: 0xfff4c8, glow: 0.6 });
+      b.add({ piece: 'haloRing', p: [0, 12.2, 0], s: [1.6, 3, 1.6], glow: 1 });
+    });
   },
 });

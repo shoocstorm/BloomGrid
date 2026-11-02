@@ -57,5 +57,30 @@ export default defineBuilding({
     }
     bench(b, 1.2, 0.12, 1.9);
     bench(b, -1.2, 0.12, 1.9);
+
+    // Levels (D-100). A kite on its winch: tether from (wx, wz) up to the wing at (kx, ky, kz).
+    const kite = (wx: number, wz: number, kx: number, ky: number, kz: number, yaw: number, s: number, tint: number) => {
+      b.add({ piece: 'concreteCyl', p: [wx, 0.12, wz], s: [0.7, 0.5, 0.7], tint: 0xe9f4ef });
+      beam(b, 'lumenRib', [wx, 0.6, wz], [kx, ky, kz], 0.05, { glow: 0.8 });
+      for (const [r, rz] of [
+        [yaw, 0.55],
+        [yaw + Math.PI, -0.55],
+      ] as const)
+        b.add({ piece: 'solarLeaf', p: [kx, ky, kz], s: [3.0 * s, 1, 2.6 * s], r, rz, tint });
+      b.add({ piece: 'lumenRib', p: [kx, ky - 0.6, kz], s: [0.08, 1.2 * s, 0.08], glow: 1 });
+    };
+    // Level 2: a sixth kite in rose and a winch house with a reel on the lawn.
+    const sixth = () => {
+      kite(-3.6, 0.4, -5.6, 15.5, -3.2, 0.2, 1, 0xffe0f0);
+      b.add({ piece: 'timberBox', p: [3.6, 0.12, 0.2], s: [0.9, 0.55, 0.6], tint: 0xb48a62 });
+      b.add({ piece: 'concreteCyl', p: [3.6, 0.67, 0.2], s: [0.4, 0.3, 0.4], rx: Math.PI / 2, tint: 0xe9f4ef });
+    };
+    b.level(2, sixth);
+    // Level 3: a great lead kite twice the others' size flying highest, with a lit tail of ribbons.
+    b.level(3, () => {
+      sixth();
+      kite(0, 0.2, 0.4, 25, -9.0, 1.0, 1.7, 0xfff4c8);
+      for (let k = 1; k <= 5; k++) b.add({ piece: 'slab', p: [0.4, 25 - k * 0.8, -9.0 + k * 0.3], s: [0.06, 0.4, 0.3], rx: 0.3, tint: [0xff9aa2, 0xffe08a, 0x9ee6ff][k % 3]!, glow: 0.6 });
+    });
   },
 });

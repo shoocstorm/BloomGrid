@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, TRIM, flowers, grassTufts, lamp, piles, tree } from '../kit';
+import { PALETTE, TRIM, bench, flowers, gableRoof, grassTufts, lamp, piles, tree } from '../kit';
 
 export default defineBuilding({
   id: 'phyto-garden',
@@ -35,5 +35,29 @@ export default defineBuilding({
     b.add({ piece: 'concreteCyl', p: [-0.85, 0.05, -0.85], s: [0.1, 0.32, 0.1], tint: TRIM.seaBlue });
     b.add({ piece: 'waterfall', p: [-0.85, 0.08, -0.78], s: [0.06, 0.24, 1], tint: 0xbfefff });
     lamp(b, 0.85, 0.05, 0.85, 0.42);
+
+    // Levels (D-100). Level 2: a timber boardwalk loop over the reed pond with a lookout bench, and floating
+    // planted rafts on the second pool.
+    b.level(2, () => {
+      b.add({ piece: 'timberBox', p: [-0.4, 0.1, -0.85], s: [1.0, 0.03, 0.18], tint: 0xa98258 });
+      b.add({ piece: 'timberBox', p: [0.05, 0.1, -0.35], s: [0.18, 0.03, 0.9], tint: 0xa98258 });
+      piles(b, -0.85, 0.05, -0.85, 0.1, 3, 0.1);
+      bench(b, -0.4, 0.13, -0.82, 0.3, false, true);
+      for (const [x, z] of [
+        [0.35, 0.4],
+        [0.65, 0.55],
+      ] as const) {
+        b.add({ piece: 'mossBox', p: [x, 0.06, z], s: [0.2, 0.03, 0.2], r: x });
+        b.add({ piece: 'grass', p: [x, 0.09, z], s: 0.22, tint: 0x8fae4a });
+      }
+    });
+    // Level 3: a living-machine greenhouse (glass cells that clean the pond water, lit purple at night) and a
+    // dragonfly perch of willow arches.
+    b.level(3, () => {
+      b.add({ piece: 'glassBox', p: [0.55, 0.05, -0.55], s: [0.7, 0.42, 0.55], tint: 0xe6d8ff, glow: 0.5 });
+      gableRoof(b, 0.55, 0.47, -0.55, 0.7, 0.55, { pitch: 0.55, tint: 0xd6f2ee, thick: 0.02 });
+      for (let k = 0; k < 3; k++) b.add({ piece: 'algaeTank', p: [0.35 + k * 0.2, 0.05, -0.62], s: [0.12, 0.32, 0.12], glow: 0.9 });
+      for (let k = 0; k < 2; k++) b.add({ piece: 'willowArch', p: [-0.6 + k * 0.35, 0.05, 0.62], s: [0.4, 0.5, 0.4], r: 0.3, tint: 0x9cbf5a });
+    });
   },
 });

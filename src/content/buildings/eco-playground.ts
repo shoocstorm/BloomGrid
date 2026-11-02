@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, TRIM, beam, bench, flowers, grassTufts, tree } from '../kit';
+import { PALETTE, TRIM, beam, bench, flowers, gableRoof, grassTufts, tree } from '../kit';
 
 export default defineBuilding({
   id: 'eco-playground',
@@ -39,5 +39,29 @@ export default defineBuilding({
     b.add({ piece: 'timberBox', p: [-1.2, 0.06, -0.2], s: [0.3, 0.55, 0.3], tint: PALETTE.timber });
     beam(b, 'slab', [-1.05, 0.6, -0.2], [-0.55, 0.08, 0.25], 0.22, { tint: 0x5fc2e0 });
     bench(b, 0.2, 0.06, 1.25);
+
+    // Levels (D-100). Level 2: a treehouse in the big tree's crown (a timber platform with a hut and a slide)
+    // reached by a rope bridge from the climbing frame.
+    b.level(2, () => {
+      const [x, z] = [1.0, -1.0];
+      for (const [dx, dz] of [
+        [-0.25, -0.25],
+        [0.25, -0.25],
+        [-0.25, 0.25],
+        [0.25, 0.25],
+      ] as const)
+        b.add({ piece: 'trunk', p: [x + dx, 0.06, z + dz], s: [0.05, 0.7, 0.05], tint: PALETTE.bark });
+      b.add({ piece: 'timberBox', p: [x, 0.76, z], s: [0.75, 0.05, 0.75], tint: 0xc8a57c });
+      b.add({ piece: 'timberBox', p: [x + 0.05, 0.81, z - 0.05], s: [0.4, 0.32, 0.4], tint: 0xa47c56 });
+      gableRoof(b, x + 0.05, 1.13, z - 0.05, 0.44, 0.44, { pitch: 0.6, tint: TRIM.red, overhang: 0.04 });
+      beam(b, 'timberBox', [x - 0.35, 0.78, z + 0.1], [0.75, 0.76, -0.02], 0.12, { tint: TRIM.rope });
+      beam(b, 'slab', [x + 0.35, 0.74, z + 0.3], [1.35, 0.08, 0.1], 0.2, { tint: TRIM.orange });
+    });
+    // Level 3: a climbing-net dome of woven willow over the play hill, and splash jets in the pond.
+    b.level(3, () => {
+      for (let k = 0; k < 4; k++) b.add({ piece: 'willowArch', p: [-0.55, 0.06, 0.0], s: [1.3, 1.3, 1.3], r: (k / 4) * Math.PI, tint: 0xc8a57c });
+      b.add({ piece: 'haloRing', p: [-0.55, 0.42, 0.0], s: [1.05, 2, 1.05], tint: TRIM.rope });
+      for (let k = 0; k < 4; k++) b.add({ piece: 'lumenRib', p: [-0.85 + k * 0.2, 0.08, 0.7], s: [0.025, 0.3 + (k % 2) * 0.15, 0.025], tint: 0x9ee6ff, glow: 0.8 });
+    });
   },
 });

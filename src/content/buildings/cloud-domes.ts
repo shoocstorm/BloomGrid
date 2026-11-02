@@ -108,5 +108,28 @@ export default defineBuilding({
     lilies(b, 3.0, 0.25, -2.8, 2.4, 2.4, 10);
     b.add({ piece: 'timberBox', p: [2.7, 0.2, -4.55], s: [3.2, 0.06, 0.5], tint: 0xc8a57c });
     for (const x of [1.9, 3.5]) bench(b, x, 0.26, -4.6, 0.42, false, false);
+
+    // Levels (D-100). Level 2: a canopy walkway threads the cloud-forest dome at mid-height (a lit ring round the
+    // mountain) and the cooling supertree grows a second, lower crown.
+    b.level(2, () => {
+      b.add({ piece: 'haloRing', p: [cx, 3.2, cz], s: [4.2, 4, 4.2], tint: 0xffd9a0, glow: 0.9 });
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * TAU;
+        b.add({ piece: 'slab', p: [cx + Math.cos(a) * 2.1, 3.1, cz + Math.sin(a) * 2.1], s: [1.15, 0.06, 0.4], r: -a - Math.PI / 2, tint: 0xc8a57c });
+      }
+      for (let k = 0; k < 8; k++) b.add({ piece: 'solarLeaf', p: [sx, 4.4, sz], s: [1.1, 1, 0.8], r: (k / 8) * TAU + 0.2, rz: -0.3 });
+    });
+    // Level 3: a third dome rises over the lagoon (a glass bubble of tropical water gardens with its own halo),
+    // linked by a glass tube.
+    b.level(3, () => {
+      b.add({ piece: 'haloRing', p: [cx, 3.2, cz], s: [4.2, 4, 4.2], tint: 0xffd9a0, glow: 0.9 });
+      for (let k = 0; k < 8; k++) b.add({ piece: 'solarLeaf', p: [sx, 4.4, sz], s: [1.1, 1, 0.8], r: (k / 8) * TAU + 0.2, rz: -0.3 });
+      const [dx, dz] = [2.4, -3.1];
+      b.add({ piece: 'concreteCyl', p: [dx, 0.2, dz], s: [2.8, 0.2, 2.8], tint: 0xe9f4ef });
+      b.add({ piece: 'dome', p: [dx, 0.4, dz], s: [2.8, 3.4, 2.8] });
+      for (let k = 0; k < 3; k++) tree(b, dx + Math.cos(k * 2.1) * 0.6, 0.4, dz + Math.sin(k * 2.1) * 0.6, 0.35, 0.2);
+      b.add({ piece: 'haloRing', p: [dx, 0.45, dz], s: [2.9, 4, 2.9], glow: 0.7 });
+      b.add({ piece: 'glassBox', p: [0.6, 0.2, -2.3], s: [1.4, 0.55, 0.5], r: -0.3, tint: PALETTE.glass, glow: 0.2 });
+    });
   },
 });

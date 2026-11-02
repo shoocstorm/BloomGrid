@@ -244,14 +244,17 @@ export default defineBuilding({
       b.add({ piece: 'glassCyl', p: [0, ly, 0], s: [d, h, d], tint: PALETTE.glassWarm, glow: 0.4 });
       ly += h;
     }
-    b.add({ piece: 'spireCone', p: [0, ly, 0], s: [1.4, 10.5, 1.4], tint: PALETTE.glassWarm, glow: 0.3 });
-    for (const [k, d] of [
-      [0.15, 3.2],
-      [0.4, 2.3],
-      [0.62, 1.5],
-    ] as const)
-      b.add({ piece: 'haloRing', p: [0, ly + 10.5 * k, 0], s: [d, 3, d], glow: 1 });
-    b.add({ piece: 'lumenRib', p: [0, ly + 8.3, 0], s: [0.1, 3.4, 0.1], glow: 1 });
+    const spire = (ly: number, h: number) => {
+      b.add({ piece: 'spireCone', p: [0, ly, 0], s: [1.4, h, 1.4], tint: PALETTE.glassWarm, glow: 0.3 });
+      for (const [k, d] of [
+        [0.15, 3.2],
+        [0.4, 2.3],
+        [0.62, 1.5],
+      ] as const)
+        b.add({ piece: 'haloRing', p: [0, ly + h * k, 0], s: [d, 3, d], glow: 1 });
+      b.add({ piece: 'lumenRib', p: [0, ly + h * 0.79, 0], s: [0.1, 3.4, 0.1], glow: 1 });
+    };
+    b.upTo(2, () => spire(ly, 10.5));
     // Street level (D-097): railed footbridges over the moat (two a side, clear of the waterfalls), lit doors into
     // the atrium between the front roots, lamps round the inner plaza and benches on the outer walk.
     for (const s of [-1, 1])
@@ -268,5 +271,37 @@ export default defineBuilding({
       bench(b, x, Y, 6.25, 0.5, false, true);
       bench(b, x, Y, -6.25, 0.5);
     }
+
+    // Levels (D-100). Level 2: a second solar halo blooms round the shaft above the sky park, its petals turned
+    // the other way, and waterfalls of ivy spill from the garden tiers.
+    b.level(2, () => {
+      const y2 = BASE + (PARK_TIER + 3.2) * TIER;
+      b.add({ piece: 'haloRing', p: [0, y2, 0], s: [11.6, 10, 11.6], tint: 0xffe08a, glow: 1 });
+      for (let k = 0; k < 4; k++) b.add({ piece: 'slab', p: [0, y2 + 0.3, 0], s: [11.4, 0.1, 0.18], r: (k / 4) * Math.PI, tint: PALETTE.concrete });
+      for (let k = 0; k < 24; k++) {
+        const a = (k / 24) * TAU + 0.13;
+        b.add({ piece: 'solarLeaf', p: [Math.cos(a) * 5.6, y2 + 0.08, -Math.sin(a) * 5.6], s: [2.0, 1, 1.5], r: a, rz: -0.3 });
+      }
+      for (const i of GARDEN_TIERS) {
+        const half = tierSize(i) / 2;
+        for (const [nx, nz] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ] as const)
+          b.add({ piece: 'ivy', p: [nx * (half + 0.12), BASE + (i + 1) * TIER, nz * (half + 0.12)], s: [1.6, 2.6, 1], r: Math.atan2(nx, nz), tint: PALETTE.leaves[(i + nx + 2) % 5], glow: 0.2 });
+      }
+    });
+    // Level 3: the lantern gains a fourth stage, the spire soars higher with a fourth light ring, and a beacon of
+    // golden petals opens at its tip.
+    b.level(3, () => {
+      b.add({ piece: 'glassCyl', p: [0, ly, 0], s: [1.0, 1.2, 1.0], tint: 0xfff2c8, glow: 0.7 });
+      b.add({ piece: 'haloRing', p: [0, ly + 0.6, 0], s: [2.2, 3, 2.2], tint: 0xffe08a, glow: 1 });
+      const h = 14;
+      spire(ly + 1.2, h);
+      b.add({ piece: 'haloRing', p: [0, ly + 1.2 + h * 0.84, 0], s: [1.0, 3, 1.0], glow: 1 });
+      for (let k = 0; k < 6; k++) b.add({ piece: 'sunPetal', p: [0, ly + 1.2 + h * 0.97, 0], s: [0.8, 1, 0.6], r: (k / 6) * TAU, rz: 1.0, tint: 0xffd56b, glow: 1 });
+    });
   },
 });

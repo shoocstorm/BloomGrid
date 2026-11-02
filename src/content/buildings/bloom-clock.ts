@@ -61,12 +61,57 @@ export default defineBuilding({
     }
     ivyEdge(b, 0, H + 0.2, 1.0, 2, 0, 1, 3);
     // Lantern belfry and spire.
-    b.add({ piece: 'slab', p: [0, H + 0.2, 0], s: [2.6, 0.2, 2.6], tint: PALETTE.concrete });
-    b.add({ piece: 'glassCyl', p: [0, H + 0.4, 0], s: [1.6, 1.6, 1.6], tint: 0xffe08a, glow: 0.9 });
-    b.add({ piece: 'dome', p: [0, H + 0.6, 0], s: [1.1, 1.4, 1.1] });
-    b.add({ piece: 'spireCone', p: [0, H + 2, 0], s: [1.8, 3, 1.8], tint: PALETTE.glassWarm, glow: 0.4 });
+    const crown = (y: number, k: number) => {
+      b.add({ piece: 'slab', p: [0, y, 0], s: [2.6, 0.2, 2.6], tint: PALETTE.concrete });
+      b.add({ piece: 'glassCyl', p: [0, y + 0.2, 0], s: [1.6, 1.6, 1.6], tint: 0xffe08a, glow: 0.9 });
+      b.add({ piece: 'dome', p: [0, y + 0.4, 0], s: [1.1, 1.4, 1.1] });
+      b.add({ piece: 'spireCone', p: [0, y + 1.8, 0], s: [1.8, 3 * k, 1.8], tint: PALETTE.glassWarm, glow: 0.4 });
+    };
+    b.upTo(1, () => crown(H + 0.2, 1));
     // Street level (D-097): a lit door into the clock shaft and a paved forecourt with planters, lamps and benches.
     entrance(b, 0, 0.2, 1.02, 0.8, 0.5, 0xffe08a);
     forecourt(b, 0, 0.2, 3.1, 3.2, 1.4, 2, 2);
+
+    // Levels (D-100). Level 2: an open belfry lifts the crown: four slender piers round a ring of golden bells
+    // that glow at night, with flower boxes on the parapet.
+    const belfry = () => {
+      b.add({ piece: 'slab', p: [0, H + 0.2, 0], s: [2.6, 0.2, 2.6], tint: PALETTE.concrete });
+      for (const [x, z] of [
+        [-1.05, -1.05],
+        [1.05, -1.05],
+        [-1.05, 1.05],
+        [1.05, 1.05],
+      ] as const)
+        b.add({ piece: 'slab', p: [x, H + 0.4, z], s: [0.3, 2.0, 0.3], tint: PALETTE.concrete });
+      for (let k = 0; k < 4; k++) {
+        const a = (k / 4) * TAU + TAU / 8;
+        b.add({ piece: 'dome', p: [Math.cos(a) * 0.45, H + 1.0, Math.sin(a) * 0.45], s: [0.5, 0.7, 0.5], tint: 0xffd56b, glow: 0.5 });
+      }
+      flowers(b, 0, H + 0.4, 1.15, 0.9, 8, 0.1, 0.6);
+    };
+    b.level(2, () => {
+      belfry();
+      b.upTo(2, () => crown(H + 2.4, 1));
+    });
+    // Level 3: the tower's other two sides gain clock faces too, garden balconies wrap it at mid-height, and the
+    // crown grows a taller gilded spire with a halo.
+    b.level(3, () => {
+      belfry();
+      crown(H + 2.4, 1.5);
+      b.add({ piece: 'haloRing', p: [0, H + 4.6, 0], s: [1.6, 3, 1.6], tint: 0xffe08a, glow: 1 });
+      for (const side of [1, -1]) {
+        const x = side * 1.12;
+        b.add({ piece: 'haloRing', p: [x, FACE, 0], s: [3.4, 3.4, 3.4], rx: Math.PI / 2, r: Math.PI / 2, glow: 1 });
+        for (let k = 0; k < 12; k++) {
+          const a = (k / 12) * TAU;
+          b.add({ piece: 'flower', p: [x + side * 0.05, FACE - 0.1 + Math.sin(a) * 1.4, Math.cos(a) * 1.4], s: k % 3 ? 0.22 : 0.34, tint: k % 3 ? 0xfff4f0 : 0xffe08a, glow: 1 });
+        }
+      }
+      for (const nz of [1, -1]) {
+        b.add({ piece: 'slab', p: [0, 6.2, nz * 1.35], s: [2.6, 0.1, 0.6], tint: PALETTE.concrete });
+        flowers(b, 0, 6.3, nz * 1.4, 0.9, 10, 0.1, 0.7);
+        ivyEdge(b, 0, 6.2, nz * 1.64, 2.4, 0, nz, 5);
+      }
+    });
   },
 });

@@ -73,5 +73,30 @@ export default defineBuilding({
     railing(b, -1.6, 0.45, 1.25, 2.4);
     bench(b, 1.2, 0.2, 2.2, 0.5, false, true);
     for (const x of [-3.0, 0.2, 3.0]) lamp(b, x, 0.2, 1.55, 0.6);
+
+    // Levels (D-100). Level 2: the aqueduct runs on west from the wheel's crown to a second filtration tower,
+    // which spills its own waterfall back into the channel.
+    const west = () => {
+      b.add({ piece: 'slab', p: [-1.1, CY + R - 0.2, -2.8], s: [2.4, 0.25, 0.8], tint: PALETTE.concrete });
+      b.add({ piece: 'pool', p: [-1.1, CY + R + 0.05, -2.8], s: [2.2, 0.04, 0.6] });
+      b.add({ piece: 'glassCyl', p: [-2.4, 0.2, -3.4], s: [1.6, CY + R, 1.6], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'waterfall', p: [-2.4, 0.45, -2.6], s: [0.8, CY + R - 0.6, 1], glow: 0.8 });
+    };
+    b.level(2, west);
+    // Level 3: the first tower gains a crown of glass (a tea room over the aqueduct with a halo), the second a
+    // glass spire, and the great wheel's rim is strung with lanterns.
+    b.level(3, () => {
+      west();
+      const top = 0.2 + CY + R;
+      b.add({ piece: 'glassCyl', p: [4.0, top, -3.4], s: [2.4, 0.8, 2.4], tint: 0xfff2c8, glow: 0.6 });
+      b.add({ piece: 'dome', p: [4.0, top + 0.8, -3.4], s: [2.4, 1.2, 2.4], tint: PALETTE.glass });
+      b.add({ piece: 'haloRing', p: [4.0, top + 0.4, -3.4], s: [2.8, 3, 2.8], tint: 0xffd9a0, glow: 1 });
+      b.add({ piece: 'concreteCyl', p: [-2.4, top, -3.4], s: [1.8, 0.12, 1.8], tint: PALETTE.concrete });
+      b.add({ piece: 'spireCone', p: [-2.4, top + 0.12, -3.4], s: [1.2, 1.4, 1.2], tint: PALETTE.glassWarm, glow: 0.4 });
+      for (let k = 0; k < 16; k++) {
+        const a = ((k + 0.5) / 16) * TAU;
+        b.add({ piece: 'lumenRib', p: [Math.cos(a) * (R + 0.15), CY + Math.sin(a) * (R + 0.15), 0.6], s: [0.14, 0.14, 0.14], tint: 0xffd9a0, glow: 1 });
+      }
+    });
   },
 });

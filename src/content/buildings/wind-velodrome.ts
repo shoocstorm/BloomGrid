@@ -109,5 +109,34 @@ export default defineBuilding({
     }
     lamp(b, -3.9, 0.25, 0.0, 0.7);
     lamp(b, 4.15, 0.25, 0.0, 0.7);
+
+    // Levels (D-100). Level 2: spectator galleries of timber on both long sides, under glazed canopies, and a
+    // turbine fin on the roof ridge.
+    const galleries = () => {
+      for (const z of [-3.15, 3.15]) {
+        const s = Math.sign(z);
+        b.add({ piece: 'timberBox', p: [0, 0.53, z + s * 0.28], s: [6.0, 0.14, 0.16], tint: 0xc89a66 });
+        for (const x of [-2.8, 0, 2.8]) b.add({ piece: 'timberBox', p: [x, 0.25, z + s * 0.4], s: [0.05, 1.1, 0.05], tint: PALETTE.timber });
+        b.add({ piece: 'glassBox', p: [0, 1.35, z + s * 0.25], s: [6.2, 0.04, 0.6], rx: s * 0.2, tint: 0xd6f2ee });
+      }
+    };
+    b.level(2, () => {
+      galleries();
+      for (let k = 0; k < 3; k++) b.add({ piece: 'solarLeaf', p: [-2.4 + k * 2.4, 2.15, 0], s: [0.9, 1, 1.3], r: Math.PI / 2, rz: 0.15, tint: 0xf4f1ea });
+    });
+    // Level 3: the willow shell grows a lantern ridge (a lit glass clerestory along the top), wind spinners on
+    // masts at each end and a finish-line gantry over the track.
+    b.level(3, () => {
+      galleries();
+      b.add({ piece: 'glassBox', p: [0, 2.15, 0], s: [7.0, 0.35, 0.36], tint: PALETTE.glassWarm, glow: 0.7 });
+      b.add({ piece: 'timberBox', p: [0, 2.5, 0], s: [7.4, 0.06, 0.6], tint: PALETTE.timber });
+      for (const x of [-4.1, 4.1]) {
+        b.add({ piece: 'timberBox', p: [x, 0.25, 0], s: [0.05, 2.8, 0.05], tint: TRIM.steel });
+        for (let k = 0; k < 3; k++) b.add({ piece: 'solarLeaf', p: [x, 3.05, 0], s: [0.5, 1, 0.3], r: (k / 3) * TAU, rz: 1.2, tint: TRIM.red });
+      }
+      for (const z of [-2.3, -1.4]) b.add({ piece: 'timberBox', p: [1.6, 0.25, z], s: [0.05, 1.2, 0.05], tint: TRIM.charcoal });
+      b.add({ piece: 'slab', p: [1.6, 1.45, -1.85], s: [0.08, 0.16, 1.05], tint: TRIM.charcoal });
+      b.add({ piece: 'slab', p: [1.65, 1.48, -1.85], s: [0.01, 0.1, 0.9], tint: 0x5ff2da, glow: 0.9 });
+    });
   },
 });

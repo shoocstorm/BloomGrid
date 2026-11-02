@@ -84,5 +84,29 @@ export default defineBuilding({
     b.add({ piece: 'concreteCyl', p: [0.1, 0.135, 0.5], s: [0.11, 0.03, 0.11], tint: 0xc8b088 });
     lamp(b, -1.35, 0.1, 0.85, 0.55);
     lamp(b, 1.38, 0.1, 0.85, 0.55);
+
+    // Levels (D-100). Level 2: the jetty grows a second arm with more bollards, and a smokehouse with a stone
+    // chimney joins the net shed.
+    const arm = () => {
+      for (let k = 0; k < 5; k++) b.add({ piece: 'timberBox', p: [-0.2 - k * 0.22, 0.02, 1.98], s: [0.2, 0.06, 0.4], tint: k % 2 ? 0xa98258 : 0x957049 });
+      for (const x of [-0.4, -1.0]) piles(b, x, x, 2.0, 0.04, 1, 0.6);
+      for (const x of [-0.6, -1.0]) b.add({ piece: 'concreteCyl', p: [x, 0.08, 2.15], s: [0.06, 0.07, 0.06], tint: TRIM.charcoal });
+      b.add({ piece: 'timberBox', p: [1.15, 0.1, -0.7], s: [0.5, 0.45, 0.42], tint: 0x8f6b48 });
+      gableRoof(b, 1.15, 0.55, -0.7, 0.52, 0.46, { pitch: 0.6, tint: 0x5f6b73 });
+      b.add({ piece: 'slab', p: [1.32, 0.55, -0.82], s: [0.12, 0.5, 0.12], tint: 0xb9b2a4 });
+    };
+    b.level(2, arm);
+    // Level 3: a harbour beacon (a striped little light tower) at the end of the new arm, and an ice house with a
+    // blue door beside the shed.
+    b.level(3, () => {
+      arm();
+      const [x, z] = [-1.1, 2.0];
+      b.add({ piece: 'concreteCyl', p: [x, 0.08, z], s: [0.24, 0.9, 0.24], tint: 0xf6f2ea });
+      for (const y of [0.28, 0.6]) b.add({ piece: 'concreteCyl', p: [x, 0.08 + y, z], s: [0.25, 0.12, 0.25], tint: TRIM.red });
+      b.add({ piece: 'glassCyl', p: [x, 0.98, z], s: [0.18, 0.16, 0.18], tint: 0xffe08a, glow: 1 });
+      b.add({ piece: 'spireCone', p: [x, 1.14, z], s: [0.24, 0.16, 0.24], tint: TRIM.red });
+      b.add({ piece: 'slab', p: [1.2, 0.1, 0.28], s: [0.42, 0.45, 0.34], tint: 0xe9eee8 });
+      b.add({ piece: 'slab', p: [1.2, 0.1, 0.455], s: [0.2, 0.34, 0.02], tint: TRIM.seaBlue });
+    });
   },
 });

@@ -61,8 +61,11 @@ export default defineBuilding({
         rz: 0.9,
         growAt: 0.2,
       });
-    b.add({ piece: 'haloRing', p: [0, top + 0.3, 0], s: [2.6, 4, 2.6], glow: 1 });
-    b.add({ piece: 'spireCone', p: [0, top, 0], s: [0.8, 3.2, 0.8], tint: PALETTE.glassWarm, glow: 0.4 });
+    const tip = (y: number, k: number) => {
+      b.add({ piece: 'haloRing', p: [0, y + 0.3, 0], s: [2.6, 4, 2.6], glow: 1 });
+      b.add({ piece: 'spireCone', p: [0, y, 0], s: [0.8, 3.2 * k, 0.8], tint: PALETTE.glassWarm, glow: 0.4 });
+    };
+    b.upTo(1, () => tip(top, 1));
     // Street level (D-097): a lit lobby door with a canopy, a paved path out to the street with lamps, benches on
     // the lawn and a ring of glowing bollards round the plaza rim.
     entrance(b, 0, 0.35, 1.08, 0.6, 0.45);
@@ -81,5 +84,41 @@ export default defineBuilding({
         glow: 0.9,
       });
     }
+
+    // Levels (D-100): the double helix of solar steps keeps turning upward. Steps i0..i1 of the same spiral.
+    const steps = (i0: number, i1: number) => {
+      b.add({ piece: 'concreteCyl', p: [0, 0.8 + i0 * STEP, 0], s: [0.9, (i1 - i0) * STEP, 0.9], tint: PALETTE.concrete });
+      for (let i = i0; i < i1; i++) {
+        const y = 0.8 + i * STEP;
+        const span = 2.0 - ((i - STEPS) / 20) * 0.5;
+        for (const side of [0, Math.PI]) {
+          const ang = i * 0.32 + side;
+          b.add({ piece: 'solarLeaf', p: [0, y, 0], s: [span * 0.5, 1, 1.4], r: ang, rz: 0.06 });
+          b.add({ piece: 'lumenRib', p: [Math.cos(ang) * span * 0.5, y - 0.12, -Math.sin(ang) * span * 0.5], s: [0.12, 0.28, 0.12], glow: 0.9 });
+        }
+      }
+    };
+    const y = (i: number) => 0.8 + i * STEP;
+    const lowGarden = () => {
+      const gy2 = y(10);
+      b.add({ piece: 'concreteCyl', p: [0, gy2, 0], s: [3.4, 0.2, 3.4], tint: PALETTE.concrete });
+      for (let k = 0; k < 4; k++) tree(b, Math.cos((k / 4) * TAU + 0.4) * 1.2, gy2 + 0.2, Math.sin((k / 4) * TAU + 0.4) * 1.2, 0.35, 0.2);
+    };
+    // Level 2: ten more steps of the helix, the tip riding on top, and a second garden ring lower down.
+    b.level(2, () => {
+      steps(STEPS, STEPS + 10);
+      b.upTo(2, () => tip(y(STEPS + 10), 1));
+      lowGarden();
+    });
+    // Level 3: twenty steps more, a sky garden crowning the helix with a ring of trees and a taller lit tip.
+    b.level(3, () => {
+      steps(STEPS, STEPS + 20);
+      lowGarden();
+      const gy3 = y(STEPS + 20);
+      b.add({ piece: 'concreteCyl', p: [0, gy3, 0], s: [3.0, 0.2, 3.0], tint: PALETTE.concrete });
+      b.add({ piece: 'haloRing', p: [0, gy3, 0], s: [3.1, 5, 3.1], glow: 0.9 });
+      for (let k = 0; k < 4; k++) tree(b, Math.cos((k / 4) * TAU) * 1.0, gy3 + 0.2, Math.sin((k / 4) * TAU) * 1.0, 0.35, 0.2);
+      tip(gy3 + 0.2, 1.6);
+    });
   },
 });

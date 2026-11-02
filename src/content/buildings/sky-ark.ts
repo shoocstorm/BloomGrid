@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { FLOOR, PALETTE, bench, entrance, flowers, grassTufts, ivyEdge, lamp, railing, tree } from '../kit';
+import { FLOOR, PALETTE, TRIM, bench, entrance, flowers, grassTufts, ivyEdge, lamp, railing, tree } from '../kit';
 
 const H = 19.2; // tower height (60 floors)
 const TOWERS = [-4, 0, 4];
@@ -92,5 +92,28 @@ export default defineBuilding({
     const deckY = 0.98 + H + 0.7;
     for (const z of [-1.68, 1.68]) railing(b, 0.8, deckY, z, 13.4);
     for (const x of [0.8 - 6.75, 0.8 + 6.75]) railing(b, x, deckY, 0, 3.36, true);
+
+    // Levels (D-100). Level 2: glass sky-bridges with garden floors link the towers at mid-height, and a lit
+    // winter garden pavilion rises on the podium roof.
+    b.level(2, () => {
+      for (const y of [H * 0.45, H * 0.7])
+        for (const x of [-2, 2]) {
+          b.add({ piece: 'glassBox', p: [x, 0.98 + y, 0.4], s: [1.5, 0.75, 1.3], tint: PALETTE.glassWarm, glow: 0.4 });
+          b.add({ piece: 'mossBox', p: [x, 0.98 + y + 0.75, 0.4], s: [1.6, 0.08, 1.4] });
+          flowers(b, x, 0.98 + y + 0.83, 0.4, 0.5, 5, 0.1, 0.7);
+        }
+      b.add({ piece: 'glassBox', p: [-2, 0.98, -2.2], s: [3.2, 0.9, 1.6], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'dome', p: [-2, 1.88, -2.2], s: [3.2, 1.0, 1.6], tint: PALETTE.glass });
+      tree(b, 2.0, 0.98, -2.3, 0.7);
+    });
+    // Level 3: the ark's garden deck closes under a long glass vault, a lit prow spire caps the cantilever and the
+    // hull gains a second band of light.
+    b.level(3, () => {
+      b.add({ piece: 'dome', p: [-0.4, deck + 0.1, -0.6], s: [12.4, 4.2, 2.1], tint: PALETTE.glass });
+      for (let i = 0; i < 7; i++) b.add({ piece: 'willowArch', p: [-5.8 + i * 1.95, deck + 0.1, -0.6], s: [2.1, 4.0, 0.6], r: Math.PI / 2, tint: TRIM.cream });
+      b.add({ piece: 'lumenRib', p: [0.8, ay + 0.5, 1.72], s: [13.6, 0.06, 0.06], glow: 1 });
+      b.add({ piece: 'spireCone', p: [7.4, deck, 0], s: [0.4, 4.4, 0.4], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'haloRing', p: [7.4, deck + 2.6, 0], s: [2.0, 4, 2.0], glow: 0.9 });
+    });
   },
 });

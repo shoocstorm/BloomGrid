@@ -39,9 +39,12 @@ export default defineBuilding({
     }
     // Crown: an oculus lantern with a ring of solar petals.
     const top = 0.17 + H;
-    b.add({ piece: 'concreteCyl', p: [0, top - 0.06, 0], s: [0.42, 0.08, 0.42], tint: 0xe9e1d0 });
-    b.add({ piece: 'glassCyl', p: [0, top + 0.02, 0], s: [0.28, 0.16, 0.28], tint: 0xfff2c8, glow: 0.6 });
-    for (let i = 0; i < 10; i++) b.add({ piece: 'solarLeaf', p: [0, top + 0.05, 0], s: [0.45, 1, 0.45], r: (i / 10) * Math.PI * 2, rz: 0.4, growAt: 0.1 + i * 0.03 });
+    const crown = (y: number, s: number) => {
+      b.add({ piece: 'concreteCyl', p: [0, y - 0.06, 0], s: [0.42 * s, 0.08, 0.42 * s], tint: 0xe9e1d0 });
+      b.add({ piece: 'glassCyl', p: [0, y + 0.02, 0], s: [0.28 * s, 0.16 * s, 0.28 * s], tint: 0xfff2c8, glow: 0.6 });
+      for (let i = 0; i < 10; i++) b.add({ piece: 'solarLeaf', p: [0, y + 0.05, 0], s: [0.45 * s, 1, 0.45 * s], r: (i / 10) * Math.PI * 2, rz: 0.4, growAt: 0.1 + i * 0.03 });
+    };
+    b.upTo(1, () => crown(top, 1));
     // Entrance vestibule on the front (+z): a timber portal with a glass door and a canopy.
     b.add({ piece: 'timberBox', p: [0, 0.05, 1.28], s: [0.62, 0.5, 0.36], tint: 0xb08a5c });
     b.add({ piece: 'glassBox', p: [0, 0.05, 1.47], s: [0.34, 0.38, 0.02], tint: 0xd6f2ee });
@@ -54,5 +57,36 @@ export default defineBuilding({
       b.add({ piece: 'timberBox', p: [sx * 1.25, 0.05, -0.6], s: [0.12, 0.08, 0.4], tint: 0xa47c56 });
     }
     for (let k = 0; k < 4; k++) b.add({ piece: 'willowArch', p: [-1.25 + k * 0.12, 0.05, 0.6], s: [0.1, 0.12, 0.02], r: Math.PI / 2, tint: TRIM.steel });
+
+    // Levels (D-100). Level 2: a glazed drum (a mezzanine gallery) lifts the lantern, and climbing-rose arches
+    // ring the back of the deck.
+    const drum = top - 0.08;
+    b.level(2, () => {
+      b.add({ piece: 'glassCyl', p: [0, drum, 0], s: [0.95, 0.32, 0.95], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'concreteCyl', p: [0, drum + 0.32, 0], s: [1.05, 0.05, 1.05], tint: 0xe9e1d0 });
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        b.add({ piece: 'timberBox', p: [Math.cos(a) * 0.48, drum, Math.sin(a) * 0.48], s: [0.035, 0.32, 0.035], tint: 0xb08a5c });
+      }
+      b.upTo(2, () => crown(drum + 0.4, 1));
+      for (const a of [-2.4, -1.57, -0.74]) {
+        const [x, z] = [Math.cos(a) * 1.33, Math.sin(a) * 1.33];
+        b.add({ piece: 'willowArch', p: [x, 0.05, z], s: [0.5, 0.55, 0.5], r: -a + Math.PI / 2, tint: PALETTE.bark });
+        flowers(b, x, 0.05, z, 0.18, 4, 0.1, 0.6);
+      }
+    });
+    // Level 3: a second, smaller dome over the gallery with its own ribs, a larger sunflower crown and a halo.
+    b.level(3, () => {
+      const R2 = 0.5;
+      const y0 = drum + 0.37;
+      b.add({ piece: 'dome', p: [0, y0, 0], s: [R2 * 2, 0.7, R2 * 2], tint: PALETTE.glass });
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const at2 = (t: number): [number, number, number] => [Math.cos(a) * R2 * Math.cos(t), y0 + 0.35 * Math.sin(t), Math.sin(a) * R2 * Math.cos(t)];
+        for (let k = 0; k < 3; k++) beam(b, 'timberBox', at2((k / 3) * 1.3), at2(((k + 1) / 3) * 1.3), 0.03, { tint: 0xb08a5c });
+      }
+      crown(y0 + 0.38, 1.35);
+      b.add({ piece: 'haloRing', p: [0, y0 + 0.75, 0], s: [1.1, 3, 1.1], glow: 0.9 });
+    });
   },
 });

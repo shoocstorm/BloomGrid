@@ -55,15 +55,19 @@ export default defineBuilding({
         glow: 0.8,
       });
     }
-    for (let k = 0; k < 12; k++)
-      b.add({
-        piece: 'solarLeaf',
-        p: [0, H + 0.8, 0],
+    // The solar collar; a level lifts it onto a cloud deck (D-100).
+    const collar = (y: number) => {
+      for (let k = 0; k < 12; k++)
+        b.add({
+          piece: 'solarLeaf',
+          p: [0, y, 0],
         s: [1.8, 1, 1.0],
         r: (k / 12) * TAU,
-        rz: 0.3,
-        growAt: 0.2,
-      });
+          rz: 0.3,
+          growAt: 0.2,
+        });
+    };
+    b.upTo(1, () => collar(H + 0.8));
     // Visitors (D-097): a rail round the cistern's lip, benches under the lattice and bollards on the rim.
     railRing(b, 0, 0.9, 0, 1.25, 16);
     bench(b, 0, 0.36, 1.9, 0.5);
@@ -80,5 +84,35 @@ export default defineBuilding({
         glow: 0.9,
       });
     }
+
+    // Levels (D-100). Level 2: a glass cloud deck rides on the crown tank (a lookout ring where visitors walk in the
+    // fog the harp combs), with the solar collar round its rim, and mist nets strung between the lower struts.
+    const deck = () => {
+      b.add({ piece: 'glassCyl', p: [0, H + 0.8, 0], s: [2.8, 0.7, 2.8], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'concreteCyl', p: [0, H + 1.5, 0], s: [3.4, 0.1, 3.4], tint: PALETTE.concrete });
+      railRing(b, 0, H + 1.6, 0, 1.65, 18);
+    };
+    b.level(2, () => {
+      deck();
+      b.upTo(2, () => collar(H + 1.6));
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * TAU + 0.3;
+        b.add({ piece: 'slab', p: [Math.cos(a) * 2.9, 1.3, Math.sin(a) * 2.9], s: [1.2, 2.2, 0.01], r: -a + Math.PI / 2, tint: 0xe9f4ef, glow: 0.2 });
+      }
+    });
+    // Level 3: a second, smaller lattice rises from the cloud deck (a crown harp), with its own lit rings and a
+    // beacon of solar petals at the top.
+    b.level(3, () => {
+      deck();
+      const [y0, h, r0, r1] = [H + 1.6, 5.0, 1.5, 0.8];
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * TAU;
+        for (const hand of [1, -1])
+          beam(b, 'concreteCyl', [Math.cos(a) * r0, y0, Math.sin(a) * r0], [Math.cos(a + hand * TWIST) * r1, y0 + h, Math.sin(a + hand * TWIST) * r1], 0.07, { tint: 0xe9f4ef });
+      }
+      for (const t of [0.5, 1]) b.add({ piece: 'haloRing', p: [0, y0 + t * h, 0], s: [1.6 + (1 - t) * 0.8, 3, 1.6 + (1 - t) * 0.8], glow: 0.8 });
+      collar(y0 + h);
+      b.add({ piece: 'lumenRib', p: [0, y0 + h, 0], s: [0.08, 1.2, 0.08], glow: 1 });
+    });
   },
 });

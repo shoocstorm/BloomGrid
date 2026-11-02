@@ -50,13 +50,15 @@ export default defineBuilding({
     // Chimney with a heat-recovery ring.
     b.add({ piece: 'concreteCyl', p: [2.2, 0.12, -0.8], s: [0.8, 6.2, 0.8], tint: 0xdcd5c6 });
     b.add({ piece: 'haloRing', p: [2.2, 4.6, -0.8], s: [1.4, 3, 1.4], glow: 0.9 });
-    b.add({
-      piece: 'spireCone',
-      p: [2.2, 6.3, -0.8],
-      s: [0.7, 0.8, 0.7],
-      tint: PALETTE.glassWarm,
-      glow: 0.3,
-    });
+    b.upTo(2, () =>
+      b.add({
+        piece: 'spireCone',
+        p: [2.2, 6.3, -0.8],
+        s: [0.7, 0.8, 0.7],
+        tint: PALETTE.glassWarm,
+        glow: 0.3,
+      }),
+    );
     // Racks of fresh panes in the yard.
     for (let i = 0; i < 4; i++)
       b.add({
@@ -90,5 +92,32 @@ export default defineBuilding({
     solarArray(b, -2.15, 0.12, 1.75, 0.9, 0.3, 1, 3, 0.5);
     lamp(b, 0.7, 0.12, 1.75, 0.6);
     lamp(b, 2.75, 0.12, -1.75, 0.6);
+
+    // Levels (D-100). Level 2: a loading canopy of the foundry's own solar glass over the panel yard, on timber
+    // posts, glowing amber at night.
+    const canopy = () => {
+      for (const [x, z] of [
+        [1.25, 0.35],
+        [2.75, 0.35],
+        [1.25, 1.45],
+        [2.75, 1.45],
+      ] as const)
+        b.add({ piece: 'timberBox', p: [x, 0.12, z], s: [0.06, 1.25, 0.06], tint: PALETTE.bark });
+      b.add({ piece: 'glassBox', p: [2.0, 1.37, 0.9], s: [1.7, 0.05, 1.3], rx: -0.12, tint: 0xffd9a0, glow: 0.5 });
+      b.add({ piece: 'slab', p: [2.0, 1.33, 0.9], s: [1.75, 0.04, 0.05], tint: TRIM.steel });
+    };
+    b.level(2, canopy);
+    // Level 3: the chimney gains a glass lantern crown and a second halo, a slimmer twin stack rises beside it,
+    // and prisms of coloured glass catch the light along the hall's roof ridge.
+    b.level(3, () => {
+      canopy();
+      b.add({ piece: 'glassCyl', p: [2.2, 6.32, -0.8], s: [0.6, 0.5, 0.6], tint: 0xffd9a0, glow: 0.8 });
+      b.add({ piece: 'spireCone', p: [2.2, 6.82, -0.8], s: [0.7, 1.1, 0.7], tint: PALETTE.glassWarm, glow: 0.3 });
+      b.add({ piece: 'haloRing', p: [2.2, 5.6, -0.8], s: [1.1, 3, 1.1], tint: 0xffb36b, glow: 1 });
+      b.add({ piece: 'concreteCyl', p: [2.7, 0.12, -1.5], s: [0.4, 4.6, 0.4], tint: 0xdcd5c6 });
+      b.add({ piece: 'haloRing', p: [2.7, 4.2, -1.5], s: [0.7, 2, 0.7], glow: 0.9 });
+      const PRISMS = [0xffb7d5, 0xffe08a, 0x9ee6ff, 0xc9b6ff, 0x8ff0b0] as const;
+      for (let i = 0; i < 5; i++) b.add({ piece: 'glassBox', p: [-2.3 + i * 0.85, 2.3, 0], s: [0.22, 0.45, 0.22], r: 0.7, tint: PRISMS[i]!, glow: 0.8 });
+    });
   },
 });

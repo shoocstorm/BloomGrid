@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, bench, flowers, grassTufts, ivyEdge, lamp, tree } from '../kit';
+import { PALETTE, beam, bench, flowers, grassTufts, ivyEdge, lamp, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 /** Floating islands: x, z, height, radius. */
@@ -55,7 +55,7 @@ export default defineBuilding({
         tint: i % 2 ? 0xff8a3d : 0xfff4f0,
       });
 
-    ISLANDS.forEach(([x, z, y, r], n) => {
+    const island = ([x, z, y, r]: readonly [number, number, number, number], n: number) => {
       // Rocky underside tapering to a point, a planted top, ivy over the rim.
       for (let j = 0; j < 4; j++) {
         const rr = r * (1 - j * 0.24);
@@ -94,7 +94,8 @@ export default defineBuilding({
           glow: 0.8,
         });
       }
-    });
+    };
+    ISLANDS.forEach((s, n) => island(s, n));
     // Visitors (D-097): stepping stones across the pond to a round viewing deck under the islands, with benches,
     // and lamps at the front corners.
     for (let i = 0; i < 6; i++)
@@ -109,5 +110,23 @@ export default defineBuilding({
     bench(b, -0.45, 0.27, 0.3);
     bench(b, 0.45, 0.27, 0.9, 0.42, false, true);
     for (const sx of [-1, 1]) lamp(b, sx * 4.6, 0.15, 4.6, 0.6);
+
+    // Levels (D-100). Level 2: a fourth, smaller island drifts up over the west pond, and a lit rope bridge links
+    // the two lowest.
+    b.level(2, () => {
+      island([-3.2, 1.6, 6.0, 1.2], 2);
+      beam(b, 'timberBox', [-1.8, 4.45, -1.5], [2.2, 7.25, -0.4], 0.35, { tint: 0xc8a57c });
+      beam(b, 'lumenRib', [-1.8, 4.75, -1.3], [2.2, 7.55, -0.2], 0.03, { glow: 0.9 });
+    });
+    // Level 3: a fifth island rides highest of all with a glass pavilion on top, and a ring of light circles the
+    // whole archipelago.
+    b.level(3, () => {
+      island([-3.2, 1.6, 6.0, 1.2], 2);
+      beam(b, 'timberBox', [-1.8, 4.45, -1.5], [2.2, 7.25, -0.4], 0.35, { tint: 0xc8a57c });
+      island([2.8, 2.8, 12.0, 1.3], 2);
+      b.add({ piece: 'glassCyl', p: [2.8, 12.0, 2.8], s: [1.0, 0.6, 1.0], tint: PALETTE.glassWarm, glow: 0.7 });
+      b.add({ piece: 'dome', p: [2.8, 12.6, 2.8], s: [1.05, 0.6, 1.05], tint: PALETTE.glass });
+      b.add({ piece: 'haloRing', p: [0, 8.0, 0.5], s: [9.4, 4, 9.4], tint: 0xffb7d5, glow: 0.9 });
+    });
   },
 });

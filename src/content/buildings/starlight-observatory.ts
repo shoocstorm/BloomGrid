@@ -78,5 +78,33 @@ export default defineBuilding({
     }
     beam(b, 'concreteCyl', [sx - 0.2, 0.75, sz + 0.1], [sx + 0.25, 1.1, sz - 0.12], 0.12, { tint: 0xe9f4ef });
     railRing(b, 0, 12.6, 0, 2.1, 20);
+
+    // Levels (D-100). Level 2: a planetarium wing at the foot of the tower (a low dome on a glazed drum) and a
+    // second, outer ring of star lamps.
+    const planetarium = () => {
+      b.add({ piece: 'glassCyl', p: [-2.2, 0.38, -1.6], s: [2.0, 0.55, 2.0], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'dome', p: [-2.2, 0.93, -1.6], s: [2.1, 1.5, 2.1], tint: 0x2a3550 });
+      for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * TAU;
+        b.add({ piece: 'lumenRib', p: [-2.2 + Math.cos(a) * 0.55, 1.2 + (k % 3) * 0.12, -1.6 + Math.sin(a) * 0.55], s: [0.05, 0.05, 0.05], tint: 0xfff4c8, glow: 1 });
+      }
+    };
+    b.level(2, () => {
+      planetarium();
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * TAU + 0.2;
+        b.add({ piece: 'lumenRib', p: [Math.cos(a) * 3.75, 0.3, Math.sin(a) * 3.75], s: [0.08, 0.35, 0.08], tint: 0xc9b6ff, glow: 0.8 });
+      }
+    });
+    // Level 3: a radio dish on a mast beside the dome, a fourth armillary ring and a beam of light from the
+    // telescope's mouth into the sky.
+    b.level(3, () => {
+      planetarium();
+      b.add({ piece: 'concreteCyl', p: [2.5, 0.3, -2.0], s: [0.2, 3.4, 0.2], tint: 0xe9f4ef });
+      b.add({ piece: 'dome', p: [2.6, 3.7, -2.0], s: [1.8, 0.6, 1.8], rx: -0.7, r: 0.6, tint: 0xe9f4ef });
+      b.add({ piece: 'timberBox', p: [2.6, 3.8, -1.85], s: [0.03, 0.8, 0.03], rx: -0.7, tint: TRIM.steel });
+      b.add({ piece: 'haloRing', p: [0, cy, 0], s: [8.4, 8.4, 8.4], rz: -0.6, r: 0.4, tint: 0xffe08a, glow: 1 });
+      beam(b, 'lumenRib', [1.25, dy + 2.65, 0.62], [3.2, dy + 9.5, 1.6], 0.05, { tint: 0xc9b6ff, glow: 0.8 });
+    });
   },
 });

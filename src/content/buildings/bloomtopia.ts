@@ -1,5 +1,5 @@
 import { defineBuilding, type KitBuilder } from '../types';
-import { PALETTE, beam, bench, flowers, grassTufts, lamp, tree } from '../kit';
+import { PALETTE, TRIM, beam, bench, flowers, grassTufts, lamp, tree } from '../kit';
 
 type Vec3 = [number, number, number];
 
@@ -270,5 +270,50 @@ export default defineBuilding({
       bench(b, x - 1, G, 2.85, 0.42, false, true);
     }
     for (const z of [-6.5, -4, -1.5]) for (const s of [-1, 1]) lamp(b, s * 1.7, G, z, 0.75);
+
+    // Levels (D-100). Level 2: Bumble Balloons, a balloon ride between the snack kiosks (pastel balloons on
+    // arms round a striped mast), and festoon lights strung down the promenade.
+    b.level(2, () => {
+      const [bx, bz] = [0, 6.3];
+      b.add({ piece: 'concreteCyl', p: [bx, G, bz], s: [2.6, 0.3, 2.6], tint: 0xffe2f0 });
+      b.add({ piece: 'concreteCyl', p: [bx, G, bz], s: [0.35, 4.2, 0.35], tint: 0xffd36e });
+      b.add({ piece: 'dome', p: [bx, G + 4.2, bz], s: [1.0, 0.6, 1.0], tint: 0xff9ac8 });
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * TAU;
+        const [px, pz] = [bx + Math.cos(a) * 1.6, bz + Math.sin(a) * 1.6];
+        beam(b, 'timberBox', [bx, G + 3.9, bz], [px, G + 3.3, pz], 0.05, { tint: 0xf6f2ea });
+        b.add({ piece: 'dome', p: [px, G + 2.3, pz], s: [0.9, 2.2, 0.9], rx: Math.PI, tint: PASTEL[k]!, glow: 0.4 });
+        b.add({ piece: 'dome', p: [px, G + 2.3, pz], s: [0.9, 0.9, 0.9], tint: PASTEL[k]!, glow: 0.4 });
+        b.add({ piece: 'timberBox', p: [px, G + 1.0, pz], s: [0.36, 0.26, 0.36], tint: 0xc8a57c });
+      }
+      for (const x of [-12, -8, -4, 4, 8, 12]) beam(b, 'lumenRib', [x - 2, G + 0.75, 0.5], [x + 2, G + 0.75, 3.1], 0.03, { tint: 0xffd9a0, glow: 1 });
+    });
+    // Level 3: Bloom Castle, a pastel fairy-tale keep with four turrets by the east fence, and a sky gondola
+    // gliding on a lit cable from the Petal Drop to the Sky Orbit.
+    b.level(3, () => {
+      const [kx, kz] = [15.0, -5.6];
+      b.add({ piece: 'slab', p: [kx, G, kz], s: [2.6, 2.4, 2.0], tint: 0xffe2f0 });
+      b.add({ piece: 'slab', p: [kx, G + 2.4, kz], s: [2.8, 0.18, 2.2], tint: 0xf6f2ea });
+      b.add({ piece: 'concreteCyl', p: [kx, G + 2.58, kz], s: [1.2, 1.4, 1.2], tint: 0xc6a8ff });
+      b.add({ piece: 'spireCone', p: [kx, G + 3.98, kz], s: [1.4, 2.2, 1.4], tint: 0xff9ac8, glow: 0.3 });
+      for (const sx of [-1, 1])
+        for (const sz of [-1, 1]) {
+          const [x, z] = [kx + sx * 1.3, kz + sz * 1.0];
+          b.add({ piece: 'concreteCyl', p: [x, G, z], s: [0.7, 3.2, 0.7], tint: 0xfff4f0 });
+          b.add({ piece: 'spireCone', p: [x, G + 3.2, z], s: [0.85, 1.4, 0.85], tint: PASTEL[(sx + 1 + sz + 1) % 6]!, glow: 0.3 });
+          b.add({ piece: 'lumenRib', p: [x, G + 4.6, z], s: [0.04, 0.4, 0.04], tint: 0xffd36e, glow: 1 });
+        }
+      b.add({ piece: 'willowArch', p: [kx, G, kz + 1.01], s: [0.8, 1.6, 0.4], tint: 0xc24a78 });
+      b.add({ piece: 'slab', p: [kx, G, kz + 1.0], s: [0.7, 0.75, 0.04], tint: 0x6b4a32 });
+      const a: Vec3 = [-4.4, G + 12.5, 5.0];
+      const c: Vec3 = [11.6, G + 12.5, -2.6];
+      beam(b, 'lumenRib', a, c, 0.05, { tint: 0xffd36e, glow: 1 });
+      for (let i = 1; i < 6; i++) {
+        const t = i / 6;
+        const [x, yy, z] = [a[0] + (c[0] - a[0]) * t, a[1] - Math.sin(t * Math.PI) * 1.2, a[2] + (c[2] - a[2]) * t];
+        b.add({ piece: 'timberBox', p: [x, yy - 0.6, z], s: [0.03, 0.6, 0.03], tint: TRIM.steel });
+        b.add({ piece: 'pod', p: [x, yy - 1.3, z], s: [0.8, 0.9, 0.7], r: 0.45, tint: PASTEL[i % 6]!, glow: 0.6 });
+      }
+    });
   },
 });

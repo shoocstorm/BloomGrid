@@ -16,7 +16,7 @@ export default defineBuilding({
     b.add({ piece: 'slab', p: [0, 0, 0], s: [1.9, 0.1, 1.9], tint: PALETTE.concrete });
     b.add({ piece: 'concreteCyl', p: [0, 0.1, 0], s: [1.5, 0.5, 1.5], tint: 0xcfc8ba });
     b.add({ piece: 'dome', p: [0, 0.6, 0], s: [1.5, 0.6, 1.5], tint: 0x7ccf7a });
-    roofMeadow(b, 0.62, 0.8, 0.8);
+    b.upTo(1, () => roofMeadow(b, 0.62, 0.8, 0.8));
     grassTufts(b, 0, 0.1, 0, 1.6, 1.6, 6);
     // Blast door and the siren mast.
     b.add({ piece: 'slab', p: [0, 0.1, 0.72], s: [0.5, 0.42, 0.06], tint: 0xffc94a, glow: 0.4 });
@@ -31,5 +31,30 @@ export default defineBuilding({
     crate(b, -0.72, 0.23, 0.56, 0.14, -0.2, TRIM.teal);
     b.add({ piece: 'timberBox', p: [-0.65, 0.1, -0.75], s: [0.4, 0.07, 0.12], tint: 0xa47c56 });
     lamp(b, -0.85, 0.1, 0.85, 0.45);
+
+    // Levels (D-100). Level 2: a second bunker bay (a smaller turfed dome joined by a covered passage) and a
+    // rainwater tank; the meadow cap becomes a solar ring.
+    const cap = () => {
+      for (let i = 0; i < 8; i++) b.add({ piece: 'solarLeaf', p: [0, 0.95, 0], s: [0.5, 1, 0.45], r: (i / 8) * Math.PI * 2, rz: 0.35 });
+      b.add({ piece: 'concreteCyl', p: [0, 0.92, 0], s: [0.3, 0.06, 0.3], tint: 0xffc94a, glow: 0.4 });
+    };
+    b.level(2, () => {
+      cap();
+      b.add({ piece: 'concreteCyl', p: [-0.55, 0.1, -0.5], s: [0.7, 0.28, 0.7], tint: 0xcfc8ba });
+      b.add({ piece: 'dome', p: [-0.55, 0.38, -0.5], s: [0.7, 0.36, 0.7], tint: 0x7ccf7a });
+      b.add({ piece: 'concreteCyl', p: [0.75, 0.1, 0.45], s: [0.3, 0.45, 0.3], tint: TRIM.seaBlue });
+    });
+    // Level 3: an emergency comms mast with a dish and a halo beacon, and a lit evacuation canopy over the stair.
+    b.level(3, () => {
+      cap();
+      b.add({ piece: 'concreteCyl', p: [-0.55, 0.1, -0.5], s: [0.7, 0.28, 0.7], tint: 0xcfc8ba });
+      b.add({ piece: 'dome', p: [-0.55, 0.38, -0.5], s: [0.7, 0.36, 0.7], tint: 0x7ccf7a });
+      b.add({ piece: 'concreteCyl', p: [0.75, 0.1, 0.45], s: [0.3, 0.45, 0.3], tint: TRIM.seaBlue });
+      b.add({ piece: 'concreteCyl', p: [-0.55, 0.7, -0.5], s: [0.05, 1.6, 0.05], tint: TRIM.steel });
+      b.add({ piece: 'dome', p: [-0.45, 1.6, -0.5], s: [0.36, 0.14, 0.36], rz: -1.0, tint: 0xe9eee8 });
+      b.add({ piece: 'haloRing', p: [-0.55, 2.2, -0.5], s: [0.4, 2, 0.4], tint: 0xd8463a, glow: 1 });
+      b.add({ piece: 'slab', p: [0, 0.6, 0.95], s: [0.75, 0.03, 0.5], tint: 0xffc94a, glow: 0.3 });
+      for (const x of [-0.33, 0.33]) b.add({ piece: 'timberBox', p: [x, 0.1, 1.15], s: [0.03, 0.5, 0.03], tint: TRIM.charcoal });
+    });
   },
 });

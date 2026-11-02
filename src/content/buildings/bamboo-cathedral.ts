@@ -84,5 +84,41 @@ export default defineBuilding({
     }
     b.add({ piece: 'timberBox', p: [0.62, 0.12, 2.75], s: [1.0, 0.04, 2.3], tint: 0xc8a57c });
     for (const sx of [-1, 1]) lamp(b, 0.62 + sx * 0.7, 0.12, 3.75, 0.6);
+
+    // Levels (D-100). A rib at x of height h (a lancet arch of bamboo segments).
+    const rib = (x: number, h: number) => {
+      for (const side of [-1, 1])
+        for (let s = 0; s < SEG; s++) beam(b, 'timberBox', arch(x, side, h, s / SEG), arch(x, side, h, (s + 1) / SEG), 0.22, { tint: BAMBOO });
+    };
+    // Level 2: a lower side-chapel transept crosses the nave at the crossing (two short arches each way), its
+    // ends glazed with lit leaf windows.
+    const transept = () => {
+      for (const z of [-1, 1])
+        for (const zz of [z * 1.6, z * 2.8]) {
+          for (const side of [-1, 1])
+            for (let s = 0; s < 4; s++) {
+              const t0 = s / 4;
+              const t1 = (s + 1) / 4;
+              const p = (t: number): Vec3 => [side * 1.8 * Math.cos((t * Math.PI) / 2), 0.12 + 6 * Math.pow(t, 0.6), zz];
+              beam(b, 'timberBox', p(t0), p(t1), 0.18, { tint: BAMBOO });
+            }
+        }
+      for (const z of [-3.3, 3.3]) b.add({ piece: 'solarLeaf', p: [0, 0.6, z], s: [2.6, 1, 4.2], r: Math.PI / 2, rx: Math.PI / 2, tint: 0xfff2c8, glow: 0.6 });
+    };
+    b.level(2, transept);
+    // Level 3: the nave grows a bay at each end (two new ribs), a lit bamboo spire rises from the crossing, and
+    // wind chimes hang in every bay.
+    b.level(3, () => {
+      transept();
+      rib(-6.0, 5.0);
+      rib(6.0, 5.0);
+      b.add({ piece: 'concreteCyl', p: [0, 10.1, 0], s: [0.3, 3.8, 0.3], tint: BAMBOO });
+      b.add({ piece: 'spireCone', p: [0, 13.9, 0], s: [0.5, 1.8, 0.5], tint: 0xffe08a, glow: 0.6 });
+      b.add({ piece: 'haloRing', p: [0, 12.4, 0], s: [1.6, 3, 1.6], tint: 0xffd9a0, glow: 1 });
+      for (let i = 0; i < RIBS - 1; i++) {
+        const x = -5 + ((i + 0.5) * 10) / (RIBS - 1);
+        for (const z of [-0.6, 0.6]) b.add({ piece: 'concreteCyl', p: [x, 4.2, z], s: [0.05, 0.6, 0.05], tint: BAMBOO });
+      }
+    });
   },
 });

@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, TRIM, bench, entrance, flowers, grassTufts, lamp, tree } from '../kit';
+import { PALETTE, TRIM, beam, bench, entrance, flowers, grassTufts, lamp, tree } from '../kit';
 
 const TAU = Math.PI * 2;
 /** Spine height and the transfer ring the pods circle (the mobility module draws the moving rings there). */
@@ -100,9 +100,12 @@ export default defineBuilding({
         rz: 0.35,
         growAt: 0.3,
       });
-    b.add({ piece: 'spireCone', p: [0, H + 0.38, 0], s: [1.1, 6, 1.1], tint: PALETTE.glassWarm, glow: 0.5 });
-    b.add({ piece: 'haloRing', p: [0, H + 1.4, 0], s: [1.8, 3, 1.8], glow: 1 });
-    b.add({ piece: 'haloRing', p: [0, H + 2.8, 0], s: [1.1, 3, 1.1], glow: 1 });
+    const spire = (y: number, k: number) => {
+      b.add({ piece: 'spireCone', p: [0, y, 0], s: [1.1, 6 * k, 1.1], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'haloRing', p: [0, y + 1.0 * k, 0], s: [1.8, 3, 1.8], glow: 1 });
+      b.add({ piece: 'haloRing', p: [0, y + 2.4 * k, 0], s: [1.1, 3, 1.1], glow: 1 });
+    };
+    b.upTo(1, () => spire(H + 0.38, 1));
     // Street level (D-097): a lit concourse door, a paved path with lamps, a departures pillar and benches.
     entrance(b, 0, 0.38, 1.6, 0.7, 0.5);
     b.add({ piece: 'slab', p: [0, 0.38, 2.3], s: [0.8, 0.02, 1.4], tint: 0xe4dac8 });
@@ -111,5 +114,31 @@ export default defineBuilding({
     b.add({ piece: 'slab', p: [1.1, 0.75, 1.975], s: [0.11, 0.36, 0.01], tint: 0xffd36b, glow: 1 });
     bench(b, 2.0, 0.38, 0, 0.45, true);
     bench(b, -2.0, 0.38, 0, 0.45, true, true);
+
+    // Levels (D-100). Level 2: a glass observation drum caps the core under the spire, and a taxi rank of pods
+    // waits round the plaza.
+    const drum = () => {
+      b.add({ piece: 'glassCyl', p: [0, H + 0.38, 0], s: [1.9, 1.0, 1.9], tint: PALETTE.glassWarm, glow: 0.7 });
+      b.add({ piece: 'concreteCyl', p: [0, H + 1.38, 0], s: [2.1, 0.1, 2.1], tint: 0xe9f4ef });
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * TAU + 0.3;
+        b.add({ piece: 'pod', p: [Math.cos(a) * 2.6, 0.38, Math.sin(a) * 2.6], s: 0.45, r: -a, glow: 0.8 });
+      }
+    };
+    b.level(2, () => {
+      drum();
+      b.upTo(2, () => spire(H + 1.48, 1));
+    });
+    // Level 3: the leaning pylons reach the top as lit stays, a great halo marks the lane ring, and the spire
+    // grows half again.
+    b.level(3, () => {
+      drum();
+      spire(H + 1.48, 1.5);
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * TAU + Math.PI / 4;
+        beam(b, 'lumenRib', [Math.cos(a) * 0.3, 13.6, Math.sin(a) * 0.3], [Math.cos(a) * 0.9, H + 1.4, Math.sin(a) * 0.9], 0.08, { glow: 1 });
+      }
+      b.add({ piece: 'haloRing', p: [0, RING - 0.6, 0], s: [5.2, 4, 5.2], tint: 0x7ff7e6, glow: 1 });
+    });
   },
 });

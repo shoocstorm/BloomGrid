@@ -83,5 +83,29 @@ export default defineBuilding({
     b.add({ piece: 'slab', p: [0, 1.0, 2.75], s: [1.7, 0.05, 0.4], tint: PALETTE.timber });
     for (const x of [-1.2, 1.2]) planter(b, x, 0.25, 2.75, 0.5, 0.2, 0.1);
     for (const x of [-3.7, 3.7]) lamp(b, x, 0.25, 2.7, 0.6);
+
+    // Levels (D-100). Level 2: an outdoor lido beside the hall (a sun deck with loungers and parasols round the
+    // splash pool) and a glazed café with a roof terrace over the entrance.
+    b.level(2, () => {
+      b.add({ piece: 'slab', p: [2.4, 0.29, 2.55], s: [2.6, 0.03, 0.35], tint: 0xc8a57c });
+      for (const x of [1.6, 2.4, 3.2]) {
+        b.add({ piece: 'slab', p: [x, 0.32, 2.55], s: [0.2, 0.04, 0.32], rx: 0.15, tint: 0xf4f1ea });
+        b.add({ piece: 'timberBox', p: [x + 0.2, 0.32, 2.6], s: [0.015, 0.5, 0.015], tint: TRIM.charcoal });
+        b.add({ piece: 'concreteCyl', p: [x + 0.2, 0.8, 2.6], s: [0.45, 0.04, 0.45], tint: x === 2.4 ? TRIM.seaBlue : 0xffd36b });
+      }
+      b.add({ piece: 'glassBox', p: [0, 1.0, 2.65], s: [1.3, 0.5, 0.45], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'slab', p: [0, 1.5, 2.6], s: [1.5, 0.04, 0.55], tint: PALETTE.timber });
+      planter(b, 0, 1.54, 2.75, 1.0, 0.18, 0.1);
+    });
+    // Level 3: a second, higher dome over a wave pool annex at the back, a ten-metre diving platform with lit
+    // edges, and a halo on the main dome's crown.
+    b.level(3, () => {
+      b.add({ piece: 'dome', p: [-2.0, 0.25, -2.0], s: [3.6, 3.0, 1.6], tint: PALETTE.glass });
+      b.add({ piece: 'pool', p: [-2.0, 0.26, -2.1], s: [3.2, 0.03, 1.2] });
+      b.add({ piece: 'concreteCyl', p: [2.4, 0.25, -1.4], s: [0.3, 4.2, 0.3], tint: 0xf4f1ea });
+      b.add({ piece: 'slab', p: [1.9, 4.4, -1.4], s: [1.2, 0.08, 0.4], tint: 0xf4f1ea });
+      b.add({ piece: 'lumenRib', p: [1.32, 4.48, -1.4], s: [0.03, 0.03, 0.4], tint: 0x9ee6ff, glow: 1 });
+      b.add({ piece: 'haloRing', p: [0, 1.9, 0], s: [3.4, 3, 2.6], tint: 0x9ee6ff, glow: 1 });
+    });
   },
 });

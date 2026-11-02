@@ -82,5 +82,38 @@ export default defineBuilding({
     for (const sx of [-1, 1]) lamp(b, sx * 0.6, 0.12, 4.75, 0.6);
     bench(b, 3.0, 0.12, 0.6, 0.45, true, true);
     bench(b, -3.0, 0.12, -0.6, 0.45, true);
+
+    // Levels (D-100). Level 2: a second, higher loop of the skywalk (a figure-eight lobe through the treetops on
+    // the north side) joined to the lookout tower, with a tree-house café on it.
+    const loop2 = () => {
+      const n = 12;
+      const [cx, cz, r, y] = [0, -2.2, 2.0, 8.2];
+      const ps: Vec3[] = [];
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * TAU;
+        ps.push([cx + Math.cos(a) * r, y + Math.sin(a * 2) * 0.25, cz + Math.sin(a) * r]);
+      }
+      for (let i = 0; i < n; i++) {
+        beam(b, 'timberBox', ps[i]!, ps[(i + 1) % n]!, 0.5, { tint: 0xc8a57c });
+        if (i % 3 === 0) b.add({ piece: 'trunk', p: [ps[i]![0], 0.12, ps[i]![2]], s: [0.3, ps[i]![1] - 0.12, 0.3], tint: PALETTE.bark });
+      }
+      beam(b, 'timberBox', [0, y, 0], ps[3]!, 0.45, { tint: 0xc8a57c });
+      const c = ps[9]!;
+      b.add({ piece: 'timberBox', p: [c[0], c[1], c[2]], s: [1.0, 0.6, 0.8], tint: 0xa47c56 });
+      b.add({ piece: 'glassBox', p: [c[0], c[1] + 0.1, c[2] + 0.41], s: [0.8, 0.3, 0.02], tint: PALETTE.glassWarm, glow: 0.6 });
+      b.add({ piece: 'spireCone', p: [c[0], c[1] + 0.6, c[2]], s: [1.3, 0.6, 1.1], tint: 0x6f8a5a });
+    };
+    b.level(2, loop2);
+    // Level 3: the lookout grows a canopy crown (a domed glass observatory above the treetops, ringed with light)
+    // and a zip line runs from it down to the far edge of the grove.
+    b.level(3, () => {
+      loop2();
+      b.add({ piece: 'trunk', p: [0, 11.3, 0], s: [0.7, 2.2, 0.7], tint: PALETTE.bark });
+      b.add({ piece: 'concreteCyl', p: [0, 13.5, 0], s: [2.6, 0.15, 2.6], tint: 0xc8a57c });
+      b.add({ piece: 'glassCyl', p: [0, 13.65, 0], s: [2.0, 0.7, 2.0], tint: PALETTE.glassWarm, glow: 0.6 });
+      b.add({ piece: 'dome', p: [0, 14.35, 0], s: [2.1, 1.2, 2.1], tint: PALETTE.glass });
+      b.add({ piece: 'haloRing', p: [0, 13.9, 0], s: [2.8, 4, 2.8], tint: 0xffd9a0, glow: 1 });
+      beam(b, 'timberBox', [0.8, 13.0, 0.4], [4.4, 1.5, 3.2], 0.02, { tint: 0xb8c2c6 });
+    });
   },
 });

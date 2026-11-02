@@ -80,6 +80,20 @@ export default defineBuilding({
     footbridge(b, -0.4, 0.22, 3.65, 1.5, 0.7);
     entrance(b, -0.4, 0.25, 2.72, 0.5, 0.4, 0xff9a8a);
     for (const x of [-1.0, 0.2]) lamp(b, x, 0.2, 4.25, 0.6);
+    // Levels (D-100): the reef keeps growing. Level 2: a fourth branching tower in sea-glass blue rises from the
+    // west lagoon with a pod berth at its foot, and anemone lamps glow along the boardwalk.
+    b.level(2, () => {
+      branch(b, [-3.0, 0.2, 0.6], [0, 1, 0], 3.0, 0.85, 1, 0x9ee6ff);
+      b.add({ piece: 'pod', p: [-2.6, 0.25, -2.6], s: 1.0, r: 2.2, glow: 0.8 });
+      for (const x of [-0.85, 0.05]) b.add({ piece: 'fungus', p: [x, 0.29, 3.3], s: 0.14, tint: 0xff9a8a, glow: 1 });
+    });
+    // Level 3: the tallest tower of all grows from the north-east, a crown of halos over the old trunks and a
+    // sky-walk ring joining them.
+    b.level(3, () => {
+      branch(b, [2.6, 0.2, -3.0], [0, 1, 0], 5.0, 1.15, 2, 0xffd0a0);
+      for (const [x, z, len] of roots) b.add({ piece: 'haloRing', p: [x, 0.2 + len * 0.95, z], s: [2.4, 3, 2.4], glow: 0.7 });
+      b.add({ piece: 'haloRing', p: [0, 3.2, 0], s: [6.4, 6, 6.4], tint: 0xffb48a, glow: 0.5 });
+    });
     for (let i = 0; i < 30; i++) {
       const [x, z] = [b.range(-3.9, 3.9), b.range(-3.9, 3.9)];
       if (roots.some(([rx, rz]) => Math.hypot(x - rx, z - rz) < 1.4) || (Math.abs(x + 0.4) < 0.6 && z > 2.6))

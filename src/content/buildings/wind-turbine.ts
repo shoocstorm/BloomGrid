@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, door, flowers, grassTufts } from '../kit';
+import { PALETTE, TRIM, door, flowers, grassTufts, railRing } from '../kit';
 
 /** Top of the tower (tiles above the plinth): the wind module mounts the nacelle and rotor here (D-047). */
 export const TURBINE_TOP = 11.3;
@@ -42,5 +42,24 @@ export default defineBuilding({
     b.add({ piece: 'concreteCyl', p: [0, 11.25, 0], s: [0.5, 0.12, 0.5], tint: PALETTE.concrete });
     // A service door at the tower's foot (D-097).
     door(b, 0, 0.34, 0.29, 0.14, 0.26);
+
+    // Levels (D-100): the rotor and nacelle are posed by the wind module, so levels dress the foot and the shaft.
+    // Level 2: a battery store (a timber hut with a solar roof) and a wider ring of solar petals round the base.
+    const store = () => {
+      b.add({ piece: 'timberBox', p: [0.55, 0.28, -0.5], s: [0.42, 0.3, 0.3], tint: 0xb48d63 });
+      b.add({ piece: 'slab', p: [0.55, 0.6, -0.5], s: [0.48, 0.025, 0.36], rx: -0.25, tint: TRIM.pv, glow: 0.15 });
+      for (let r = 0; r < 2; r++) b.add({ piece: 'lumenRib', p: [0.55, 0.36 + r * 0.08, -0.34], s: [0.3, 0.02, 0.01], tint: 0x8fd35a, glow: 0.8 });
+    };
+    b.level(2, () => {
+      store();
+      for (let k = 0; k < 6; k++) b.add({ piece: 'solarLeaf', p: [0, 0.36, 0], s: [0.85, 1, 0.55], r: (k / 6) * Math.PI * 2 + 0.9, rz: 0.22 });
+    });
+    // Level 3: a lookout balcony rings the shaft, with aviation lights up the tower and a lit band at the hub.
+    b.level(3, () => {
+      store();
+      b.add({ piece: 'concreteCyl', p: [0, 6.6, 0], s: [1.1, 0.06, 1.1], tint: 0xe9eee8 });
+      railRing(b, 0, 6.66, 0, 0.53, 14, 0.1);
+      for (const y of [3.2, 8.2, 10.9]) b.add({ piece: 'lumenRib', p: [0, y, 0], s: [0.5, 0.05, 0.5], tint: 0xff6a5a, glow: 1 });
+    });
   },
 });

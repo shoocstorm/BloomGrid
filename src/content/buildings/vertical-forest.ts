@@ -2,11 +2,14 @@ import { defineBuilding, type KitBuilder } from '../types';
 import { PALETTE, bench, entrance, flowers, grassTufts, lamp, railing, tree } from '../kit';
 
 /** A tower wrapped in staggered cantilevered balconies, each carrying a tree. */
-function forestTower(b: KitBuilder, x: number, z: number, h: number, w: number): void {
-  b.add({ piece: 'glassBox', p: [x, 0.3, z], s: [w, h, w], tint: PALETTE.glass, glow: 0.06 });
-  b.add({ piece: 'slab', p: [x, 0.3, z], s: [w * 0.35, h + 0.3, w * 0.35], tint: PALETTE.concrete });
+/** A forest tower up to `h`; from `h0` it adds only the storeys above (a level's extension), and `keep` caps its
+ * roof orchard at a level that builds higher (D-100). */
+function forestTower(b: KitBuilder, x: number, z: number, h: number, w: number, h0 = 0, keep?: 1 | 2): void {
+  b.add({ piece: 'glassBox', p: [x, 0.3 + h0, z], s: [w, h - h0, w], tint: PALETTE.glass, glow: 0.06 });
+  b.add({ piece: 'slab', p: [x, 0.3 + h0, z], s: [w * 0.35, h - h0 + 0.3, w * 0.35], tint: PALETTE.concrete });
   let i = 0;
   for (let y = 1.4; y < h; y += 1.28, i++) {
+    if (y < h0) continue;
     // Each floor's balconies jut out on alternating faces so the trees stagger up the façade.
     for (let f = 0; f < 4; f++) {
       const a = (f / 4) * Math.PI * 2;
@@ -26,10 +29,21 @@ function forestTower(b: KitBuilder, x: number, z: number, h: number, w: number):
     }
   }
   // Roof orchard.
-  b.add({ piece: 'mossBox', p: [x, 0.3 + h, z], s: [w, 0.12, w] });
-  for (let k = 0; k < 3; k++)
-    tree(b, x + b.range(-0.5, 0.5) * w, 0.42 + h, z + b.range(-0.5, 0.5) * w, 0.7, 0.4);
-  b.add({ piece: 'lumenRib', p: [x, 0.3 + h + 0.12, z + w / 2], s: [w, 0.08, 0.08], glow: 0.9 });
+  const roof = () => {
+    b.add({ piece: 'mossBox', p: [x, 0.3 + h, z], s: [w, 0.12, w] });
+    for (let k = 0; k < 3; k++)
+      tree(b, x + b.range(-0.5, 0.5) * w, 0.42 + h, z + b.range(-0.5, 0.5) * w, 0.7, 0.4);
+    b.add({ piece: 'lumenRib', p: [x, 0.3 + h + 0.12, z + w / 2], s: [w, 0.08, 0.08], glow: 0.9 });
+  };
+  if (keep) b.upTo(keep, roof);
+  else roof();
+}
+
+/** A railed garden bridge between the two towers at height y. */
+function gardenBridge(b: KitBuilder, y: number): void {
+  b.add({ piece: 'slab', p: [0.05, y, 0.1], s: [2.6, 0.12, 0.9], tint: PALETTE.concrete });
+  flowers(b, 0.05, y + 0.12, 0.1, 0.5, 8, 0.2, 0.8);
+  for (const z of [0.53, -0.33]) railing(b, 0.05, y + 0.12, z, 2.6);
 }
 
 export default defineBuilding({
@@ -58,8 +72,8 @@ export default defineBuilding({
     b.add({ piece: 'mossBox', p: [0, 0.3, 0], s: [9.6, 0.06, 5.6] });
     grassTufts(b, 0, 0.36, 0, 9.4, 5.4, 70);
     flowers(b, 0, 0.36, 0, 2.6, 40, 0, 0.6);
-    forestTower(b, -2.4, 0, 17, 2.6);
-    forestTower(b, 2.5, 0.2, 13, 2.4);
+    forestTower(b, -2.4, 0, 17, 2.6, 0, 2);
+    forestTower(b, 2.5, 0.2, 13, 2.4, 0, 1);
     // Garden bridge between the two at the eighth floor.
     b.add({ piece: 'slab', p: [0.05, 8.0, 0.1], s: [2.6, 0.12, 0.9], tint: PALETTE.concrete });
     flowers(b, 0.05, 8.12, 0.1, 0.5, 8, 0.2, 0.8);
@@ -75,5 +89,23 @@ export default defineBuilding({
     }
     bench(b, 0, 0.36, 2.2, 0.5);
     for (const z of [0.53, -0.33]) railing(b, 0.05, 8.12, z, 2.6);
+
+    // Levels (D-100). Level 2: the east tower grows four more forested storeys to match the west one, a second
+    // garden bridge joins them high up, and a pavilion café opens on the lawn.
+    b.level(2, () => {
+      forestTower(b, 2.5, 0.2, 17, 2.4, 13);
+      gardenBridge(b, 12.2);
+      b.add({ piece: 'glassBox', p: [0.05, 0.36, -1.9], s: [1.8, 0.5, 1.0], tint: PALETTE.glassWarm, glow: 0.4 });
+      b.add({ piece: 'timberBox', p: [0.05, 0.86, -1.9], s: [2.1, 0.05, 1.3], tint: PALETTE.timber });
+      for (const x of [-0.5, 0.6]) bench(b, x, 0.36, -1.15, 0.4);
+    });
+    // Level 3: the west tower rises to a forest spire (four more storeys and a lit mast), and a third bridge.
+    b.level(3, () => {
+      forestTower(b, -2.4, 0, 21, 2.6, 17);
+      gardenBridge(b, 15.9);
+      b.add({ piece: 'spireCone', p: [-2.4, 21.42, 0], s: [0.3, 3.2, 0.3], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'haloRing', p: [-2.4, 23.2, 0], s: [1.4, 3, 1.4], glow: 0.9 });
+      b.add({ piece: 'haloRing', p: [2.5, 17.6, 0.2], s: [2.2, 3, 2.2], glow: 0.7 });
+    });
   },
 });

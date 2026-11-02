@@ -50,7 +50,7 @@ export default defineBuilding({
     b.add({ piece: 'concreteCyl', p: [1.85, 0.12, -0.9], s: [1.2, 1.2, 1.2], tint: 0xc77a52 });
     b.add({ piece: 'concreteCyl', p: [1.85, 1.3, -0.9], s: [0.55, 3.2, 0.55], tint: 0xb46a48 });
     b.add({ piece: 'mossBox', p: [1.85, 2.2, -0.9], s: [0.6, 1.4, 0.6] });
-    b.add({ piece: 'lumenRib', p: [1.85, 4.5, -0.9], s: [0.62, 0.12, 0.62], glow: 0.8 });
+    b.upTo(2, () => b.add({ piece: 'lumenRib', p: [1.85, 4.5, -0.9], s: [0.62, 0.12, 0.62], glow: 0.8 }));
     // Brick pallets in the yard.
     for (let k = 0; k < 4; k++)
       b.add({
@@ -98,5 +98,29 @@ export default defineBuilding({
     crate(b, 1.42, 0.14, 1.72, 0.14, 0, 0xc0704a);
     lamp(b, 2.3, 0.12, -0.05, 0.6);
     lamp(b, -2.3, 0.12, 0.6, 0.6);
+
+    // Levels (D-100). Level 2: a brick-drying shed along the back wall (racks of fresh mycelium bricks under a
+    // terracotta lean-to) and a second, smaller kiln with its own flue.
+    const shed = () => {
+      b.add({ piece: 'slab', p: [-0.4, 1.0, -1.65], s: [3.6, 0.04, 0.6], rx: 0.25, tint: TRIM.terracotta });
+      for (const x of [-2.1, -0.4, 1.3]) b.add({ piece: 'timberBox', p: [x, 0.12, -1.85], s: [0.05, 0.85, 0.05], tint: PALETTE.bark });
+      for (let k = 0; k < 6; k++) b.add({ piece: 'slab', p: [-1.9 + k * 0.6, 0.12, -1.65], s: [0.42, 0.18 + (k % 3) * 0.12, 0.3], tint: k % 2 ? 0xf6e7c8 : 0xe9d8b8 });
+      b.add({ piece: 'concreteCyl', p: [1.95, 0.12, 0.05], s: [0.6, 0.55, 0.6], tint: 0xc77a52 });
+      b.add({ piece: 'concreteCyl', p: [1.95, 0.67, 0.05], s: [0.22, 1.6, 0.22], tint: 0xb46a48 });
+      b.add({ piece: 'lumenRib', p: [1.95, 0.2, 0.36], s: [0.2, 0.2, 0.03], tint: 0xff8a3c, glow: 1 });
+    };
+    b.level(2, shed);
+    // Level 3: a grow tower of stacked, glowing mushroom caps on the hall's west end, and the great chimney grown
+    // taller with a moss collar and a ring of light.
+    b.level(3, () => {
+      shed();
+      const [x, z] = [-1.9, -0.6];
+      b.add({ piece: 'concreteCyl', p: [x, 1.62, z], s: [0.3, 1.9, 0.3], tint: 0xf6e7c8 });
+      for (let k = 0; k < 3; k++) b.add({ piece: 'fungus', p: [x, 1.9 + k * 0.55, z], s: 1.1 - k * 0.25, tint: 0xf6e7c8, glow: 0.9 });
+      b.add({ piece: 'concreteCyl', p: [1.85, 4.5, -0.9], s: [0.5, 1.2, 0.5], tint: 0xb46a48 });
+      b.add({ piece: 'mossBox', p: [1.85, 4.7, -0.9], s: [0.56, 0.5, 0.56] });
+      b.add({ piece: 'lumenRib', p: [1.85, 5.7, -0.9], s: [0.56, 0.12, 0.56], glow: 0.8 });
+      b.add({ piece: 'haloRing', p: [1.85, 5.9, -0.9], s: [0.9, 2, 0.9], tint: 0xff8a3c, glow: 1 });
+    });
   },
 });

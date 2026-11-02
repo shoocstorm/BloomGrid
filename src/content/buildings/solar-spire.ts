@@ -55,5 +55,24 @@ export default defineBuilding({
     }
     b.add({ piece: 'timberBox', p: [-0.45, 0.12, 0.55], s: [0.36, 0.06, 0.1], tint: 0xa47c56 });
     lamp(b, 0.62, 0.12, 0.62, 0.45);
+
+    // Levels (D-100). A ring of solar petals at height y, `n` petals of size s.
+    const bloom = (y: number, s: number, n: number, tilt: number, tint = 0xffffff) => {
+      b.add({ piece: 'concreteCyl', p: [0, y - 0.04, 0], s: [0.5, 0.06, 0.5], tint: 0xffe08a, glow: 0.4 });
+      for (let i = 0; i < n; i++) b.add({ piece: 'solarLeaf', p: [0, y, 0], s: [s, 1, s], r: (i / n) * Math.PI * 2 + 0.13, rz: tilt, tint });
+    };
+    // Level 2: a second, lower bloom opens at the balcony and a battery bank joins the kiosk.
+    b.level(2, () => {
+      bloom(0.12 + h * 0.36, 0.7, 10, 0.3);
+      b.add({ piece: 'slab', p: [-0.5, 0.12, -0.45], s: [0.34, 0.34, 0.24], tint: 0xe9eee8 });
+      for (let r = 0; r < 3; r++) b.add({ piece: 'lumenRib', p: [-0.5, 0.2 + r * 0.08, -0.32], s: [0.26, 0.02, 0.01], tint: 0x8fd35a, glow: 0.8 });
+    });
+    // Level 3: the crown grows a third, widest ring of golden petals under a halo, with a beacon.
+    b.level(3, () => {
+      bloom(0.12 + h * 0.36, 0.7, 10, 0.3);
+      bloom(top + 0.02, 1.15, 14, 0.18, 0xffe9b0);
+      b.add({ piece: 'haloRing', p: [0, top + 0.5, 0], s: [1.4, 3, 1.4], tint: 0xffe08a, glow: 1 });
+      b.add({ piece: 'lumenRib', p: [0, top + 0.12, 0], s: [0.05, 0.8, 0.05], glow: 1 });
+    });
   },
 });
