@@ -7,23 +7,23 @@
 
 <p align="center">
   <a href="https://bloomgrid.web.app"><b>▶ Play in your browser</b></a> ·
-  <a href="https://bloomgrid.web.app/assets/feature-trailer.mp4">Watch the trailer</a> ·
+  <a href="https://bloomgrid.web.app/assets/trailer.mp4">🎬 Watch the trailer</a> ·
   <a href="#-run-it-yourself">Run it yourself</a> ·
   <a href="#-how-to-play">How to play</a>
 </p>
 
-![The hero district: the Wellspring Spire and landmark towers along an arched-bridge river, with the Aeroline viaduct behind](docs/images/hero.jpg)
+![The hero district in golden morning light: the Wellspring Spire and landmark towers along an arched-bridge river, with the Aeroline viaduct behind](docs/images/hero.jpg)
 
 You are the **steward** of a Singapore-inspired island where high-tech architecture and wild nature grow together.
 Lay living highways, raise garden towers and supertrees, and keep a city of 25,000 people powered, watered, fed and
-happy. Through monsoons, heatwaves, king tides and a slowly rising sea, the island answers to how well you look after it.
-Neglect it and the gardens wilt, the lights go out and the jungle takes the highways back.
+happy. Through monsoons, heatwaves, king tides and a slowly rising sea, the island answers to how well you look after
+it. Neglect it and the gardens wilt, the lights go out and the jungle takes the highways back.
 
 ## ✨ What makes it different
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/night.jpg" alt="The hero district at night: towers lit window by window, glowing rings and sky-lanes over the river"></td>
+<td width="50%"><img src="docs/images/night.jpg" alt="Downtown at night: towers lit window by window, glowing rings and sky-lanes over the river"></td>
 <td width="50%"><img src="docs/images/supertree.jpg" alt="The Supertree Grove and solar kites rising above a forest between garden towers"></td>
 </tr>
 <tr>
@@ -37,34 +37,47 @@ harvests, and every rooftop is a garden.</td>
 <td><img src="docs/images/island.jpg" alt="The whole island from above: the Aeroline loop, districts, river, bridged islets, a wind farm and sea wonders"></td>
 </tr>
 <tr>
-<td><b>Landmarks worth visiting.</b> The whole island is one planned city: Bayfront down the river to the bay,
-Eastgate, Westbrook and Hillcrest of green-courtyard blocks, and the Sunfield solar farm. The Wellspring Spire rises at
-its heart where the river is born, at the centre of the hero district: a civic ring (wind helix, hanging-gardens ziggurat, sky-ark, cloud-forest domes, a
-crystal data spire, a nautilus library and the Harmony Gate), a skyline hill of towers, a skyport, a glass pine and an
-observation wheel, an exchange of airship port, labs, observatory and amphitheatre toward downtown, a garden quarter of
-a banyan treehouse hotel, a bamboo cathedral and a moonflower concert hall, and working hills by the lake with rice
-terraces, solar kites and a great water wheel, with empty graded lots left for the city to grow into. Across the bridge south of downtown, **Bloomtopia** fills its own
-islet behind a railing fence and a neon gate: the Comet Loop coaster, the Sky Orbit wheel, the Petal Drop tower, a
-dandelion swing ride, the Firefly Carousel, spinning Bloom Cups and a splash lagoon. Every long bridge becomes a
-landmark of its own: suspension bridges with lotus or portal towers over the straits, a cable-stayed fan over the
-bay, and Helix or Bloom Arch bridges over the river and lake (bridges you build get them too). Clouds drift over
-the island (parting around wherever you look), lantern balloons and a leaf-sailed airship circle it, seabirds wheel
-over the coast, and the open sea holds its own wonders: the Tidewatch Lighthouse sweeping its beam at night, the Tide
-Gates (three giant pearl rings rising from the waves), the Lotus Atoll of giant floating flowers, the Abyssal Dome
-observatory, the Verdant Pillars (forested sea stacks) and pods of glowing whales that surface now and then. Every
-neighbourhood has its own architecture: terracotta with arched windows, whitewash with blue frames, rammed earth,
-verdigris copper, glazed mosaic, charred timber, limestone, woven bamboo and more, and each landmark its own finish. The
-**Aeroline**, a solar maglev loop on a viaduct of bloom pylons, circles the hero district above the streets of all four
-towns and out over the bay, its sleek trains stopping at glass-vaulted stations in Hillcrest, Eastgate, Bayfront and
-Westbrook (each a transit hub that takes commuters off the highways, boarded by Bloom Helix towers: planted
-spiral walkways wound round glass lifts). Walk, hoverboard or fly a drone through your
-streets, ride a commuter pod along its sky-lane or an Aeroline train round the island, or frame the moment in photo mode.</td>
+<td><b>Landmarks worth visiting.</b> Bloomtopia's amusement park fills its own islet behind a neon gate — the Comet
+Loop coaster, the Sky Orbit wheel, spinning Bloom Cups and a splash lagoon — and every long bridge becomes a
+landmark of its own: suspension bridges with lotus or portal towers, a cable-stayed fan over the bay, Helix and
+Bloom Arch bridges over the river.</td>
 <td><b>A whole island to steward.</b> A 512 × 512 tile island with hills, lakes, a river and islets to bridge,
-reclaim or defend.</td>
+reclaim or defend — from the Tidewatch Lighthouse and glowing whale pods to a wind farm on Windward Isle.</td>
 </tr>
 </table>
 
-### 🌿 Systems that react to each other
+## 🌆 Signature moments
+
+<table>
+<tr>
+<td width="33%"><img src="docs/images/aeroline.jpg" alt="An Aeroline maglev train sweeping past the glass-vaulted Bayfront station over the bay, downtown behind"></td>
+<td width="33%"><img src="docs/images/fireworks.jpg" alt="A grand fireworks show with a heart-shaped burst over the night city"></td>
+<td width="33%"><img src="docs/images/walk.jpg" alt="The steward walking up the hero avenue toward the Wellspring Spire, flowers lining the street"></td>
+</tr>
+<tr>
+<td><b>Ride the Aeroline.</b> A solar maglev loop on a viaduct of bloom pylons circles the island above the
+streets, its sleek trains stopping at glass-vaulted stations in every town.</td>
+<td><b>Fireworks you design.</b> Build a Fireworks Factory and light the night: peony, willow and palm shells,
+hearts, rings and butterflies — even a message written in the sky.</td>
+<td><b>Walk your streets.</b> Every district is real at street level: stroll the avenues, ride a commuter pod
+along its sky-lane, or frame the moment in photo mode.</td>
+</tr>
+<tr>
+<td><img src="docs/images/street.jpg" alt="A first-person view down a Westbrook street of terracotta and whitewash facades"></td>
+<td><img src="docs/images/rooftop.jpg" alt="Golden-hour view from a landmark rooftop over the city and the bay"></td>
+<td><img src="docs/images/flora.jpg" alt="Flora, the city assistant: her console open with advice cards over the night city"></td>
+</tr>
+<tr>
+<td><b>Every neighbourhood its own.</b> Terracotta with arched windows, whitewash with blue frames, rammed earth,
+verdigris copper, glazed mosaic, charred timber, woven bamboo — and each landmark its own finish.</td>
+<td><b>See it from anywhere.</b> Hoverboard, drone, hot-air balloon, landmark rooftops, a pod's chase view or a
+train driver's cab — the whole island is yours to explore.</td>
+<td><b>Meet Flora.</b> A city assistant running a small AI model on your own computer: ask what needs fixing, or
+tell it what to do — it looks things up, proposes builds as cards, and asks before changing anything.</td>
+</tr>
+</table>
+
+## 🌿 Systems that react to each other
 
 - **Seasons and the Bloom.** Monsoon showers, golden harvests and dusty haze. Flowers open across the city as the
   bloom season peaks, and a **Bloom Retrofit** sends a wave of sunflower crowns and courtyard waterfalls through a
@@ -82,7 +95,7 @@ reclaim or defend.</td>
   or let the coast go.
 - **The Green Weaver.** Grow flowering sky-bridges between towers, or merge a tower with a giant banyan.
 
-### 📊 Read your city like an instrument
+## 📊 Read your city like an instrument
 
 ![The management view: the City Pulse console with system health, bloom, demand and budget over the hero district](docs/images/hud.jpg)
 
@@ -151,7 +164,12 @@ the id of whatever you select; click it to open the inventory.
 **A planned city:** every area has a purpose: living, work, industry, entertainment, sports, utility, civic and
 parkland. Open the city map (**M**) to see the zones in colour (toggle to per-district colours); the inspector
 shows the zone of whatever you select. Factories (Industry ⚙) and venues like Bloom Stadium (Sports ✪) are the
-last two build categories. Pod Interchanges in the living towns fly commuters to the work and industry zones.
+last two build categories. Pod Interchanges in the living towns fly commuters to the work and industry zones. At
+the island's heart rises the **hero district** around the Wellspring Spire: a civic ring of wind helix, hanging-gardens
+ziggurat, sky-ark, cloud-forest domes, a crystal data spire, a nautilus library and the Harmony Gate; a skyline hill of
+towers; an exchange of airship port, labs, observatory and amphitheatre; a garden quarter of banyan treehouse hotel,
+bamboo cathedral and moonflower concert hall; and working hills by the lake with rice terraces, solar kites and a
+great water wheel — with empty graded lots left for your city to grow into.
 
 **Disasters:** earthquakes, thunderstorms that throw lightning at tall buildings, and fires (from quakes,
 lightning, heatwaves and factories) that spread if nobody fights them. Ember Watch Stations put out fires within

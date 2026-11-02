@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "snap": "node scripts/snap.mjs",
     "showcase-map": "bun run snap -- --eval @scripts/scenes/showcase-map.js --eval-out public/assets/showcase-map.webp --out shots/showcase-map.png",
-    "trailer:feature": "node scripts/feature-trailer.mjs",
+    "trailer": "node scripts/trailer.mjs",
     "check": "tsc --noEmit && eslint src tests && bun run test && vite build",
     "perf": "node scripts/perf.mjs",
     "flicker": "node scripts/flicker.mjs",

@@ -1651,3 +1651,17 @@ building's three levels side by side, with one finish (`window.STYLE`) and one v
 - **Build actions have no hotkeys:** Highway, Channel, Remove, Retrofit, Mist, Weaver and Reclaim are picked by
   clicking them in the Build panel (G, C, X, Z, Y, V, T are free again). Advisor tips, lens text, guides and the
   README now say "Build → …". The Controls list reads tool keys from the tools, so it dropped them on its own.
+
+## D-102 — One trailer command again, crossfaded shots, README stills at 2560 (2026-11-02)
+
+`bun run trailer:feature` / `scripts/feature-trailer.mjs` are renamed to `bun run trailer` /
+`scripts/trailer.mjs`, and the committed asset to `public/assets/trailer.mp4` (the deployed URL follows). The
+recorder gained a street-level walk shot up the hero avenue (explore walk mode entered with the city camera parked
+south of the spire: the steward spawns at the nearest road tile and strides away from the camera), caption cards
+for the walk, Aeroline, fireworks and Flora shots, and easeInOutCubic camera easing. Each shot's frames now land
+in its own `segNN/` directory and the encode chains ffmpeg `xfade` dissolves (0.55 s) between them, so the whole
+trailer reads as one continuous move; caption windows are placed in *output* time, where every shot after the first
+starts one dissolve earlier. README images moved from 1280×720 to 2560×1440 (captured at 2560×1440 `--dpr 2`
+with `?quality=ultra`, downsampled with sips), and the README gained a Signature moments gallery (Aeroline,
+fireworks, street walks, rooftop, Flora) — the old 25-line landmark paragraph folded into it and the planned-city
+paragraph.
