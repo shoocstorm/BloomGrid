@@ -547,3 +547,11 @@ body.compact.flora-open #hud > :not(.ai) {
 .compact .si-row {
   grid-template-columns: 96px 1fr 58px;
 }
+/* Inspector key facts: a 2 × 2 grid on a phone (four in a row are too narrow, three leave one alone). */
+.compact .ix-facts {
+  grid-template-columns: repeat(2, 1fr);
+}
+/* The inspector's details scroll inside it (`.ix-scroll`), so its action row stays pinned at the foot. */
+.compact .info:not(.hidden) {
+  overflow: hidden;
+}

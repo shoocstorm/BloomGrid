@@ -1,7 +1,7 @@
 import { updateRoadLevels } from './roads';
 import { query } from 'bitecs';
 import type { System } from '@/core/Systems';
-import { Building, Greenery, Problem, Service } from '@/ecs/components';
+import { Building, Flow, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { SimCtx } from './systems';
 import { HISTORY_LENGTH, HISTORY_METRICS, SYSTEMS, tierFromRatio, type SystemKey, type Tier } from './pulseState';
@@ -163,22 +163,31 @@ export const pulseSystem: System<SimCtx> = {
       flooded[eid] = fl ? 1 : 0;
       const centre = city.grid.index(Building.x[eid]! + (Building.w[eid]! >> 1), Building.z[eid]! + (Building.d[eid]! >> 1));
       Service.bloom[eid] = bloomField[centre]!;
+      Flow.energy[eid] = Flow.water[eid] = Flow.food[eid] = 0;
       // Switched off by the steward (D-075): no output, no draw.
       if (fl || eid === mod.offline || mod.down.has(eid) || Service.off[eid]) continue;
       // Worn-down buildings work at reduced capacity.
       const activity = (st.population > 0 ? 0.3 + 0.7 * occ : st.jobs > 0 ? 0.4 + 0.6 * occ : 1) * (0.4 + 0.6 * Service.condition[eid]!);
       // Pollinated farms yield more; seasons shift harvests.
       // Soil nutrients and hydration (Flora-Net) and drone harvesting shift yields too.
-      if (st.food > 0)
-        food += st.food * big * (st.jobs > 0 ? occ : 1) * Service.power[eid]! * (0.7 + 0.5 * Service.bloom[eid]!) * season.foodMul * farmSoilMul(city, Building.x[eid]! + Building.w[eid]! / 2, Building.z[eid]! + Building.d[eid]! / 2);
+      if (st.food > 0) {
+        const fed =
+          st.food * big * (st.jobs > 0 ? occ : 1) * Service.power[eid]! * (0.7 + 0.5 * Service.bloom[eid]!) * season.foodMul * farmSoilMul(city, Building.x[eid]! + Building.w[eid]! / 2, Building.z[eid]! + Building.d[eid]! / 2);
+        food += fed;
+        Flow.food[eid] = fed;
+      }
       if (net < 0) continue;
       const retro = Building.level[eid]! > 0;
       const sym = def0.symbiosis && Service.paired[eid] ? def0.symbiosis.outputMul : 1;
-      if (st.energy > 0) prodE[net] += st.energy * big * activity * mod.energySupply * sym;
-      else demE[net] -= st.energy * draw * activity * mod.energyDemand * (retro ? 0.8 : 1);
+      const e = st.energy > 0 ? st.energy * big * activity * mod.energySupply * sym : st.energy * draw * activity * mod.energyDemand * (retro ? 0.8 : 1);
       // Water works need power to pump.
-      if (st.water > 0) prodW[net] += st.water * big * activity * Service.power[eid]! * mod.waterSupply * season.waterMul;
-      else demW[net] -= st.water * draw * activity * mod.waterDemand * (retro ? 0.85 : 1);
+      const w = st.water > 0 ? st.water * big * activity * Service.power[eid]! * mod.waterSupply * season.waterMul : st.water * draw * activity * mod.waterDemand * (retro ? 0.85 : 1);
+      if (e > 0) prodE[net] += e;
+      else demE[net] -= e;
+      if (w > 0) prodW[net] += w;
+      else demW[net] -= w;
+      Flow.energy[eid] = e;
+      Flow.water[eid] = w;
     }
     const netStats = pulse.networks;
     netStats.length = n;
@@ -256,9 +265,13 @@ export const pulseSystem: System<SimCtx> = {
       greenSum += g;
       condSum += cond;
       const retro = Building.level[eid]! > 0;
-      s.eco += st.eco * (0.3 + 0.7 * g) * (Building.level[eid] === BANYAN_LEVEL ? 2 : retro ? 1.5 : 1) + (bridges?.get(eid) ?? 0) * 2;
+      const eco = st.eco * (0.3 + 0.7 * g) * (Building.level[eid] === BANYAN_LEVEL ? 2 : retro ? 1.5 : 1) + (bridges?.get(eid) ?? 0) * 2;
       const pairMul = def.symbiosis && Service.paired[eid] ? def.symbiosis.pollutionMul : 1;
-      s.pollution += Math.max(0, st.pollution * (1 - 0.4 * g) * pairMul * (retro ? 0.7 : 1));
+      const smog = Math.max(0, st.pollution * (1 - 0.4 * g) * pairMul * (retro ? 0.7 : 1));
+      s.eco += eco;
+      s.pollution += smog;
+      Flow.eco[eid] = eco;
+      Flow.pollution[eid] = smog;
       built++;
     }
 

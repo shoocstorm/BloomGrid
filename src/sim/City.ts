@@ -1,6 +1,6 @@
 import { addComponent, addEntity, createWorld, query, removeEntity, type World } from 'bitecs';
 import type { EventBus } from '@/core/EventBus';
-import { Building, Greenery, Service } from '@/ecs/components';
+import { Building, Flow, Greenery, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { BuildingDef, ZoneKind } from '@/content/types';
 import { Grid, NO_ENTITY, SEA_LEVEL } from './Grid';
@@ -259,6 +259,7 @@ export class City {
     Service.bloom[eid] = 0.4;
     // Entity ids are reused (also across cities in one page), so reset every per-building store.
     Service.riders[eid] = 0;
+    Flow.energy[eid] = Flow.water[eid] = Flow.food[eid] = Flow.eco[eid] = Flow.pollution[eid] = 0;
     Service.soil[eid] = 0.7;
     Building.tier[eid] = rec.tier ?? 0;
     Service.age[eid] = rec.age ?? 0;

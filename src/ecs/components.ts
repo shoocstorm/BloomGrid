@@ -70,3 +70,16 @@ export const Service = {
   /** 1 when the steward switched it off (a feathered turbine, a paused factory; D-075). */
   off: new Uint8Array(MAX_ENTITIES),
 };
+
+/**
+ * What each building actually drew and gave in the last pulse (written by `sim/pulse.ts`; derived each pulse, so
+ * neither saved nor hashed). The inspector's Consumes / Produces read it. Energy and water are signed: positive
+ * produced, negative drawn.
+ */
+export const Flow = {
+  energy: new Float32Array(MAX_ENTITIES),
+  water: new Float32Array(MAX_ENTITIES),
+  food: new Float32Array(MAX_ENTITIES),
+  eco: new Float32Array(MAX_ENTITIES),
+  pollution: new Float32Array(MAX_ENTITIES),
+};

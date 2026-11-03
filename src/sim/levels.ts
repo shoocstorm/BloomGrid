@@ -47,6 +47,19 @@ export function levelProgress(eid: number): number {
   return Math.min(1, Service.thrive[eid]! / (LEVEL_DAYS[t]! * DAY_LENGTH));
 }
 
+/** Growth thresholds (`updateLevels`): service a building must keep to earn time toward its next level. */
+export const THRIVE = { power: 0.85, water: 0.85, occupancy: 0.85, condition: 0.7, greenery: 0.5 } as const;
+
+/** What keeps a building from thriving (the first unmet threshold), or null when it is growing. */
+export function growthHold(eid: number): keyof typeof THRIVE | null {
+  if (Service.power[eid]! < THRIVE.power) return 'power';
+  if (Service.water[eid]! < THRIVE.water) return 'water';
+  if (Service.occupancy[eid]! < THRIVE.occupancy) return 'occupancy';
+  if (Service.condition[eid]! < THRIVE.condition) return 'condition';
+  if (Greenery.value[eid]! < THRIVE.greenery) return 'greenery';
+  return null;
+}
+
 /** Whether the building grows at all (homes and workplaces). */
 export const levels = (city: City, eid: number): boolean => {
   const st = city.buildingDef(eid).stats;
@@ -83,13 +96,7 @@ export function updateLevels(city: City, ents: ArrayLike<number> & Iterable<numb
     if (st.population <= 0 && st.jobs <= 0) continue;
     const t = Building.tier[e]!;
     if (t >= MAX_TIER) continue;
-    const thriving =
-      !mod.down.has(e) &&
-      Service.power[e]! >= 0.85 &&
-      Service.water[e]! >= 0.85 &&
-      Service.occupancy[e]! >= 0.85 &&
-      Service.condition[e]! >= 0.7 &&
-      Greenery.value[e]! >= 0.5;
+    const thriving = !mod.down.has(e) && growthHold(e) === null;
     const v = thriving ? Service.thrive[e]! + 1 : Math.max(0, Service.thrive[e]! - 2);
     if (v >= LEVEL_DAYS[t]! * DAY_LENGTH) {
       Building.tier[e] = t + 1;

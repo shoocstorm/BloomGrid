@@ -1736,3 +1736,18 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   28 → 14 MiB. The GPU plan keeps wllama's defaults.
 - Together: worker ≈ 1.8 GB → ≈ 1.1 GB. Rejected: forcing wllama's heapfs path for the compat build (this llama.cpp
   build doesn't map the file, so it saves nothing). Still to confirm on a real iPhone.
+
+## D-109 — The building inspector reads like a report (2026-11-03)
+
+- **Why**: the inspector showed base stats as tiles and a wall of mono text; players couldn't tell what a building
+  takes, what it gives, or what to do about a problem.
+- **Live flows**: `sim/pulse.ts` writes what each building actually drew and gave in the last pulse into the `Flow`
+  store (`ecs/components.ts`: energy, water signed; food, eco, pollution). Derived each pulse, so neither saved nor
+  hashed; reset in `City.addBuilding` (ids are reused). The sums are unchanged bit for bit.
+- **Report**: `sim/buildingReport.ts` (`buildingReport`, pure, tested) gives a verdict (Running well / Struggling /
+  Not working / On fire / Ruined / Flooded / Offline / Switched off), each problem with its fix, Consumes and
+  Produces lines (live value, ceiling, supplied %), and the key facts (level and why growth is paused via
+  `growthHold` in `sim/levels.ts`, condition, occupancy or staffing, greenery).
+- **Layout** (`ui/Hud.ts` `updateInfo`): status card, four fact bars, two columns Consumes ← | → Produces, notes
+  (symbiosis, transit, bloom, city rules, risk). Rebuilt only when what it shows changes (≈ once a pulse). The
+  details scroll in `.ix-scroll` (`fillInfo`); the action row stays pinned at the inspector's foot.

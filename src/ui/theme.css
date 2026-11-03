@@ -1481,6 +1481,323 @@ body:not(.compact) .dock {
 .info .ix-ask:hover {
   transform: translateY(-1px);
 }
+/* Inspector frame: stage on top, the details scroll, the action row stays pinned at the foot. */
+.info:not(.hidden) {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 150px);
+}
+.info > .ix-stage-bar,
+.info > .ix-stage {
+  flex: none;
+}
+.info > .ix-sheet {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.ix-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-right: -8px;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.info > .ix-sheet > .ix-actions {
+  flex: none;
+  margin-top: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+/* ── Building inspector, live parts (D-109): status + fixes, key facts, Consumes / Produces, notes ── */
+.ix-live {
+  display: grid;
+  gap: 10px;
+  animation: wc-rise 0.45s 0.3s ease-out both;
+}
+.ix-led[data-tone='warn'] {
+  background: var(--warn);
+  box-shadow: 0 0 6px var(--warn);
+}
+.ix-led[data-tone='crit'] {
+  background: var(--crit);
+  box-shadow: 0 0 6px var(--crit);
+}
+.ix-led[data-tone='off'] {
+  background: var(--ink-faint);
+  box-shadow: none;
+}
+.ix-status {
+  --c: var(--accent-2);
+  padding: 9px 11px;
+  border-radius: var(--r-sm);
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  background: color-mix(in srgb, var(--c) 10%, transparent);
+}
+.ix-status.warn {
+  --c: var(--warn);
+}
+.ix-status.crit {
+  --c: var(--crit);
+}
+.ix-status.off {
+  --c: var(--ink-soft);
+}
+.ix-status-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 9px;
+  align-items: center;
+}
+.ix-status-head .ico {
+  grid-row: span 2;
+  width: 22px;
+  height: 22px;
+  color: var(--c);
+}
+.ix-status-head b {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--c);
+}
+.ix-status-head span {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.ix-fixes {
+  display: grid;
+  gap: 7px;
+  margin: 9px 0 0;
+  padding: 8px 0 0;
+  list-style: none;
+  border-top: 1px dashed color-mix(in srgb, var(--c) 35%, transparent);
+}
+.ix-fixes li {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+}
+.ix-fixes b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.ix-fixes span {
+  display: flex;
+  gap: 5px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+.ix-fixes span .ico {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 2px;
+  color: var(--c);
+}
+.ix-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 6px;
+}
+.ix-fact {
+  --c: var(--ink-soft);
+  display: grid;
+  gap: 3px;
+  padding: 7px 8px 6px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--line);
+  background: var(--bg-raise);
+  min-width: 0;
+}
+.ix-fact.good {
+  --c: var(--accent-2);
+}
+.ix-fact.warn {
+  --c: var(--warn);
+}
+.ix-fact.bad {
+  --c: var(--crit);
+}
+.ix-fact-l,
+.ix-col h4 {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.ix-fact b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 16px var(--mono);
+  color: var(--ink);
+}
+.ix-fact small,
+.ix-flow small {
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: var(--ink-soft);
+}
+.ix-fact small {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.ix-fact.warn small,
+.ix-fact.bad small,
+.ix-flow.bad small {
+  color: var(--c);
+}
+.ix-bar {
+  height: 4px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.ix-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c);
+}
+.ix-stars {
+  display: inline-flex;
+  gap: 2px;
+}
+.ix-stars i {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  border: 1px solid var(--c);
+}
+.ix-stars i.on {
+  background: var(--c);
+}
+.ix-flows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.ix-col {
+  min-width: 0;
+  padding: 8px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.16);
+}
+.ix-col h4 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 6px;
+  color: var(--ink-soft);
+}
+.ix-col h4 .ico {
+  width: 12px;
+  height: 12px;
+}
+.ix-col.in h4 {
+  color: #ffc48a;
+}
+.ix-col.out h4 {
+  color: var(--accent-2);
+}
+.ix-col ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ix-flow {
+  --c: var(--accent);
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  column-gap: 6px;
+  row-gap: 2px;
+  align-items: center;
+}
+.ix-col.in .ix-flow {
+  --c: #ffc48a;
+}
+.ix-flow.good {
+  --c: var(--accent-2);
+}
+.ix-flow.bad,
+.ix-col.in .ix-flow.bad {
+  --c: var(--crit);
+}
+.ix-flow > .ico {
+  width: 14px;
+  height: 14px;
+  color: var(--c);
+}
+.ix-flow-l {
+  font-size: 12px;
+  color: var(--ink);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ix-flow b {
+  font: 600 13px var(--mono);
+  color: var(--c);
+  white-space: nowrap;
+}
+.ix-flow b em {
+  font-style: normal;
+  font-size: 9.5px;
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+.ix-flow .ix-bar,
+.ix-flow small {
+  grid-column: 2 / -1;
+}
+.info p.ix-none {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+.ix-notes {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ix-notes li {
+  display: flex;
+  gap: 7px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+.ix-notes li .ico {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  margin-top: 1px;
+  color: var(--ink-faint);
+}
+.ix-notes li.good .ico {
+  color: var(--accent-2);
+}
+.ix-notes li.warn .ico {
+  color: var(--warn);
+}
+.ix-notes li.warn {
+  color: #ffe2a8;
+}
 @media (prefers-reduced-motion: reduce) {
   .info,
   .info * {
@@ -2172,7 +2489,7 @@ body:not(.booted) .holo::after {
   margin-right: 0;
 }
 .compact .info.staged .ix-stage {
-  height: 150px;
+  height: 120px;
 }
 @media (prefers-reduced-motion: reduce) {
   .ix-stage-hint {

@@ -1,6 +1,6 @@
 import { MAX_ROAD_LEVEL, ROAD_CAPACITY, ROAD_LEVEL_NAMES, levelCounts, roadLevels, roadStretch, upgradeCost as roadUpgradeCost } from '@/sim/roads';
 import { ROAD } from '@/sim/City';
-import { Building, Greenery, Problem, Service } from '@/ecs/components';
+import { Building, Problem, Service } from '@/ecs/components';
 import { buildingExposure, type Exposure } from '@/sim/risk';
 import { buildings } from '@/content';
 import { CATEGORY_ICONS, ZONES } from '@/content/types';
@@ -8,7 +8,8 @@ import { NO_ENTITY } from '@/sim/Grid';
 import { idForSelection } from '@/sim/inventory';
 import { RESPONSE_COST, fireAt, isRuined, repairCost } from '@/sim/hazards';
 import { DEMOLISH_REFUND } from '@/sim/commands';
-import { MAX_TIER, ageDays, levelProgress, levels, renovateCost, upgradeBlocker, upgradeCost } from '@/sim/levels';
+import { MAX_TIER, ageDays, levels, renovateCost, upgradeBlocker, upgradeCost } from '@/sim/levels';
+import { buildingReport, type BuildingReport, type FlowKey, type FlowLine } from '@/sim/buildingReport';
 import { rulesFor } from '@/sim/consequences';
 import type { GameContext, GameModule } from '@/game/context';
 import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
@@ -423,7 +424,7 @@ class Hud {
     const n = this.group.length;
     const refund = n * def.stats.cost * DEMOLISH_REFUND;
     const ids = this.group.map((e) => [e, idForSelection(city, { eid: e })] as const);
-    this.infoBody.replaceChildren(
+    this.fillInfo(
       ...this.infoHead(
         icon(`cat:${def.category}`, CATEGORY_ICONS[def.category]),
         h('div', { class: 'info-id' }, h('span', { class: 'info-id-btn' }, `GROUP · ${n}`), h('span', {}, 'Ctrl/⌘-drag selection')),
@@ -458,6 +459,16 @@ class Hud {
         h('button', { class: 'tool', title: 'Clear the selection (Esc)', onClick: () => this.closeInfo() }, h('span', { class: 'g' }, icon('close')), 'Clear'),
       ),
     );
+  }
+
+  /**
+   * Fills the details sheet: everything scrolls in `.ix-scroll` except the action row (the last part, from
+   * `infoActions`), which stays pinned at the foot of the inspector.
+   */
+  private fillInfo(...parts: (Node | string)[]): void {
+    const last = parts[parts.length - 1];
+    const foot = last instanceof HTMLElement && last.classList.contains('ix-actions') ? parts.pop()! : null;
+    this.infoBody.replaceChildren(h('div', { class: 'ix-scroll' }, ...parts), foot ?? '');
   }
 
   /** Shows the 3D stage for a building, or folds it away (networks, nothing selected). */
@@ -531,15 +542,6 @@ class Hud {
   /** One vital as a tile: icon, mono value, label; `tone` colours it good or bad. */
   private vital(ico: string, label: string, value: string, tone: '' | 'good' | 'bad' = ''): HTMLElement {
     return h('div', { class: `ix-vital ${tone}` }, icon(ico), h('b', {}, value), h('span', {}, label));
-  }
-
-  /** Level, progress to the next one and age (D-073), for homes and workplaces. */
-  private levelLine(eid: number): string {
-    if (!levels(this.ctx.city, eid)) return `Age ${ageDays(eid).toFixed(1)} days`;
-    const t = Building.tier[eid]!;
-    const stars = '★'.repeat(t + 1) + '☆'.repeat(MAX_TIER - t);
-    const next = t < MAX_TIER ? ` · next level ${Math.round(levelProgress(eid) * 100)}% (thrives when powered, watered, full and green)` : ' · top level';
-    return `Level ${t + 1} ${stars}${next} · age ${ageDays(eid).toFixed(1)} days`;
   }
 
   /** The building's switch (D-075): feather a turbine, pause a factory… with what switching does in the tooltip. */
@@ -620,7 +622,7 @@ class Hud {
     const ratio = (p: number, u: number) => (u > 0 ? `${Math.round((p / u) * 100)}%` : '—');
     const row = (k: string, v: string | number) => h('div', { class: 'row' }, h('span', {}, k), h('b', {}, String(v)));
     const objId = idForSelection(city, { road });
-    this.infoBody.replaceChildren(
+    this.fillInfo(
       ...this.infoHead(
         icon('network'),
         this.idTag(objId, city.districtAt(road % city.grid.w, (road / city.grid.w) | 0)),
@@ -675,28 +677,19 @@ class Hud {
     this.stageFor(this.selected);
     const def = this.ctx.city.buildingDef(this.selected);
     const s = def.stats;
+    this.liveKey = '';
     const [bx, bz] = [Building.x[this.selected]! + Building.w[this.selected]! / 2, Building.z[this.selected]! + Building.d[this.selected]! / 2];
     const id = idForSelection(this.ctx.city, { eid: this.selected });
-    const signed = (v: number) => `${v > 0 ? '+' : ''}${v}`;
-    this.infoBody.replaceChildren(
+    this.fillInfo(
       ...this.infoHead(
         icon(`cat:${def.category}`, CATEGORY_ICONS[def.category]),
         this.idTag(id, this.ctx.city.districtAt(Math.floor(bx), Math.floor(bz))),
         def.name,
         def.description,
       ),
-      h('div', { class: 'grow' }, h('div', { class: 'row' }, h('span', {}, 'Greenery'), h('b', { 'data-g': '1' }, '')), h('div', { class: 'meter' }, h('i', { 'data-gm': '1' }))),
-      h(
-        'div',
-        { class: 'ix-vitals' },
-        this.vital('energy', 'Energy', signed(s.energy), s.energy > 0 ? 'good' : s.energy < 0 ? 'bad' : ''),
-        this.vital('eco', 'Ecology', signed(s.eco), s.eco > 0 ? 'good' : s.eco < 0 ? 'bad' : ''),
-        this.vital('pollution', 'Pollution', String(s.pollution), s.pollution > 0 ? 'bad' : ''),
-        this.vital('people', 'Residents', fmt(s.population)),
-        this.vital('jobs', 'Jobs', fmt(s.jobs)),
-      ),
-      h('div', { class: 'svc', 'data-svc': '1' }),
+      // Live parts (`updateInfo`): status and fixes, key facts, what it consumes and produces, notes.
       h('div', { class: 'info-hz', 'data-hz': '1' }),
+      h('div', { class: 'ix-live', 'data-live': '1' }),
       this.infoActions(
         id,
         ...this.switchButton(this.selected),
@@ -712,52 +705,120 @@ class Hud {
     this.updateInfo();
   }
 
+  private liveKey = '';
+  /** Refreshes the live parts of the building inspector; rebuilt only when what they show changes (≈ once a pulse). */
   private updateInfo(): void {
     if (this.selected === null) return;
-    const g = Greenery.value[this.selected]!;
-    const label = this.infoBody.querySelector<HTMLElement>('[data-g]');
-    const meter = this.infoBody.querySelector<HTMLElement>('[data-gm]');
-    if (label) setText(label, `${Math.round(g * 100)}%`);
-    if (meter) meter.style.width = `${g * 100}%`;
-    const svc = this.infoBody.querySelector<HTMLElement>('[data-svc]');
-    if (svc) {
-      const eid = this.selected;
-      const st = this.ctx.city.buildingDef(eid).stats;
-      const p = Service.problems[eid]!;
-      const issues = [
-        p & Problem.NO_ROAD && 'No highway access: connect it to a Living Highway',
-        p & Problem.NO_POWER && 'Brownout: the grid lacks power',
-        p & Problem.NO_WATER && 'Dry taps: the network lacks water',
-        p & Problem.UNSTAFFED && 'Understaffed: not enough workers',
-        p & Problem.ON_FIRE && 'On fire: evacuated; dispatch crews before it spreads',
-        p & Problem.RUINED && 'A ruin: burned out or shaken down; rebuild it',
-      ].filter(Boolean) as string[];
-      const occLabel = st.population > 0 ? 'Occupancy' : st.jobs > 0 ? 'Staffing' : '';
-      const def = this.ctx.city.buildingDef(eid);
-      const sym = def.symbiosis;
-      const extra = [
-        Building.level[eid] ? '✾ Bloom Retrofit: flowering façade, sunflower crown (eco ×1.5, uses less power and water)' : '',
-        def.transit ? `⇶ Pod Dock: flying ${Math.round(Service.riders[eid]!)} of up to ${def.transit.riders} commuters from homes within ${def.transit.radius} tiles` : '',
-        def.transit ? this.skylaneLine(eid) : '',
-        sym ? (Service.paired[eid] ? `✓ Symbiosis: ${sym.label}` : `✗ Unpaired: place a ${sym.partners.map((p) => buildings.get(p).name).join(' or ')} within ${sym.radius} tiles`) : '',
-        `Bloom ${Math.round(Service.bloom[eid]! * 100)}% · Condition ${Math.round(Service.condition[eid]! * 100)}%`,
-        this.levelLine(eid),
-        Service.off[eid] ? `⏸ Switched off: ${def.interact?.help ?? 'no output, no draw'}` : '',
-        Service.condition[eid]! < 0.2 && !(p & Problem.RUINED) ? '⚠ Broken down: it barely works until repaired (or renovated)' : '',
-        Service.scorch[eid]! > 0.05 ? `Charred ${Math.round(Service.scorch[eid]! * 100)}%: a repair or renovation cleans it` : '',
-        ...rulesFor(this.ctx.city, eid).map((r) => `⚖ ${r}`),
-        this.riskLine(eid),
-      ].filter(Boolean);
-      const lines = [
-        st.energy < 0 ? `Power ${Math.round(Service.power[eid]! * 100)}%` : '',
-        st.water < 0 ? `Water ${Math.round(Service.water[eid]! * 100)}%` : '',
-        occLabel ? `${occLabel} ${Math.round(Service.occupancy[eid]! * 100)}%` : '',
-      ].filter(Boolean);
-      setText(svc, [lines.join(' · '), ...extra, ...issues.map((i) => `⚠ ${i}`)].filter(Boolean).join('\n'));
-      svc.classList.toggle('bad', issues.length > 0);
-      this.infoBody.querySelector('[data-led]')?.classList.toggle('bad', issues.length > 0);
-      this.hazardActions(eid);
+    const box = this.infoBody.querySelector<HTMLElement>('[data-live]');
+    if (!box) return;
+    const eid = this.selected;
+    const r = buildingReport(this.ctx.city, eid);
+    const notes = this.notes(eid);
+    const key = JSON.stringify([r, notes]);
+    this.hazardActions(eid);
+    if (key === this.liveKey) return;
+    this.liveKey = key;
+    box.replaceChildren(this.statusCard(r), this.keyFacts(eid, r), this.flows(r), notes.length ? h('ul', { class: 'ix-notes' }, ...notes.map(([ico, text, tone]) => h('li', { class: tone }, icon(ico), h('span', {}, text)))) : '');
+    this.infoBody.querySelector('[data-led]')?.setAttribute('data-tone', r.status.tone);
+  }
+
+  /** The verdict at a glance: a coloured banner (title + the one thing to know), then each problem with its fix. */
+  private statusCard(r: BuildingReport): HTMLElement {
+    const ico = { ok: 'st-ok', warn: 'st-warn', crit: 'st-crit', off: 'st-off' }[r.status.tone];
+    return h(
+      'div',
+      { class: `ix-status ${r.status.tone}` },
+      h('div', { class: 'ix-status-head' }, icon(ico), h('b', {}, r.status.title), h('span', {}, r.status.detail)),
+      r.issues.length
+        ? h('ol', { class: 'ix-fixes' }, ...r.issues.map((i) => h('li', {}, h('b', {}, i.text), h('span', {}, icon('next'), i.fix))))
+        : '',
+    );
+  }
+
+  /** Level (stars and progress), condition, occupancy or staffing, greenery: four bars, each with a caption. */
+  private keyFacts(eid: number, r: BuildingReport): HTMLElement {
+    const tone = (v: number, warn: number, bad: number) => (v < bad ? 'bad' : v < warn ? 'warn' : 'good');
+    const fact = (label: string, value: string, bar: number, t: string, caption: string, extra?: Node) =>
+      h('div', { class: `ix-fact ${t}` }, h('span', { class: 'ix-fact-l' }, label), h('b', {}, value, extra ?? ''), h('div', { class: 'ix-bar' }, h('i', { style: `width:${Math.round(Math.min(1, bar) * 100)}%` })), h('small', { title: caption }, caption));
+    const L = r.level;
+    const stars = h('span', { class: 'ix-stars' }, ...Array.from({ length: L.max + 1 }, (_, i) => h('i', { class: i <= L.tier ? 'on' : '' }, '')));
+    const age = `${ageDays(eid).toFixed(1)} days old`;
+    const lv = !L.grows
+      ? fact('Level', '—', 0, '', "Doesn't grow")
+      : L.tier >= L.max
+        ? fact('Level', `${L.tier + 1}`, 1, 'good', 'Top level', stars)
+        : fact('Level', `${L.tier + 1}`, L.progress, L.hold ? 'warn' : 'good', L.hold ? `Paused: ${L.hold}` : `Growing · ${Math.round(L.progress * 100)}% to level ${L.tier + 2}`, stars);
+    return h(
+      'div',
+      { class: 'ix-facts' },
+      lv,
+      fact('Condition', `${Math.round(r.condition * 100)}%`, r.condition, tone(r.condition, 0.7, 0.35), age),
+      r.fill ? fact(r.fill.label, `${Math.round(r.fill.value * 100)}%`, r.fill.value, tone(r.fill.value, 0.85, 0.5), r.fill.label === 'Occupancy' ? 'of homes lived in' : 'of jobs filled') : null,
+      fact('Greenery', `${Math.round(r.greenery * 100)}%`, r.greenery, tone(r.greenery, 0.5, 0.2), r.greenery >= 0.99 ? 'Fully grown' : 'Moss and plants'),
+    );
+  }
+
+  /** Consumes ← | → Produces: live amounts per sim second, bars against full service, supply shortfalls in red. */
+  private flows(r: BuildingReport): HTMLElement {
+    const ICON: Record<FlowKey, string> = { energy: 'energy', water: 'water', food: 'food', workers: 'people', residents: 'house', jobs: 'jobs', eco: 'eco', pollution: 'pollution', upkeep: 'credits', riders: 'pod', harmony: 'happy' };
+    const num = (v: number, unit: string) => (unit === '◈/s' ? v.toFixed(2) : Math.abs(v) < 10 && v % 1 ? v.toFixed(1) : fmt(v));
+    const row = (l: FlowLine) => {
+      const short = l.supplied !== undefined && l.supplied < 0.8;
+      const t = short ? 'bad' : l.tone;
+      const share = l.max > 0 ? Math.min(1, Math.abs(l.value) / Math.abs(l.max)) : 0;
+      const caption =
+        l.supplied !== undefined
+          ? `${l.key === 'workers' ? 'filled' : 'supplied'} ${Math.round(l.supplied * 100)}%${l.key !== 'workers' && l.max > l.value + 0.05 ? ` · ${num(l.max, l.unit)} when busy` : ''}`
+          : l.max !== 0
+            ? `of ${num(l.max, l.unit)} at best`
+            : l.key === 'upkeep'
+              ? 'running cost'
+              : l.key === 'workers'
+                ? 'to the job market'
+                : l.key === 'jobs'
+                  ? 'for residents'
+                  : l.key === 'harmony'
+                    ? 'amenity for the city'
+                    : 'to the city';
+      return h(
+        'li',
+        { class: `ix-flow ${t}` },
+        icon(ICON[l.key]),
+        h('span', { class: 'ix-flow-l' }, l.label),
+        h('b', {}, num(l.value, l.unit), l.unit ? h('em', {}, ` ${l.unit}`) : ''),
+        l.max !== 0 || l.supplied !== undefined ? h('div', { class: 'ix-bar' }, h('i', { style: `width:${Math.round((l.supplied ?? share) * 100)}%` })) : null,
+        h('small', {}, caption),
+      );
+    };
+    const col = (title: string, cls: string, lines: FlowLine[], input: boolean) =>
+      h('div', { class: `ix-col ${cls}` }, h('h4', {}, icon(input ? 'load' : 'save'), title), lines.length ? h('ul', {}, ...lines.map(row)) : h('p', { class: 'ix-none' }, input ? 'Nothing: runs free' : 'No direct output'));
+    return h('div', { class: 'ix-flows' }, col('Consumes', 'in', r.consumes, true), col('Produces', 'out', r.produces, false));
+  }
+
+  /** Situational notes: symbiosis, transit, retrofit, bloom, damage, city rules, risk. Each `[icon, text, tone]`. */
+  private notes(eid: number): [string, string, string][] {
+    const { city } = this.ctx;
+    const def = city.buildingDef(eid);
+    const sym = def.symbiosis;
+    const p = Service.problems[eid]!;
+    const out: [string, string, string][] = [];
+    if (sym)
+      out.push(
+        Service.paired[eid]
+          ? ['link', `Symbiosis: ${sym.label}`, 'good']
+          : ['link', `Unpaired: place a ${sym.partners.map((q) => buildings.get(q).name).join(' or ')} within ${sym.radius} tiles for a bonus`, 'warn'],
+      );
+    if (Building.level[eid]) out.push(['retrofit', 'Bloom Retrofit: eco ×1.5, uses less power and water', 'good']);
+    if (def.transit) {
+      out.push(['pod', `Flying ${Math.round(Service.riders[eid]!)} of up to ${def.transit.riders} commuters from homes within ${def.transit.radius} tiles`, '']);
+      out.push(['pod', this.skylaneLine(eid).replace(/^⌬ /, ''), '']);
     }
+    out.push(['flower', `Bloom ${Math.round(Service.bloom[eid]! * 100)}% around it (pollinators, clean power and green lift it)`, '']);
+    if (Service.scorch[eid]! > 0.05 && !(p & Problem.RUINED)) out.push(['fire', `Charred ${Math.round(Service.scorch[eid]! * 100)}%: a repair or renovation cleans it`, 'warn']);
+    for (const rule of rulesFor(city, eid)) out.push(['pulse', rule, '']);
+    const risk = this.riskLine(eid);
+    if (risk) out.push(['st-warn', risk.replace(/^⛈ /, ''), 'warn']);
+    return out;
   }
 
   private risk = { tick: -Infinity, map: new Map<number, Exposure>() };
