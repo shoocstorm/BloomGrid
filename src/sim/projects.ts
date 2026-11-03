@@ -86,8 +86,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
       'Bring the city assistant online. She thinks on the Data Spire, and every request costs credits.',
     unlocks: 'Flora, the city assistant: answers, advice and actions on request (credits per request).',
     cost: 1200,
-    // ≈18 s at 1× (D-093): the wait is the build-up to the awakening, not a chore.
-    days: 0.05,
+    // 5 s at 1× (D-093, D-104): a short build-up to the awakening, not a wait.
+    days: 5 / DAY_LENGTH,
     criteria: (city) => [
       {
         label: 'A power plant',

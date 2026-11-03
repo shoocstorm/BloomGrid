@@ -141,8 +141,8 @@ class Hud {
   }
 
   /**
-   * Registers a panel that folds with a `collapsed` class (city pulse, Flora-Net, lenses). On a
-   * phone it starts folded, opening one folds the others, and a tap on the city folds them all.
+   * Registers a panel that folds with a `collapsed` class (the City Pulse console). On a phone it starts
+   * folded, opening one folds the others, and a tap on the city folds them all.
    */
   sheet(el: HTMLElement): void {
     this.sheets.push(el);

@@ -1,5 +1,6 @@
 // Phone HUD check: run with `bun run snap -- --mobile --eval @scripts/scenes/mobile.js --after 1500`.
-// window.SHEET = 'pulse' | 'advisor' | 'lens' | 'info' | 'build' | 'dashboard' | 'gesture' picks what to open.
+// window.SHEET = 'pulse' | 'advisor' | 'lens' | 'goals' | 'info' | 'build' | 'dashboard' | 'gesture' picks what to open
+// (the first four open the City Pulse console from the top bar on that tab, D-106).
 (async () => {
   const g = window.bloomgrid;
   document.querySelector('.help-ok')?.click();
@@ -7,9 +8,12 @@
   const canvas = g.renderer.domElement;
   const touch = (type, id, x, y) =>
     canvas.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', clientX: x, clientY: y, bubbles: true, isPrimary: id === 1 }));
-  if (sheet === 'pulse') document.querySelector('.pulse-head').click();
-  if (sheet === 'advisor') document.querySelector('.adv-title').click();
-  if (sheet === 'lens') document.querySelector('.lens-toggle').click(), g.services.get('overlays').set('ecology');
+  const tabs = { pulse: 0, lens: 1, advisor: 2, goals: 3 };
+  if (sheet in tabs) {
+    if (document.querySelector('.pulse.collapsed')) document.querySelector('.act-pulse').click();
+    document.querySelectorAll('.con-tab')[tabs[sheet]]?.click();
+    if (sheet === 'lens') g.services.get('overlays').set('ecology');
+  }
   if (sheet === 'dashboard') g.services.get('dashboard').toggle();
   if (sheet === 'info') {
     const eid = g.city.buildingEntities()[40];
@@ -40,5 +44,6 @@
     return { before, after: { d: after.distance, yaw: after.yaw }, gesture: g.input.gesture };
   }
   const n = (s) => document.querySelectorAll(s).length;
-  return { sheet, openSheets: n('.pulse:not(.collapsed)') + n('.advisor:not(.collapsed)') + n('.lens-wrap:not(.collapsed)'), tool: g.tools.active.id };
+  const tab = document.querySelector('.con-tab.on')?.title;
+  return { sheet, consoleOpen: n('.pulse:not(.collapsed)') === 1, tab, tool: g.tools.active.id };
 })();

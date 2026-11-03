@@ -25,7 +25,7 @@ export const pulseModule: GameModule = {
       fold: (folded) => void panel.el.classList.toggle('collapsed', folded),
     });
     const hud = ctx.services.get('hud');
-    // Show / hide the console from the top bar (P does the same); lit while it is open. Phones have its chip.
+    // Show / hide the console from the top bar (P does the same); lit while it is open.
     const toggle = h(
       'button',
       {

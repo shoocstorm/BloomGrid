@@ -1,7 +1,7 @@
 /*
  * Phone layout. `body.compact` (platform/device.ts) trims the HUD to what a thumb needs: clock,
- * key stats and actions on top; City Pulse, Flora-Net and lenses as chips that open one sheet at a
- * time; the inspector as a bottom sheet; a scrolling icon toolbar. Telemetry and keyboard hints are
+ * key stats and actions on top; the City Pulse console (Pulse, Lenses, Flora-Net, Goals tabs) as one sheet
+ * from the top bar's Pulse button; the inspector as a bottom sheet; a scrolling icon toolbar. Telemetry and keyboard hints are
  * dropped; explore modes keep their top-bar switcher (glyph only) and get a touch pad (explore.css). `body.touch` only removes hover/keyboard affordances.
  * Loaded after theme.css so it wins without !important wars.
  */
@@ -14,17 +14,14 @@ body.touch .tool kbd,
 body.touch .lens-bar kbd {
   display: none;
 }
-.lens-toggle {
-  display: none;
-}
 
 body.compact {
   --gut: 8px;
   --top: calc(env(safe-area-inset-top, 0px) + 6px);
   --bot: calc(env(safe-area-inset-bottom, 0px) + 6px);
-  /* Chip row under the two top-bar rows. */
+  /* First line under the two top-bar rows (the console sheet, the lens legend). */
   --chips: calc(var(--top) + 86px);
-  /* First free line under the chips (crisis banners). */
+  /* First free line under the lens legend (crisis banners). */
   --below: calc(var(--chips) + 42px);
 }
 
@@ -36,8 +33,19 @@ body.compact {
   flex-wrap: wrap;
   gap: 6px;
 }
+/* The brand stays as a logo-only button (it opens About, D-101); the name and subtitle need desktop room. */
 .compact .brand {
+  flex: none;
+  padding: 0 9px;
+  min-width: 38px;
+  justify-content: center;
+}
+.compact .brand b {
   display: none;
+}
+.compact .brand .logo {
+  width: 18px;
+  height: 18px;
 }
 .compact .clock {
   flex: 1;
@@ -98,99 +106,63 @@ body.compact {
 .compact .stat-eco {
   display: none;
 }
+/* Portrait: the first row has no room beside the clock, so the logo leads the stats row (a zero-height
+   break item ends the first row). */
+@media (max-width: 699px) {
+  .compact .topbar::before {
+    content: '';
+    order: 3;
+    flex-basis: 100%;
+    height: 0;
+    margin-top: -6px;
+  }
+  .compact .brand {
+    order: 4;
+    padding: 0 7px;
+    min-width: 34px;
+  }
+  .compact .stats {
+    order: 5;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
 
 
-/* ── Chips → sheets (City Pulse left, lenses centre, Flora-Net right) ─────── */
+/* ── City Pulse console (D-056, D-106): the same tabbed panel as desktops (Pulse, Lenses, Flora-Net, Goals),
+   a sheet under the top bar opened and closed by the top bar's Pulse button. ── */
 .compact .rightcol {
   display: contents;
 }
-.compact .pulse,
-.compact .advisor {
-  position: absolute;
+.compact .pulse.console {
   top: var(--chips);
+  left: var(--gut);
+  right: var(--gut);
   width: auto;
-  max-width: calc(100vw - 2 * var(--gut));
-  max-height: calc(100dvh - var(--chips) - var(--bot) - 70px);
-  overflow-y: auto;
-  padding: 6px 10px;
-  z-index: 12;
-}
-.compact .pulse {
-  left: var(--gut);
-}
-.compact .advisor {
-  right: var(--gut);
-}
-.compact .pulse:not(.collapsed),
-.compact .advisor:not(.collapsed) {
-  left: var(--gut);
-  right: var(--gut);
+  height: calc(100dvh - var(--chips) - var(--bot) - 70px);
+  max-height: none;
+  padding: 6px 10px 8px;
   z-index: 14;
-}
-/* Open sheets cover the chips beneath them: use the opaque panel fill. */
-.compact .pulse:not(.collapsed),
-.compact .advisor:not(.collapsed),
-.compact .lens-wrap:not(.collapsed) .lens-bar,
-.compact .info {
   --bg: var(--bg-strong);
 }
+.compact .pulse.console .con-pane.on {
+  overscroll-behavior: contain;
+}
 .compact .pulse-head {
-  font-size: 11.5px;
+  font-size: 12px;
   padding: 2px 0;
   white-space: nowrap;
 }
-.compact .pulse:not(.collapsed) .pulse-head {
-  padding-bottom: 6px;
+.compact .con-tab {
+  padding: 6px 2px 7px;
 }
-.compact .advisor.collapsed .adv-tabs {
-  display: none;
+.compact .info {
+  --bg: var(--bg-strong);
 }
-/* Open Flora-Net takes the full height down to the toolbar; the header stays, the list scrolls. */
-.compact .advisor:not(.collapsed) {
-  display: flex;
-  flex-direction: column;
-  height: calc(100dvh - var(--chips) - var(--bot) - 70px);
-  overflow: hidden;
-}
-.compact .advisor:not(.collapsed) .adv-list {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
-  overscroll-behavior: contain;
-}
-.compact .adv-title {
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  white-space: nowrap;
-}
-
 .compact .lens-wrap {
   top: var(--chips);
   width: calc(100vw - 2 * var(--gut));
   z-index: 13;
-}
-.compact .lens-toggle {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  font-size: 12px;
-}
-.compact .lens-toggle .l {
-  display: none;
-}
-.compact .lens-wrap.collapsed .lens-bar {
-  display: none;
-}
-.compact .lens-bar {
-  flex-wrap: wrap;
-  justify-content: center;
-}
-.compact .lens {
-  padding: 8px 10px;
-}
-.compact .lens .l {
-  display: inline;
 }
 
 /* ── Bottom: inspector sheet above a scrolling toolbar ────────────────────── */
@@ -420,13 +392,9 @@ body.compact .ai.panel.max {
     order: 0;
     flex: 1 1 0;
   }
-  /* Sheets keep a readable width instead of stretching across the landscape screen. */
-  .compact .pulse:not(.collapsed) {
+  /* The console keeps a readable width instead of stretching across the landscape screen. */
+  .compact .pulse.console {
     right: auto;
-    width: min(380px, 45vw);
-  }
-  .compact .advisor:not(.collapsed) {
-    left: auto;
     width: min(380px, 45vw);
   }
   .compact .info {
@@ -529,14 +497,11 @@ body.compact.flora-open #hud > :not(.ai) {
   transform: translateY(14px);
 }
 
-/* Phones: City Pulse has its chip, so the top bar's Pulse toggle goes (D-081). */
-.compact .act-pulse {
-  display: none;
-}
-/* Six action buttons beside the clock: slimmer buttons, no rule after the view toggles. */
+/* Eight action buttons beside the clock (City Pulse's among them, D-106): slim buttons, so the clock keeps its
+   speed control in portrait and the stats fit in landscape; no rule after the view toggles. */
 .compact .actions .icon-btn {
-  min-width: 30px;
-  padding: 0 4px;
+  min-width: 26px;
+  padding: 0 2px;
 }
 .compact .act-lead {
   padding-right: 0;

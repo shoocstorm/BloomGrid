@@ -185,13 +185,10 @@ export const overlaysModule: GameModule = {
       }
     };
     renderBrief();
-    // Phones fold the lens bar behind a toggle (a HUD sheet); desktops hide the toggle.
     const wrap = h('div', { class: 'lens-wrap' });
-    const toggle = h('button', { class: 'lens-toggle panel', title: 'Data lenses', onClick: () => wrap.classList.toggle('collapsed') }, h('span', { class: 'g' }, icon('lens')), h('span', { class: 'l' }, 'Lens'));
-    wrap.append(toggle, bar, brief, legend);
+    wrap.append(bar, brief, legend);
     ctx.hud.append(wrap);
-    ctx.services.get('hud').sheet(wrap);
-    // Desktops: the lenses live in the City Pulse console (D-056); the legend stays up top while one is on.
+    // The lenses live in the City Pulse console (D-056, phones too: D-106); the legend stays up top while one is on.
     ctx.services.get('pulse').addTab('lens', 'Lenses', '◐', bar, brief);
 
     const service: OverlayService = {

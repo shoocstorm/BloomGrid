@@ -146,16 +146,7 @@
   font-family: var(--mono);
   color: var(--ink);
 }
-/* Phones: the console shows only the pulse, so the panel sits at the top of the City Pulse sheet, ruled off from
-   the pulse below; a city with everything open has nothing to earn and hides it. */
-.compact .goals.gl-phone {
-  padding-bottom: 10px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid var(--line);
-}
-.compact .goals.gl-open {
-  display: none;
-}
+/* Phones: the Goals tab drops the project blurbs to save height. */
 .compact .goals .gl-desc {
   display: none;
 }

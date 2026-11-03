@@ -130,16 +130,6 @@
   background: var(--bg-hover);
   color: var(--accent);
 }
-/* Phones: the card sits under the lens buttons while a lens is on; folded with the sheet. */
-.compact .lens-wrap .lens-brief {
-  order: 0;
-  width: 100%;
-  margin-top: 0;
-}
-.compact .lens-wrap.collapsed .lens-brief,
-.compact .lens-brief.idle {
-  display: none;
-}
 .con-pane .lens-brief.panel {
   margin-top: 8px;
   padding: 10px;

@@ -5,7 +5,6 @@ import { buildings } from '@/content';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
-import { isCompact } from '@/platform/device';
 import './advisor.css';
 
 interface LogEntry {
@@ -53,8 +52,7 @@ export const advisorModule: GameModule = {
       list,
     );
     ctx.services.get('hud').right.prepend(panel);
-    ctx.services.get('hud').sheet(panel);
-    // Desktops: a tab of the City Pulse console (D-056), its urgent count on the tab.
+    // A tab of the City Pulse console (D-056, phones too: D-106), its urgent count on the tab.
     const tabHandle = ctx.services.get('pulse').addTab('flora', 'Flora-Net', '❦', panel);
 
     const addLog = (text: string, severity: Severity) => {
@@ -152,9 +150,8 @@ export const advisorModule: GameModule = {
     ctx.bus.on('load:done', ({ slot }) => addLog(`City restored (${slot})`, 0));
     ctx.input.onKey((e) => {
       if (e.code !== 'KeyF' || e.metaKey || e.ctrlKey) return false;
-      // Desktops: F brings the Flora-Net tab forward (again folds the console); phones fold the sheet.
-      if (isCompact()) panel.classList.toggle('collapsed');
-      else if (tabHandle.selected) ctx.services.get('pulse').fold(true);
+      // F brings the Flora-Net tab forward (again folds the console).
+      if (tabHandle.selected) ctx.services.get('pulse').fold(true);
       else tabHandle.select();
       return true;
     });

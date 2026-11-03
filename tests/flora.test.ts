@@ -36,7 +36,7 @@ describe('waking Flora (D-092)', () => {
     expect(w.phase).toBe('ready');
 
     expect(s.commands.execute('startProject', { id: 'flora' })).toBe(true);
-    s.step(50);
+    s.step(Math.round((PROJECTS.flora.days * 360 * 10) / 2));
     w = floraWake(s.city);
     expect(w.phase).toBe('waking');
     expect(w.progress).toBeGreaterThan(0);

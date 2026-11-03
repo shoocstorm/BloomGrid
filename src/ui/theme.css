@@ -768,8 +768,7 @@ kbd,
   scrollbar-color: var(--line-strong) transparent;
 }
 
-/* ── City Pulse console (D-056): one tabbed column on the left, desktops only ── */
-/* Tabs exist only on desktops (`.console`); phones show the pulse alone as their sheet. */
+/* ── City Pulse console (D-056): one tabbed column on the left (phones: a sheet, mobile.css, D-106) ── */
 .con-tabs {
   display: none;
 }

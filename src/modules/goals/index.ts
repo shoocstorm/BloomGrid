@@ -5,7 +5,7 @@ import { WONDERS } from '@/sim/wonders';
 import { DAY_LENGTH } from '@/sim/pulseConst';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
-import { isCompact, onCompactChange } from '@/platform/device';
+import { isCompact } from '@/platform/device';
 import './goals.css';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -25,15 +25,10 @@ export const goalsModule: GameModule = {
     const { city } = ctx;
     const pulse = ctx.services.get('pulse');
     const el = h('div', { class: 'goals' });
-    // Phone home first (top of the pulse body), so the console's tab knows where to return it on phones.
-    pulse.body.prepend(el);
     const tab = pulse.addTab('goals', 'Goals', '✧', el);
     let key = '';
-    /** Read by the 1 Hz refresh: the console tab on desktops, the open City Pulse sheet on phones. */
-    const shown = () => tab.selected || (isCompact() && !pulse.collapsed);
-    const mark = () => el.classList.toggle('gl-phone', isCompact());
-    onCompactChange(() => (mark(), (key = ''), render()));
-    mark();
+    /** Read by the 1 Hz refresh: only while its tab is open. */
+    const shown = () => tab.selected;
 
     const render = () => {
       const g = city.growth;
@@ -187,7 +182,7 @@ export const goalsModule: GameModule = {
         ? PROJECT_IDS.filter((id) => projectStatus(city, id) === 'ready').length
         : 0;
       tab.setBadge(ready ? String(ready) : '', ready ? 'warn' : '');
-      // Phones have no tab to badge: say once when a project becomes ready to start.
+      // Phones keep the console folded over the city: say once when a project becomes ready to start.
       if (!g.progression) return;
       for (const id of PROJECT_IDS) {
         const now = projectStatus(city, id) === 'ready';

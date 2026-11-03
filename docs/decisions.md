@@ -1688,3 +1688,22 @@ island overview, pins late-morning light). It replaces `showcase-map.webp`, the 
 zone legend — a photo needs no key, so the pane's legend is gone too (`legend()` stays for the saved-city and
 new-island canvases, which are still painted). The error fallback (a painted bare island when the asset is
 missing) is unchanged.
+
+## D-104 — Waking Flora takes 5 s (2026-11-03)
+
+The "Wake Flora" project ran ≈18 s at 1× (D-093), which still read as a wait. It now takes `5 / DAY_LENGTH` days
+(5 s at 1×): just long enough for the progress ring to fill before the awakening. Cost and criteria are unchanged.
+
+## D-105 — The brand stays on phones as a logo-only button (2026-11-03)
+
+The top-left brand (it opens About, D-101) was hidden on `.compact`. It now shows as the logo alone; in portrait
+(< 700 px) it leads the stats row, because beside the clock it pushed the speed control under the actions pill.
+
+## D-106 — Phones get the City Pulse console, not three chips (2026-11-03)
+
+Phones showed City Pulse, the lenses and Flora-Net as separate chips and sheets, with Goals pushed to the top of the
+pulse sheet, while desktops had one tabbed console (D-056). Phones now use the same console: the same tabs (Pulse,
+Lenses, Flora-Net, Goals, with their badges), a sheet under the top bar opened and closed by the top bar's Pulse
+button (back on phones, reversing D-081's phone rule), ✕, P, or a tap on the city. `addTab` no longer sends elements
+back to a phone home; Flora-Net and the lens bar are no longer HUD sheets, and the lens toggle chip is gone (the lens
+legend still sits under the top bar). The top bar's action buttons are slimmer on phones to make room.

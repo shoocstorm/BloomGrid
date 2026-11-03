@@ -128,9 +128,10 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Sound              | **,** mute / unmute · volumes for music, ambience and effects in ⚙ Settings (sound starts on your first click); trains, pods and fires are heard close up |
 
 **On a phone:** drag to pan, pinch to zoom, twist to rotate, drag two fingers up or down to tilt. Tap a building to
-inspect it. To build, tap **Build** (bottom), pick a category and a building, tap the map to preview, then tap the preview again (⟳ rotates); **Done** leaves build mode. City Pulse,
-Flora-Net and the ◐ lenses are chips under the top bar; tap the city to fold them away. On a fresh island the
-Goals (unlock projects, sea wonders, fishing) sit at the top of the City Pulse sheet. The HUD shows less on a phone
+inspect it. To build, tap **Build** (bottom), pick a category and a building, tap the map to preview, then tap the preview again (⟳ rotates); **Done** leaves build mode. The top
+bar's Pulse button opens City Pulse, the same console as on desktops with Pulse, Lenses, Flora-Net and Goals
+(unlock projects, sea wonders, fishing) tabs; tap the button, ✕ or the city to close it. The logo at the top left
+opens About. The HUD shows less on a phone
 (no telemetry strip or explore modes), and phones start on Medium graphics. Flora is the glowing orb beside the
 Build button; her console opens full-screen.
 
