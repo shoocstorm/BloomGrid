@@ -20,8 +20,10 @@
   --bg: #061315;
   display: flex;
   flex-direction: column;
-  width: min(1180px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
+  /* The dashboard's frame (D-107), so it no longer covers the top bar. */
+  width: var(--dlg-w);
+  height: var(--dlg-h);
+  max-height: var(--dlg-h);
   padding: 12px 14px 14px;
 }
 .cmap-head {
@@ -34,6 +36,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 270px;
   gap: 14px;
+  flex: 1 1 auto;
   min-height: 0;
   margin-top: 12px;
 }
@@ -46,7 +49,7 @@
 }
 .cmap-stage {
   position: relative;
-  width: min(100%, calc(100vh - 170px));
+  width: min(100%, calc(var(--dlg-h) - 138px));
   aspect-ratio: 1;
   cursor: crosshair;
   border-radius: var(--r-md);
@@ -169,7 +172,7 @@
   flex-direction: column;
   gap: 3px;
   min-height: 0;
-  max-height: calc(100vh - 150px);
+  max-height: calc(var(--dlg-h) - 118px);
   overflow-y: auto;
   scrollbar-color: var(--line-strong) transparent;
 }
@@ -224,15 +227,9 @@
   color: var(--ink-faint);
 }
 
-/* Phones: map full width, legend under it. */
+/* Phones: the shared sheet frame (mobile.css, D-107), legend under the map. */
 .touch .cmap-key {
   display: none;
-}
-.compact .cmap {
-  width: 100vw;
-  height: 100dvh;
-  max-height: 100dvh;
-  padding: calc(env(safe-area-inset-top, 0px) + 10px) 10px calc(env(safe-area-inset-bottom, 0px) + 10px);
 }
 .compact .cmap-body {
   grid-template-columns: minmax(0, 1fr);
@@ -243,6 +240,19 @@
 }
 .compact .cmap-legend {
   max-height: none;
+}
+/* Landscape phones: the sheet is short, so the map fits its height and the district list scrolls beside it. */
+@media (min-width: 700px) {
+  .compact .cmap-body {
+    grid-template-columns: auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+  .compact .cmap-stage {
+    width: calc(var(--sheet-h) - 90px);
+  }
+  .compact .cmap-legend {
+    max-height: calc(var(--sheet-h) - 90px);
+  }
 }
 .compact .cmap-label {
   padding: 1px 4px;

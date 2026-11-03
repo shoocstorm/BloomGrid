@@ -1707,3 +1707,17 @@ Lenses, Flora-Net, Goals, with their badges), a sheet under the top bar opened a
 button (back on phones, reversing D-081's phone rule), ✕, P, or a tap on the city. `addTab` no longer sends elements
 back to a phone home; Flora-Net and the lens bar are no longer HUD sheets, and the lens toggle chip is gone (the lens
 legend still sits under the top bar). The top bar's action buttons are slimmer on phones to make room.
+
+## D-107 — One frame for consoles and dialogs (2026-11-03)
+
+The surfaces opened from the top bar each had their own size and place: on desktops the Dashboard (1100 px), City
+Map (1180 px, taller, over the top bar) and Seedvault (1180 px); on phones the Dashboard, Map and Seedvault went
+full-screen over the top bar while City Pulse, Settings and the view-mode menu each had their own height.
+
+- **Desktops:** the Dashboard, City Map and Seedvault share one centred frame, `--dlg-w` × `--dlg-h` in `ui/theme.css`
+  (the map's square fits that height). City Pulse (left column), Settings and the view-mode menu stay anchored panels.
+- **Phones:** City Pulse, Dashboard, City Map, Seedvault, Settings and the view-mode menu all open in one sheet frame
+  (`--sheet-h` in `ui/mobile.css`): under the top bar, which stays usable, gutter to gutter, down to above the Build
+  button. The dialogs' scrims start under the top bar and stay clear. In landscape the narrow ones (Pulse left;
+  Settings, view mode right) are `min(380px, 45vw)` wide and the big dialogs full width. Flora's console stays the one
+  full-screen surface. A new dialog should use these frames rather than its own size.

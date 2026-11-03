@@ -21,6 +21,8 @@ body.compact {
   --bot: calc(env(safe-area-inset-bottom, 0px) + 6px);
   /* First line under the two top-bar rows (the console sheet, the lens legend). */
   --chips: calc(var(--top) + 86px);
+  /* The sheet frame every console and dialog shares (D-107): from under the top bar to above the Build button. */
+  --sheet-h: calc(100dvh - var(--chips) - var(--bot) - 70px);
   /* First free line under the lens legend (crisis banners). */
   --below: calc(var(--chips) + 42px);
 }
@@ -139,7 +141,7 @@ body.compact {
   left: var(--gut);
   right: var(--gut);
   width: auto;
-  height: calc(100dvh - var(--chips) - var(--bot) - 70px);
+  height: var(--sheet-h);
   max-height: none;
   padding: 6px 10px 8px;
   z-index: 14;
@@ -289,14 +291,7 @@ body.compact {
 .compact .xp-drop .caret {
   display: none;
 }
-.compact .xp-menu {
-  position: fixed;
-  left: var(--gut) !important;
-  right: var(--gut) !important;
-  width: auto;
-  max-height: calc(100vh - 140px);
-  overflow-y: auto;
-}
+
 .compact .xp-item {
   padding: 9px 8px;
 }
@@ -305,15 +300,42 @@ body.compact {
   display: none;
 }
 
-/* ── Full-screen surfaces ─────────────────────────────────────────────────── */
-.compact .db {
-  width: 100vw;
-  max-height: 100dvh;
-  height: 100dvh;
-  padding: calc(var(--top) + 6px) 12px calc(var(--bot) + 12px);
+/* ── One sheet frame (D-107) ──────────────────────────────────────────────────
+   City Pulse, City Dashboard, City Map, Seedvault, Settings and the view-mode menu all open in the same place:
+   under the top bar (which stays usable), gutter to gutter, down to just above the Build button. The dialogs'
+   scrims start under the top bar too and stay clear, like the console's. */
+.compact .db-scrim,
+.compact .cmap-scrim {
+  display: block;
+  top: var(--chips);
+  background: none;
 }
-/* Edge to edge: no rounded corners, frame or shadow. */
+.compact .db-scrim.hidden,
+.compact .cmap-scrim.hidden {
+  display: none;
+}
 .compact .db,
+.compact .cmap,
+.compact .settings,
+.compact .xp-menu {
+  position: absolute;
+  top: 0;
+  left: var(--gut);
+  right: var(--gut);
+  width: auto;
+  height: var(--sheet-h);
+  max-height: none;
+  padding: 10px 12px 12px;
+  --bg: var(--bg-strong);
+}
+.compact .settings,
+.compact .xp-menu {
+  position: fixed;
+  top: var(--chips) !important;
+  right: var(--gut) !important;
+  overflow-y: auto;
+}
+/* Flora's console is the one full-screen surface: edge to edge, no rounded corners, frame or shadow. */
 body.compact .ai.panel,
 body.compact .ai.panel.max {
   border: 0;
@@ -327,12 +349,6 @@ body.compact .ai.panel.max {
   height: auto;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-.compact .settings {
-  left: var(--gut);
-  right: var(--gut);
-  top: var(--chips);
-  width: auto;
 }
 .compact .modal {
   width: calc(100vw - 2 * var(--gut));
@@ -392,9 +408,15 @@ body.compact .ai.panel.max {
     order: 0;
     flex: 1 1 0;
   }
-  /* The console keeps a readable width instead of stretching across the landscape screen. */
+  /* The narrow sheets keep a readable width instead of stretching across the landscape screen: City Pulse on
+     the left, Settings and the view-mode menu under their buttons on the right; the big dialogs stay full width. */
   .compact .pulse.console {
     right: auto;
+    width: min(380px, 45vw);
+  }
+  .compact .settings,
+  .compact .xp-menu {
+    left: auto;
     width: min(380px, 45vw);
   }
   .compact .info {

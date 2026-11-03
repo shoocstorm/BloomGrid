@@ -10,6 +10,9 @@
  * box-shadow or layout; textures are static gradients painted once.
  */
 :root {
+  /* One frame for the big dialogs (City Dashboard, City Map, Seedvault), centred under the top bar (D-107). */
+  --dlg-w: min(1180px, calc(100vw - 32px));
+  --dlg-h: min(1000px, calc(100vh - 120px));
   --bg: rgba(6, 19, 21, 0.8);
   --bg-strong: rgba(6, 19, 21, 0.94);
   --bg-raise: rgba(95, 242, 218, 0.06);

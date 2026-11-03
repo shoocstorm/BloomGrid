@@ -14,10 +14,10 @@
   --lc-grid: rgba(29, 58, 51, 0.12);
   --lc-line: #2a78d6;
   --lc-surface: #f7faf4;
-  width: min(1100px, calc(100vw - 32px));
-  /* A fixed frame: switching to a short tab (incidents) must not shrink the dialog. */
-  height: min(1000px, calc(100vh - 120px));
-  max-height: calc(100vh - 120px);
+  width: var(--dlg-w);
+  /* A fixed frame (D-107): switching to a short tab (incidents) must not shrink the dialog. */
+  height: var(--dlg-h);
+  max-height: var(--dlg-h);
   overflow-y: auto;
   padding: 18px 22px 22px;
   background: rgba(250, 252, 246, 0.94);
