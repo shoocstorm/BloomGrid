@@ -44,6 +44,12 @@ export const pulseModule: GameModule = {
     new MutationObserver(lit).observe(panel.el, { attributes: true, attributeFilter: ['class'] });
     lit();
     hud.lead.prepend(toggle);
+    // Esc folds the console last: dialogs, tools, the selection and the lens take it first.
+    ctx.input.onKey((e) => {
+      if (e.code !== 'Escape' || panel.collapsed) return false;
+      panel.el.classList.add('collapsed');
+      return true;
+    }, -10);
     ctx.systems.add({ id: 'pulse.panel', phase: 'render', order: 110, update: (_c, f) => panel.update(f.dt) });
     ctx.bus.on('pulse:tier', ({ system, tier, prev }) => {
       // A new city's first pulses settle occupancy and staffing from their starting values: no alarms yet.

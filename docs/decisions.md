@@ -1721,3 +1721,18 @@ full-screen over the top bar while City Pulse, Settings and the view-mode menu e
   button. The dialogs' scrims start under the top bar and stay clear. In landscape the narrow ones (Pulse left;
   Settings, view mode right) are `min(380px, 45vw)` wide and the big dialogs full width. Flora's console stays the one
   full-screen surface. A new dialog should use these frames rather than its own size.
+
+## D-108 — Phones run only small web cores, with a lean KV cache (2026-11-03)
+
+D-103 wasn't enough: on an iPhone 18 (iOS 27 Safari) Flora's warm-up still reloaded the page with Qwen3 0.6B Q8_0,
+while Andai loads it on the same phone (and crashes on 1.7B). The city takes the difference: in a phone emulation
+(headless Chrome, iPhone UA, 390×844 @3×, the compat build, `bun run ai-probe -- --phone`) the showcase city alone
+holds ≈ 1.05 GB in the renderer process plus ≈ 450 MB of GPU memory, and the 0.6B Q8_0 worker grew to ≈ 1.8 GB (its
+wasm heap peaks at about the weights twice plus the KV cache, and never shrinks).
+- **Phones list only `phone` cores** (`availableModels(mlx, mobile)`): Qwen3 0.6B Q4_K_M (`qwen3-0.6b-q4`, 397 MB,
+  pinned unsloth commit). `load` refuses a bigger core on a phone and `lastUsed` won't autoload one.
+- **CPU plans ask for less** (`loadParams` in `device.ts`): q8_0 K and V cache (needs flash attention, which the CPU
+  backend has), one sequence instead of wllama's 4, 256-token batches. KV at 2,048 tokens 224 → 119 MiB, compute
+  28 → 14 MiB. The GPU plan keeps wllama's defaults.
+- Together: worker ≈ 1.8 GB → ≈ 1.1 GB. Rejected: forcing wllama's heapfs path for the compat build (this llama.cpp
+  build doesn't map the file, so it saves nothing). Still to confirm on a real iPhone.

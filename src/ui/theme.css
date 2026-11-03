@@ -2256,3 +2256,9 @@ body:not(.booted) .holo::after {
   background: var(--bg-hover);
   color: var(--accent);
 }
+
+/* Focus rings only while navigating with Tab (`kbd-nav`, src/ui/focusRing.ts): a clicked control must not
+   light up when a key is pressed later (Esc closing a dialog, a hotkey). Text fields keep their own focus look. */
+:root:not(.kbd-nav) :focus:not(input, textarea, select, [contenteditable]) {
+  outline: none;
+}

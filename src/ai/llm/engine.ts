@@ -7,6 +7,7 @@ import {
   describeLoadError,
   device,
   failedLevel,
+  loadParams,
   loadPlan,
   markAttempt,
   planText,
@@ -205,6 +206,12 @@ export class LlmEngine {
   async load(id: string): Promise<void> {
     const def = modelById(id);
     if (!def) throw new Error(`Unknown model ${id}`);
+    // a phone can't hold a bigger core beside the city: iOS would close the page mid-load
+    if (device.mobile && !def.phone) {
+      const small = MODELS.find((m) => m.phone)!.name;
+      this.set({ status: 'error', error: `${def.name} is too big for a phone beside the city. Use ${small}.` });
+      return;
+    }
     if (this.state.status === 'loading' || this.state.loadedId === id) return;
     if (this.state.loadedId) await this.unload();
     this.set({
@@ -306,11 +313,13 @@ export class LlmEngine {
     return id !== this.crashedId;
   }
 
-  /** The model loaded last, if it's still downloaded (and didn't take the page down last launch). */
+  /** The model loaded last, if it's still downloaded, fits this device, and didn't take the page down last launch. */
   lastUsed(): ModelDef | undefined {
     try {
       const def = modelById(localStorage.getItem(LAST_KEY));
-      return def && def.id !== this.crashedId && this.state.cached.has(def.id) ? def : undefined;
+      return def && def.id !== this.crashedId && this.state.cached.has(def.id) && (!device.mobile || def.phone)
+        ? def
+        : undefined;
     } catch {
       return undefined;
     }
@@ -403,12 +412,7 @@ export class LlmEngine {
     markAttempt({ id: def.id, level: plan.level, at: Date.now() });
     try {
       await Promise.race([
-        w.loadModel(model, {
-          n_ctx: plan.n_ctx,
-          reasoning_format: 'none',
-          // CPU only: wllama then doesn't initialise WebGPU at all
-          ...(plan.gpu ? {} : { n_gpu_layers: 0 }),
-        } as Parameters<Wllama['loadModel']>[1]),
+        w.loadModel(model, loadParams(plan) as Parameters<Wllama['loadModel']>[1]),
         new Promise<never>((_, reject) => {
           timer = window.setTimeout(() => reject(new WarmTimeout(def.name)), WARM_MS);
           const stop = (line: string) =>

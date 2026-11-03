@@ -36,7 +36,7 @@ bun run showcase       # redraws public/assets/showcase-overview.webp (the New C
 bun run optimize-glb -- raw.glb public/assets/x.glb --footprint 3 --height 4 [--ratio 0.5] [--yaw 90] [--tex 1024]
 bun run tauri:dev      # desktop shell (Tauri v2) against the dev server; tauri:build packages it (needs Rust)
 bun run release [patch|minor|major|X.Y.Z] [--dry-run] [--yes]   # tag + deploy to Firebase (see §10; ask first)
-bun run ai-probe -- [--model qwen3-1.7b] [--ask "…"]… [--auto] [--max]   # drive the city assistant with a real model in headless Chrome
+bun run ai-probe -- [--model qwen3-1.7b] [--ask "…"]… [--auto] [--max] [--phone]   # drive the city assistant with a real model in headless Chrome
 bun run test:rust      # Rust unit tests (store, grammars, template); add `-- --ignored llm_qwen3_` for MLX parity (needs the HF cache)
 bun run tauri:build:mac-arm64   # Apple Silicon desktop bundle with mlx.metallib (the assistant's native engine)
 ```
@@ -100,7 +100,7 @@ To light a fire from a snap eval: `(await import('/src/sim/hazards.ts')).ignite(
 | Sim system                         | `System` with `phase: 'sim'` inside its module (or `src/sim/systems.ts` for core economy and clock)                                                                        |
 | Per-tile data                      | `city.grid.addLayer(name, n => new Float32Array(n))`                                                                                                                       |
 | Player tool                        | `ctx.tools.register(tool)`; tools get `hover / down / up / key`, plus `grid` and `dragPan` flags                                                                           |
-| HUD panel                          | `src/ui/*` with the `h()` helper and the `.panel` class; icons via `icon()` from `src/ui/icons.ts` (no Unicode glyphs as standalone icons, D-061); the look (instrument theme: tokens incl. radius `--r-*`, mono numerals, coded section titles; D-059) lives in `src/ui/theme.css`, loaded last; dialogs and consoles take `.holo` + `holoHead()` / `rise()` from `src/ui/holo.ts` (D-063); big dialogs use the `--dlg-w` / `--dlg-h` frame, and on phones every console and dialog the `--sheet-h` sheet frame (D-107) |
+| HUD panel                          | `src/ui/*` with the `h()` helper and the `.panel` class; icons via `icon()` from `src/ui/icons.ts` (no Unicode glyphs as standalone icons, D-061); the look (instrument theme: tokens incl. radius `--r-*`, mono numerals, coded section titles; D-059) lives in `src/ui/theme.css`, loaded last; dialogs and consoles take `.holo` + `holoHead()` / `rise()` from `src/ui/holo.ts` (D-063); big dialogs use the `--dlg-w` / `--dlg-h` frame, and on phones every console and dialog the `--sheet-h` sheet frame (D-107); focus rings show only while Tab-navigating (`kbd-nav` from `src/ui/focusRing.ts`, rule at the end of `theme.css`), so don't add per-control `outline: none`; every dialog and popup closes on Esc via `ctx.input.onKey(l, priority)` (dropdowns > 0 win, persistent consoles like City Pulse < 0 go last) |
 | Global shader input                | `U` in `src/render/uniforms.ts`                                                                                                                                            |
 | Saved module state                 | `ctx.services.get('save').addHook({ id, save, load })`                                                                                                                     |
 | Boot progress stage                | `await onProgress(label, fraction)` in `src/game/createGame.ts`                                                                                                            |
@@ -261,7 +261,7 @@ The knowledge base is never finished: treat it as part of every feature. Flora's
   without a decision (`follow`, never an action): small models answer from a search snippet otherwise (D-088).
   Tool grammars are mirrored in `src-tauri/tests/fixtures/llm/bloomgrid-grammars.json` (the Rust engine compiles
   each); after changing a tool's input run `UPDATE_GRAMMARS=1 bun run test`, then `bun run test:rust`.
-- Phones load web cores CPU-only at ≤ 2,048 tokens and step down after a failure or a page iOS killed mid-load (`src/ai/llm/device.ts`, D-103): iOS gives no error before it reloads the tab, so test model changes against the phone plan, not just the desktop one.
+- Phones load web cores CPU-only at ≤ 2,048 tokens and step down after a failure or a page iOS killed mid-load (`src/ai/llm/device.ts`, D-103): iOS gives no error before it reloads the tab, so test model changes against the phone plan, not just the desktop one (`bun run ai-probe -- --phone` loads like an iPhone and prints process memory). Phones list only `phone: true` cores, and CPU plans use a q8_0 KV cache (`loadParams`, D-108): a new core needs `phone` only if it fits beside the city.
 - wllama needs the page cross-origin isolated (COOP/COEP in `vite.config.ts` and `firebase.json`): any new
   cross-origin resource needs CORS or `crossorigin`. `bun install` copies its wasm into `public/wllama/`
   (`scripts/copy-wllama.mjs`); keep `@wllama/wllama` and `-compat` on the same pinned version. Import wllama only

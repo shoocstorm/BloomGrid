@@ -27,6 +27,7 @@ import { cityBrief } from '@/ai/brief';
 import { defaultPolicy, observe, runTurn, type Policy, type ToolCall } from '@/ai/agent';
 import { LlmEngine, isAbort, type ChatMessage } from '@/ai/llm/engine';
 import { availableModels } from '@/ai/llm/models';
+import { device } from '@/ai/llm/device';
 import { AssistantPanel, type ProposalCard } from './Panel';
 import './assistant.css';
 
@@ -355,7 +356,7 @@ class Assistant {
       if (status() !== 'loading' && status() !== 'ready') {
         const def =
           e.lastUsed() ??
-          availableModels(e.state.native.supported).find((m) => e.state.cached.has(m.id) && e.autoloadable(m.id));
+          availableModels(e.state.native.supported, device.mobile).find((m) => e.state.cached.has(m.id) && e.autoloadable(m.id));
         if (!def) return false;
         void e.load(def.id);
       }

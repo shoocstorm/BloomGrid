@@ -59,7 +59,7 @@ export class Input {
   private downListeners: PointerListener[] = [];
   private upListeners: PointerListener[] = [];
   private cancelListeners: (() => void)[] = [];
-  private keyListeners: KeyListener[] = [];
+  private keyListeners: { l: KeyListener; priority: number }[] = [];
   private touches = new Map<number, { x: number; y: number }>();
   private last = { x: 0, y: 0 };
   private prev: Pinch = { dist: 1, angle: 0, x: 0, y: 0 };
@@ -149,7 +149,7 @@ export class Input {
     window.addEventListener('keydown', (e) => {
       if (isTyping(e)) return;
       this.keys.add(e.code);
-      for (const l of this.keyListeners) if (l(e) === true) return void e.preventDefault();
+      for (const k of this.keyListeners) if (k.l(e) === true) return void e.preventDefault();
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => {
@@ -175,9 +175,14 @@ export class Input {
   onPointerCancel(l: () => void): void {
     this.cancelListeners.push(l);
   }
-  /** Return `true` from a key listener to consume the event. Earlier listeners win. */
-  onKey(l: KeyListener): void {
-    this.keyListeners.push(l);
+  /**
+   * Return `true` from a key listener to consume the event. Higher `priority` runs first, then earlier listeners
+   * win: a transient popup (a dropdown) takes Esc with a positive priority, a persistent console with a negative
+   * one so dialogs, tools, selection and lenses get Esc before it.
+   */
+  onKey(l: KeyListener, priority = 0): void {
+    const i = this.keyListeners.findIndex((k) => k.priority < priority);
+    this.keyListeners.splice(i < 0 ? this.keyListeners.length : i, 0, { l, priority });
   }
 
   endFrame(): void {

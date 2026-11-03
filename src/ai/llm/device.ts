@@ -50,6 +50,29 @@ export function startLevel(device: Device, failedBefore: number | undefined): nu
   return Math.min(MAX_LEVEL, Math.max(device.mobile ? 1 : 0, failedBefore ?? 0));
 }
 
+/**
+ * wllama's load options for a plan. CPU plans (every phone load) also ask for less memory, because on an
+ * iPhone the city already holds most of what iOS gives the tab (Andai fits Qwen3 0.6B but not 1.7B beside a
+ * light UI; BloomGrid's city takes 0.7–1.3 GB more, measured in Chrome): a q8_0 KV cache (half of f16; a
+ * quantised V cache needs flash attention, which llama.cpp's CPU backend has), one sequence instead of
+ * wllama's 4, and 256-token batches (smaller compute buffers). The GPU plan stays wllama's default.
+ */
+export function loadParams(plan: LoadPlan): Record<string, unknown> {
+  const base = { n_ctx: plan.n_ctx, reasoning_format: 'none' };
+  if (plan.gpu) return base;
+  return {
+    ...base,
+    // CPU only: wllama then doesn't initialise WebGPU at all
+    n_gpu_layers: 0,
+    cache_type_k: 'q8_0',
+    cache_type_v: 'q8_0',
+    flash_attn: true,
+    n_parallel: 1,
+    n_batch: 256,
+    n_ubatch: 256,
+  };
+}
+
 /** A one-line summary of a plan, for the progress line and the error. */
 export const planText = (p: LoadPlan): string =>
   `${p.gpu ? 'GPU' : 'CPU only'}, ${p.n_ctx.toLocaleString('en-US')}-token context`;

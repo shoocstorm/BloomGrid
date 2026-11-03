@@ -5,6 +5,7 @@ import {
   describeLoadError,
   detectDevice,
   failedLevel,
+  loadParams,
   loadPlan,
   markAttempt,
   planText,
@@ -12,7 +13,7 @@ import {
   startLevel,
   takeCrashedAttempt,
 } from '@/ai/llm/device';
-import { recommendedModel } from '@/ai/llm/models';
+import { availableModels, recommendedModel } from '@/ai/llm/models';
 
 const IPHONE =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Mobile/15E148 Safari/604.1';
@@ -42,6 +43,16 @@ describe('how a model loads on this device', () => {
     expect(planText(loadPlan(4096, 1))).toBe('CPU only, 2,048-token context');
   });
 
+  it('asks the CPU plans for less memory and leaves the GPU plan alone', () => {
+    expect(loadParams(loadPlan(4096, 0))).toEqual({ n_ctx: 4096, reasoning_format: 'none' });
+    const cpu = loadParams(loadPlan(4096, 1));
+    expect(cpu).toMatchObject({ n_ctx: 2048, n_gpu_layers: 0, n_parallel: 1, flash_attn: true });
+    // a quantised V cache only works with flash attention
+    expect(cpu.cache_type_v).toBe('q8_0');
+    expect(cpu.cache_type_k).toBe('q8_0');
+    expect(loadParams(loadPlan(4096, MAX_LEVEL)).n_ctx).toBe(1024);
+  });
+
   it('starts phones lighter, and below any level that failed here', () => {
     expect(startLevel(desktop, undefined)).toBe(0);
     expect(startLevel(phone, undefined)).toBe(1);
@@ -50,8 +61,16 @@ describe('how a model loads on this device', () => {
     expect(startLevel(phone, 7)).toBe(MAX_LEVEL);
   });
 
+  it('lists only phone-sized cores on phones, and recommends one of them', () => {
+    const phoneList = availableModels(false, true);
+    expect(phoneList.map((m) => m.id)).toEqual(['qwen3-0.6b-q4']);
+    expect(phoneList.every((m) => m.bytes < 500e6)).toBe(true);
+    expect(phoneList).toContainEqual(recommendedModel(false, true));
+    expect(availableModels(false).map((m) => m.id)).toContain('qwen3-1.7b');
+  });
+
   it('recommends the small core on phones', () => {
-    expect(recommendedModel(false, true).id).toBe('qwen3-0.6b');
+    expect(recommendedModel(false, true).id).toBe('qwen3-0.6b-q4');
     expect(recommendedModel(false).id).toBe('qwen3-1.7b');
     expect(recommendedModel(true, true).id).toBe('qwen3-1.7b-mlx');
   });

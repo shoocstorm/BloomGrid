@@ -2,8 +2,11 @@
 // once into a persistent profile, so later runs reuse its OPFS copy), sends requests, and prints each turn's
 // tool calls, answer and timings, plus a screenshot of the panel.
 //
-//   bun run ai-probe -- [--model qwen3-0.6b] [--auto] [--max] [--ask "What needs fixing?" --ask "…"] [--out shots/ai.png]
+//   bun run ai-probe -- [--model qwen3-0.6b] [--auto] [--max] [--phone] [--ask "What needs fixing?" --ask "…"] [--out shots/ai.png]
 //
+// `--phone` loads like an iPhone: its user agent and screen (so the CPU plan and lean load options), and no
+// JSPI, so wllama runs the compat build Safari gets; it prints the renderer and GPU processes' memory after
+// the load (iOS closes a tab past its limit, and that is what the city and the model share).
 // `--auto` lets the assistant act without approval (otherwise every action is approved by the probe).
 import puppeteer from 'puppeteer-core';
 import { mkdirSync } from 'node:fs';
@@ -20,6 +23,7 @@ for (let i = 0; i < argv.length; i++) {
   const k = argv[i].replace(/^--/, '');
   if (k === 'auto') opt.auto = true;
   else if (k === 'max') opt.max = true;
+  else if (k === 'phone') opt.phone = true;
   else if (k === 'ask') asks.push(argv[++i]);
   else opt[k] = argv[++i];
 }
@@ -38,7 +42,13 @@ const browser = await puppeteer.launch({
   args: ['--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', '--window-size=1440,900'],
 });
 const page = await browser.newPage();
-await page.setViewport({ width: 1440, height: 900 });
+if (opt.phone) {
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
+  await page.setUserAgent(
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1',
+  );
+  await page.evaluateOnNewDocument(() => delete WebAssembly.Suspending);
+} else await page.setViewport({ width: 1440, height: 900 });
 page.on(
   'console',
   (m) =>
@@ -71,6 +81,16 @@ const load = await page.evaluate(
   !!opt.max,
 );
 console.log(`[load] ${model}: ${JSON.stringify(load)}`);
+if (opt.phone) {
+  const { execSync } = await import('node:child_process');
+  const pid = browser.process().pid;
+  const rows = execSync('ps -A -o pid=,ppid=,rss=,command=').toString().split('\n');
+  const mem = rows
+    .map((l) => l.trim().match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/))
+    .filter((r) => r && Number(r[2]) === pid && /--type=(renderer|gpu-process)/.test(r[4]))
+    .map((r) => `${/--type=([\w-]+)/.exec(r[4])[1]} ${Math.round(Number(r[3]) / 1024)} MB`);
+  console.log(`[memory] ${mem.join(' · ')}`);
+}
 if (load.status !== 'ready') process.exit(1);
 
 // Approve every action the assistant asks about (the panel's Approve button), unless --auto already allows them.

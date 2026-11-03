@@ -17,6 +17,8 @@ interface Common {
   /** Qwen3-style `<think>` support, toggled by `enable_thinking`. */
   thinking: boolean;
   n_ctx: number;
+  /** Small enough to load on a phone beside the city (phones list only these). */
+  phone?: boolean;
 }
 
 export interface WllamaDef extends Common {
@@ -110,9 +112,25 @@ export const MODELS: ModelDef[] = [
     bytes: 639_446_688,
     url: HF('Qwen/Qwen3-0.6B-GGUF', '23749fefcc72300e3a2ad315e1317431b06b590a', 'Qwen3-0.6B-Q8_0.gguf'),
     sha256: '9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031',
-    note: 'Fast and small; good for lookups and status reports. Recommended on phones.',
+    note: 'Fast and small; good for lookups and status reports.',
     thinking: true,
     n_ctx: 4096,
+  },
+  {
+    // iOS closes a tab past its memory limit and the 3D city holds much of it: the Q8_0 file (639 MB) took
+    // the page down on an iPhone 18 where Andai loads it. Q4_K_M is 397 MB, the same 0.6B model.
+    id: 'qwen3-0.6b-q4',
+    engine: 'wllama',
+    name: 'Qwen3 0.6B · phone',
+    family: 'Q4_K_M · 596M params',
+    size: '397 MB',
+    bytes: 396_705_472,
+    url: HF('unsloth/Qwen3-0.6B-GGUF', '50968a4468ef4233ed78cd7c3de230dd1d61a56b', 'Qwen3-0.6B-Q4_K_M.gguf'),
+    sha256: 'ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a',
+    note: 'Recommended on phones: the 0.6B core in a smaller file, so it fits beside the city. A little less precise.',
+    thinking: true,
+    n_ctx: 4096,
+    phone: true,
   },
   {
     id: 'stories-260k',
@@ -135,15 +153,20 @@ export const MODELS: ModelDef[] = [
 
 export const modelById = (id: string | null | undefined) => MODELS.find((m) => m.id === id);
 export const isMlx = (def: ModelDef | undefined): def is MlxDef => def?.engine === 'mlx';
-/** The models this computer can run: MLX ones only where Rust reports MLX (Apple Silicon desktop). */
-export const availableModels = (mlx: boolean) =>
-  MODELS.filter((m) => (mlx || m.engine !== 'mlx') && m.id !== 'stories-260k');
+/**
+ * The models this device can run: MLX ones only where Rust reports MLX (Apple Silicon desktop), and on phones
+ * only the `phone` cores. iOS closes a tab past its memory limit, and the city already holds much of it:
+ * Qwen3 0.6B Q8_0 (worker ≈ 1.8 GB in a phone emulation) and 1.7B took the page down on an iPhone 18.
+ */
+export const availableModels = (mlx: boolean, mobile = false) =>
+  MODELS.filter((m) => (mlx || m.engine !== 'mlx') && m.id !== 'stories-260k' && (!mobile || m.phone));
 /**
  * What to suggest first: natively on MLX where it runs (much faster), else the browser default; phones get
- * the 0.6B core, since iOS closes a tab past its memory limit and the 3D city already holds much of it.
+ * the 0.6B core in its smallest file, since iOS closes a tab past its memory limit and the 3D city already
+ * holds much of it.
  */
 export const recommendedModel = (mlx: boolean, mobile = false): ModelDef =>
-  modelById(mlx ? 'qwen3-1.7b-mlx' : mobile ? 'qwen3-0.6b' : 'qwen3-1.7b')!;
+  modelById(mlx ? 'qwen3-1.7b-mlx' : mobile ? 'qwen3-0.6b-q4' : 'qwen3-1.7b')!;
 
 /**
  * Whether a native model likely fits this Mac: its weights plus about 20% for the KV cache and 1 GB,

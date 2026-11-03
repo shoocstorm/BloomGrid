@@ -469,13 +469,9 @@ body.compact .ai.panel .ai-rail,
 .compact .ai-tgrid {
   grid-template-columns: minmax(0, 1fr);
 }
-/* The console is full-screen: hide the HUD beneath it, and keep the model list from taking it over. */
+/* The console is full-screen: hide the HUD beneath it. The model list fills the console while open (assistant.css). */
 body.compact.flora-open #hud > :not(.ai) {
   visibility: hidden;
-}
-.compact .ai-models {
-  max-height: 36dvh;
-  overflow-y: auto;
 }
 
 /* Exploring on a phone: the view is the point, so even the top bar goes (toasts stay); the only control left

@@ -1740,8 +1740,22 @@ body.flora-open:not(.compact) .ai.panel:not(.max) {
 }
 
 /* ── Model core drawer: one card per core, a clear action each, and a Done button ─────────────────── */
+/* Open, it is the console's one job (no core, no chat): it takes the column's full height so every card shows,
+   and the log and quick asks fold away until Done. */
+.ai-main:has(> .ai-models:not(.hidden)) > :is(.ai-log, .ai-quick) {
+  display: none;
+}
+/* …and the chat box, Transmit and the other tabs are locked until it closes (Panel.setModelsOpen). */
+.ai.models-open .ai-tab:disabled,
+.ai.models-open :is(.ai-input, .ai-send):disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 .ai .ai-models {
-  max-height: 64%;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
   padding: 12px;
   border: 1px solid var(--line-strong);
   background:

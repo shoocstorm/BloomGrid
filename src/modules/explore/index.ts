@@ -160,6 +160,8 @@ export const exploreModule: GameModule = {
       menu.style.top = `${r.bottom - top.top + 6}px`;
       menu.style.right = `${top.right - r.right}px`;
     }
+    // Esc closes the open menu before anything else.
+    input.onKey((e) => (e.code === 'Escape' && !menu.classList.contains('hidden') ? (openMenu(false), true) : false), 10);
     document.addEventListener('pointerdown', (e) => {
       const t = e.target as Node;
       if (!menu.classList.contains('hidden') && !menu.contains(t) && !drop.contains(t)) openMenu(false);

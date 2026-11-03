@@ -66,6 +66,7 @@ const builtIds = (result: unknown): string[] => {
 /** Log entries kept on screen; older ones fade out (the model only ever sees the last few turns anyway). */
 const LOG_KEEP = 40;
 const FADE_MS = 450;
+const PLACEHOLDER = 'Transmit to Flora… “what needs fixing?”, “build 3 pocket parks in Hillcrest”, or /help';
 type View = 'console' | 'profile' | 'tools';
 
 export interface PanelActions {
@@ -207,8 +208,7 @@ export class AssistantPanel {
     this.input = h('textarea', {
       class: 'ai-input',
       rows: 2,
-      placeholder:
-        'Transmit to Flora… “what needs fixing?”, “build 3 pocket parks in Hillcrest”, or /help',
+      placeholder: PLACEHOLDER,
       'aria-label': 'Message the city assistant',
       onKeydown: (e: KeyboardEvent) => {
         if (this.slash.key(e)) return e.preventDefault();
@@ -488,6 +488,8 @@ export class AssistantPanel {
   }
 
   setView(v: View): void {
+    // the tabs are locked while the model core drawer is open
+    if (v !== 'console' && !this.models.classList.contains('hidden')) return;
     this.view = v;
     this.main.dataset.view = v;
     for (const [k, b] of this.tabs) b.classList.toggle('on', k === v);
@@ -532,7 +534,21 @@ export class AssistantPanel {
       this.setView('console');
       this.renderModels(this.engine.state);
     }
+    this.setModelsOpen(open);
+  }
+
+  /**
+   * The model core drawer is a choice to finish first: while it is open the chat box, Transmit and the tabs are
+   * locked (Done, or loading a core, folds it and unlocks them).
+   */
+  private setModelsOpen(open: boolean): void {
     this.models.classList.toggle('hidden', !open);
+    this.el.classList.toggle('models-open', open);
+    this.input.disabled = open;
+    this.input.placeholder = open ? 'Pick a model core first…' : PLACEHOLDER;
+    this.sendBtn.disabled = open;
+    for (const [v, b] of this.tabs) (b as HTMLButtonElement).disabled = open && v !== 'console';
+    if (open) this.slash.hide();
   }
 
   get isMax(): boolean {
@@ -550,7 +566,7 @@ export class AssistantPanel {
       // Asleep: the dormant card, no boot sequence, no model core yet.
       this.dormant.render(this.wake!);
       this.setView('console');
-      this.models.classList.add('hidden');
+      this.setModelsOpen(false);
       return;
     }
     if (open) {
@@ -561,7 +577,7 @@ export class AssistantPanel {
       this.badge.classList.add('hidden');
       this.log.scrollTop = this.log.scrollHeight;
       if (this.engine.state.status !== 'ready' && this.engine.state.status !== 'loading')
-        this.models.classList.remove('hidden');
+        this.setModelsOpen(true);
       // Focusing would raise a phone's keyboard over the console.
       if (!document.body.classList.contains('touch')) setTimeout(() => this.input.focus());
       this.slowTimer = 99;
@@ -1026,7 +1042,7 @@ export class AssistantPanel {
 
   private sync(s: EngineState): void {
     // A load started (the ignition display takes over) or a model became ready: fold the model list away.
-    if ((s.status === 'ready' || s.status === 'loading') && this.lastStatus !== s.status) this.models.classList.add('hidden');
+    if ((s.status === 'ready' || s.status === 'loading') && this.lastStatus !== s.status) this.setModelsOpen(false);
     this.lastStatus = s.status;
     const def = this.engine.loaded;
     setText(
@@ -1219,7 +1235,7 @@ export class AssistantPanel {
           ? 'Pick a core. Native cores run on this Mac’s GPU (fast); web cores run inside the page.'
           : `Pick a core: it downloads once, then runs right here in your browser${s.isolated ? '' : ' (single-threaded on this page, so a little slower)'}. The macOS app runs them natively.`,
       ),
-      h('div', { class: 'aim-cards' }, ...availableModels(mlx).map(card)),
+      h('div', { class: 'aim-cards' }, ...availableModels(mlx, device.mobile).map(card)),
       ...(s.error ? [h('div', { class: 'aim-err' }, icon('st-fail'), s.error)] : []),
       h(
         'div',

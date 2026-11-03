@@ -39,6 +39,7 @@ import { audioModule } from '@/modules/audio';
 import { exploreModule } from '@/modules/explore';
 import { createBootScreen } from '@/ui/Boot';
 import { watchDevice } from '@/platform/device';
+import { watchFocusRing } from '@/ui/focusRing';
 // The HUD theme loads after every module stylesheet so it can restyle them from one place; the
 // phone layout loads after it.
 import '@/ui/theme.css';
@@ -54,6 +55,7 @@ async function boot() {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const hud = document.getElementById('hud')!;
   watchDevice();
+  watchFocusRing();
   const screen = createBootScreen(document.getElementById('boot')!, 'SOLARPUNK ISLAND CITY SYSTEMS');
   hud.style.opacity = '0';
   try {
