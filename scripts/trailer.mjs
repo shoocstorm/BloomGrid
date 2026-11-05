@@ -1,31 +1,48 @@
 #!/usr/bin/env node
 /**
  * Records the ~75s trailer (shots/trailer.mp4) from the running dev server, against the showcase city
- * (`scenario=founding-city`; a plain boot is a fresh island, D-072). Thirteen shots, camera driven per
- * captured frame (lookAt always centers the subject), joined with crossfades so the cuts flow:
- *   1. island aerial reveal (title)      2. downtown orbit, day
- *   3. Windward Isle wind farm           4. Bloomtopia park + suspension bridge
- *   5. city walk up the hero avenue (explore, caption card)
- *   6. Aeroline train ride (explore, caption card)
- *   7. dusk→night fireworks: heart then butterfly (caption card)
- *   8. rings, then "BLOOM ♥" written in the sky (engine at 3x so grand shows span ~3s of video)
- *   9. night, fires ignite, Flora console opens
- *   10. Flora AI: /advisor_tips + /incident_status cards (caption card)
- *   11. Bloom Retrofit wave at dawn      12. Flora-Net hive + drone mist
- *   13. pull back to overview (end card)
+ * (`scenario=founding-city`; a plain boot is a fresh island, D-072). Fourteen shots on a full-day arc —
+ * sunrise to night to dawn — camera driven per captured frame (lookAt always centers the subject):
+ *   1. sunrise reveal: tight on the Wellspring Spire, exponential pull to the whole island (title)
+ *   2. downtown skyline dive, morning   3. Windward Isle wind farm, midday
+ *   4. Bloomtopia park + bridge, golden hour
+ *   5. drone flight up the hero avenue toward the spire, golden hour (explore, caption card)
+ *   6. Aeroline train ride into dusk (explore, caption card)
+ *   7. night fireworks: heart then butterfly (caption card; tick-paced shows)
+ *   8. rings, then "BLOOM ♥" written in the sky
+ *   9. night sea: the Tidewatch Lighthouse, beam sweeping (caption card)
+ *   10. fires ignite, Flora console opens, a live question is sent
+ *   11. Flora AI answers: real Qwen3 1.7B tool calls and text streaming in the console (caption card)
+ *   12. Bloom Retrofit wave at dawn     13. Flora-Net hive + drone mist
+ *   14. pull back to overview (end card)
+ *
+ * Pacing: shots are short where the trailer runs fast (0.35s dissolves in the daytime run), long where
+ * it breathes (0.7–0.8s into night, dawn and the end), and the reveal/end pair mirror each other —
+ * tight to wide. City Pulse stays folded the whole way (`pulse.fold(true)` at boot): the trailer frames
+ * the city, not the console. Flora's model core (Qwen3 1.7B, wllama/WebGPU) is loaded at boot — the
+ * first run downloads it once into a persistent Chrome profile (`--no-ai` skips) — and shot 10 asks it
+ * a real question about the fires; the answer streams into the console across shots 10–11.
+ *
+ * Time discipline: the capture loop is far slower than real time (a frame takes 0.3–1s wall), so the
+ * engine is stopped between frames and every frame steps it exactly `1/fps` of wall time
+ * (`window.__bgStep`, installed at boot). Everything clock-driven — the drone flight, chase cameras,
+ * the Aeroline train, wind rotors, waves, firework sparks, the lighthouse beam — then advances at true
+ * video speed instead of racing ahead and stalling (the drone used to reach the spire and embed in it
+ * two seconds into its shot).
  *
  * Each shot's frames are captured into its own segment directory and the encode chains ffmpeg `xfade`
- * dissolves (0.55s) between them, so the whole trailer reads as one continuous move. Caption cards are
+ * dissolves between them, so the whole trailer reads as one continuous move. Caption cards are
  * transparent full-frame PNGs overlaid with alpha fades. Encodes at crf 25 / preset slow so the mp4 is
  * small enough to commit under public/assets/ (GitHub's hard limit is 100 MB; keep it under ~60 MB).
  *
  *   bun run dev                # keep it running
- *   bun run trailer            # or: node scripts/trailer.mjs [--duration 82] [--fps 30]
+ *   bun run trailer            # or: node scripts/trailer.mjs [--duration 82] [--fps 30] [--no-ai]
  */
 import puppeteer from 'puppeteer-core';
 import { mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const arg = (k, d) => {
   const i = process.argv.indexOf(`--${k}`);
@@ -40,6 +57,12 @@ const PLAN = 82;
 const seconds = Number(arg('duration', PLAN));
 const framesDir = arg('frames', 'shots/trailer');
 const out = arg('out', 'shots/trailer.mp4');
+/** Flora's live model core in the video (skipped with --no-ai). Downloads once into the profile. */
+const withAi = !process.argv.includes('--no-ai');
+const AI_MODEL = 'qwen3-1.7b';
+/** Persistent profile: caches the model download (OPFS) so only the first run pays for it. */
+const profile = join(tmpdir(), 'bloomgrid-trailer-profile');
+mkdirSync(profile, { recursive: true });
 const W = 1920;
 const H = 1080;
 const chrome = [
@@ -50,7 +73,12 @@ const chrome = [
 
 // Gentler start/stop than smoothstep, so every camera move eases in and out imperceptibly.
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+// Fast settle: for reveals that must grab in the first second and then breathe.
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const lerp = (a, b, t) => a + (b - a) * t;
+// Constant-rate zoom (log-interpolated distance): a 30→570 pull reads as one continuous dolly,
+// where a linear lerp spends the whole shot crawling at the wide end.
+const zoom = (a, b, t) => a * Math.pow(b / a, t);
 
 const near = `(x, z) => {
   let best = -1;
@@ -64,30 +92,67 @@ const near = `(x, z) => {
 }`;
 const ENTER_TRAIN = `window.bloomgrid.services.get('explore').setMode('train')`;
 const EXIT_TRAIN = `window.bloomgrid.services.get('explore').setMode('city')`;
-// City walk: park the city camera on the hero avenue south of the spire, then enter walk mode — the
-// steward spawns at the nearest road tile and strides away from the camera toward the Wellspring Spire.
-const ENTER_WALK = `(() => {
+// Drone flight: enter drone mode on the hero avenue south of the spire and fly it WEST along the
+// street itself. The heading is found live from `grid.road` (an east-west street that spans the
+// approach): roads are building-free by construction, so the drone cannot freeze against a hero
+// tower the way a diagonal cross-block route did. It cruises at ~+8 (above the boulevard trees,
+// under the Aeroline viaduct) with the Wellspring Spire sliding past on the right. Keys: W + Shift
+// (fast) + E (climb) lift off, E drops at 1.6s (~+8), Shift at 4.4s, W at 5.9s into the cut.
+const ENTER_DRONE = () => `(() => {
   const g = window.bloomgrid;
+  const grid = g.city.grid;
+  // The east-west avenue nearest the spawn: a z whose road tiles run unbroken from the spire's
+  // column to the spawn column.
+  let streetZ = -1;
+  for (let z = ${Math.round(238 - 12)}; z <= ${Math.round(238 + 12)} && streetZ < 0; z++) {
+    let ok = true;
+    for (let x = ${Math.round(spire.x)}; x <= 292 && ok; x++) ok = !!grid.road[grid.index(x, z)];
+    if (ok) streetZ = z;
+  }
+  // Fallback if no continuous street shows up: aim past the spire, high and to one side.
+  const dx = ${spire.x.toFixed(1)} - 292;
+  const dz = ${spire.z.toFixed(1)} - 238;
+  const len = Math.hypot(dx, dz) || 1;
+  const sz = streetZ >= 0 ? streetZ : 238;
+  const ax = streetZ >= 0 ? 240 : 292 + dx + 16 * (dx / len) + 13 * (dz / len);
+  const az = streetZ >= 0 ? streetZ : 238 + dz + 16 * (dz / len) - 13 * (dx / len);
   const cam = g.cameraCtl;
-  cam.lookAt(292, 238, 14, true);
-  cam.yaw = cam.goalYaw = Math.PI;
-  cam.pitch = cam.goalPitch = 0.1;
-  cam.distance = cam.goalDistance = 14;
-  g.services.get('explore').setMode('walk');
+  cam.lookAt(292, sz, 16, true);
+  cam.yaw = cam.goalYaw = Math.atan2(-(ax - 292), -(az - sz)) - Math.PI;
+  cam.pitch = cam.goalPitch = 0.12;
+  cam.distance = cam.goalDistance = 16;
+  g.services.get('explore').setMode('drone');
   g.input.keys.add('ShiftLeft');
   g.input.keys.add('KeyW');
+  g.input.keys.add('KeyE');
 })()`;
-const EXIT_WALK = `(() => {
+const EXIT_DRONE = `(() => {
   const g = window.bloomgrid;
-  g.input.keys.delete('ShiftLeft');
-  g.input.keys.delete('KeyW');
+  for (const k of ['ShiftLeft', 'KeyW', 'KeyE']) g.input.keys.delete(k);
   g.services.get('explore').setMode('city');
 })()`;
-const SPEED = (n) => `window.bloomgrid.engine.speed = ${n}`;
 // Fireworks (D-068): one launch per Fireworks Factory yard; we build one on the Westport waterfront if the
-// showcase city lacks it (the fireworks scene does the same), fill the racks and take over the sky. A grand
-// show fires 60 shells over 30 sim-seconds, so the act runs at engine speed 3: one show spans ~3.3s of video.
+// showcase city lacks it (the fireworks scene does the same), fill the racks and take over the sky. Shows
+// fire per pulse (tick % 10 === 0), so the acts pace `city.tick` directly — no engine-speed tricks. Only
+// one show can be in the sky at a time (`launchBlocker` silently rejects a launch while one runs), so an
+// act's second launch waits (inside the evaluate, which the capture loop awaits) until the first show has
+// ended, then fires — the acts self-serialize whatever the pulse rate does. The wait advances the sim
+// directly (`engine.stepTicks`: sim phase only — running the whole engine would advance U.clock and the
+// cameras between video frames, which showed as the picture jumping).
 const launch = (extra) => `window.bloomgrid.commands.execute('launchFireworks', ${JSON.stringify({ grand: true, ...extra })})`;
+const launchWhenClear = (extra, budget = 400) => `(async () => {
+  const g = window.bloomgrid;
+  const c = g.city;
+  while (c.fireworks.show && budget-- > 0) g.engine.stepTicks(3);
+  g.commands.execute('launchFireworks', ${JSON.stringify({ grand: true, ...extra })});
+})()`;
+// A show still in the sky at the cut would freeze there: the next act resets the tick below its startTick,
+// so its u clamps to 0 and it never fires or ends (blocking later launches). Force it to end on the next
+// pulse instead.
+const CLEAR_SKY = `(() => {
+  const s = window.bloomgrid.city.fireworks.show;
+  if (s) s.fired = s.shells;
+})()`;
 const FLORA_OPEN = `(() => {
   const g = window.bloomgrid;
   g.services.get('assistant').toggle(true);
@@ -100,54 +165,79 @@ const FLORA_OPEN = `(() => {
   })();
 })()`;
 const FLORA_CLOSE = `window.bloomgrid.services.get('assistant').toggle(false)`;
-const ASK = (tool) => `window.bloomgrid.services.get('assistant').ask('/${tool}')`;
+// The live Flora demo: a real question to the loaded model (Qwen3 1.7B). Sent without awaiting so the
+// capture keeps rolling while the console streams tool chips and the answer (≈4s wall per turn).
+const ASK_FLORA = (q) => `void window.bloomgrid.services.get('assistant').ask(${JSON.stringify(q)})`;
 
-// Founding-city landmarks (tiles): downtown ≈ 292/222, wind farm ≈ 430/102 (lighthouse 471/41),
-// Bloomtopia ≈ 252/440 (bridge at 252/404, gate faces yaw π), gardens quarter ≈ 222/284.
+// Founding-city landmarks (tiles): spire block centre ≈ 256/256 (resolved live), downtown ≈ 292/222,
+// wind farm ≈ 430/102, Bloomtopia ≈ 252/440 (gate faces yaw π), Tidewatch Lighthouse ≈ 471/41,
+// hive/yard resolved from the live city at boot.
 let hive = { x: 282, z: 333 }; // flora-hive, resolved from the live city at boot
 let yard = { x: 54, z: 281 }; // fireworks factory yard, resolved from the live city at boot
+let spire = { x: 256, z: 256 }; // wellspring-spire lot centre, resolved from the live city at boot
 const shots = [
+  // Cold open: tight on the spire against the sunrise, one exponential pull to the whole island. The
+  // title lands while the island is still forming in frame; easeOut grabs in the first second.
   {
-    dur: 7.0,
+    dur: 6.4,
     card: 'title',
-    tod: () => 0.32,
+    easeOut: true,
+    tod: (t) => lerp(0.33, 0.4, t),
     view: (t, od) => ({
-      x: lerp(300, 284, t),
-      z: lerp(248, 232, t),
-      yaw: lerp(0.35, 0.95, t),
-      pitch: lerp(1.18, 0.95, t),
-      dist: lerp(od * 1.05, 205, t),
+      x: lerp(spire.x, 270, t),
+      z: lerp(spire.z, 250, t),
+      yaw: lerp(0.55, 1.05, t),
+      pitch: lerp(0.17, 1.02, t),
+      dist: zoom(34, od * 1.02, t),
     }),
   },
+  // Skyline dive: descend into the downtown towers as the morning breaks.
   {
-    dur: 5.5,
-    tod: (t) => lerp(0.42, 0.5, t),
-    view: (t) => ({ x: lerp(293, 289, t), z: lerp(226, 221, t), yaw: lerp(1.35, 2.05, t), pitch: lerp(0.64, 0.52, t), dist: lerp(60, 40, t) }),
+    dur: 4.3,
+    tod: (t) => lerp(0.44, 0.5, t),
+    view: (t) => ({ x: 292, z: 222, yaw: lerp(1.15, 2.0, t), pitch: lerp(0.6, 0.44, t), dist: lerp(56, 37, t) }),
   },
   {
-    dur: 5.5,
-    tod: () => 0.5,
-    view: (t) => ({ x: lerp(466, 431, t), z: lerp(60, 103, t), yaw: lerp(0.2, 1.1, t), pitch: lerp(0.52, 0.42, t), dist: lerp(66, 44, t) }),
+    dur: 4.2,
+    tod: (t) => lerp(0.52, 0.56, t),
+    view: (t) => ({ x: lerp(458, 430, t), z: lerp(72, 102, t), yaw: lerp(0.25, 1.0, t), pitch: lerp(0.46, 0.36, t), dist: lerp(62, 42, t) }),
   },
+  // Golden hour on the amusement park: warm light on the rides as the camera sweeps past the gate.
   {
-    dur: 6.0,
-    tod: () => 0.5,
-    view: (t) => ({ x: 252, z: lerp(414, 441, t), yaw: lerp(2.55, 3.14, t), pitch: lerp(0.6, 0.48, t), dist: lerp(85, 46, t) }),
+    dur: 4.8,
+    tod: (t) => lerp(0.6, 0.66, t),
+    view: (t) => ({ x: 252, z: lerp(416, 441, t), yaw: lerp(2.6, 3.14, t), pitch: lerp(0.56, 0.46, t), dist: lerp(82, 46, t) }),
   },
-  // Street level at last: the steward strides up the hero avenue toward the spire (chase camera).
-  { dur: 6.5, free: true, card: 'walk', enter: ENTER_WALK, exit: EXIT_WALK, tod: () => 0.55 },
-  // The Aeroline carries the camera round the loop (ride cam); dusk starts to fall toward the fireworks.
-  { dur: 7.0, free: true, card: 'train', enter: ENTER_TRAIN, exit: EXIT_TRAIN, tod: (t) => lerp(0.5, 0.66, t) },
-  // Fireworks act I — dusk falls while the camera crosses the bay toward the yard; a heart goes up, then
-  // Temple Fay's butterfly. Low angle like scripts/scenes/fireworks.js so bursts 35-55 units up fill the frame.
+  // Drone flight: the quadcopter climbs off the hero avenue, rises over the rooftops and glides past
+  // the Wellspring Spire at golden hour (chase camera behind the drone, `at` paces the keys).
   {
-    dur: 8.5,
-    card: 'fireworks',
-    tod: (t) => lerp(0.72, 0.93, t),
-    enter: SPEED(3),
+    dur: 6.3,
+    free: true,
+    card: 'drone',
+    enter: ENTER_DRONE,
+    exit: EXIT_DRONE,
+    tod: () => 0.7,
     at: [
-      [0.5, launch({ shape: 'heart' })],
-      [5.0, launch({ shape: 'butterfly' })],
+      [1.6, `window.bloomgrid.input.keys.delete('KeyE')`],
+      [4.4, `window.bloomgrid.input.keys.delete('ShiftLeft')`],
+      [5.9, `window.bloomgrid.input.keys.delete('KeyW')`],
+    ],
+  },
+  // The Aeroline carries the camera round the loop as dusk falls and the stations light up.
+  { dur: 7.0, free: true, card: 'train', enter: ENTER_TRAIN, exit: EXIT_TRAIN, tod: (t) => lerp(0.74, 0.86, t) },
+  // Fireworks act I — night falls; a heart goes up, then Temple Fay's butterfly once the heart's show has
+  // ended (the launch polls until the sky is clear). Low angle like scripts/scenes/fireworks.js so bursts
+  // 35-55 units up fill the frame. `showPace` drives city.tick forward on a ramp (the shows fire per
+  // pulse, tick % 10 === 0).
+  {
+    dur: 8.2,
+    card: 'fireworks',
+    showPace: true,
+    exit: CLEAR_SKY,
+    tod: (t) => lerp(0.86, 0.95, t),
+    at: [
+      [0.4, launch({ shape: 'heart' })],
+      [3.6, launchWhenClear({ shape: 'butterfly' })],
     ],
     view: (t) => ({
       x: yard.x + 2,
@@ -157,15 +247,18 @@ const shots = [
       dist: lerp(220, 160, t),
     }),
   },
-  // Fireworks act II — interlaced rings, then a message in dot letters ends the show. Restore 1x speed.
+  // Fireworks act II — interlaced rings, then a message in dot letters ends the show once the rings have
+  // cleared (the launch polls). Both shows finish inside the act (the sea shot freezes the tick, so
+  // nothing may spill past the cut).
   {
-    dur: 8.0,
-    tod: () => 0.93,
+    dur: 7.8,
+    showPace: true,
+    exit: CLEAR_SKY,
+    tod: () => 0.94,
     at: [
-      [0.5, launch({ shape: 'rings' })],
-      [4.4, launch({ text: 'BLOOM ♥' })],
+      [0.4, launch({ shape: 'rings' })],
+      [3.5, launchWhenClear({ text: 'BLOOM ♥' })],
     ],
-    exit: SPEED(1),
     view: (t) => ({
       x: yard.x + 2,
       z: yard.z + 2,
@@ -174,24 +267,33 @@ const shots = [
       dist: lerp(150, 138, t),
     }),
   },
+  // Night sea: the Tidewatch Lighthouse from open water, close and low so the tower and its two
+  // sweeping beam cones read against the dark (the beam is faint — opacity 0.22 — so the camera stays
+  // near), the lit north shore glittering behind. The beam turns with U.clock: the engine stepping
+  // keeps the sweep at video speed.
   {
-    dur: 4.0,
-    tod: () => 0.94,
-    enter: FLORA_OPEN,
-    view: (t) => ({ x: 292, z: 224, yaw: lerp(2.4, 2.6, t), pitch: lerp(0.82, 0.78, t), dist: lerp(120, 95, t) }),
+    dur: 4.6,
+    card: 'sea',
+    tod: () => 0.95,
+    view: (t) => ({ x: 471, z: 41, yaw: lerp(2.42, 2.78, t), pitch: lerp(0.16, 0.1, t), dist: lerp(40, 22, t) }),
   },
   {
-    dur: 6.0,
+    dur: 4.6,
+    tod: () => 0.94,
+    enter: FLORA_OPEN,
+    at: [[2.6, ASK_FLORA('Fires just broke out — what is happening, and what should I do first?')]],
+    view: (t) => ({ x: 292, z: 224, yaw: lerp(2.4, 2.6, t), pitch: lerp(0.82, 0.78, t), dist: lerp(120, 95, t) }),
+  },
+  // The payoff: Flora's answer (real model) streams tool chips and text into the console while the
+  // camera settles on her; an approval chip may wait at the end — the steward stays in charge.
+  {
+    dur: 6.8,
     card: 'flora',
     tod: () => 0.94,
-    at: [
-      [0.4, ASK('advisor_tips')],
-      [3.2, ASK('incident_status')],
-    ],
     view: (t) => ({ x: 264, z: 250, yaw: lerp(2.6, 2.8, t), pitch: lerp(0.85, 0.8, t), dist: lerp(150, 135, t) }),
   },
   {
-    dur: 7.0,
+    dur: 5.8,
     tod: (t) => lerp(0.94, 0.48, t),
     enter: () =>
       `(() => {
@@ -203,25 +305,30 @@ const shots = [
     view: (t) => ({ x: lerp(280, 270, t), z: 244, yaw: lerp(2.8, 3.15, t), pitch: lerp(0.72, 0.56, t), dist: lerp(95, 150, t) }),
   },
   {
-    dur: 6.5,
+    dur: 5.6,
     tod: (t) => lerp(0.48, 0.36, t),
     enter: () => `window.bloomgrid.commands.execute('mist', { x: ${Math.round(hive.x)} + 6, z: ${Math.round(hive.z)} + 4 })`,
     view: (t) => ({ x: hive.x + 2, z: hive.z + 2, yaw: lerp(1.1, 1.9, t), pitch: lerp(0.48, 0.42, t), dist: lerp(34, 26, t) }),
   },
+  // Bookend of the reveal: pull out from the waking city to the whole island, easing into the end card.
   {
-    dur: 4.5,
+    dur: 5.6,
     card: 'end',
-    tod: (t) => lerp(0.36, 0.44, t),
-    view: (t, od) => ({ x: lerp(270, 256, t), z: lerp(250, 258, t), yaw: lerp(3.15, 3.55, t), pitch: lerp(0.56, 1.0, t), dist: lerp(150, od, t) }),
+    easeOut: true,
+    tod: (t) => lerp(0.36, 0.46, t),
+    view: (t, od) => ({ x: lerp(270, 256, t), z: lerp(250, 258, t), yaw: lerp(3.15, 3.55, t), pitch: lerp(0.56, 1.0, t), dist: zoom(150, od, t) }),
   },
 ];
+// Dissolve per boundary (after shots 1..13): quick cuts through the daytime run, longer breaths into
+// the night acts, dawn and the end. Pacing device — the trailer sprints, then lands.
+const XF = [0.35, 0.35, 0.35, 0.5, 0.5, 0.7, 0.45, 0.35, 0.35, 0.5, 0.7, 0.5, 0.8];
 const scale = seconds / PLAN;
 shots.forEach((s) => {
   s.dur *= scale;
   if (s.at) s.at = s.at.map(([at, code]) => [at * scale, code]);
 });
-// Crossfade length between shots: full plan 0.55s, shrinking if the trailer is squeezed.
-const xfade = Math.max(0.2, 0.55 * Math.min(1, scale));
+// Crossfade lengths between shots, shrinking if the trailer is squeezed.
+const xfs = XF.map((d) => Math.max(0.2, d * Math.min(1, scale)));
 const enterCode = (s) => (typeof s.enter === 'function' ? s.enter() : s.enter);
 
 // Per-shot frame segments: each shot's frames land in its own dir (renumbered), so the encode can
@@ -229,9 +336,12 @@ const enterCode = (s) => (typeof s.enter === 'function' ? s.enter() : s.enter);
 const shotStarts = [];
 {
   let acc = 0;
-  for (const s of shots) (shotStarts.push(acc), (acc += s.dur - xfade));
+  shots.forEach((s, i) => {
+    shotStarts.push(acc);
+    acc += s.dur - xfs[i];
+  });
 }
-const total = seconds - (shots.length - 1) * xfade;
+const total = seconds - xfs.reduce((a, b) => a + b, 0);
 
 mkdirSync(framesDir, { recursive: true });
 for (const f of readdirSync(framesDir)) if (f !== '.gitignore') rmSync(join(framesDir, f), { recursive: true, force: true });
@@ -239,6 +349,9 @@ for (const f of readdirSync(framesDir)) if (f !== '.gitignore') rmSync(join(fram
 const browser = await puppeteer.launch({
   executablePath: chrome,
   headless: 'new',
+  // Persistent profile: the model core downloads once (OPFS cache) and every later run starts in ~2s.
+  userDataDir: profile,
+  protocolTimeout: 30 * 60_000,
   args: ['--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', `--window-size=${W},${H}`],
 });
 const page = await browser.newPage();
@@ -276,10 +389,10 @@ const titlePng = await card([
   ['BLOOMGRID', 112, 30, 0],
   ['A SOLARPUNK ISLAND STEWARD', 30, 10, 34, '#dbffe9'],
 ]);
-const walkPng = await card(
+const dronePng = await card(
   [
-    ['WALK YOUR STREETS', 40, 11, 0],
-    ['every district, at street level', 23, 4, 14, '#dbffe9'],
+    ['FLY YOUR CITY', 40, 11, 0],
+    ['a drone\u2019s-eye view of every district', 23, 4, 14, '#dbffe9'],
   ],
   'bottom',
 );
@@ -297,10 +410,17 @@ const fireworksPng = await card(
   ],
   'bottom',
 );
+const seaPng = await card(
+  [
+    ['A LIVING SEA', 40, 11, 0],
+    ['wonders beyond the shore', 23, 4, 14, '#dbffe9'],
+  ],
+  'bottom',
+);
 const floraPng = await card(
   [
     ['MEET FLORA', 40, 12, 0],
-    ['the city\u2019s AI steward', 23, 4, 14, '#dbffe9'],
+    ['the city\u2019s AI steward \u00b7 runs locally', 23, 4, 14, '#dbffe9'],
   ],
   'bottom',
 );
@@ -308,14 +428,18 @@ const endPng = await card([
   ['TEND IT AND IT BLOOMS', 52, 12, 0],
   ['play free at bloomgrid.web.app', 26, 6, 26, '#dbffe9'],
 ]);
-const cardPngs = { title: titlePng, walk: walkPng, train: trainPng, fireworks: fireworksPng, flora: floraPng, end: endPng };
 
 await page.goto(base + path, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.bloomgrid?.engine, { timeout: 60000 });
 await new Promise((r) => setTimeout(r, 8000)); // boot reveal + founding city
 await page.evaluate(() => {
   document.querySelector('.help-ok')?.click();
-  window.bloomgrid.city.credits = 1e6;
+  const g = window.bloomgrid;
+  g.city.credits = 1e6;
+  // No random crises: the trailer is a movie set, weather must stay pinned clear.
+  g.city.steward.autoCrises = false;
+  // The trailer frames the city, not the console: City Pulse stays folded for the whole capture.
+  g.services.get('pulse').fold(true);
 });
 // The showcase city ships without a Fireworks Factory: build one on the Westport waterfront (like the
 // fireworks scene) and fill its racks, then read back the yard and flora-hive positions for framing.
@@ -328,7 +452,7 @@ await page.evaluate(async () => {
   for (const k of Object.keys(c.fireworks.stock)) c.fireworks.stock[k] = 90;
   c.fireworks.auto = false;
 });
-({ hive, yard } = await page.evaluate(() => {
+({ hive, yard, spire } = await page.evaluate(() => {
   const c = window.bloomgrid.city;
   const find = (id, fb) => {
     const e = c.buildingEntities().find((e) => c.buildingDef(e).id === id);
@@ -336,11 +460,69 @@ await page.evaluate(async () => {
   };
   const h = find('flora-hive', { x: 282, z: 333 });
   const y = find('fireworks-factory', { x: 54, z: 281 });
-  return { hive: { x: h.x, z: h.z }, yard: { x: y.x, z: y.z } };
+  // Records are lot origins: the 14×14 spire's visual centre is +7/+7.
+  const s = find('wellspring-spire', { x: 249, z: 249 });
+  return { hive: { x: h.x, z: h.z }, yard: { x: y.x, z: y.z }, spire: { x: s.x + 7, z: s.z + 7 } };
 }));
 const od = await page.evaluate(() => window.bloomgrid.cameraCtl.overviewDistance);
+// Time discipline: the engine is stopped between captured frames and each frame steps it exactly
+// 1/fps of wall time (see the header). Without this everything clock-driven runs at capture speed —
+// the drone crossed its whole route in the first two seconds of video and then sat in the spire.
+// U.clock is additionally pinned to video time each frame and the camera's target height is pinned to
+// the terrain: both would otherwise advance only partially during the short steps, by an amount that
+// depends on how many engine frames happened to fit — that variance read as the camera trembling.
+await page.evaluate(() => {
+  const g = window.bloomgrid;
+  g.engine.stop();
+  window.__bgStep = (ms) =>
+    new Promise((res) => {
+      const e = g.engine;
+      e.start();
+      const t0 = performance.now();
+      const check = () => {
+        if (performance.now() - t0 >= ms) return (e.stop(), res());
+        requestAnimationFrame(check);
+      };
+      requestAnimationFrame(check);
+    });
+});
+// Reach the *app's* uniforms module (importing '/src/render/uniforms.ts' fresh would give a second
+// instance, see AGENTS gotchas) so the per-frame clock pin drives the real `U`.
+await page.evaluate(async () => {
+  const url = performance.getEntriesByType('resource').map((e) => e.name)
+    .filter((n) => /\/src\/render\/uniforms\.ts/.test(n)).pop();
+  if (url) window.__bgU = (await import(url)).U;
+});
+// Flora's live core: load the model before capturing (first run downloads ~1.1 GB into the profile,
+// later runs start in ~2s). The console opens for the load, then closes: shots 1–9 stay clean and
+// shot 10 opens it again on camera.
+if (withAi) {
+  const ai = await page.evaluate(async (id) => {
+    const a = window.bloomgrid.services.get('assistant');
+    const t = performance.now();
+    a.toggle(true);
+    try {
+      await a.engine.load(id);
+    } catch (e) {
+      return { ok: false, error: String(e) };
+    }
+    a.toggle(false);
+    const s = a.engine.state;
+    return { ok: s.status === 'ready', status: s.status, error: s.error, backend: s.info?.backend, ms: Math.round(performance.now() - t) };
+  }, AI_MODEL);
+  console.log(`[trailer] Flora core ${AI_MODEL}: ${JSON.stringify(ai)}`);
+  if (!ai.ok) console.log('[trailer] WARNING: continuing without the live model (--no-ai hides this)');
+  else
+    // Approve any action Flora proposes during the demo (the ai-probe pattern): an unapproved action
+    // would park the turn on the approval chip and the answer would never finish streaming.
+    await page.evaluate(() => {
+      new MutationObserver(() =>
+        document.querySelector('.ai-approve:not(.ok):not(.bad) .ai-auth.yes')?.click(),
+      ).observe(document.body, { subtree: true, childList: true });
+    });
+}
 console.log(
-  `[trailer] overview ${od.toFixed(0)}, hive ${hive.x.toFixed(0)}/${hive.z.toFixed(0)}, fireworks yard ${yard.x.toFixed(0)}/${yard.z.toFixed(0)}, ${Math.round(seconds * fps)} frames at ${W}x${H}, ${total.toFixed(1)}s after dissolves`,
+  `[trailer] overview ${od.toFixed(0)}, spire ${spire.x.toFixed(0)}/${spire.z.toFixed(0)}, hive ${hive.x.toFixed(0)}/${hive.z.toFixed(0)}, fireworks yard ${yard.x.toFixed(0)}/${yard.z.toFixed(0)}, ${Math.round(seconds * fps)} frames at ${W}x${H}, ${total.toFixed(1)}s after dissolves`,
 );
 
 const totalFrames = Math.round(seconds * fps);
@@ -368,32 +550,69 @@ for (let f = 0; f < totalFrames; f++) {
   for (const [at, code] of shot.at ?? []) {
     if (local * shot.dur >= at && !fired.has(at)) (fired.add(at), await page.evaluate(code));
   }
+  // Pin the sim tick into the bloom season for every shot (weather can never drift in: no rain, haze or
+  // heatwave overwrites the sky mid-capture). Fireworks acts ramp the tick with every pin set to ≡ 9
+  // (mod 10): the engine's `tick++` then lands exactly on a pulse boundary on every sim update, so
+  // volleys fire at the engine's own update rate and the show's progress tracks the pin sweep — +10
+  // ticks per 3 frames ≈ 100 ticks/s of video, so a 300-tick grand show spans ~3s and each act fits two
+  // of them (the second launch polls for a clear sky), all inside the 7200-tick bloom season. Other
+  // pins freeze at 3603 (offset 3 + per-frame reset = no boundary is ever reached: no pulses at all).
+  const tick = shot.showPace ? 3609 + 10 * Math.floor(segFrame / 3) : 3603;
   const tod = shot.tod?.(ease(local));
   if (shot.free) {
-    // Explore modes drive the camera (walk, train ride): only pin the clock.
-    if (tod !== undefined && tod !== null) await page.evaluate((tod) => (window.bloomgrid.city.timeOfDay = tod), tod);
+    // Explore modes drive the camera (drone flight, train ride): pin the clock (the train ride is a
+    // pure function of U.clock) and keep input "active" so PowerManager's 60fps render cap applies
+    // during the short engine steps.
+    await page.evaluate(
+      (tod, tick, clock) => {
+        const g = window.bloomgrid;
+        if (g.input) g.input.lastActivity = performance.now();
+        g.city.tick = tick;
+        if (tod !== undefined && tod !== null) g.city.timeOfDay = tod;
+        if (window.__bgU) window.__bgU.clock.value = clock;
+      },
+      tod,
+      tick,
+      time,
+    );
   } else {
-    const v = shot.view(ease(local), od);
-    await page.evaluate((v, tod) => {
+    const v = shot.view(shot.easeOut ? easeOut(local) : ease(local), od);
+    await page.evaluate((v, tod, tick, clock) => {
       const g = window.bloomgrid;
       const cam = g.cameraCtl;
       cam.lookAt(v.x, v.z, v.dist, true);
+      // lookAt resets target.y to 0 and the smoother only partway re-climbs it during the short
+      // engine steps — by an amount that varies with how many frames fit — which read as the camera
+      // bobbing. Pin it to the terrain so every engine frame agrees with the pin.
+      cam.target.y = Math.max(0, g.city.grid.heightAt(v.x, v.z));
       cam.yaw = cam.goalYaw = v.yaw;
       cam.pitch = cam.goalPitch = v.pitch;
       cam.distance = cam.goalDistance = v.dist;
       if (g.input) g.input.lastActivity = performance.now();
+      g.city.tick = tick;
       if (tod !== undefined && tod !== null) g.city.timeOfDay = tod;
-    }, v, tod);
+      if (window.__bgU) window.__bgU.clock.value = clock;
+    }, v, tod, tick, time);
   }
+  // Advance the world by exactly one video frame (the engine is stopped between captures; see header),
+  // then grab the presented frame.
+  await page.evaluate((ms) => window.__bgStep(ms), 1000 / fps);
   await page.screenshot({ path: join(segDir(i), `f${String(segFrame++).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 94 });
   if (f % 150 === 0) console.log(`[trailer] frame ${f}/${totalFrames} (${((Date.now() - t0) / 1000).toFixed(0)}s elapsed)`);
 }
 if (shots[shotIdx].exit) await page.evaluate(shots[shotIdx].exit);
+if (withAi) {
+  const last = await page.evaluate(() => {
+    const m = [...document.querySelectorAll('.ai-msg.bot')].pop();
+    return m?.textContent?.replace(/\s+/g, ' ').trim() ?? null;
+  });
+  console.log(`[trailer] Flora's last on-screen message: ${last ? `${last.slice(0, 120)}…` : '(none — the demo ask never landed)'}`);
+}
 await browser.close();
 
-// Encode: dissolve the shot segments into one another (chained xfade), then composite the caption cards
-// (overlay + alpha fades) and fade the whole video in/out. Card windows sit over their shots in output
-// time, where each shot starts one dissolve earlier than the last.
+// Encode: dissolve the shot segments into one another (chained xfade, one length per boundary), then
+// composite the caption cards (overlay + alpha fades) and fade the whole video in/out. Card windows
+// sit over their shots in output time, where each shot starts one dissolve earlier than the last.
 const segFrames = shots.map((_, i) => readdirSync(segDir(i)).length);
 const segDur = segFrames.map((n) => n / fps);
 const inputs = ['-framerate', String(fps), '-i', join(segDir(0), 'f%04d.jpg')];
@@ -404,9 +623,10 @@ let prev = '[0:v]';
   shots.slice(1).forEach((_, k) => {
     const idx = k + 1;
     inputs.push('-framerate', String(fps), '-i', join(segDir(idx), 'f%04d.jpg'));
-    const off = Math.max(0, len - xfade);
+    const d = xfs[k];
+    const off = Math.max(0, len - d);
     const label = `[x${idx}]`;
-    graph.push(`${prev}[${idx}:v]xfade=transition=fade:duration=${xfade.toFixed(2)}:offset=${off.toFixed(2)}${label}`);
+    graph.push(`${prev}[${idx}:v]xfade=transition=fade:duration=${d.toFixed(2)}:offset=${off.toFixed(2)}${label}`);
     prev = label;
     len = off + segDur[idx];
   });
@@ -414,12 +634,12 @@ let prev = '[0:v]';
 const cards = [];
 const cardWin = (i, a, b) => {
   const s = shotStarts[i];
-  return [s + a * scale, s + Math.min(b * scale, shots[i].dur - xfade - 0.3)];
+  return [s + a * scale, s + Math.min(b * scale, shots[i].dur - xfs[i] - 0.3)];
 };
-if (seconds >= 6) cards.push({ png: titlePng, a: 1.0, b: Math.min(5.8, seconds * 0.1 + 2.8) });
+if (seconds >= 6) cards.push({ png: titlePng, a: 1.5, b: Math.min(5.7, seconds * 0.1 + 2.8) });
 {
   const [a, b] = cardWin(4, 1.0, 5.2);
-  if (b - a >= 1.2) cards.push({ png: walkPng, a, b });
+  if (b - a >= 1.2) cards.push({ png: dronePng, a, b });
 }
 {
   const [a, b] = cardWin(5, 1.2, 5.4);
@@ -430,10 +650,14 @@ if (seconds >= 6) cards.push({ png: titlePng, a: 1.0, b: Math.min(5.8, seconds *
   if (b - a >= 1.2) cards.push({ png: fireworksPng, a, b });
 }
 {
-  const [a, b] = cardWin(9, 0.6, 4.5);
+  const [a, b] = cardWin(8, 0.8, 3.9);
+  if (b - a >= 1.2) cards.push({ png: seaPng, a, b });
+}
+{
+  const [a, b] = cardWin(10, 0.8, 5.9);
   if (b - a >= 1.2) cards.push({ png: floraPng, a, b });
 }
-cards.push({ png: endPng, a: total - 3.2, b: total - 0.35 });
+cards.push({ png: endPng, a: total - 3.3, b: total - 0.35 });
 const fades = (s, e) =>
   `fade=t=in:st=${s.toFixed(2)}:d=0.7:alpha=1,fade=t=out:st=${Math.max(0, e - 0.7).toFixed(2)}:d=0.7:alpha=1`;
 let n = shots.length;
@@ -445,7 +669,8 @@ for (const c of cards) {
 }
 const last = n === shots.length ? prev.slice(1, -1) : `o${n - 1}`;
 graph.push(`[${last}]fade=t=in:st=0:d=0.7,fade=t=out:st=${Math.max(0, total - 0.9).toFixed(2)}:d=0.9,format=yuv420p[v]`);
-console.log(`[trailer] encoding ${out} (${shots.length} segments, ${cards.length} cards, ${xfade.toFixed(2)}s dissolves)`);
+const xfLast = xfs[xfs.length - 1] ?? 0;
+console.log(`[trailer] encoding ${out} (${shots.length} segments, ${cards.length} cards, ${xfs.length} dissolves ${(xfs[0] ?? 0).toFixed(2)}–${xfLast.toFixed(2)}s)`);
 execFileSync('ffmpeg', [
   '-y',
   ...inputs,

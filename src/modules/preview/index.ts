@@ -17,7 +17,7 @@ import {
 } from 'three/webgpu';
 import { color, float, length, mix, positionLocal, smoothstep, uv, abs, fract } from 'three/tsl';
 import type { GameContext, GameModule } from '@/game/context';
-import { getPiece } from '@/assets/kit/pieces';
+import { getPiece, pieceIds } from '@/assets/kit/pieces';
 import { ChunkedInstancer } from '@/render/Instancer';
 import { buildings } from '@/content';
 
@@ -43,6 +43,11 @@ const _box = new Box3();
 const _pbox = new Box3();
 const _size = new Vector3();
 const _v = new Vector2();
+const _origin = new Matrix4();
+const _white = new Color(1, 1, 1);
+const _params = [0, 0, 0, 0];
+/** Piece meshes built per background warm-up step (each is a node build on the main thread). */
+const WARM_SLICE = 6;
 
 /**
  * Object preview: the selected building alone on a small studio stage inside the inspector, turning slowly;
@@ -56,7 +61,8 @@ class Preview {
   private scene = new Scene();
   private camera = new PerspectiveCamera(30, 1, 0.1, 4000);
   private stage = new Group();
-  private instancer = new ChunkedInstancer(this.stage, 64);
+  /** One chunk for the whole map, so a piece type keeps one batch wherever the building stands. */
+  private instancer = new ChunkedInstancer(this.stage, 4096);
   private dome: Mesh;
   private floor: Mesh;
   private key = new DirectionalLight(0xfff2dc, 2.6);
@@ -75,6 +81,10 @@ class Preview {
   private home = { yaw: 0, pitch: 0.42 };
   private drag: { x: number; y: number; id: number } | null = null;
   private idleSpin = 0;
+  /** Pieces whose stage mesh and shaders are not built yet (warmed while the stage is hidden). */
+  private cold: string[] | null = null;
+  private warmWait = 2;
+  private warming = false;
 
   constructor(private ctx: GameContext) {
     const s = this.scene;
@@ -142,9 +152,13 @@ class Preview {
     this.zoom = 1;
   }
 
-  /** Copies the building's live pieces; GLB parts may still be loading, so an empty read retries briefly. */
+  /**
+   * Copies the building's live pieces; GLB parts may still be loading, so an empty read retries briefly.
+   * Batches are kept between buildings (`empty`, not `clear`): fresh meshes cost a shader build per piece on
+   * the next frame, which made picking a building stall for up to a second.
+   */
   private load(): void {
-    this.instancer.clear();
+    this.instancer.empty();
     const parts = this.parts();
     if (!parts.length) {
       this.retry = 0.25;
@@ -203,9 +217,44 @@ class Preview {
     host.addEventListener('dblclick', () => this.reset());
   }
 
+  /**
+   * Builds the stage's mesh for every piece a few at a time once the city runs, so the first pick of a building
+   * type doesn't compile on the spot: the stage's lights make its own shader variant of every material.
+   */
+  private warm(dt: number): void {
+    if (this.warming || (this.warmWait -= dt) > 0) return;
+    const ids = (this.cold ??= pieceIds()).splice(0, WARM_SLICE);
+    if (!ids.length) return;
+    this.warming = true;
+    for (const id of ids) this.instancer.addMatrix(id, _origin, _white, _params);
+    this.instancer.update(0, this.camera);
+    this.camera.position.set(0, 4, 12);
+    this.camera.lookAt(0, 0, 0);
+    this.camera.near = 0.1;
+    this.camera.far = 400;
+    this.camera.updateProjectionMatrix();
+    this.scene.environment = this.ctx.scene.environment;
+    void this.ctx.renderer
+      .compileAsync(this.scene, this.camera)
+      .catch(() => {})
+      .finally(() => {
+        this.warming = false;
+        this.warmWait = 0.1;
+        // Clear the warm-up pieces off the stage: re-read a building opened meanwhile, and make the next open re-read.
+        if (this.host) this.load();
+        else {
+          this.instancer.empty();
+          this.shown = '';
+        }
+      });
+  }
+
   update(dt: number): void {
     const host = this.host;
-    if (!host || !host.isConnected || host.offsetParent === null) return;
+    if (!host || !host.isConnected || host.offsetParent === null) {
+      if (!this.host && this.cold?.length !== 0) this.warm(dt);
+      return;
+    }
     if (this.retry > 0 && (this.retry -= dt) <= 0) this.load();
     const { renderer } = this.ctx;
     const canvas = renderer.domElement.getBoundingClientRect();

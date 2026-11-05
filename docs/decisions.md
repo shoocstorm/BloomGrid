@@ -1751,3 +1751,17 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
 - **Layout** (`ui/Hud.ts` `updateInfo`): status card, four fact bars, two columns Consumes ← | → Produces, notes
   (symbiosis, transit, bloom, city rules, risk). Rebuilt only when what it shows changes (≈ once a pulse). The
   details scroll in `.ix-scroll` (`fillInfo`); the action row stays pinned at the inspector's foot.
+
+## D-110 — The inspector preview keeps its meshes and warms them in the background (2026-11-05)
+
+- **Why**: picking a building stalled the next frame by 90–230 ms in Chrome and up to ≈1 s in the Tauri shell
+  (WKWebView compiles shaders more slowly). `Preview.load` cleared its `ChunkedInstancer`, so every pick created fresh
+  `InstancedMesh`es; three builds a node graph per mesh uuid, and the stage's own lights make a separate shader
+  variant of every material.
+- **Change**: `ChunkedInstancer.empty()` drops instances but keeps the batches (empty ones hide). The preview uses it
+  and one map-wide chunk (4096), so each piece type has a single stage batch wherever the building stands. Once the
+  city runs and the stage is hidden, it builds every piece's stage mesh six at a time through `compileAsync`
+  (29 pieces, a few hundred ms in all), then empties the stage.
+- **Result** (headless, founding city): no frame over ≈27 ms after a pick on WebGPU or WebGL2, the first pick of a
+  type included; main thread unchanged (22.9%).
+- **Rule**: an instancer that is refilled often should `empty()`, not `clear()`.

@@ -229,6 +229,15 @@ class InstanceBatch {
     handle.slot = -1;
   }
 
+  empty(): void {
+    for (const h of this.handles) {
+      h.batch = null;
+      h.slot = -1;
+    }
+    this.handles.length = 0;
+    this.mesh.count = 0;
+  }
+
   flush(): void {
     this.dMatrix.flush(this.mesh.instanceMatrix, 16);
     this.dColor.flush(this.mesh.instanceColor!, 3);
@@ -402,6 +411,16 @@ export class ChunkedInstancer {
   clear(): void {
     for (const b of this.batches.values()) b.dispose();
     this.batches.clear();
+    this.tweens.length = 0;
+  }
+
+  /**
+   * Drops every instance but keeps the batches (empty ones are hidden). A new InstancedMesh costs three a
+   * node-graph build on its first draw (tens of ms each), so a set that is refilled often (the inspector
+   * preview) reuses its meshes instead of clearing them.
+   */
+  empty(): void {
+    for (const b of this.batches.values()) b.empty();
     this.tweens.length = 0;
   }
 
