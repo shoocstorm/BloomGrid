@@ -72,6 +72,11 @@ export interface FireworksState {
   fatigue: number;
   /** Smoke hanging over the city 0..1 (adds to pollution while it clears). */
   smog: number;
+  /**
+   * Credits per sim second fireworks bring in (show visitors) minus what they cost (shells, show crews), smoothed
+   * over about half a minute: shells are bought one at a time, so the raw figure jumps. Part of the credit flow.
+   */
+  flow: number;
 }
 
 export const emptyStock = (): Stock => ({ peony: 0, willow: 0, ring: 0, palm: 0, crackle: 0 });
@@ -94,5 +99,6 @@ export function createFireworksState(): FireworksState {
     glow: 0,
     fatigue: 0,
     smog: 0,
+    flow: 0,
   };
 }

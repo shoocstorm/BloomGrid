@@ -16,7 +16,7 @@ import { updateProjects } from './projects';
 import { updateWonders, wonderHarmony } from './wonders';
 import { ageWear, size, updateLevels, upkeepMul, use } from './levels';
 import { updateConsequences } from './consequences';
-import { updateFinance } from './finance';
+import { netIncome, updateFinance } from './finance';
 import { updateCondition, updateOvergrowth } from './upkeep';
 import { updateStewardship } from './steward';
 import { LABOUR_SHARE, PULSE_TICKS } from './pulseConst';
@@ -28,6 +28,9 @@ import { defenceList, isProtected, updateSeaRise } from './coast';
 import { BANYAN_LEVEL, bridgeEnds } from './weaver';
 import { seasonAt } from './seasons';
 import { MAX_ENTITIES } from '@/ecs/components';
+
+/** Smoothing for the fireworks share of the credit flow (≈30 pulses). */
+const FIREWORKS_FLOW_EMA = 1 / 30;
 
 export { PULSE_TICKS };
 
@@ -276,7 +279,12 @@ export const pulseSystem: System<SimCtx> = {
       built++;
     }
 
+    const fw = city.fireworks;
+    const fwBefore = fw.revenue - fw.spent;
     const fireworks = updateFireworks(city, ents, mod, built);
+    // A pulse is one sim second, so this pulse's fireworks money is already per second; smooth it for the flow.
+    fw.flow += (fw.revenue - fw.spent - fwBefore - fw.flow) * FIREWORKS_FLOW_EMA;
+    s.fireworks = fw.flow;
     s.pollution += fireworks.pollution;
     s.fishing = updateFishing(city, ents, mod).income;
     updateLevels(city, ents, mod);
@@ -326,7 +334,7 @@ export const pulseSystem: System<SimCtx> = {
     s.upkeep = upkeep * city.steward.funding;
 
     // Health tiers.
-    const net = s.income + s.fishing + s.tourism - s.insurance - s.upkeep - s.debtService;
+    const net = netIncome(city);
     const tiers: Record<SystemKey, Tier> = {
       energy: s.energyUsed > 0 ? tierFromRatio(pulse.energyRatio, [0.6, 0.85, 1, 1.15]) : 1,
       water: s.waterUsed > 0 ? tierFromRatio(pulse.waterRatio, [0.6, 0.85, 1, 1.15]) : 1,

@@ -1,4 +1,5 @@
 import type { AgentTool } from '@/core/AgentTools';
+import { netIncome } from './finance';
 import { buildings } from '@/content';
 import { CATEGORY_LABELS, type BuildingCategory } from '@/content/types';
 import { Building } from '@/ecs/components';
@@ -123,7 +124,7 @@ export const insightTools: AgentTool<SimCtx, never>[] = [
         const d = buildings.at(Building.def[eid]!);
         upkeep[d.category] = (upkeep[d.category] ?? 0) + d.stats.upkeep;
       }
-      const net = s.income + s.fishing - s.upkeep - s.debtService;
+      const net = netIncome(city);
       return {
         credits: Math.round(city.credits),
         taxPercent: Math.round(p.taxRate * 100),
@@ -131,10 +132,13 @@ export const insightTools: AgentTool<SimCtx, never>[] = [
           residentTax: r2(s.population * 0.6 * p.taxRate * INCOME_SCALE),
           workerTax: r2(s.employed * 0.4 * p.taxRate * INCOME_SCALE),
           fishing: r2(s.fishing),
-          total: r2(s.income + s.fishing),
+          visitors: r2(s.tourism),
+          fireworksNet: r2(s.fireworks),
+          total: r2(s.income + s.fishing + s.tourism),
         },
         spending: {
           upkeepPaid: r2(s.upkeep),
+          insurance: r2(s.insurance),
           upkeepByCategory: Object.fromEntries(
             (Object.entries(upkeep) as [BuildingCategory, number][])
               .sort((a, b) => b[1] - a[1])

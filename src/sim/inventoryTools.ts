@@ -1,3 +1,4 @@
+import { netIncome } from './finance';
 import type { AgentTool } from '@/core/AgentTools';
 import type { SimCtx } from './systems';
 import { SYSTEMS, TIERS } from './pulseState';
@@ -62,7 +63,7 @@ export const inventoryTools: AgentTool<SimCtx, never>[] = [
         day: city.day,
         timeOfDay: Math.round(city.timeOfDay * 1000) / 1000,
         credits: Math.round(city.credits),
-        netIncomePerSecond: Math.round((s.income - s.upkeep - s.debtService) * 100) / 100,
+        netIncomePerSecond: Math.round(netIncome(city) * 100) / 100,
         residents: Math.round(s.population),
         housingCapacity: Math.round(s.capacity),
         jobs: Math.round(s.jobs),

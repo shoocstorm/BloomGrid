@@ -83,6 +83,8 @@ export interface CityStats {
   fishing: number;
   /** Visitors' spending and the insurance premium (credits/s, D-074). */
   tourism: number;
+  /** Fireworks' smoothed net credits per second (`FireworksState.flow`): visitors minus shells and crews. */
+  fireworks: number;
   insurance: number;
 }
 
@@ -436,7 +438,7 @@ export class City {
   private fireworksHash(): string {
     const f = this.fireworks;
     const show = f.show ? `${f.show.id}:${f.show.fired}/${f.show.shells}@${f.show.startTick}:${f.show.shape ?? ''}:${f.show.text ?? ''}` : '-';
-    return `${FIREWORK_KINDS.map((k) => f.stock[k]).join(',')}|${f.auto ? 1 : 0}|${f.shows}|${f.lastNight}|${show}|${f.progress.toFixed(4)}|${f.glow.toFixed(4)}|${f.fatigue.toFixed(4)}|${f.smog.toFixed(4)}`;
+    return `${FIREWORK_KINDS.map((k) => f.stock[k]).join(',')}|${f.auto ? 1 : 0}|${f.shows}|${f.lastNight}|${show}|${f.progress.toFixed(4)}|${f.glow.toFixed(4)}|${f.fatigue.toFixed(4)}|${f.smog.toFixed(4)}|${f.flow.toFixed(4)}`;
   }
 
   hash(): string {
@@ -472,6 +474,7 @@ export function emptyStats(): CityStats {
     demandFood: 0,
     fishing: 0,
     tourism: 0,
+    fireworks: 0,
     insurance: 0,
   };
 }

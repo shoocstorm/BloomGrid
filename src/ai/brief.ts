@@ -1,3 +1,4 @@
+import { netIncome } from '@/sim/finance';
 import type { City } from '@/sim/City';
 import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { getCrisis } from '@/sim/crises';
@@ -14,7 +15,7 @@ export function cityBrief(city: City): string {
   const p = city.pulse;
   const hh = Math.floor(city.timeOfDay * 24);
   const mm = Math.floor((city.timeOfDay * 24 - hh) * 60);
-  const net = s.income + s.fishing - s.upkeep - s.debtService;
+  const net = netIncome(city);
   const objects = listObjects(city, ['building', 'network', 'district']);
   const sum = summarize(objects);
   const worst = filterObjects(objects, {

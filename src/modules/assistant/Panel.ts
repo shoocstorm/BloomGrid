@@ -1,3 +1,4 @@
+import { netIncome } from '@/sim/finance';
 import { INDICATOR_NAMES as N, SYSTEM_ORDER } from '@/sim/indicators';
 import type { GameContext } from '@/game/context';
 import { h, setText } from '@/ui/dom';
@@ -649,7 +650,7 @@ export class AssistantPanel {
       const sum = summarize(listObjects(city, ['building', 'network']));
       this.objects = { critical: sum.status.critical, warning: sum.status.warning, total: sum.total };
     }
-    const net = s.income - s.upkeep - s.debtService;
+    const net = netIncome(city);
     const kv = (k: string, v: string, tone = '') =>
       h('div', { class: `row ${tone}` }, h('span', {}, k), h('b', {}, v));
     this.rail.vitals.replaceChildren(

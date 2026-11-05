@@ -1,3 +1,4 @@
+import { netIncome } from '@/sim/finance';
 import { query } from 'bitecs';
 import { CREDIT_FLOW, INDICATOR_NAMES as N, SYSTEM_ORDER } from '@/sim/indicators';
 import type { GameContext, GameModule } from '@/game/context';
@@ -211,7 +212,7 @@ class Dashboard {
       setText(t.sub, sub);
     };
     set('pop', fmt(s.population), `${signed(delta('population'), 0)} in 1 min · capacity ${fmt(s.capacity)}`);
-    set('credits', fmt(city.credits), `${signed(s.income + s.fishing + s.tourism - s.insurance - s.upkeep)}/s net`);
+    set('credits', fmt(city.credits), `${signed(netIncome(city))}/s net`);
     set('harmony', Math.round(s.happiness).toString(), `${signed(delta('happiness'))} in 1 min`);
     set('energy', `${Math.round(p.energyRatio * 100)}%`, `${fmt(s.energyProduced)} made / ${fmt(s.energyUsed)} used`);
     set('water', `${Math.round(p.waterRatio * 100)}%`, `${fmt(s.waterProduced)} made / ${fmt(s.waterUsed)} used`);
@@ -243,10 +244,13 @@ class Dashboard {
       { label: 'Worker tax', value: workersTax, text: signed(workersTax) },
       ...(s.fishing > 0 ? [{ label: 'Fishing', value: s.fishing, text: signed(s.fishing) }] : []),
       ...(s.tourism > 0 ? [{ label: 'Visitors', value: s.tourism, text: signed(s.tourism) }] : []),
+      ...(Math.abs(s.fireworks) >= 0.05 ? [{ label: 'Fireworks', value: Math.abs(s.fireworks), text: signed(s.fireworks), neg: s.fireworks < 0 }] : []),
       ...(s.insurance > 0 ? [{ label: 'Insurance', value: s.insurance, text: signed(-s.insurance), neg: true }] : []),
+      ...(s.debtService > 0 ? [{ label: 'Loan repayments', value: s.debtService, text: signed(-s.debtService), neg: true }] : []),
+      // Upkeep as paid: austerity (credits below zero) pays only part of it.
       ...(Object.entries(upkeep) as [BuildingCategory, number][])
         .sort((a, b) => b[1] - a[1])
-        .map(([c, v]) => ({ label: `${CATEGORY_LABELS[c]} upkeep`, value: v, text: signed(-v), neg: true })),
+        .map(([c, v]) => ({ label: `${CATEGORY_LABELS[c]} upkeep`, value: v * city.steward.funding, text: signed(-v * city.steward.funding), neg: true })),
     ]);
     this.bars(
       this.landuse,

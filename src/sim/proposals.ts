@@ -1,3 +1,4 @@
+import { netIncome } from './finance';
 import { query } from 'bitecs';
 import { buildings } from '@/content';
 import { CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
@@ -217,7 +218,7 @@ export function diagnose(city: City): string[] {
     mobility: `traffic flow ${pct(p.flow)}`,
     ecology: `bloom ${pct(p.bloomIndex)}`,
     harmony: `${Math.round(s.happiness)}/100`,
-    budget: `credits ${fmt(city.credits)}, net ${(s.income + s.fishing + s.tourism - s.insurance - s.upkeep - s.debtService).toFixed(1)}/s`,
+    budget: `credits ${fmt(city.credits)}, net ${netIncome(city).toFixed(1)}/s`,
   };
   return SYSTEMS.filter((k) => p.tiers[k] >= 2)
     .sort((a, b) => p.tiers[b] - p.tiers[a])

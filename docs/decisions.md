@@ -1824,3 +1824,19 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   change only once it holds (drop 3 pulses, recovery 8), at most once per 30 pulses per system (a fall to Collapse is
   never held back); changes inside the cooldown merge. `pulse.tiers` stays raw for the sim and the fail clock. The gate
   is notification state, rebuilt on reset or load, neither saved nor hashed (`tests/tierGate.test.ts`).
+
+## D-115 — One credit-flow formula, fireworks included (2026-11-05)
+
+- **Why**: the top bar and the dashboard's Credits tile left loan repayments out of the per-second rate, so a city in
+  deficit with loans looked better there than in City Pulse. Flora's brief, console and tools used other subsets
+  again. And no display counted the Fireworks Factory's shell purchases, show fees or show visitors, which move
+  credits too (≈1.3/s in the showcase).
+- **Formula**: `netIncome(city)` in `sim/finance.ts` (taxes + fishing + visitors + fireworks − insurance − upkeep as
+  paid − loan repayments) is the only one: the top bar, City Pulse, the dashboard, the Credits guide, the budget
+  tier and history, the deficit advisory and Flora's brief and tools call it. Never sum `stats` by hand for it.
+- **Fireworks** (`FireworksState.flow`, saved and hashed, default 0; `stats.fireworks`): this pulse's change in
+  `revenue − spent`, smoothed over ≈30 pulses because shells are bought one at a time. A "Fireworks" line joins the
+  breakdowns. The dashboard's Credit flow column also gained loan repayments, and its upkeep bars show upkeep as paid
+  under austerity.
+- **Test** (`tests/creditFlow.test.ts`): the shown flow matches how credits actually move, averaged over two sim
+  minutes, in a deficit with a loan and in austerity.

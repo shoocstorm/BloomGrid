@@ -291,6 +291,8 @@ The knowledge base is never finished: treat it as part of every feature. Flora's
 - A snap `--eval` that does `import('/src/render/uniforms.ts')` gets a *second* module instance (Vite serves the app's
   copy with `?t=…`). Import the exact URL from `performance.getEntriesByType('resource')` to reach the app's `U`
   (e.g. to pin `U.clock` while capturing shader-animated scenery).
+- Credit flow (credits per second) is `netIncome(city)` from `sim/finance.ts` everywhere (D-115); a new recurring income
+  or cost must land in `city.stats` and in that formula, or the top bar's rate stops matching how credits move.
 - Hazard damage goes through `damageBuilding` (books the credits and the log, ruins at zero); don't write
   `Service.condition` down directly for a hazard. A new crisis is logged automatically when it ends; give it
   `c.x / c.z` so the log and the map can place it.

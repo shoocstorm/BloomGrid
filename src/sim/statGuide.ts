@@ -3,7 +3,7 @@ import type { BuildingCategory, BuildingDef, BuildingStats } from '@/content/typ
 import type { City } from './City';
 import { LABOUR_SHARE } from './pulseConst';
 import { TAX_MAX, TAX_MIN, TIERS, tierFromRatio, type HistoryMetric, type Tier } from './pulseState';
-import { creditLimit, LOAN_SIZES, totalDebt } from './finance';
+import { creditLimit, LOAN_SIZES, netIncome, totalDebt } from './finance';
 import { lockReason } from './projects';
 import type { ProposalFocus } from './proposals';
 import { INDICATOR_NAMES as N } from './indicators';
@@ -89,11 +89,8 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const tone = (v: number): GuidePart['tone'] => (v > 0.05 ? 'good' : v < -0.05 ? 'bad' : 'neutral');
 const factorTone = (v: number): GuidePart['tone'] => (v >= 0.95 ? 'good' : v >= 0.7 ? 'warn' : 'bad');
 
-/** Net credits per second, as the top bar shows it (loan repayments included). */
-export function netIncome(city: City): number {
-  const s = city.stats;
-  return s.income + s.fishing + s.tourism - s.insurance - s.upkeep - s.debtService;
-}
+/** Credit flow per second (`sim/finance.ts`), re-exported for the guides' callers. */
+export { netIncome };
 
 /** The unlocked, placeable type with the most of `key` per credit (ties: the bigger one). */
 export function bestFor(city: City, key: keyof BuildingStats, category?: BuildingCategory): BuildingDef | null {
@@ -162,6 +159,7 @@ function credits(city: City): StatGuide {
       { label: 'Taxes', value: s.income, text: signed(s.income), tone: 'good', note: `${Math.round(p.taxRate * 100)}% rate on residents and workers` },
       { label: 'Fishing', value: s.fishing, text: signed(s.fishing), tone: 'good' },
       { label: 'Visitors', value: s.tourism, text: signed(s.tourism), tone: 'good' },
+      { label: 'Fireworks', value: s.fireworks, text: signed(s.fireworks), tone: tone(s.fireworks), note: 'shells and crews against show visitors' },
       { label: 'Upkeep', value: -s.upkeep, text: signed(-s.upkeep), tone: 'bad', note: city.steward.funding < 1 ? 'austerity: 40% paid' : `${fmt(s.buildings)} buildings` },
       { label: 'Insurance', value: -s.insurance, text: signed(-s.insurance), tone: 'bad' },
       { label: 'Loans', value: -s.debtService, text: signed(-s.debtService), tone: 'bad', note: debt > 0 ? `◈${fmt(debt)} still owed` : undefined },

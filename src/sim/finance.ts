@@ -8,6 +8,16 @@ import type { SimCtx } from './systems';
 export const LOAN_TERM = 600;
 export const LOAN_SIZES = [5000, 15000, 40000] as const;
 
+/**
+ * Credits gained (or lost) per sim second: taxes, fishing, visitors and fireworks (net, smoothed) in; insurance, upkeep
+ * (at the current funding) and loan repayments out. The one formula for credit flow: the top bar, City Pulse, the dashboard, the stat guide
+ * and Flora all show this number, and it is what `credits` actually moves by.
+ */
+export function netIncome(city: City): number {
+  const s = city.stats;
+  return s.income + s.fishing + s.tourism + s.fireworks - s.insurance - s.upkeep - s.debtService;
+}
+
 /** How much more the city may borrow: ~10 sim-minutes of gross income, at least 5 000. */
 export function creditLimit(city: City): number {
   const owed = city.steward.loans.reduce((a, l) => a + l.remaining, 0);

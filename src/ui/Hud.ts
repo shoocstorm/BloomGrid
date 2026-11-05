@@ -1,3 +1,4 @@
+import { netIncome } from '@/sim/finance';
 import { MAX_ROAD_LEVEL, ROAD_CAPACITY, ROAD_LEVEL_NAMES, levelCounts, roadLevels, roadStretch, upgradeCost as roadUpgradeCost } from '@/sim/roads';
 import { ROAD } from '@/sim/City';
 import { Building, Problem, Service } from '@/ecs/components';
@@ -954,7 +955,7 @@ class Hud {
       setText(e.sub, sub);
       e.el.classList.toggle('bad', bad);
     };
-    const net = s.income + s.fishing + s.tourism - s.insurance - s.upkeep;
+    const net = netIncome(city);
     set('credits', fmt(city.credits), city.credits < 0 || net < 0, `  ${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(1)}/s`);
     set('pop', fmt(s.population), false, ` / ${fmt(s.capacity)}`);
     set('energy', `${fmt(s.energyProduced - s.energyUsed)}`, s.energyUsed > s.energyProduced);

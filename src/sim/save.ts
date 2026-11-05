@@ -135,8 +135,9 @@ export function migrateSave(data: SaveData): SaveData {
     data.version = 15;
   }
   if (data.version === 15) {
-    // The food trend (top-bar Food indicator, D-113) starts empty.
+    // The food trend (top-bar Food indicator, D-113) starts empty; fireworks' credit flow (D-115) starts at 0.
     (data.pulse.history as Record<string, number[]>).food ??= [];
+    data.fireworks.flow ??= 0;
     data.version = 16;
   }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);

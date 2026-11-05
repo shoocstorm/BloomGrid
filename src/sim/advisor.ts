@@ -5,7 +5,7 @@ import type { City } from './City';
 import { TIERS, type Tier } from './pulseState';
 import { getCrisis } from './crises';
 import { FAIL_SECONDS } from './steward';
-import { creditLimit } from './finance';
+import { creditLimit, netIncome } from './finance';
 import { ZONE, zoneOf } from './floranet';
 import { atRisk } from './coast';
 
@@ -181,13 +181,13 @@ registerAdvisorRule((city) => {
 });
 
 registerAdvisorRule((city) => {
-  const net = city.stats.income - city.stats.upkeep;
+  const net = netIncome(city);
   if (net >= 0 && city.credits >= 0) return null;
   return {
     id: 'budget',
     severity: city.credits < 0 ? 2 : 1,
     title: city.credits < 0 ? 'The city is in debt' : `Running a deficit (${net.toFixed(1)}/s)`,
-    detail: 'Upkeep exceeds tax income.',
+    detail: 'Upkeep, insurance and loan repayments exceed taxes, fishing and visitors.',
     fix:
       city.credits < 0
         ? `Austerity is cutting maintenance. Borrow (up to ${Math.round(creditLimit(city)).toLocaleString()}) or raise taxes to get out of debt.`
