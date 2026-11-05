@@ -9,6 +9,7 @@ import type { Tool } from '@/game/Tools';
 import type { GroundHit } from '@/world/Picking';
 import { selectInRect } from '@/sim/select';
 import { faceWater } from '@/sim/orient';
+import { moveFee, relocatePlan } from '@/sim/relocate';
 import { placeBuilding, placementMatrices } from './BuildingRenderer';
 import type { Ghost } from './Ghost';
 
@@ -72,6 +73,50 @@ export function createTools(ghost: Ghost, build: BuildState) {
     ctx.cameraCtl.dragPan = true;
     ghost.hideCursor();
   };
+  /**
+   * Shift-drag in Inspect carries a building to a new lot: `carry` is the building, its facing (R turns it) and
+   * where it would land; the ghost shows it there, green or red.
+   */
+  let carry: { eid: number; rot: number; at: { x: number; z: number; ok: boolean } | null; key: string } | null = null;
+  const carryAt = (ctx: GameContext, hit: GroundHit | null) => {
+    if (!carry) return;
+    const { city } = ctx;
+    const def = city.buildingDef(carry.eid);
+    const [w, d] = city.footprint(def, carry.rot);
+    if (!hit?.inBounds) {
+      carry.at = null;
+      carry.key = '';
+      ghost.hideAll();
+      return;
+    }
+    const x = Math.floor(hit.point.x - w / 2 + 0.5);
+    const z = Math.floor(hit.point.z - d / 2 + 0.5);
+    const key = `${x}|${z}|${carry.rot}|${city.credits >= moveFee(city, carry.eid)}`;
+    if (key === carry.key) return;
+    carry.key = key;
+    const plan = relocatePlan(city, carry.eid, x, z, carry.rot);
+    carry.at = { x, z, ok: plan.ok };
+    ghost.setValid(plan.ok);
+    if (x >= 0 && z >= 0 && x + w <= city.grid.w && z + d <= city.grid.h) {
+      ghost.showPieces(placementMatrices(placeBuilding(city.grid, def, x, z, carry.rot)));
+      ghost.showCursor(x, city.grid.rangeOver(x, z, w, d).max, z, w, d);
+    } else ghost.hideAll();
+    const loses = plan.bridges ? ` · ${plan.bridges} sky-bridge${plan.bridges > 1 ? 's' : ''} come${plan.bridges > 1 ? '' : 's'} down` : '';
+    ctx.bus.emit('tool:tooltip', {
+      text: plan.ok
+        ? `Move ${def.name} here · ${fmt(plan.fee)} ◈ · R to rotate · Esc to cancel${loses}${plan.warning ? ` · ⚠ ${plan.warning}` : ''}`
+        : `${def.name} — ${plan.reason}`,
+      tone: plan.ok && !plan.warning && !plan.bridges ? 'ok' : 'bad',
+    });
+  };
+  const endCarry = (ctx: GameContext) => {
+    carry = null;
+    ctx.cameraCtl.dragPan = true;
+    ghost.hideAll();
+    ghost.showTiles(groupTiles);
+    ctx.bus.emit('tool:tooltip', { text: null });
+  };
+
   const select: Tool = {
     id: 'select',
     label: 'Inspect',
@@ -100,9 +145,11 @@ export function createTools(ghost: Ghost, build: BuildState) {
     },
     deactivate(ctx) {
       if (rect) endRect(ctx);
+      if (carry) endCarry(ctx);
       ghost.hideAll();
     },
     hover(ctx, hit) {
+      if (carry) return carryAt(ctx, hit);
       ghost.setValid(true);
       if (rect && hit?.inBounds) {
         // The rectangle, and the buildings it would select.
@@ -125,16 +172,55 @@ export function createTools(ghost: Ghost, build: BuildState) {
       if (group.length) ghost.showTiles(groupTiles);
     },
     down(ctx, hit, e) {
+      if (e.touch || !hit?.inBounds) return;
+      // Shift + drag picks a building up and carries it to a new lot.
+      if (e.shift && !e.ctrl) {
+        const eid = ctx.city.buildingAt(hit.tx, hit.tz);
+        if (eid === NO_ENTITY) return;
+        carry = { eid, rot: ctx.city.buildingRecord(eid).rot, at: null, key: '' };
+        ctx.cameraCtl.dragPan = false;
+        ghost.showTiles([]);
+        carryAt(ctx, hit);
+        return;
+      }
       // Ctrl (⌘ on a Mac) + drag boxes a group of buildings of one type instead of panning.
-      if (!e.ctrl || e.touch || !hit?.inBounds) return;
+      if (!e.ctrl) return;
       rect = { x: hit.tx, z: hit.tz };
       ctx.cameraCtl.dragPan = false;
     },
     cancel(ctx) {
       if (rect) endRect(ctx);
+      if (carry) endCarry(ctx);
       ghost.showTiles(groupTiles);
     },
+    key(ctx, e) {
+      if (!carry) return false;
+      if (e.code === 'KeyR') {
+        carry.rot = (carry.rot + (e.shiftKey ? 3 : 1)) % 4;
+        carryAt(ctx, ctx.tools.hit);
+        return true;
+      }
+      if (e.code === 'Escape') {
+        endCarry(ctx);
+        return true;
+      }
+      return false;
+    },
     up(ctx, hit) {
+      if (carry) {
+        const { eid, rot, at } = carry;
+        endCarry(ctx);
+        if (!at?.ok) return;
+        const r = ctx.city.buildingRecord(eid);
+        const name = ctx.city.buildingDef(eid).name;
+        if (ctx.commands.execute('move', { from: [r.x, r.z], x: at.x, z: at.z, rot })) {
+          ctx.bus.emit('toast', { text: `${name} takes root on its new lot`, tone: 'ok' });
+          const moved = ctx.city.buildingAt(at.x, at.z);
+          selected = moved;
+          ctx.bus.emit('selection:changed', { eid: moved });
+        }
+        return;
+      }
       if (rect) {
         const start = rect;
         endRect(ctx);

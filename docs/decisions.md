@@ -1840,3 +1840,16 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   under austerity.
 - **Test** (`tests/creditFlow.test.ts`): the shown flow matches how credits actually move, averaged over two sim
   minutes, in a deficit with a loan and in austerity.
+
+## D-116 — Relocating buildings with Shift-drag (2026-11-05)
+
+- **Why**: a misplaced building could only be demolished (half refund) and rebuilt, losing its level, age and
+  greenery.
+- **Input**: Shift-drag in Inspect carries a building (ghost + validity tooltip, R rotates, Esc cancels). Ctrl/⌘-drag
+  stays group selection (D-070), so Ctrl can't also mean move. Mouse only: touch has no modifier keys.
+- **Command** (`move`, `sim/relocate.ts`): one undoable step that removes the building and re-adds its record at the
+  new lot (same uid, tier, age, level, condition), grades the lot like `build` (D-099) and charges `MOVE_FEE` (10% of
+  cost). Burning buildings and ruins refuse (their fire and ruin state follow the uid, but moving them would dodge the
+  crisis). Sky-bridges are keyed by tower anchors, so bridges woven to a moved tower come down; undo splices them
+  back at their old indexes so the hash round-trips.
+- **Placement**: `City.checkPlacement` gained `moving` (its own lot doesn't block, no lock or limit check) and `cost`.

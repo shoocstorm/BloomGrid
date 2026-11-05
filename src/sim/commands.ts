@@ -12,6 +12,7 @@ import { registerFloraCommands } from './flora';
 import { registerLevelCommands } from './levels';
 import { registerSwitchCommands } from './switches';
 import { registerDisasterCommands } from './disasters';
+import { registerRelocateCommands } from './relocate';
 import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from './floranet';
 import { RECLAIM_HEIGHT, cornersOf, reclaimPlan, setCorners } from './coast';
 import { gradeLots } from './grading';
@@ -69,6 +70,7 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerLevelCommands(stack);
   registerSwitchCommands(stack);
   registerDisasterCommands(stack);
+  registerRelocateCommands(stack);
   registerMist(stack);
   registerReclaim(stack);
   registerWeaver(stack);

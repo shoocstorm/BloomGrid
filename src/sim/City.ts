@@ -198,7 +198,11 @@ export class City {
     return this.grid.rangeOver(x, z, 1, 1).min < SEA_LEVEL + 0.05;
   }
 
-  checkPlacement(def: BuildingDef, x: number, z: number, rot: number): PlacementResult {
+  /**
+   * Whether `def` can stand at (x, z). `moving` is a building being relocated (its own lot doesn't block it, it's
+   * already unlocked and counted) and `cost` what the placement charges (a relocation fee rather than the build cost).
+   */
+  checkPlacement(def: BuildingDef, x: number, z: number, rot: number, moving = NO_ENTITY, cost = def.stats.cost): PlacementResult {
     const [w, d] = this.footprint(def, rot);
     const g = this.grid;
     if (x < 0 || z < 0 || x + w > g.w || z + d > g.h) return { ok: false, reason: 'Out of bounds' };
@@ -208,20 +212,20 @@ export class City {
     for (let j = z; j < z + d; j++) {
       for (let i = x; i < x + w; i++) {
         const idx = g.index(i, j);
-        if (g.occupant[idx] !== NO_ENTITY) return { ok: false, reason: 'Occupied' };
+        if (g.occupant[idx] !== NO_ENTITY && g.occupant[idx] !== moving) return { ok: false, reason: 'Occupied' };
         if (g.road[idx]) return { ok: false, reason: 'Living Highway in the way' };
         if (this.channelAt(idx)) return { ok: false, reason: 'Filtration channel in the way' };
       }
     }
     if (def.placement?.nearWater && !this.touchesWater(x, z, w, d)) return { ok: false, reason: 'Must touch the sea or a reservoir' };
-    if (def.requires && !isOpen(this.growth, def.requires)) return { ok: false, reason: `Locked: needs ${UNLOCK_NAMES[def.requires]}` };
-    if (def.limit) {
+    if (moving === NO_ENTITY && def.requires && !isOpen(this.growth, def.requires)) return { ok: false, reason: `Locked: needs ${UNLOCK_NAMES[def.requires]}` };
+    if (def.limit && moving === NO_ENTITY) {
       const max = def.limit.base + Math.floor(this.stats.population / def.limit.perPopulation);
       const idx = buildings.indexOf(def.id);
       const have = this.buildingEntities().filter((e) => Building.def[e] === idx).length;
       if (have >= max) return { ok: false, reason: `At most ${max} for now: more as the town grows` };
     }
-    if (this.credits < def.stats.cost) return { ok: false, reason: 'Not enough credits' };
+    if (this.credits < cost) return { ok: false, reason: 'Not enough credits' };
     if (!RoadNetworks.touchesRoad(g, x, z, w, d)) return { ok: true, warning: 'No highway access: no power or water' };
     return { ok: true };
   }
