@@ -20,8 +20,8 @@ export interface Difficulty {
 }
 
 export const DIFFICULTIES: Record<DifficultyId, Difficulty> = {
-  sandbox: { id: 'sandbox', label: 'Sandbox', description: 'No fail state, rich treasury, mild crises.', fail: false, eventRate: 1, severity: 0.7, creditMul: 5, interest: 0, seaRise: 0.15 },
+  sandbox: { id: 'sandbox', label: 'Sandbox', description: 'No fail state, plenty of credits, mild crises.', fail: false, eventRate: 1, severity: 0.7, creditMul: 5, interest: 0, seaRise: 0.15 },
   relaxed: { id: 'relaxed', label: 'Relaxed', description: 'Rare, gentle crises and cheap loans.', fail: true, eventRate: 1.2, severity: 0.75, creditMul: 1.4, interest: 0.01, seaRise: 0.2 },
   steward: { id: 'steward', label: 'Steward', description: 'The intended balance.', fail: true, eventRate: 2.2, severity: 1, creditMul: 1, interest: 0.02, seaRise: 0.35 },
-  hard: { id: 'hard', label: 'Hard', description: 'Frequent, fierce crises; expensive debt; thin treasury.', fail: true, eventRate: 3.5, severity: 1.3, creditMul: 0.65, interest: 0.035, seaRise: 0.5 },
+  hard: { id: 'hard', label: 'Hard', description: 'Frequent, fierce crises; expensive debt; few credits.', fail: true, eventRate: 3.5, severity: 1.3, creditMul: 0.65, interest: 0.035, seaRise: 0.5 },
 };

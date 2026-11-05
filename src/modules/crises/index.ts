@@ -148,7 +148,7 @@ export const crisesModule: GameModule = {
       const st = city.steward;
       warn.classList.toggle('hidden', st.failClock <= 0 || st.failed);
       if (st.failClock > 0) {
-        const why = [city.pulse.tiers.harmony === 4 && 'harmony has collapsed', city.pulse.tiers.budget === 4 && 'the treasury is deep in debt']
+        const why = [city.pulse.tiers.harmony === 4 && 'harmony has collapsed', city.pulse.tiers.budget === 4 && 'credits are deep in debt']
           .filter(Boolean)
           .join(' and ');
         setText(warn, `⚠ The council is losing confidence${why ? ` (${why})` : ''}: ${Math.max(0, FAIL_SECONDS - st.failClock)}s to turn it around`);

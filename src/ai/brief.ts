@@ -30,7 +30,7 @@ export function cityBrief(city: City): string {
   const strained = SYSTEMS.filter((k) => p.tiers[k] >= 2).map((k) => `${k} ${TIERS[p.tiers[k]]}`);
   const crises = city.steward.crises.map((c) => `${getCrisis(c.def).name} (${c.phase})`);
   return [
-    `Day ${city.day}, ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}. Treasury ${Math.round(city.credits)} credits (${net >= 0 ? '+' : ''}${net.toFixed(1)}/s), tax ${Math.round(p.taxRate * 100)}%.`,
+    `Day ${city.day}, ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}. Credits ${Math.round(city.credits)} (${net >= 0 ? '+' : ''}${net.toFixed(1)}/s), tax ${Math.round(p.taxRate * 100)}%.`,
     `Residents ${Math.round(s.population)} of ${Math.round(s.capacity)} homes; harmony ${Math.round(s.happiness)}/100; energy ${Math.round(p.energyRatio * 100)}%, water ${Math.round(p.waterRatio * 100)}%, food ${Math.round(p.foodRatio * 100)}% of demand; ${Math.round(p.unemployment * 100)}% unemployed.`,
     `Systems in trouble: ${strained.length ? strained.join(', ') : 'none'}.${crises.length ? ` Crises: ${crises.join(', ')}.` : ''}`,
     `Objects: ${sum.status.critical} critical, ${sum.status.warning} warning${issues ? ` (${issues})` : ''}.`,

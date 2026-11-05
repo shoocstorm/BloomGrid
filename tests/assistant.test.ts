@@ -404,7 +404,7 @@ describe('agent loop', () => {
   it('the brief names the city state in a few lines', () => {
     const s = founded();
     const b = cityBrief(s.city);
-    expect(b).toMatch(/Treasury \d+ credits/);
+    expect(b).toMatch(/Credits \d+ \(/);
     expect(b).toContain('Westbrook');
     expect(b.length).toBeLessThan(1200);
   });

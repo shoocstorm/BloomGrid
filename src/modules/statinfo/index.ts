@@ -365,7 +365,7 @@ class StatInfo {
     const def = buildings.get(p.type);
     const go = h('button', { class: 'si-build', title: `Build ${p.count > 1 ? `${p.count}× ` : ''}${p.name} in ${p.district}` }, icon('build'), `Build ◈${fmt(p.cost)}`) as HTMLButtonElement;
     go.disabled = ctx.city.credits < p.cost;
-    if (go.disabled) go.title = `Needs ◈${fmt(p.cost)}; the treasury has ◈${fmt(ctx.city.credits)}`;
+    if (go.disabled) go.title = `Needs ◈${fmt(p.cost)}; you have ◈${fmt(ctx.city.credits)}`;
     const el = h(
       'div',
       { class: 'si-prop' },

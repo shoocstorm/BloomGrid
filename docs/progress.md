@@ -12,7 +12,7 @@ sections whenever you stop working** (see AGENTS.md §6).
 | Phases done | **All roadmap phases 0–15** (8 = core; deferred items listed below), plus 2.5, 2.6 and the power/heat interlude                                                 |
 | Next phase  | No phase left: pick from the deferred list below, or merge to `main` (ask the user)                                                                             |
 | Tests       | 222 passing (`bun run test`), 31 Rust (`bun run test:rust`); `bun run check` clean                                                                                                              |
-| Save format | v15 (highway levels; v14 char and switches per building; v13 consequences; v12 building tier, age, thrive; v11 progression: name, unlocks, wonders, fish, Flora bill; v10 fireworks state; v9 zones, fires, ruins and the incident log in the steward state; migrations from v1–v9 in `src/sim/save.ts`)                                                                           |
+| Save format | v16 (food trend in the pulse history; v15 highway levels; v14 char and switches per building; v13 consequences; v12 building tier, age, thrive; v11 progression: name, unlocks, wonders, fish, Flora bill; v10 fireworks state; v9 zones, fires, ruins and the incident log in the steward state; migrations from v1–v9 in `src/sim/save.ts`)                                                                           |
 | Map         | 512×512 tiles (D-028), Singapore-like island (≈88k land tiles); founding city ≈2 000 buildings on one grid, ≈25k residents, water Strained (≈95%) |
 
 ### Measured baselines (headless Chrome, WebGPU, M-series, founding city, High quality)

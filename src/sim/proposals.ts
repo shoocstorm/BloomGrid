@@ -217,7 +217,7 @@ export function diagnose(city: City): string[] {
     mobility: `traffic flow ${pct(p.flow)}`,
     ecology: `bloom ${pct(p.bloomIndex)}`,
     harmony: `${Math.round(s.happiness)}/100`,
-    budget: `treasury ${fmt(city.credits)}, net ${(s.income + s.fishing + s.tourism - s.insurance - s.upkeep - s.debtService).toFixed(1)}/s`,
+    budget: `credits ${fmt(city.credits)}, net ${(s.income + s.fishing + s.tourism - s.insurance - s.upkeep - s.debtService).toFixed(1)}/s`,
   };
   return SYSTEMS.filter((k) => p.tiers[k] >= 2)
     .sort((a, b) => p.tiers[b] - p.tiers[a])

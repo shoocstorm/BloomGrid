@@ -240,7 +240,7 @@ function buildingDocs(): KnowledgeDoc[] {
             'Energy',
             'Water',
             'Food',
-            'Eco',
+            'Ecology',
             'Pollution',
             'Upkeep',
           ],

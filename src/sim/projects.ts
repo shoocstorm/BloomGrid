@@ -96,7 +96,7 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
       },
       { label: 'A Data Spire', ok: has(city, 'data-spire'), build: 'data-spire' },
       {
-        label: `Treasury of ${fmt(1500)} credits (${fmt(city.credits)})`,
+        label: `${fmt(1500)} credits saved (${fmt(city.credits)})`,
         ok: city.credits >= 1500,
         progress: toward(city.credits, 1500),
         credits: true,

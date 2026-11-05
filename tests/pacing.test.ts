@@ -86,11 +86,11 @@ function playthrough(seed: number, minutes: number) {
       else if (projectStatus(c, id) === 'ready' && s.commands.execute('startProject', { id }))
         at[`${id}:start`] = sec;
     }
-    // Saving up: once a project's criteria (bar the treasury) are met, only essentials get built until it starts.
+    // Saving up: once a project's criteria (bar the credits goal) are met, only essentials get built until it starts.
     const saving = PROJECT_IDS.find(
       (p) =>
         projectStatus(c, p) === 'blocked' &&
-        PROJECTS[p].criteria(c).every((k) => k.ok || k.label.startsWith('Treasury')),
+        PROJECTS[p].criteria(c).every((k) => k.ok || k.credits),
     );
     const id = want(s, plan.length > 0);
     if (!id) continue;

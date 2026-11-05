@@ -77,7 +77,7 @@ export const growthTools: AgentTool<ActionCtx, never>[] = [
     name: 'start_project',
     option: 'Start an unlock project (Sky-lane charter, the Aeroline)',
     description:
-      'Starts an unlock project once its criteria are met and the treasury can pay: "skylanes" (the Sky-lane charter: pod docks and hubs), "aeroline" (the maglev loop and its stations). It costs credits now and finishes after some sim days. Undoable until it finishes.',
+      'Starts an unlock project once its criteria are met and the credits cover it: "skylanes" (the Sky-lane charter: pod docks and hubs), "aeroline" (the maglev loop and its stations). It costs credits now and finishes after some sim days. Undoable until it finishes.',
     keywords: ['start', 'begin', 'unlock', 'charter', 'project', 'aeroline', 'sky-lanes', 'skylanes'],
     llmArgs: ['id'],
     input: {
@@ -104,7 +104,7 @@ export const growthTools: AgentTool<ActionCtx, never>[] = [
           .filter((c) => !c.ok)
           .map((c) => c.label);
         if (city.credits < def.cost)
-          missing.push(`◈${def.cost} to pay for it (treasury ◈${Math.round(city.credits)})`);
+          missing.push(`◈${def.cost} to pay for it (credits ◈${Math.round(city.credits)})`);
         throw new Error(`${def.name} can't start yet: ${missing.join('; ')}.`);
       }
       if (!commands.execute('startProject', { id }))

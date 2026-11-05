@@ -279,7 +279,7 @@ export const actionTools: AgentTool<ActionCtx, never>[] = [
     ) {
       const def = resolveType(a.type);
       if (city.credits < def.stats.cost)
-        throw new Error(`${def.name} costs ${def.stats.cost}; the treasury has ${money(city.credits)}.`);
+        throw new Error(`${def.name} costs ${def.stats.cost}; the city has ${money(city.credits)}.`);
       const c = siteCentre(city, a);
       const exact =
         a.x !== undefined && a.z !== undefined && !a.near && !a.district
@@ -404,7 +404,7 @@ export const actionTools: AgentTool<ActionCtx, never>[] = [
       const cost = path.reduce((s, t) => s + roadTileCost(city, t), 0);
       if (city.credits < cost)
         throw new Error(
-          `The route needs ${path.length} tiles costing ${money(cost)}; the treasury has ${money(city.credits)}.`,
+          `The route needs ${path.length} tiles costing ${money(cost)}; the city has ${money(city.credits)}.`,
         );
       if (!commands.execute('road', { tiles: path, bridges: true }))
         throw new Error('The city refused the highway route.');
@@ -527,7 +527,7 @@ export const actionTools: AgentTool<ActionCtx, never>[] = [
     name: 'repay_loan',
     option: 'Repay a loan in full',
     description:
-      'Repays a loan in full (the oldest when no id is given), if the treasury can cover what remains. Undoable.',
+      'Repays a loan in full (the oldest when no id is given), if the credits on hand cover what remains. Undoable.',
     input: {
       type: 'object',
       properties: {
@@ -544,7 +544,7 @@ export const actionTools: AgentTool<ActionCtx, never>[] = [
       if (!l) throw new Error(city.steward.loans.length ? `No loan ${loan}.` : 'There are no loans.');
       const owed = l.remaining;
       if (!commands.execute('repayLoan', { id: l.id }))
-        throw new Error(`Repaying needs ${money(owed)}; the treasury has ${money(city.credits)}.`);
+        throw new Error(`Repaying needs ${money(owed)}; the city has ${money(city.credits)}.`);
       return {
         repaid: l.id,
         paid: money(owed),

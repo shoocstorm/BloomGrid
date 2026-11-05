@@ -8,7 +8,7 @@ import { createFireworksState, type FireworksState } from './fireworksState';
 import { createGrowthState, type GrowthState } from './growthState';
 import { createConsequenceState, neutralMods, type ConsequenceState } from './consequenceState';
 
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 16;
 
 export interface SaveData {
   version: number;
@@ -133,6 +133,11 @@ export function migrateSave(data: SaveData): SaveData {
     // Highways before levels were all Living Highways.
     data.roadLevels = data.roads.map((t) => [t, 1, 0]);
     data.version = 15;
+  }
+  if (data.version === 15) {
+    // The food trend (top-bar Food indicator, D-113) starts empty.
+    (data.pulse.history as Record<string, number[]>).food ??= [];
+    data.version = 16;
   }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;

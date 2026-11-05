@@ -1,3 +1,4 @@
+import { INDICATOR_NAMES as N, SYSTEM_ORDER } from '@/sim/indicators';
 import type { GameContext } from '@/game/context';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
@@ -5,7 +6,7 @@ import { stripThink, type StepRecord, type ToolCall } from '@/ai/agent';
 import type { EngineState, LlmEngine } from '@/ai/llm/engine';
 import { device } from '@/ai/llm/device';
 import { availableModels, memoryFit, modelById, recommendedModel, type ModelDef } from '@/ai/llm/models';
-import { SYSTEMS, TIERS } from '@/sim/pulseState';
+import { TIERS } from '@/sim/pulseState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { getCrisis } from '@/sim/crises';
 import { listObjects, summarize } from '@/sim/inventory';
@@ -307,7 +308,7 @@ export class AssistantPanel {
         [
           ['Status report', 'Give me a short status report of the city.'],
           ['Fix the worst', 'Find the most critical problem and fix it.'],
-          ['Budget', 'How is our budget?'],
+          [N.credits, 'How are our credits doing?'],
           ['Crises', 'Are there any crises coming, and how do we prepare?'],
           ['Advice', 'What does the advisor recommend?'],
           ['Best for water', 'Which building is best for water?'],
@@ -633,7 +634,7 @@ export class AssistantPanel {
     const s = city.stats;
     const p = city.pulse;
     this.rail.systems.replaceChildren(
-      ...SYSTEMS.map((k) =>
+      ...SYSTEM_ORDER.map((k) =>
         h(
           'div',
           { class: `ai-sys-row t${p.tiers[k]}` },
@@ -652,10 +653,10 @@ export class AssistantPanel {
     const kv = (k: string, v: string, tone = '') =>
       h('div', { class: `row ${tone}` }, h('span', {}, k), h('b', {}, v));
     this.rail.vitals.replaceChildren(
-      kv('Treasury', fmt(city.credits), city.credits < 0 ? 'bad' : ''),
-      kv('Net / s', `${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(1)}`, net < 0 ? 'bad' : 'good'),
-      kv('Residents', `${fmt(s.population)} / ${fmt(s.capacity)}`),
-      kv('Harmony', `${Math.round(s.happiness)}`),
+      kv(N.credits, fmt(city.credits), city.credits < 0 ? 'bad' : ''),
+      kv('Credit flow / s', `${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(1)}`, net < 0 ? 'bad' : 'good'),
+      kv(N.residents, `${fmt(s.population)} / ${fmt(s.capacity)}`),
+      kv(N.harmony, `${Math.round(s.happiness)}`),
       kv(
         'Objects',
         `${fmt(this.objects.total)} · ${this.objects.critical} crit · ${this.objects.warning} warn`,
@@ -854,7 +855,7 @@ export class AssistantPanel {
       const sync = () => {
         const short = this.ctx.city.credits < p.cost;
         btn.disabled = short;
-        btn.title = short ? `Needs ◈${fmt(p.cost)}; the treasury has ◈${fmt(this.ctx.city.credits)}` : `Build ${p.build} in ${p.where}`;
+        btn.title = short ? `Needs ◈${fmt(p.cost)}; you have ◈${fmt(this.ctx.city.credits)}` : `Build ${p.build} in ${p.where}`;
       };
       sync();
       el.addEventListener('pointerenter', sync);

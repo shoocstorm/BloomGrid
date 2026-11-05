@@ -49,9 +49,9 @@ interface SearchArgs {
 export const inventoryTools: AgentTool<SimCtx, never>[] = [
   {
     name: 'city_overview',
-    option: 'Headline state of the city (treasury, residents, system health, crises)',
+    option: 'Headline state of the city (credits, residents, system health, crises)',
     description:
-      'Headline state of the city: day and time, treasury and net income, residents, harmony, system health tiers (Thriving…Collapse), supply ratios, active crises, how many objects are ok / warning / critical, and the worst few objects with their issues. Call this first to orient.',
+      'Headline state of the city: day and time, credits and credit flow, residents, harmony, system health tiers (Thriving…Collapse), supply ratios, active crises, how many objects are ok / warning / critical, and the worst few objects with their issues. Call this first to orient.',
     input: { type: 'object', properties: {} },
     effect: 'read',
     run({ city }) {

@@ -112,7 +112,7 @@ export const insightTools: AgentTool<SimCtx, never>[] = [
     name: 'budget_breakdown',
     option: 'Show where the money comes from and goes (taxes, upkeep by category, loans)',
     description:
-      'Income and spending per sim-second: resident and worker tax, upkeep by building category, loan repayments, and the net; plus loans outstanding and how long the treasury lasts at this rate.',
+      'Income and spending per sim-second: resident and worker tax, upkeep by building category, loan repayments, and the net; plus loans outstanding and how long the credits last at this rate.',
     input: { type: 'object', properties: {} },
     effect: 'read',
     run({ city }) {

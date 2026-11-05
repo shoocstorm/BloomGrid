@@ -58,13 +58,21 @@ body.compact {
 }
 .compact .clock .time {
   flex: none;
-  min-width: 0;
-  font-size: 11px;
+  font-size: 13px;
   white-space: nowrap;
 }
-.compact .seg button {
-  padding: 5px 5px;
-  font-size: 10.5px;
+.compact .cl-main {
+  gap: 7px;
+  padding-right: 4px;
+}
+.compact .cl-dial {
+  width: 28px;
+  height: 28px;
+}
+/* Phones: a bigger speed target (no right-click or wheel: a tap steps up, 8× wraps back to 1×). */
+.compact .cl-speed {
+  min-width: 42px;
+  padding: 6px 7px;
 }
 /* Portrait phones have no room for the season chip beside the speed control (it ran under the actions pill);
    City Pulse's Seasonal bloom section carries it. Landscape keeps it. */
@@ -554,4 +562,28 @@ body.compact.flora-open #hud > :not(.ai) {
 /* The inspector's details scroll inside it (`.ix-scroll`), so its action row stays pinned at the foot. */
 .compact .info:not(.hidden) {
   overflow: hidden;
+}
+
+/* Pause panel (D-114): a narrower card, no key hints (touch), the pill under the chip row. */
+.compact .pz-card {
+  padding: 16px 16px 12px;
+}
+.compact .pz-orb {
+  width: 54px;
+  height: 54px;
+}
+.compact .pz-go-t b {
+  font-size: 19px;
+}
+.compact .pz-stat b {
+  font-size: 16px;
+}
+.compact .pz-keys {
+  display: none;
+}
+.compact .pz-foot {
+  justify-content: flex-end;
+}
+.compact .pz-pill {
+  top: var(--chips, 104px);
 }

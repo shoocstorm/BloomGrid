@@ -1,8 +1,12 @@
-import { SYSTEMS, TAX_MAX, TAX_MIN, TIERS, type HistoryMetric, type SystemKey } from '@/sim/pulseState';
+import { TAX_MAX, TAX_MIN, TIERS, type HistoryMetric, type SystemKey } from '@/sim/pulseState';
 import type { GameContext } from '@/game/context';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { LOAN_SIZES, creditLimit, totalDebt } from '@/sim/finance';
+import { CREDIT_FLOW, INDICATOR_NAMES as N, SYSTEM_LABELS, SYSTEM_ORDER } from '@/sim/indicators';
+
+/** Re-exported for the modules that label systems (advisor, Flora, moments). */
+export { SYSTEM_LABELS };
 
 /** A console tab's handle: bring it forward, or mark its button (e.g. Flora-Net's urgent count). */
 export interface ConsoleTab {
@@ -30,16 +34,6 @@ declare module '@/core/Services' {
 
 const TAB_KEY = 'bloomgrid.console.tab';
 
-export const SYSTEM_LABELS: Record<SystemKey, string> = {
-  energy: 'Energy grid',
-  water: 'Water supply',
-  food: 'Food',
-  jobs: 'Employment',
-  mobility: 'Mobility',
-  ecology: 'Ecology',
-  harmony: 'Harmony',
-  budget: 'Budget',
-};
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -140,14 +134,14 @@ export class PulsePanel {
       'div',
       { class: 'pulse-sec' },
       h('div', { class: 'pulse-title' }, 'Seasonal bloom'),
-      h('div', { class: 'kv' }, h('span', {}, 'Bloom index'), this.bloomEl),
+      h('div', { class: 'kv' }, h('span', {}, N.bloom), this.bloomEl),
       h('div', { class: 'kv' }, h('span', {}, 'Clean energy'), this.cleanEl),
       h('div', { class: 'kv', title: 'Pedestrian activity across the built city; night glow follows it' }, h('span', {}, 'Night life'), this.nightEl),
       h('div', { class: 'kv', title: 'Flora-Net: built zones with moist, nourished soil (Soil water / Nutrients lenses)' }, h('span', {}, 'Soil health'), this.soilEl),
       h('div', { class: 'kv', title: 'Sea-level rise so far (Flood risk lens); Mangrove Seawalls protect the coast' }, h('span', {}, 'Sea level'), this.seaEl),
     );
     const health = h('div', { class: 'pulse-sec' }, h('div', { class: 'pulse-title' }, 'System health'));
-    for (const k of SYSTEMS) {
+    for (const k of SYSTEM_ORDER) {
       const dot = h('i', { class: 'tier-dot' });
       const tier = h('span', { class: 'tier-name' });
       const val = h('span', { class: 'tier-val' });
@@ -170,7 +164,7 @@ export class PulsePanel {
     this.taxLabel = h('b');
     this.taxInput.addEventListener('input', () => setText(this.taxLabel, `${this.taxInput.value}%`));
     this.taxInput.addEventListener('change', () => ctx.commands.execute('setTax', { rate: Number(this.taxInput.value) / 100 }));
-    const budget = h('div', { class: 'pulse-sec' }, h('div', { class: 'pulse-title' }, 'Budget (per second)'));
+    const budget = h('div', { class: 'pulse-sec' }, h('div', { class: 'pulse-title' }, CREDIT_FLOW));
     for (const [id, label] of [
       ['income', 'Tax income'],
       ['fishing', 'Fishing'],
@@ -299,7 +293,7 @@ export class PulsePanel {
     if (id === 'pulse' && this.rows.size) this.refresh();
   }
 
-  /** Repays loans (oldest first) while the treasury can afford them. */
+  /** Repays loans (oldest first) while the credits can afford them. */
   private repayAll(): void {
     for (const l of [...this.ctx.city.steward.loans]) if (this.ctx.city.credits >= l.remaining) this.ctx.commands.execute('repayLoan', { id: l.id });
   }
@@ -325,7 +319,7 @@ export class PulsePanel {
       harmony: `${Math.round(s.happiness)}`,
       budget: `${fmt(city.credits)}`,
     };
-    for (const k of SYSTEMS) {
+    for (const k of SYSTEM_ORDER) {
       const r = this.rows.get(k)!;
       const t = p.tiers[k];
       r.dot.className = `tier-dot t${t}`;

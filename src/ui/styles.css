@@ -114,25 +114,7 @@ button {
   padding: 6px 10px;
 }
 .clock .time {
-  min-width: 92px;
   font-variant-numeric: tabular-nums;
-}
-.seg {
-  display: flex;
-  gap: 2px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 10px;
-  padding: 2px;
-}
-.seg button {
-  padding: 4px 9px;
-  border-radius: 8px;
-  font-size: 13px;
-}
-.seg button.on {
-  background: var(--glass-strong);
-  color: #1d3a33;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 .stats {
   flex: 1;

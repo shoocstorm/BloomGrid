@@ -6,6 +6,7 @@ import { TAX_MAX, TAX_MIN, TIERS, tierFromRatio, type HistoryMetric, type Tier }
 import { creditLimit, LOAN_SIZES, totalDebt } from './finance';
 import { lockReason } from './projects';
 import type { ProposalFocus } from './proposals';
+import { INDICATOR_NAMES as N } from './indicators';
 
 /**
  * Stat guides (D-092): what each top-bar indicator means, what moves it right now and the steward's best levers,
@@ -14,7 +15,7 @@ import type { ProposalFocus } from './proposals';
  * data (build a category, place a type, show a lens, change the tax…) the UI turns into commands and services.
  */
 
-export const STAT_IDS = ['credits', 'pop', 'energy', 'water', 'eco', 'happy'] as const;
+export const STAT_IDS = ['credits', 'pop', 'energy', 'water', 'food', 'eco', 'happy'] as const;
 export type StatId = (typeof STAT_IDS)[number];
 
 /** One contribution to the indicator: signed for sums (credits/s, harmony points), 0..1 for limiting factors. */
@@ -136,7 +137,7 @@ function credits(city: City): StatGuide {
     city.credits < 0
       ? `In debt: austerity pays only 40% of upkeep, so buildings and highways decay.`
       : net < 0
-        ? `Losing ◈${Math.abs(net).toFixed(1)}/s: about ${fmt(runway / 60)} min until the treasury is empty.`
+        ? `Losing ◈${Math.abs(net).toFixed(1)}/s: about ${fmt(runway / 60)} min until credits run out.`
         : `Earning ◈${net.toFixed(1)}/s after upkeep${debt > 0 ? ' and loan repayments' : ''}.`;
   const taxHarm = 1.5; // harmony points per tax percent (pulse: −(rate − 0.1) × 150)
   const limit = creditLimit(city);
@@ -146,14 +147,14 @@ function credits(city: City): StatGuide {
   const urgent = city.credits < 0 || runway < 600;
   return {
     id: 'credits',
-    title: 'Credits',
+    title: N.credits,
     icon: 'credits',
     value: `◈${fmt(city.credits)}`,
     sub: `${signed(net)}/s`,
     tier,
     tierName: TIERS[tier],
     status,
-    meaning: 'The city treasury. Taxes, fishing and visitors pay in every second; building upkeep, insurance and loan repayments pay out. Building costs come out of it up front.',
+    meaning: 'The credits the city holds. Taxes, fishing and visitors pay in every second; building upkeep, insurance and loan repayments pay out. Building costs come out of it up front.',
     gauge: null,
     partsTitle: 'Cash flow per second',
     partsKind: 'sum',
@@ -210,7 +211,7 @@ function residents(city: City): StatGuide {
           : `${pct(occ)} of homes filled.`;
   return {
     id: 'pop',
-    title: 'Residents',
+    title: N.residents,
     icon: 'people',
     value: fmt(s.population),
     sub: `of ${fmt(s.capacity)} homes`,
@@ -271,7 +272,7 @@ function utility(city: City, kind: 'energy' | 'water'): StatGuide {
   const need = margin < 0 || short.length > 0 || ratio < 1.1;
   return {
     id: kind,
-    title: energy ? 'Energy' : 'Water',
+    title: energy ? N.energy : N.water,
     icon: kind,
     value: `${margin >= 0 ? '+' : '−'}${fmt(Math.abs(margin))}`,
     sub: `${fmt(made)} made · ${fmt(used)} used`,
@@ -304,6 +305,56 @@ function utility(city: City, kind: 'energy' | 'water'): StatGuide {
   };
 }
 
+function food(city: City): StatGuide {
+  const s = city.stats;
+  const p = city.pulse;
+  const made = s.foodProduced;
+  const need = s.population;
+  const ratio = p.foodRatio;
+  const tier = p.tiers.food;
+  const margin = made - need;
+  const status =
+    need < 1
+      ? 'No residents to feed yet.'
+      : ratio < 0.95
+        ? `Short: farms and fisheries feed ${pct(ratio)} of residents. Hunger costs up to 20 harmony.`
+        : ratio < 1.15
+          ? `Everyone is fed, with a thin ${pct(ratio - 1)} to spare.`
+          : `Plenty: ${pct(ratio)} of what residents eat.`;
+  const short = need >= 1 && ratio < 1.1;
+  return {
+    id: 'food',
+    title: N.food,
+    icon: 'food',
+    value: need < 1 ? '—' : pct(ratio),
+    sub: `${fmt(made)} grown · ${fmt(need)} eaten`,
+    tier,
+    tierName: TIERS[tier],
+    status,
+    meaning:
+      'Food grown and caught against what residents eat (one share each). Farms, gardens and fishing docks only produce with workers and power, so a staffing or energy shortage shows up here too. Hungry residents lower harmony and growth.',
+    gauge: need >= 1 ? { value: Math.min(ratio, 1.5), min: 0, max: 1.5, mark: 1, label: 'Grown ÷ eaten', text: pct(ratio) } : null,
+    partsTitle: 'Grown and eaten',
+    partsKind: 'sum',
+    parts: [
+      { label: 'Grown and caught', value: made, text: fmt(made), tone: 'good' },
+      { label: 'Eaten', value: -need, text: fmt(need), tone: 'bad', note: 'one share per resident' },
+      { label: margin >= 0 ? 'Spare' : 'Short', value: margin, text: `${margin >= 0 ? '+' : '−'}${fmt(Math.abs(margin))}`, tone: margin >= 0 ? 'good' : 'bad' },
+    ],
+    history: 'food',
+    tips: [
+      short ? 'Keep 10–15% spare: every new home adds mouths before its farm is staffed.' : 'Food output follows workers: a jobs shortage starves the farms first.',
+      'Fishing docks feed the city from the sea; rice terraces and hanging gardens grow on land and add greenery.',
+      'Harvest season grows 25% more and the Haze a little less; healthy soil and bloom raise every farm, blight cuts them.',
+    ],
+    levers: sorted([
+      place(city, 'food', 'food', short ? 'covers the shortfall' : 'room to grow', short ? 4 - Math.min(1, ratio) : 0.8, 'food'),
+      { label: 'All food buildings', detail: 'compare output and cost in build mode', action: { kind: 'category', category: 'food' }, weight: 0.3 },
+    ]),
+    focus: 'food',
+  };
+}
+
 function ecology(city: City): StatGuide {
   const s = city.stats;
   const p = city.pulse;
@@ -319,7 +370,7 @@ function ecology(city: City): StatGuide {
         : `Healthy: ${avg.toFixed(1)} per building, bloom ${pct(p.bloomIndex)}.`;
   return {
     id: 'eco',
-    title: 'Ecology',
+    title: N.ecology,
     icon: 'eco',
     value: fmt(s.eco),
     sub: `${avg.toFixed(1)} per building`,
@@ -394,7 +445,7 @@ function harmony(city: City): StatGuide {
   const focusOf: Partial<Record<string, ProposalFocus>> = { services: weaker(city), jobs: 'jobs', food: 'food', ecology: 'ecology', traffic: 'traffic', bloom: 'ecology' };
   return {
     id: 'happy',
-    title: 'Harmony',
+    title: N.harmony,
     icon: 'happy',
     value: `${Math.round(s.happiness)}`,
     sub: '/ 100',
@@ -427,6 +478,8 @@ export function statGuide(city: City, id: StatId): StatGuide {
     case 'energy':
     case 'water':
       return utility(city, id);
+    case 'food':
+      return food(city);
     case 'eco':
       return ecology(city);
     case 'happy':

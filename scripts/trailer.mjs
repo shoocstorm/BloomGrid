@@ -10,7 +10,7 @@
  *   6. Aeroline train ride into dusk (explore, caption card)
  *   7. night fireworks: heart then butterfly (caption card; tick-paced shows)
  *   8. rings, then "BLOOM ♥" written in the sky
- *   9. night sea: the Tidewatch Lighthouse, beam sweeping (caption card)
+ *   9. night sea: the Lotus Atoll, glowing flowers on dark water (caption card)
  *   10. fires ignite, Flora console opens, a live question is sent
  *   11. Flora AI answers: real Qwen3 1.7B tool calls and text streaming in the console (caption card)
  *   12. Bloom Retrofit wave at dawn     13. Flora-Net hive + drone mist
@@ -24,11 +24,13 @@
  * a real question about the fires; the answer streams into the console across shots 10–11.
  *
  * Time discipline: the capture loop is far slower than real time (a frame takes 0.3–1s wall), so the
- * engine is stopped between frames and every frame steps it exactly `1/fps` of wall time
- * (`window.__bgStep`, installed at boot). Everything clock-driven — the drone flight, chase cameras,
- * the Aeroline train, wind rotors, waves, firework sparks, the lighthouse beam — then advances at true
- * video speed instead of racing ahead and stalling (the drone used to reach the spire and embed in it
- * two seconds into its shot).
+ * engine is stopped for the whole capture and every frame is advanced by hand — `window.__bgFrame`
+ * (installed at boot) runs the input, one sim tick, sync and render phases with an exact dt of 1/fps.
+ * Everything integrated from dt (wind rotors, the drone, chase cameras, the train ride) and everything
+ * accumulated onto `U.clock` (waves, beam, sparks, pods) then advances at exact video speed; a timed
+ * engine step always left per-frame variance that read as turbines stuttering and cameras trembling.
+ * The camera's target height is additionally pinned to the terrain: `lookAt` resets it to 0 and the
+ * smoother would otherwise only partway re-climb it, unevenly, on raised ground.
  *
  * Each shot's frames are captured into its own segment directory and the encode chains ffmpeg `xfade`
  * dissolves between them, so the whole trailer reads as one continuous move. Caption cards are
@@ -95,18 +97,19 @@ const EXIT_TRAIN = `window.bloomgrid.services.get('explore').setMode('city')`;
 // Drone flight: enter drone mode on the hero avenue south of the spire and fly it WEST along the
 // street itself. The heading is found live from `grid.road` (an east-west street that spans the
 // approach): roads are building-free by construction, so the drone cannot freeze against a hero
-// tower the way a diagonal cross-block route did. It cruises at ~+8 (above the boulevard trees,
-// under the Aeroline viaduct) with the Wellspring Spire sliding past on the right. Keys: W + Shift
-// (fast) + E (climb) lift off, E drops at 1.6s (~+8), Shift at 4.4s, W at 5.9s into the cut.
+// tower the way a diagonal cross-block route did. It climbs to ~+8 (above the boulevard trees, under
+// the Aeroline viaduct), then holds full speed to the very last frame — the chase cam keeps the
+// quadcopter dead centre, and the cut into the Aeroline ride is an expanding-circle wipe from it:
+// the propeller disc becomes the window into the next scene. Keys: W + Shift (fast) + E (climb)
+// lift off, E drops at 1.6s (~+8); W and Shift stay held.
 const ENTER_DRONE = () => `(() => {
   const g = window.bloomgrid;
   const grid = g.city.grid;
-  // The east-west avenue nearest the spawn: a z whose road tiles run unbroken from the spire's
-  // column to the spawn column.
+  // The east-west avenue nearest the spawn: a z whose road tiles run unbroken well past the flight.
   let streetZ = -1;
   for (let z = ${Math.round(238 - 12)}; z <= ${Math.round(238 + 12)} && streetZ < 0; z++) {
     let ok = true;
-    for (let x = ${Math.round(spire.x)}; x <= 292 && ok; x++) ok = !!grid.road[grid.index(x, z)];
+    for (let x = ${Math.round(spire.x - 22)}; x <= 292 && ok; x++) ok = !!grid.road[grid.index(x, z)];
     if (ok) streetZ = z;
   }
   // Fallback if no continuous street shows up: aim past the spire, high and to one side.
@@ -114,7 +117,7 @@ const ENTER_DRONE = () => `(() => {
   const dz = ${spire.z.toFixed(1)} - 238;
   const len = Math.hypot(dx, dz) || 1;
   const sz = streetZ >= 0 ? streetZ : 238;
-  const ax = streetZ >= 0 ? 240 : 292 + dx + 16 * (dx / len) + 13 * (dz / len);
+  const ax = streetZ >= 0 ? 234 : 292 + dx + 16 * (dx / len) + 13 * (dz / len);
   const az = streetZ >= 0 ? streetZ : 238 + dz + 16 * (dz / len) - 13 * (dx / len);
   const cam = g.cameraCtl;
   cam.lookAt(292, sz, 16, true);
@@ -208,8 +211,9 @@ const shots = [
     tod: (t) => lerp(0.6, 0.66, t),
     view: (t) => ({ x: 252, z: lerp(416, 441, t), yaw: lerp(2.6, 3.14, t), pitch: lerp(0.56, 0.46, t), dist: lerp(82, 46, t) }),
   },
-  // Drone flight: the quadcopter climbs off the hero avenue, rises over the rooftops and glides past
-  // the Wellspring Spire at golden hour (chase camera behind the drone, `at` paces the keys).
+  // Drone flight: the quadcopter lifts off the hero avenue, climbs over the boulevard trees and runs
+  // the street at full tilt, the city streaming past — held centre frame so the cut into the Aeroline
+  // ride reads as a wipe through the propeller disc.
   {
     dur: 6.3,
     free: true,
@@ -217,11 +221,7 @@ const shots = [
     enter: ENTER_DRONE,
     exit: EXIT_DRONE,
     tod: () => 0.7,
-    at: [
-      [1.6, `window.bloomgrid.input.keys.delete('KeyE')`],
-      [4.4, `window.bloomgrid.input.keys.delete('ShiftLeft')`],
-      [5.9, `window.bloomgrid.input.keys.delete('KeyW')`],
-    ],
+    at: [[1.6, `window.bloomgrid.input.keys.delete('KeyE')`]],
   },
   // The Aeroline carries the camera round the loop as dusk falls and the stations light up.
   { dur: 7.0, free: true, card: 'train', enter: ENTER_TRAIN, exit: EXIT_TRAIN, tod: (t) => lerp(0.74, 0.86, t) },
@@ -267,15 +267,13 @@ const shots = [
       dist: lerp(150, 138, t),
     }),
   },
-  // Night sea: the Tidewatch Lighthouse from open water, close and low so the tower and its two
-  // sweeping beam cones read against the dark (the beam is faint — opacity 0.22 — so the camera stays
-  // near), the lit north shore glittering behind. The beam turns with U.clock: the engine stepping
-  // keeps the sweep at video speed.
+  // Night sea: the Lotus Atoll from open water — giant lily pads and lotus flowers glowing softly on
+  // the dark (aGlow rides U.night), the lit north shore glittering behind.
   {
     dur: 4.6,
     card: 'sea',
     tod: () => 0.95,
-    view: (t) => ({ x: 471, z: 41, yaw: lerp(2.42, 2.78, t), pitch: lerp(0.16, 0.1, t), dist: lerp(40, 22, t) }),
+    view: (t) => ({ x: 230, z: 31, yaw: lerp(Math.PI - 0.22, Math.PI + 0.16, t), pitch: lerp(0.16, 0.11, t), dist: lerp(36, 24, t) }),
   },
   {
     dur: 4.6,
@@ -320,8 +318,12 @@ const shots = [
   },
 ];
 // Dissolve per boundary (after shots 1..13): quick cuts through the daytime run, longer breaths into
-// the night acts, dawn and the end. Pacing device — the trailer sprints, then lands.
-const XF = [0.35, 0.35, 0.35, 0.5, 0.5, 0.7, 0.45, 0.35, 0.35, 0.5, 0.7, 0.5, 0.8];
+// the night acts, dawn and the end. Pacing device — the trailer sprints, then lands. The drone→Aeroline
+// cut (boundary 4) is longer and an expanding-circle wipe: the drone sits dead centre from its chase
+// cam, so the circle opens out of the propeller disc into the ride — the "propeller becomes the ring".
+const XF = [0.35, 0.35, 0.35, 0.5, 0.7, 0.7, 0.45, 0.35, 0.35, 0.5, 0.7, 0.5, 0.8];
+const XT = XF.map(() => 'fade');
+XT[4] = 'circleopen';
 const scale = seconds / PLAN;
 shots.forEach((s) => {
   s.dur *= scale;
@@ -420,7 +422,7 @@ const seaPng = await card(
 const floraPng = await card(
   [
     ['MEET FLORA', 40, 12, 0],
-    ['the city\u2019s AI steward \u00b7 runs locally', 23, 4, 14, '#dbffe9'],
+    ['here to assist you, by your side', 23, 4, 14, '#dbffe9'],
   ],
   'bottom',
 );
@@ -465,26 +467,25 @@ await page.evaluate(async () => {
   return { hive: { x: h.x, z: h.z }, yard: { x: y.x, z: y.z }, spire: { x: s.x + 7, z: s.z + 7 } };
 }));
 const od = await page.evaluate(() => window.bloomgrid.cameraCtl.overviewDistance);
-// Time discipline: the engine is stopped between captured frames and each frame steps it exactly
-// 1/fps of wall time (see the header). Without this everything clock-driven runs at capture speed —
-// the drone crossed its whole route in the first two seconds of video and then sat in the spire.
-// U.clock is additionally pinned to video time each frame and the camera's target height is pinned to
-// the terrain: both would otherwise advance only partially during the short steps, by an amount that
-// depends on how many engine frames happened to fit — that variance read as the camera trembling.
+// Time discipline: the engine is stopped for the whole capture and each frame is advanced by hand —
+// input, one sim tick, sync and render phases run with an exact dt of 1/fps (see the header). A timed
+// engine step could never be frame-exact: everything integrated from dt (wind rotors, the drone, chase
+// cameras) or accumulated onto U.clock advanced by whatever the rAF cadence happened to be, and that
+// variance read as turbines stuttering and the camera trembling. The render phase submits out of rAF,
+// so one requestAnimationFrame is awaited for the compositor before the loop's screenshot.
 await page.evaluate(() => {
   const g = window.bloomgrid;
   g.engine.stop();
-  window.__bgStep = (ms) =>
-    new Promise((res) => {
-      const e = g.engine;
-      e.start();
-      const t0 = performance.now();
-      const check = () => {
-        if (performance.now() - t0 >= ms) return (e.stop(), res());
-        requestAnimationFrame(check);
-      };
-      requestAnimationFrame(check);
-    });
+  let t = 0;
+  window.__bgFrame = (dt) => {
+    t += dt;
+    const f = { dt, tickDt: dt, alpha: 0, elapsed: t, tick: g.city.tick };
+    g.systems.run('input', g, f);
+    g.engine.stepTicks(1); // one sim tick per video frame: pulses fire from the tick pins
+    g.systems.run('sync', g, f);
+    g.systems.run('render', g, f);
+    return new Promise((res) => requestAnimationFrame(() => res()));
+  };
 });
 // Reach the *app's* uniforms module (importing '/src/render/uniforms.ts' fresh would give a second
 // instance, see AGENTS gotchas) so the per-frame clock pin drives the real `U`.
@@ -594,9 +595,9 @@ for (let f = 0; f < totalFrames; f++) {
       if (window.__bgU) window.__bgU.clock.value = clock;
     }, v, tod, tick, time);
   }
-  // Advance the world by exactly one video frame (the engine is stopped between captures; see header),
-  // then grab the presented frame.
-  await page.evaluate((ms) => window.__bgStep(ms), 1000 / fps);
+  // Advance the world by exactly one video frame: input + one sim tick + sync + render at dt = 1/fps,
+  // then one rAF for the compositor, then grab the presented frame.
+  await page.evaluate((dt) => window.__bgFrame(dt), 1 / fps);
   await page.screenshot({ path: join(segDir(i), `f${String(segFrame++).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 94 });
   if (f % 150 === 0) console.log(`[trailer] frame ${f}/${totalFrames} (${((Date.now() - t0) / 1000).toFixed(0)}s elapsed)`);
 }
@@ -626,7 +627,7 @@ let prev = '[0:v]';
     const d = xfs[k];
     const off = Math.max(0, len - d);
     const label = `[x${idx}]`;
-    graph.push(`${prev}[${idx}:v]xfade=transition=fade:duration=${d.toFixed(2)}:offset=${off.toFixed(2)}${label}`);
+    graph.push(`${prev}[${idx}:v]xfade=transition=${XT[k]}:duration=${d.toFixed(2)}:offset=${off.toFixed(2)}${label}`);
     prev = label;
     len = off + segDur[idx];
   });

@@ -1,0 +1,319 @@
+/* Pause panel (D-114). Entrance and the orb's rings animate transform / opacity only (§7½); no backdrop-filter. */
+.pz {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.pz.hidden {
+  display: none;
+}
+.pz-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(2, 10, 12, 0.5), rgba(2, 10, 12, 0.18) 55%, transparent 80%);
+  animation: pz-fade 0.4s ease-out both;
+}
+.pz-card {
+  position: relative;
+  pointer-events: auto;
+  width: min(520px, calc(100vw - 32px));
+  padding: 22px 24px 16px;
+  border-radius: var(--radius);
+  animation: pz-in 0.45s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+.pz.folded .pz-card,
+.pz.folded .pz-veil {
+  display: none;
+}
+@keyframes pz-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+}
+@keyframes pz-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Resume: a big glowing orb with two rings breathing outward, and its label. */
+.pz-go {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  margin: 18px 0 16px;
+  padding: 12px 16px 12px 12px;
+  border-radius: var(--pill);
+  border: 1px solid var(--line-strong);
+  background: linear-gradient(90deg, rgba(95, 242, 218, 0.16), rgba(142, 240, 122, 0.06) 60%, transparent);
+  color: var(--ink);
+  text-align: left;
+}
+.pz-go:hover {
+  background: linear-gradient(90deg, rgba(95, 242, 218, 0.26), rgba(142, 240, 122, 0.1) 60%, transparent);
+}
+.pz-go:hover .pz-orb-c {
+  transform: scale(1.06);
+}
+.pz-orb {
+  position: relative;
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+.pz-orb-c {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #d9fff6, var(--accent) 45%, #1f9e8a);
+  color: #06201d;
+  box-shadow: 0 0 22px rgba(95, 242, 218, 0.55);
+  transition: transform 0.2s;
+}
+.pz-orb-c .ico {
+  width: 26px;
+  height: 26px;
+  margin-left: 3px;
+}
+.pz-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: pz-ring 2.4s ease-out infinite;
+}
+.pz-ring.r2 {
+  animation-delay: 1.2s;
+}
+@keyframes pz-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+.pz-go-t {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pz-go-t b {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.pz-go-s {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+
+/* The city at a glance. */
+.pz-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.pz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+  border: 1px solid var(--line);
+}
+.pz-stat-k {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.pz-stat-k .ico {
+  width: 13px;
+  height: 13px;
+}
+.pz-stat b {
+  font-family: var(--mono);
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.pz-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.pz-sys {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: var(--pill);
+  border: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.pz-sys.warn {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.pz-focus {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: rgba(255, 207, 106, 0.08);
+  border: 1px solid rgba(255, 207, 106, 0.28);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.pz-focus b {
+  white-space: nowrap;
+}
+.pz-focus .ico {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+}
+.pz-focus.ok {
+  background: rgba(95, 242, 176, 0.07);
+  border-color: rgba(95, 242, 176, 0.25);
+}
+.pz-focus.t3,
+.pz-focus.t4 {
+  background: rgba(255, 90, 110, 0.09);
+  border-color: rgba(255, 90, 110, 0.35);
+}
+.pz-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.pz-keys {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pz kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--line-strong);
+  background: var(--bg-raise);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-align: center;
+  color: var(--ink);
+}
+.pz-sep {
+  width: 1px;
+  height: 10px;
+  margin: 0 5px;
+  background: var(--line);
+}
+.pz-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 5px 10px;
+  border-radius: var(--pill);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+.pz-fold:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.pz-fold .ico {
+  width: 13px;
+  height: 13px;
+}
+
+/* Folded: a pill under the top bar that still resumes on a click. */
+.pz-pill {
+  display: none;
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border-radius: var(--pill);
+  border: 1px solid rgba(255, 207, 106, 0.5);
+  background: var(--bg-strong);
+  color: var(--warn);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  animation: pz-drop 0.3s ease-out both;
+}
+.pz.folded .pz-pill {
+  display: inline-flex;
+}
+.pz-pill:hover {
+  border-color: var(--warn);
+}
+.pz-pill-i {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--warn);
+  color: #2b1e00;
+}
+.pz-pill-i .ico {
+  width: 12px;
+  height: 12px;
+  margin-left: 2px;
+}
+@keyframes pz-drop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pz-ring {
+    animation: none;
+    opacity: 0;
+  }
+}
+.pz-fold kbd {
+  margin-left: 2px;
+}
+.compact .pz-fold kbd {
+  display: none;
+}

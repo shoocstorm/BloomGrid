@@ -11,6 +11,7 @@ import { DEMOLISH_REFUND } from '@/sim/commands';
 import { MAX_TIER, ageDays, levels, renovateCost, upgradeBlocker, upgradeCost } from '@/sim/levels';
 import { buildingReport, type BuildingReport, type FlowKey, type FlowLine } from '@/sim/buildingReport';
 import { rulesFor } from '@/sim/consequences';
+import { INDICATOR_NAMES as N } from '@/sim/indicators';
 import type { GameContext, GameModule } from '@/game/context';
 import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from './dom';
@@ -21,12 +22,13 @@ const fmt = (n: number) => Math.round(n).toLocaleString();
 /** How many steps the status bar may shed to fit (see `fitStats`). */
 const FIT_LEVELS = 7;
 
-function timeLabel(t: number, day: number, short: boolean): string {
+function timeLabel(t: number): string {
   const mins = Math.floor(t * 24 * 60);
-  const hh = String(Math.floor(mins / 60)).padStart(2, '0');
-  const mm = String(mins % 60).padStart(2, '0');
-  return short ? `D${day} ${hh}:${mm}` : `Day ${day} · ${hh}:${mm}`;
+  return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 }
+
+/** Play speeds the speed chip steps through (Space pauses; 1–3 pick one). */
+const SPEEDS = [1, 3, 8];
 
 /**
  * Fits an inspector action row: full labels, then tighter buttons without prices (`snug`), then icons only
@@ -53,8 +55,11 @@ class Hud {
   private statEls = new Map<string, { el: HTMLElement; v: HTMLElement; sub: HTMLElement }>();
   /** Panels that become exclusive sheets on phones (see `sheet`). */
   private sheets: HTMLElement[] = [];
-  private timeEl!: HTMLElement;
-  private speedBtns: HTMLButtonElement[] = [];
+  /** The clock: a day dial (play / pause), the time and day, and one speed chip. */
+  private clock!: { el: HTMLElement; time: HTMLElement; day: HTMLElement; dial: HTMLElement; main: HTMLButtonElement; speed: HTMLButtonElement; x: HTMLElement };
+  /** The speed play resumes at (the chip shows it while paused). */
+  private playSpeed = 1;
+  private clockShown = { t: -1, speed: -1, play: -1 };
   /** Bottom dock: the tool hint on phones, the build sheet (phones) and the row below it. */
   dock!: HTMLElement;
   /** The dock's row; modules add a button to it (Flora's orb, the Build launcher on phones). */
@@ -196,20 +201,78 @@ class Hud {
     while (this.toasts.children.length > 3) this.toasts.firstChild!.remove();
   }
 
+  /**
+   * The clock: one button for the day (a dial whose sun or moon circles with the hour, play / pause in its centre,
+   * the time and day beside it) and one speed chip (click: faster, right-click or wheel: slower; it starts play
+   * when paused). Space and 1–3 still work from the keyboard.
+   */
+  private buildClock(): HTMLElement {
+    const { engine } = this.ctx;
+    const time = h('span', { class: 'time' });
+    const day = h('span', { class: 'cl-day' });
+    const dial = h('span', { class: 'cl-dial', 'aria-hidden': 'true' }, h('span', { class: 'cl-orbit' }), h('span', { class: 'cl-face' }));
+    const main = h(
+      'button',
+      { class: 'cl-main', onClick: () => (engine.speed = engine.speed ? 0 : this.playSpeed) },
+      dial,
+      h('span', { class: 'cl-read' }, time, day),
+    ) as HTMLButtonElement;
+    const x = h('b', { class: 'cl-x' });
+    const speed = h(
+      'button',
+      { class: 'cl-speed', onClick: () => this.stepSpeed(1, true) },
+      x,
+      h('span', { class: 'cl-pips', 'aria-hidden': 'true' }, ...SPEEDS.map(() => h('i'))),
+    ) as HTMLButtonElement;
+    speed.addEventListener('contextmenu', (e) => (e.preventDefault(), this.stepSpeed(-1)));
+    speed.addEventListener('wheel', (e) => (e.preventDefault(), e.stopPropagation(), this.stepSpeed(e.deltaY < 0 ? 1 : -1)), { passive: false });
+    const el = h('div', { class: 'clock panel' }, main, speed);
+    this.clock = { el, time, day, dial, main, speed, x };
+    return el;
+  }
+
+  /** One step up or down the play speeds (a click wraps from the top back to 1×); from a pause, the first step plays. */
+  private stepSpeed(dir: 1 | -1, wrap = false): void {
+    const { engine } = this.ctx;
+    const i = Math.max(0, SPEEDS.indexOf(this.playSpeed)) + dir;
+    const n = SPEEDS.length;
+    if (engine.speed) this.playSpeed = SPEEDS[wrap ? (i + n) % n : Math.min(n - 1, Math.max(0, i))]!;
+    engine.speed = this.playSpeed;
+    this.updateClock(this.ctx.city.timeOfDay, this.ctx.city.day, engine.speed);
+  }
+
+  private updateClock(t: number, day: number, speed: number): void {
+    const c = this.clock;
+    if (speed) this.playSpeed = speed;
+    const shown = this.clockShown;
+    if (Math.abs(t - shown.t) > 0.0005) {
+      shown.t = t;
+      setText(c.time, timeLabel(t));
+      setText(c.day, `Day ${day}`);
+      c.dial.style.setProperty('--t', t.toFixed(4));
+      c.el.classList.toggle('night', t < 0.25 || t > 0.79);
+    }
+    const play = speed ? 1 : 0;
+    if (play !== shown.play || this.playSpeed !== shown.speed) {
+      shown.play = play;
+      shown.speed = this.playSpeed;
+      c.el.classList.toggle('paused', !play);
+      const face = c.dial.lastElementChild!;
+      face.replaceChildren(icon(play ? 'pause' : 'play'));
+      const label = play ? 'Pause (Space)' : 'Play (Space)';
+      c.main.title = label;
+      c.main.setAttribute('aria-label', label);
+      setText(c.x, `${this.playSpeed}×`);
+      const lit = SPEEDS.filter((v) => v <= this.playSpeed).length;
+      [...c.speed.lastElementChild!.children].forEach((p, i) => p.classList.toggle('on', i < lit));
+      c.speed.title = `Speed ${this.playSpeed}× · click: next speed · right-click or scroll: slower · keys 1–3`;
+      c.speed.setAttribute('aria-label', `Speed ${this.playSpeed}×, click for faster`);
+    }
+  }
+
   private buildTopBar(): void {
     const { ctx } = this;
-    this.timeEl = h('span', { class: 'time' });
-    const seg = h('div', { class: 'seg' });
-    [
-      ['pause', 0],
-      ['play', 1],
-      ['fast', 3],
-      ['fastest', 8],
-    ].forEach(([name, speed]) => {
-      const b = h('button', { title: speed ? `Speed ${speed}x` : 'Pause', 'aria-label': speed ? `Speed ${speed}x` : 'Pause', onClick: () => (ctx.engine.speed = speed as number) }, icon(name as string));
-      this.speedBtns.push(b);
-      seg.append(b);
-    });
+    const clock = this.buildClock();
     const stats = (this.stats = h('div', { class: 'stats panel' }));
     const stat = (id: string, key: string, extra?: HTMLElement) => {
       const v = h('span');
@@ -222,13 +285,14 @@ class Hud {
       this.statEls.set(id, { el, v, sub });
       stats.append(el);
     };
-    stat('credits', 'credits Credits');
-    stat('pop', 'people Residents');
-    stat('energy', 'energy Energy');
-    stat('water', 'water Water');
-    stat('eco', 'eco Eco');
+    stat('credits', `credits ${N.credits}`);
+    stat('pop', `people ${N.residents}`);
+    stat('energy', `energy ${N.energy}`);
+    stat('water', `water ${N.water}`);
+    stat('food', `food ${N.food}`);
+    stat('eco', `eco ${N.ecology}`);
     this.happyMeter = h('i');
-    stat('happy', 'happy Harmony', h('div', { class: 'meter' }, this.happyMeter));
+    stat('happy', `happy ${N.harmony}`, h('div', { class: 'meter' }, this.happyMeter));
 
     this.undoBtn = h('button', { class: 'icon-btn', title: 'Undo (⌘Z)', 'aria-label': 'Undo', onClick: () => ctx.commands.undo() }, icon('undo'));
     this.redoBtn = h('button', { class: 'icon-btn opt', title: 'Redo (⇧⌘Z)', 'aria-label': 'Redo', onClick: () => ctx.commands.redo() }, icon('redo'));
@@ -262,7 +326,7 @@ class Hud {
         h('span', { class: 'logo' }),
         h('b', {}, 'BloomGrid', this.brandSub),
       ),
-      h('div', { class: 'clock panel' }, this.timeEl, seg),
+      clock,
       stats,
       actions,
     );
@@ -883,9 +947,7 @@ class Hud {
     }
     const { city, engine } = ctx;
     const s = city.stats;
-    setText(this.timeEl, timeLabel(city.timeOfDay, city.day, document.body.classList.contains('compact')));
-    const speeds = [0, 1, 3, 8];
-    this.speedBtns.forEach((b, i) => b.classList.toggle('on', speeds[i] === engine.speed));
+    this.updateClock(city.timeOfDay, city.day, engine.speed);
     const set = (id: string, text: string, bad = false, sub = '') => {
       const e = this.statEls.get(id)!;
       setText(e.v, text);
@@ -897,6 +959,8 @@ class Hud {
     set('pop', fmt(s.population), false, ` / ${fmt(s.capacity)}`);
     set('energy', `${fmt(s.energyProduced - s.energyUsed)}`, s.energyUsed > s.energyProduced);
     set('water', `${fmt(s.waterProduced - s.waterUsed)}`, s.waterUsed > s.waterProduced);
+    const fed = s.population >= 1;
+    set('food', fed ? `${Math.round(city.pulse.foodRatio * 100)}%` : '—', fed && city.pulse.foodRatio < 0.95);
     set('eco', fmt(s.eco), s.eco < 0);
     set('happy', `${Math.round(s.happiness)}`);
     this.happyMeter.style.width = `${s.happiness}%`;

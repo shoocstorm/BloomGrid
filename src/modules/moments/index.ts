@@ -4,6 +4,7 @@ import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { PROJECTS } from '@/sim/projects';
 import { WONDER_SITES } from '@/modules/scenery/sites';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
+import { SYSTEM_ORDER } from '@/sim/indicators';
 import { Ceremony, type MomentSpec } from './Ceremony';
 import './moments.css';
 
@@ -272,7 +273,7 @@ export const momentsModule: GameModule = {
             emblem: 'people',
             eyebrow: `Milestone · ${c.growth.name || 'the city'}`,
             title: `${fmt(m)} residents`,
-            lines: [`Day ${c.day} · ${c.buildingEntities().length} buildings`, `Harmony ${Math.round(c.stats.happiness)} · treasury ◈${fmt(c.credits)}`],
+            lines: [`Day ${c.day} · ${c.buildingEntities().length} buildings`, `Harmony ${Math.round(c.stats.happiness)} · credits ◈${fmt(c.credits)}`],
             sub: MILESTONES[level] ? `Next milestone: ${fmt(MILESTONES[level])} residents.` : 'The island has never been home to so many.',
             at: heart(ctx),
             camera: false,
@@ -292,7 +293,7 @@ export const momentsModule: GameModule = {
               emblem: 'sparkle',
               eyebrow: 'Achievement · every system in harmony',
               title: 'A golden age',
-              lines: SYSTEMS.map((k) => `${SYSTEM_LABELS[k]} ${TIERS[t[k]]}`).slice(0, 6),
+              lines: SYSTEM_ORDER.map((k) => `${SYSTEM_LABELS[k]} ${TIERS[t[k]]}`).slice(0, 6),
               sub: `${c.growth.name || 'The city'} is thriving on every front. Remember what got you here: write it down in the Seedvault.`,
               at: heart(ctx),
               sound: 'triumph',

@@ -1,3 +1,4 @@
+import { INDICATOR_NAMES as N } from './indicators';
 import { query } from 'bitecs';
 import { Building, Problem, Service } from '@/ecs/components';
 import type { City } from './City';
@@ -104,7 +105,7 @@ registerAdvisorRule((city) => {
   return {
     id: 'energy',
     severity: severityOf(t),
-    title: `Energy grid ${TIERS[t]} (${pct(city.pulse.energyRatio)} of demand)`,
+    title: `${N.energy} ${TIERS[t]} (${pct(city.pulse.energyRatio)} of demand)`,
     detail: 'Brownouts dim homes, stall workplaces and stop water pumps.',
     fix: 'Build a Sunflower Spire (+40) or an Algae Bioreactor (+70) on a connected highway.',
     focus,
@@ -118,7 +119,7 @@ registerAdvisorRule((city) => {
   return {
     id: 'water',
     severity: severityOf(t),
-    title: `Water supply ${TIERS[t]} (${pct(city.pulse.waterRatio)} of demand)`,
+    title: `${N.water} ${TIERS[t]} (${pct(city.pulse.waterRatio)} of demand)`,
     detail: 'Dry taps make residents leave, and building gardens wither.',
     fix: 'Build NEWater Reclamation Works on the coast, next to a highway.',
     focus: coastalRoad(city),
@@ -132,7 +133,7 @@ registerAdvisorRule((city) => {
   return {
     id: 'food',
     severity: severityOf(t),
-    title: `Food ${TIERS[t]} (${pct(city.pulse.foodRatio)} of residents fed)`,
+    title: `${N.food} ${TIERS[t]} (${pct(city.pulse.foodRatio)} of residents fed)`,
     detail: 'Hungry residents lower harmony and move away.',
     fix: 'Build Orchard Stacks (feed 400 each).',
     build: 'vertical-farm',
@@ -241,7 +242,7 @@ registerAdvisorRule((city) => {
     severity: 2,
     title: `The council's patience: ${left}s left`,
     detail: 'Harmony or the budget has collapsed. If it stays that way, you will be replaced as steward.',
-    fix: city.pulse.tiers.budget === 4 ? 'Get the treasury out of deep debt: borrow, raise taxes, cut costly buildings.' : 'Restore power, water, food and jobs; the harmony panel shows the biggest drag.',
+    fix: city.pulse.tiers.budget === 4 ? 'Get credits out of deep debt: borrow, raise taxes, cut costly buildings.' : 'Restore power, water, food and jobs; the harmony panel shows the biggest drag.',
   };
 });
 
@@ -342,7 +343,7 @@ registerAdvisorRule((city) => {
   return {
     id: 'retrofit',
     severity: 0,
-    title: 'The treasury can fund a Bloom Retrofit',
+    title: 'Credits can fund a Bloom Retrofit',
     detail: 'Transform a district: flowering façades, sunflower roofs, lily-pad channels. Ecology ×1.5, less power and water use.',
     fix: 'Build (B) → Retrofit and click the heart of a busy district.',
   };

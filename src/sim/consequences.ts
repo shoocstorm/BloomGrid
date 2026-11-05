@@ -111,7 +111,7 @@ export const RULES: ConsequenceRule[] = [
     id: 'neglect',
     name: 'Neglected upkeep',
     icon: '⚒',
-    cause: () => 'The treasury is below zero: upkeep is only part paid (austerity)',
+    cause: () => 'Credits are below zero: upkeep is only part paid (austerity)',
     effect: 'Buildings age twice as fast and vandals strike run-down blocks.',
     target: (c) => (c.steward.funding < 1 ? 1 : 0),
     apply(mods, l) {

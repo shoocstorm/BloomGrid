@@ -5,6 +5,7 @@ import { constructionModule } from '@/modules/construction';
 import { hudModule } from '@/ui/Hud';
 import { previewModule } from '@/modules/preview';
 import { loaderModule } from '@/modules/loader';
+import { pauseModule } from '@/modules/pause';
 import { debugModule } from '@/debug';
 import { pulseModule } from '@/modules/pulse';
 import { buildModule } from '@/modules/build';
@@ -50,9 +51,22 @@ import '@/ui/mobile.css';
  * Feature modules. New gameplay layers (city pulse, overlays, crises, bloom engine, mobility,
  * Flora-Net, Green Weaver, explore modes…) are added here as self-contained modules.
  */
-const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, exploreModule, debugModule];
+const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, debugModule];
+
+/**
+ * No browser or webview context menu anywhere in the game (right-click is a game gesture: leave build mode, slow the
+ * clock), on the web and in the Tauri shell alike. Text fields keep theirs for paste.
+ */
+function blockContextMenu(): void {
+  window.addEventListener('contextmenu', (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t?.closest('input, textarea, [contenteditable="true"]')) return;
+    e.preventDefault();
+  });
+}
 
 async function boot() {
+  blockContextMenu();
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const hud = document.getElementById('hud')!;
   watchDevice();

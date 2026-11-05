@@ -116,6 +116,8 @@ describe('Seedvault search', () => {
     expect(top('what to do when the grid fails', 1)).toEqual(['runbook-blackout']);
     expect(top('traffic jam')).toContain('runbook-traffic');
     expect(top('about to be fired by the council')).toContain('runbook-fail-clock');
+    // The top bar says Credits (D-113): players ask by that name.
+    expect(top('credits keep dropping')).toContain('runbook-budget-deficit');
   });
 
   it('reads one section by heading or by free words', () => {

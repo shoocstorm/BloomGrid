@@ -1,9 +1,10 @@
 import { query } from 'bitecs';
+import { CREDIT_FLOW, INDICATOR_NAMES as N, SYSTEM_ORDER } from '@/sim/indicators';
 import type { GameContext, GameModule } from '@/game/context';
 import { Building } from '@/ecs/components';
 import { buildings } from '@/content';
 import { CATEGORY_LABELS, type BuildingCategory } from '@/content/types';
-import { SYSTEMS, TIERS, type HistoryMetric } from '@/sim/pulseState';
+import { TIERS, type HistoryMetric } from '@/sim/pulseState';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { holoHead, rise } from '@/ui/holo';
@@ -52,13 +53,15 @@ class Dashboard {
   constructor(private ctx: GameContext) {
     const tiles = h('div', { class: 'db-tiles' });
     for (const [id, label] of [
-      ['pop', 'Residents'],
-      ['credits', 'Treasury'],
-      ['harmony', 'Harmony'],
-      ['energy', 'Energy supply'],
-      ['water', 'Water supply'],
-      ['food', 'Food supply'],
-      ['jobs', 'Employment'],
+      // INDICATOR_ORDER (mobility lives in its own lens and the health list).
+      ['credits', N.credits],
+      ['pop', N.residents],
+      ['energy', N.energy],
+      ['water', N.water],
+      ['food', N.food],
+      ['jobs', N.jobs],
+      ['eco', N.ecology],
+      ['harmony', N.harmony],
     ]) {
       const value = h('div', { class: 'db-tile-v' });
       const sub = h('div', { class: 'db-tile-s' });
@@ -68,13 +71,15 @@ class Dashboard {
 
     const charts = h('div', { class: 'db-charts' });
     for (const [metric, label, format] of [
-      ['population', 'Residents', fmt],
-      ['credits', 'Treasury (credits)', fmt],
-      ['net', 'Net income (/s)', (v: number) => signed(v)],
-      ['happiness', 'Harmony', (v: number) => v.toFixed(0)],
-      ['energyBalance', 'Energy surplus', (v: number) => signed(v, 0)],
-      ['waterBalance', 'Water surplus', (v: number) => signed(v, 0)],
-      ['bloom', 'Bloom index', (v: number) => `${Math.round(v * 100)}%`],
+      ['credits', N.credits, fmt],
+      ['net', 'Credit flow (/s)', (v: number) => signed(v)],
+      ['population', N.residents, fmt],
+      ['energyBalance', `${N.energy} surplus`, (v: number) => signed(v, 0)],
+      ['waterBalance', `${N.water} surplus`, (v: number) => signed(v, 0)],
+      ['food', `${N.food} (fed)`, (v: number) => `${Math.round(v * 100)}%`],
+      ['eco', N.ecology, fmt],
+      ['happiness', N.harmony, (v: number) => v.toFixed(0)],
+      ['bloom', N.bloom, (v: number) => `${Math.round(v * 100)}%`],
     ] as [HistoryMetric, string, (v: number) => string][]) {
       const chart = new LineChart({ format, step: HISTORY_STEP });
       this.charts.push({ metric, chart });
@@ -91,7 +96,7 @@ class Dashboard {
         'div',
         { class: 'db-cols' },
         h('div', {}, h('h3', {}, 'System health'), this.health),
-        h('div', {}, h('h3', {}, 'Budget per second'), this.budget),
+        h('div', {}, h('h3', {}, CREDIT_FLOW), this.budget),
         h('div', {}, h('h3', {}, 'Land use'), this.landuse),
       ),
     );
@@ -210,13 +215,14 @@ class Dashboard {
     set('harmony', Math.round(s.happiness).toString(), `${signed(delta('happiness'))} in 1 min`);
     set('energy', `${Math.round(p.energyRatio * 100)}%`, `${fmt(s.energyProduced)} made / ${fmt(s.energyUsed)} used`);
     set('water', `${Math.round(p.waterRatio * 100)}%`, `${fmt(s.waterProduced)} made / ${fmt(s.waterUsed)} used`);
-    set('food', `${Math.round(p.foodRatio * 100)}%`, `${fmt(s.foodProduced)} fed of ${fmt(s.population)}`);
+    set('food', `${Math.round(p.foodRatio * 100)}%`, `${fmt(s.foodProduced)} grown · ${fmt(s.population)} eaten`);
     set('jobs', `${Math.round((1 - p.unemployment) * 100)}%`, `${fmt(s.employed)} employed · ${fmt(s.jobs)} jobs`);
+    set('eco', fmt(s.eco), `${(s.eco / Math.max(1, s.buildings)).toFixed(1)} per building · ${fmt(s.pollution)} pollution`);
 
     for (const { metric, chart } of this.charts) chart.setData(hist[metric]);
 
     this.health.replaceChildren(
-      ...SYSTEMS.map((k) => {
+      ...SYSTEM_ORDER.map((k) => {
         const t = p.tiers[k];
         return h('div', { class: `db-tier t${t}` }, h('span', { class: 'db-tier-i', 'aria-hidden': 'true' }, TIER_ICON[t]!), h('span', {}, SYSTEM_LABELS[k]), h('b', {}, TIERS[t]));
       }),

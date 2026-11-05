@@ -1,3 +1,4 @@
+import { INDICATOR_NAMES as N } from '@/sim/indicators';
 import type { GameContext } from '@/game/context';
 import { buildings } from '@/content';
 import { buildingId } from '@/sim/inventory';
@@ -84,7 +85,7 @@ export class DormantView {
       );
     }
     if (!c.ok && c.credits)
-      return h('button', { class: 'fd-do', title: 'Open the budget (Dashboard)', onClick: () => (this.hooks.close(), this.ctx.services.get('dashboard').toggle()) }, icon('credits'), 'Budget');
+      return h('button', { class: 'fd-do', title: 'Open the credits (Dashboard)', onClick: () => (this.hooks.close(), this.ctx.services.get('dashboard').toggle()) }, icon('credits'), N.credits);
     if (c.ok && c.build) {
       const eid = city.buildingEntities().find((e) => city.buildingDef(e).id === c.build);
       if (eid !== undefined)
@@ -106,7 +107,7 @@ export class DormantView {
         ? 'Her mind is coming online on the Data Spire. Keep it powered.'
         : w.phase === 'ready'
           ? 'Everything she needs is in place. Wake her when you are ready.'
-          : `She thinks on a Data Spire and needs power and a treasury to start. ${met} of ${w.criteria.length} conditions met.`,
+          : `She thinks on a Data Spire and needs power and credits to start. ${met} of ${w.criteria.length} conditions met.`,
     );
     if (key !== this.key) {
       this.key = key;

@@ -67,13 +67,13 @@ const STEPS: Step[] = [
     highlight: '.con-tab[title="Pulse"]',
   },
   {
-    title: 'Grow your treasury',
+    title: 'Grow your credits',
     body: 'Let time run (Space pauses, 1–3 set the speed) and earn 300 credits. Add homes along the road when you can: residents pay tax.',
     done: (c, s) => c.city.credits >= s.credits + 300,
   },
   {
     title: 'Set your goals',
-    body: 'The Goals tab lists what to unlock next (Flora, the sky-lanes, the Aeroline) and the sea wonders still to find. Flora wakes once you have a power plant, a Data Spire and 1,500 credits in the treasury.',
+    body: 'The Goals tab lists what to unlock next (Flora, the sky-lanes, the Aeroline) and the sea wonders still to find. Flora wakes once you have a power plant, a Data Spire and 1,500 credits saved.',
     highlight: '.con-tab[title="Goals"]',
     done: () => !!document.querySelector('.con-tab.on[title="Goals"]'),
   },

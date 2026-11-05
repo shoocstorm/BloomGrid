@@ -12,7 +12,7 @@ export const proposalTools: AgentTool<ActionCtx, never>[] = [
     name: 'propose_builds',
     option: 'Diagnose the city and propose what to build (one-click build cards)',
     description:
-      'Diagnoses which systems are failing and proposes up to 3 concrete builds that fix them: the most cost-effective type, how many, which district, total cost, whether the treasury can pay and the expected gain. The steward builds each with one click on the cards shown; nothing is built by this tool.',
+      'Diagnoses which systems are failing and proposes up to 3 concrete builds that fix them: the most cost-effective type, how many, which district, total cost, whether the credits cover it and the expected gain. The steward builds each with one click on the cards shown; nothing is built by this tool.',
     keywords: ['propose', 'plan', 'suggest', 'recommend', 'should', 'build', 'need', 'improve', 'fix', 'next', 'priority'],
     input: {
       type: 'object',

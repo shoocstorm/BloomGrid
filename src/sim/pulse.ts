@@ -5,6 +5,7 @@ import { Building, Flow, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { SimCtx } from './systems';
 import { HISTORY_LENGTH, HISTORY_METRICS, SYSTEMS, tierFromRatio, type SystemKey, type Tier } from './pulseState';
+import { stepTierGate } from './tierGate';
 import { FIELD_PULSES, computeEcology, computePollution } from './fields';
 import { blightLoss, updateCrises } from './crises';
 import { updateHazards } from './hazards';
@@ -336,13 +337,9 @@ export const pulseSystem: System<SimCtx> = {
       mobility: pulse.commuters > 50 ? tierFromRatio(pulse.flow, [0.45, 0.6, 0.75, 0.9]) : 1,
       budget: city.credits < -5000 ? 4 : city.credits < 0 ? 3 : net < 0 ? 2 : net > s.upkeep * 0.25 ? 0 : 1,
     };
-    for (const k of SYSTEMS) {
-      const prev = pulse.tiers[k];
-      if (prev !== tiers[k]) {
-        pulse.tiers[k] = tiers[k];
-        if (pulse.primed) city.bus.emit('pulse:tier', { system: k, tier: tiers[k], prev });
-      }
-    }
+    for (const k of SYSTEMS) pulse.tiers[k] = tiers[k];
+    // Alerts hear only settled changes: a tier hovering on a threshold would announce itself every few pulses.
+    for (const change of stepTierGate(pulse.gate, tiers, pulse.primed)) city.bus.emit('pulse:tier', change);
     pulse.primed = true;
     updateOvergrowth(city);
     updateRoadLevels(city);
@@ -362,6 +359,7 @@ export const pulseSystem: System<SimCtx> = {
         eco: s.eco,
         net,
         bloom: pulse.bloomIndex,
+        food: pulse.foodRatio,
       };
       for (const m of HISTORY_METRICS) {
         const arr = pulse.history[m];

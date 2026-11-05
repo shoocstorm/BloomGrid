@@ -5,7 +5,7 @@ export default defineBuilding({
   id: 'data-spire',
   name: 'Data Spire',
   description:
-    'A sea-cooled compute tower where Flora, the city assistant, thinks. Needed (with a power plant and a healthy treasury) to wake her; power-hungry, with skilled jobs.',
+    'A sea-cooled compute tower where Flora, the city assistant, thinks. Needed (with a power plant and 1,500 credits) to wake her; power-hungry, with skilled jobs.',
   category: 'tech',
   footprint: [2, 2],
   stats: { cost: 1000, energy: -30, eco: 0, happiness: 1, population: 0, jobs: 20, pollution: 0, water: -4 },

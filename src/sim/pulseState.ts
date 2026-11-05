@@ -1,6 +1,7 @@
 import type { PodRoute } from './mobility';
 import type { SkyNet } from './skylanes';
 import type { DroneJob } from './floranet';
+import { createTierGate, type TierGate } from './tierGate';
 
 /**
  * City Pulse state: everything the management layer tracks beyond raw entities.
@@ -12,7 +13,7 @@ export type Tier = 0 | 1 | 2 | 3 | 4;
 export const SYSTEMS = ['energy', 'water', 'food', 'jobs', 'mobility', 'ecology', 'harmony', 'budget'] as const;
 export type SystemKey = (typeof SYSTEMS)[number];
 
-export const HISTORY_METRICS = ['population', 'credits', 'happiness', 'energyBalance', 'waterBalance', 'eco', 'net', 'bloom'] as const;
+export const HISTORY_METRICS = ['population', 'credits', 'happiness', 'energyBalance', 'waterBalance', 'eco', 'net', 'bloom', 'food'] as const;
 export type HistoryMetric = (typeof HISTORY_METRICS)[number];
 export const HISTORY_LENGTH = 240; // samples (one per 10 sim seconds = 40 sim minutes)
 
@@ -52,6 +53,8 @@ export interface PulseState {
   tiers: Record<SystemKey, Tier>;
   /** False until the first pulse has computed tiers (suppresses spurious alerts). */
   primed: boolean;
+  /** Which tier changes have settled enough to announce (`sim/tierGate.ts`; not saved or hashed). */
+  gate: TierGate;
   history: Record<HistoryMetric, number[]>;
   harmony: HarmonyBreakdown;
   /** Global ratios from the last pulse (0..1+). */
@@ -101,6 +104,7 @@ export function createPulseState(): PulseState {
     taxRate: TAX_DEFAULT,
     tiers: { energy: 1, water: 1, food: 1, jobs: 1, mobility: 1, ecology: 1, harmony: 1, budget: 1 },
     primed: false,
+    gate: createTierGate(),
     history: Object.fromEntries(HISTORY_METRICS.map((m) => [m, []])) as unknown as Record<HistoryMetric, number[]>,
     harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0, crises: 0, bloom: 0, traffic: 0, fireworks: 0, wonders: 0, consequences: 0 },
     energyRatio: 1,

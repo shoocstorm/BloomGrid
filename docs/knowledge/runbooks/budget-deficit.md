@@ -10,7 +10,7 @@ order: 4
 
 ## Diagnose
 
-Dashboard (**K**) → Budget per second: the largest upkeep categories, tax income, fishing and visitors.
+Dashboard (**K**) → Credit flow (per second): the largest upkeep categories, tax income, fishing and visitors.
 
 ## Fix, in order
 

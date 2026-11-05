@@ -1782,3 +1782,45 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   fallback new-city dialog. A new way to replace the city should go through `loader.run`.
 - **Fix found on the way**: explore's `setPhoto(false)` on `city:reset` set the speed to 1 even when photo mode was
   off, so every load quietly unpaused the city; it now restores the speed only when leaving photo mode.
+
+## D-112 — Two-control clock and no context menu (2026-11-05)
+
+- **Clock** (`ui/Hud.ts` `buildClock` / `updateClock`, styles in `ui/theme.css` `.cl-*`): the four speed buttons gave
+  way to one day button (a dial whose sun or moon circles a sky-coloured ring with the hour, play / pause in its
+  centre, the time and day beside it) and one speed chip (speed + three pips; click steps 1× → 3× → 8× → 1×,
+  right-click or wheel steps down, any step from a pause plays). Paused: the dial dims, the time breathes amber
+  and the day line reads PAUSED in place (no width change). The dial turns with a `transform` from `--t`, written
+  at the HUD's 5 Hz. Fit levels: `fit-5` drops the day line, `fit-7` the pips.
+- **Context menu**: `blockContextMenu` in `main.ts` prevents it on the whole window (web and the Tauri webview);
+  text fields keep theirs for paste. Right-click stays a game gesture (leave build mode, slow the clock).
+
+## D-113 — One name per indicator; Food in the top bar (2026-11-05)
+
+- **Why**: the same number had three names (top bar "Credits", City Pulse "Budget", dashboard "Treasury"; "Energy" /
+  "Energy grid" / "Energy supply"; "Eco" / "Ecology"), so players couldn't tell they were looking at one thing.
+- **Names** live in `src/sim/indicators.ts` (`INDICATOR_NAMES`, `SYSTEM_LABELS`, `CREDIT_FLOW`): Credits, Residents,
+  Energy, Water, Food, Employment, Mobility, Ecology, Harmony, Bloom index. The money balance and its health tier are
+  **Credits**; its per-second change is **Credit flow**. The top bar, City Pulse, the dashboard, stat guides,
+  advisories, tier toasts, Flora's brief and console read them from there (`tests/indicators.test.ts`). The knowledge
+  base keeps "budget" as a topic word; search maps credits / treasury to it.
+- **Food** joins the top bar between Water and Ecology: residents fed (%), red below 95%, with its own stat guide
+  (grown vs eaten, a food building as the best move when short) and a `food` trend in the pulse history
+  (`HISTORY_METRICS`; `SAVE_VERSION` 16 starts it empty). It gives way at `fit-5` with Water.
+- **Tests key on data, not labels**: the pacing steward finds the savings goal by `credits: true`, not its text.
+
+## D-114 — One indicator order, a pause panel, settled tier alerts (2026-11-05)
+
+- **Order**: `INDICATOR_ORDER` / `SYSTEM_ORDER` in `sim/indicators.ts` (Credits, Residents, Energy, Water, Food,
+  Employment, Mobility, Ecology, Harmony) order the top bar, City Pulse's System health, the dashboard's tiles, trends
+  and health list, Flora's console and the all-thriving moment. Display only: the sim keeps iterating `SYSTEMS`.
+  The dashboard gained an Ecology tile and trend.
+- **Pause panel** (`modules/pause`): the steward's pause opens a centred `.holo` card (Resume orb, credits /
+  residents / harmony, every system's tier, the worst system's stat-guide status, key hints). A click on the city,
+  a tool, a selection, Esc or Keep planning folds it into a pill under the top bar; the pill resumes. Space resumes
+  at the last speed (its key listener outranks the 1× global). Holds that aren't the player's show nothing: `.modal-scrim`
+  dialogs, the loader, photo mode, `chapter-open`, the boot. No `backdrop-filter`; rings animate transform / opacity.
+- **Settled tier alerts** (`sim/tierGate.ts`): a supply hovering on a threshold flipped its tier, and every
+  `pulse:tier` listener (toast, Flora, advisor log, sounds, fix log) fired each time. `pulse:tier` now reports a
+  change only once it holds (drop 3 pulses, recovery 8), at most once per 30 pulses per system (a fall to Collapse is
+  never held back); changes inside the cooldown merge. `pulse.tiers` stays raw for the sim and the fail clock. The gate
+  is notification state, rebuilt on reset or load, neither saved nor hashed (`tests/tierGate.test.ts`).

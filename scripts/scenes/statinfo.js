@@ -1,5 +1,5 @@
 // Top-bar indicator guides (D-092): `bun run snap -- --eval @scripts/scenes/statinfo.js --after 2500`.
-// window.STAT = 'credits' | 'pop' | 'energy' | 'water' | 'eco' | 'happy'; window.HOVER = 1 shows the hover card
+// window.STAT = 'credits' | 'pop' | 'energy' | 'water' | 'food' | 'eco' | 'happy'; window.HOVER = 1 shows the hover card
 // instead of the pinned panel. Add `--mobile` for the phone bottom sheet (tap). Returns the guide's text.
 (async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));

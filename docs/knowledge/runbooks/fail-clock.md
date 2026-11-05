@@ -8,10 +8,10 @@ related: [systems-harmony, runbook-budget-deficit, reference-rules]
 order: 3
 ---
 
-The fail clock runs while **harmony** or the **budget** is in Collapse. It unwinds twice as fast once both recover;
+The fail clock runs while **Harmony** or **Credits** (the budget) is in Collapse. It unwinds twice as fast once both recover;
 if it runs out, you are replaced. Get both out of Collapse first: Critical is enough to stop the clock.
 
-## If it's the budget (treasury below −5,000)
+## If it's the budget (credits below −5,000)
 
 1. **Take a loan** to get above −5,000 at once (it costs interest later, but stops the clock now).
 2. Cut upkeep: return idle or redundant buildings to nature.

@@ -15,12 +15,12 @@ those fail.
 ## What you look after
 
 City Pulse (**P**) tracks eight systems, each with a health tier from **Thriving** to **Collapse**: energy, water,
-food, jobs, mobility, ecology, harmony and the budget. Most of the game is keeping those tiers at Stable or better
+food, employment, mobility, ecology, harmony and credits (the budget). Most of the game is keeping those tiers at Stable or better
 while the city grows, the seasons turn and crises hit. See [Reading the city](kb:basics-reading-the-city).
 
 ## How the council judges you
 
-- **Harmony** (how content residents are) and the **budget** are what the council watches.
+- **Harmony** (how content residents are) and **Credits** (the budget) are what the council watches.
 - If either sits in **Collapse**, the fail clock starts. Recover and it unwinds twice as fast; let it run out and
   you are replaced. On Sandbox there is no fail state. Details: [The fail clock](kb:runbook-fail-clock).
 
