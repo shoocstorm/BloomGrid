@@ -2,7 +2,7 @@ import type { GameContext, GameModule } from '@/game/context';
 import { forecastCrisis, getCrisis } from '@/sim/crises';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
 import { FAIL_SECONDS } from '@/sim/steward';
-import { foundCity } from '@/game/newCity';
+import { foundCityStaged } from '@/game/newCity';
 import { openingView } from '@/game/opening';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
@@ -48,12 +48,24 @@ function newCityDialog(ctx: GameContext, onDone?: () => void): void {
             class: 'btn primary',
             onClick: () => {
               close();
-              foundCity(ctx, Number(seedInput.value) || 1, choice);
-              ctx.engine.speed = 1;
-              const v = openingView(ctx.city);
-              ctx.cameraCtl.intro(v.x, v.z, v.distance, 6, v);
-              ctx.bus.emit('toast', { text: `A new city is founded (${DIFFICULTIES[choice].label})`, tone: 'ok' });
-              onDone?.();
+              const fly = () => {
+                const v = openingView(ctx.city);
+                ctx.cameraCtl.intro(v.x, v.z, v.distance, 6, v);
+              };
+              void ctx.services
+                .get('loader')
+                .run(
+                  'Founding a new city',
+                  async (stage) => {
+                    await foundCityStaged(ctx, Number(seedInput.value) || 1, choice, 'founding-city', stage);
+                    ctx.engine.speed = 1;
+                  },
+                  fly,
+                )
+                .then(() => {
+                  ctx.bus.emit('toast', { text: `A new city is founded (${DIFFICULTIES[choice].label})`, tone: 'ok' });
+                  onDone?.();
+                });
             },
           },
           'Found city',
@@ -195,10 +207,15 @@ export const crisesModule: GameModule = {
               {
                 class: 'btn ghost',
                 onClick: async () => {
-                  if ((await save.load('slot1')) || (await save.load('autosave'))) {
-                    close();
-                    ctx.engine.speed = 1;
-                  } else ctx.bus.emit('toast', { text: 'No save found', tone: 'bad' });
+                  const ok = await ctx.services.get('loader').run('Restoring your last save', async (stage) => {
+                    const done = (await save.load('slot1', stage)) || (await save.load('autosave', stage));
+                    if (done) {
+                      close();
+                      ctx.engine.speed = 1;
+                    }
+                    return done;
+                  });
+                  if (!ok) ctx.bus.emit('toast', { text: 'No save found', tone: 'bad' });
                 },
               },
               'Load last save',

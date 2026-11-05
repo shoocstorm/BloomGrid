@@ -70,10 +70,14 @@ export class SaveManager {
     return (await storage.keys()).includes(`save:${slot}`) ? { at: 0, name: '', day: 0, residents: 0 } : null;
   }
 
-  async load(slot = 'slot1'): Promise<boolean> {
+  /** `stage` advances a loading screen between reading and rebuilding (the loader service passes its own). */
+  async load(slot = 'slot1', stage?: (label: string, progress: number) => Promise<void>): Promise<boolean> {
+    await stage?.('Reading the saved city', 0.1);
     const data = await this.ctx.platform.storage.get<SaveData>(`save:${slot}`);
     if (!data) return false;
+    await stage?.('Rebuilding streets and towers', 0.35);
     this.restore(data);
+    await stage?.('Waking the residents', 0.8);
     this.ctx.bus.emit('load:done', { slot });
     return true;
   }

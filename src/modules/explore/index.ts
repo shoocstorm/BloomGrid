@@ -364,6 +364,7 @@ export const exploreModule: GameModule = {
     }
 
     function setPhoto(on: boolean): void {
+      const was = photo;
       photo = on;
       ctx.tools.suspended = on || mode !== 'city';
       hud?.classList.toggle('photo', on);
@@ -371,10 +372,11 @@ export const exploreModule: GameModule = {
       padFor(mode);
       photoUi.classList.toggle('hidden', !on);
       cross.classList.toggle('hidden', on || !crossOn());
-      if (on) {
+      // Only a real enter / leave touches the speed (a city reset calls this with photo mode already off).
+      if (on && !was) {
         photoSpeed = ctx.engine.speed;
         ctx.engine.speed = 0;
-      } else ctx.engine.speed = photoSpeed;
+      } else if (!on && was) ctx.engine.speed = photoSpeed;
     }
 
     // Mouse look: pointer lock when the canvas is clicked in walk / drone, or drag anywhere.

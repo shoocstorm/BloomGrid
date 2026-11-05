@@ -1765,3 +1765,20 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
 - **Result** (headless, founding city): no frame over ≈27 ms after a pick on WebGPU or WebGL2, the first pick of a
   type included; main thread unchanged (22.9%).
 - **Rule**: an instancer that is refilled often should `empty()`, not `clear()`.
+
+## D-111 — City changes load behind a full-screen loader (2026-11-05)
+
+- **Why**: founding the showcase (≈1.6 s of synchronous work) or loading a save froze the old city on screen, then
+  popped the new one in with first-frame shader stalls in view.
+- **Loader** (`modules/loader`, `loader` service): `run(subtitle, work, reveal)` puts the boot screen
+  (`ui/Boot.ts`, now a `.boot-screen` class with `minShow` and `tip` options) over everything, pauses the sim
+  (speed 0), holds keys, runs `work` with a `stage(label, p)` callback, draws a few frames of the new city behind the
+  cover, then irises open and calls `reveal` (the opening fly-in). A rotating tip shows under the log (key tips
+  skipped on touch screens).
+- **Real stages**: `foundCity`'s body is a generator (`foundSteps`); `foundCity` runs it straight through (boot,
+  tests), `foundCityStaged` awaits the loader between stages, settling in four 20-tick slices. Same city tick for tick
+  (`tests/loader.test.ts`). `SaveManager.load(slot, stage?)` reports read / rebuild / wake.
+- **Callers**: New Chapter (new island, showcase, resume), Settings → Load, ⌘L, game over → Load last save, the
+  fallback new-city dialog. A new way to replace the city should go through `loader.run`.
+- **Fix found on the way**: explore's `setPhoto(false)` on `city:reset` set the speed to 1 even when photo mode was
+  off, so every load quietly unpaused the city; it now restores the speed only when leaving photo mode.

@@ -4,7 +4,7 @@
   initial-value: 0%;
 }
 
-#boot {
+.boot-screen {
   --c1: #5ff2da;
   --c2: #8ef07a;
   --c3: #ff9fc4;
@@ -19,7 +19,7 @@
   -webkit-mask: radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px));
   mask: radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px));
 }
-#boot.bt-gone {
+.boot-screen.bt-gone {
   display: none;
 }
 
@@ -313,19 +313,20 @@
 }
 
 /* Reveal: emblem blooms outward, then an iris opens onto the city. */
-#boot.bt-reveal .bt-emblem {
+.boot-screen.bt-reveal .bt-emblem {
   transform: scale(2.6) rotate(30deg);
   opacity: 0;
 }
-#boot.bt-reveal .bt-title,
-#boot.bt-reveal .bt-sub,
-#boot.bt-reveal .bt-bar,
-#boot.bt-reveal .bt-meta,
-#boot.bt-reveal .bt-log {
+.boot-screen.bt-reveal .bt-title,
+.boot-screen.bt-reveal .bt-sub,
+.boot-screen.bt-reveal .bt-bar,
+.boot-screen.bt-reveal .bt-meta,
+.boot-screen.bt-reveal .bt-log,
+.boot-screen.bt-reveal .bt-tip {
   transition: opacity 0.5s;
   opacity: 0;
 }
-#boot.bt-reveal {
+.boot-screen.bt-reveal {
   animation: bt-iris 1.4s cubic-bezier(0.7, 0, 0.2, 1) 0.35s forwards;
 }
 @keyframes bt-iris {
@@ -334,9 +335,37 @@
   }
 }
 
+/* The city loader (modules/loader): the boot screen again, over the HUD, fading in over the old city. */
+.boot-screen.bt-loader {
+  z-index: 1000;
+  animation: bt-enter 0.35s ease-out;
+}
+.boot-screen.bt-loader.bt-reveal {
+  animation: bt-iris 1.2s cubic-bezier(0.7, 0, 0.2, 1) 0.25s forwards;
+}
+@keyframes bt-enter {
+  from {
+    opacity: 0;
+  }
+}
+.bt-tip {
+  max-width: 420px;
+  margin: 18px auto 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: rgba(217, 255, 246, 0.62);
+  animation: bt-line 0.6s ease-out 0.4s both;
+}
+.bt-tip::before {
+  content: 'TIP  ';
+  font: 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.18em;
+  color: var(--c2);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  #boot *,
-  #boot {
+  .boot-screen *,
+  .boot-screen {
     animation: none !important;
     transition: opacity 0.4s !important;
   }
@@ -348,7 +377,7 @@
   .bt-vine {
     stroke-dashoffset: 0;
   }
-  #boot.bt-reveal {
+  .boot-screen.bt-reveal {
     opacity: 0;
     transition: opacity 0.6s !important;
   }

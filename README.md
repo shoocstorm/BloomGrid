@@ -183,7 +183,8 @@ fly there, or press **.** to step through the fires, hottest first.
 
 **A new chapter:** the game opens on the New Chapter dialog: **Resume** your saved city (the default when you have
 one), found a **New island** (name it, roll another name, choose how hard the world pushes back) or browse the
-**Showcase** city, already built. The city waits while you choose; Enter takes the highlighted choice. A new island
+**Showcase** city, already built. The city waits while you choose; Enter takes the highlighted choice. Founding or
+loading a city plays behind a full-screen loading screen with its real stages and a tip, then opens onto the city. A new island
 starts as a fishing hamlet, and the guide walks you through the first steps (⚙ Settings → How to play reopens it;
 **H** or Settings → Controls shows every control). Early on, **Fishing Boat Docks** (free; Build → Food; must touch the sea, and turn to face it by themselves until you press R) pay the bills:
 two or three fish the sea best, more overfish it, and a polluted coast spoils the catch. The **Goals** tab in City

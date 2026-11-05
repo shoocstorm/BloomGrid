@@ -251,11 +251,18 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   function act(): void {
     if (path === 'resume') {
       go.disabled = true;
-      void save.load().then((ok) => {
-        go.disabled = false;
-        if (ok) close();
-        else ctx.bus.emit('toast', { text: 'The saved city could not be loaded', tone: 'bad' });
-      });
+      void ctx.services
+        .get('loader')
+        .run(`Restoring ${info?.name || 'your city'}`, async (stage) => {
+          const ok = await save.load('slot1', stage);
+          // Under the cover, so the city appears without the dialog over it.
+          if (ok) close();
+          return ok;
+        })
+        .then((ok) => {
+          go.disabled = false;
+          if (!ok) ctx.bus.emit('toast', { text: 'The saved city could not be loaded', tone: 'bad' });
+        });
     } else if (path === 'new') {
       close();
       o.found(nameInput.value.trim() || cityName(), seed, difficulty, guide.checked);

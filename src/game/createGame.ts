@@ -188,7 +188,13 @@ export async function createGame(
     if (mod && e.code === 'KeyZ') return (e.shiftKey ? ctx.commands.redo() : ctx.commands.undo()), true;
     if (mod && e.code === 'KeyY') return ctx.commands.redo(), true;
     if (mod && e.code === 'KeyS') return void save.save(), true;
-    if (mod && e.code === 'KeyL') return void save.load(), true;
+    if (mod && e.code === 'KeyL') {
+      // Behind the loading screen when the loader module runs (and only when there is a save to load).
+      const loader = ctx.services.tryGet('loader');
+      if (!loader) return void save.load(), true;
+      void save.info().then((i) => i && loader.run('Restoring your city', (stage) => save.load('slot1', stage)));
+      return true;
+    }
     if (mod || e.shiftKey || e.altKey) return false;
     if (e.code === 'Space') return (ctx.engine.speed = ctx.engine.speed ? 0 : 1), true;
     if (e.code === 'Digit1') return (ctx.engine.speed = 1), true;

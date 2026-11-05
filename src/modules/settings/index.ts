@@ -85,11 +85,14 @@ function saveSection(ctx: GameContext, close: () => void): { el: HTMLElement; re
       return;
     }
     disarm();
-    void save.load().then((ok) => {
-      if (!ok) return ctx.bus.emit('toast', { text: 'No saved city yet', tone: 'bad' });
-      ctx.bus.emit('toast', { text: 'City loaded', tone: 'ok' });
-      close();
-    });
+    void ctx.services
+      .get('loader')
+      .run('Restoring your city', async (stage) => {
+        const ok = await save.load('slot1', stage);
+        if (ok) close();
+        return ok;
+      })
+      .then((ok) => ctx.bus.emit('toast', ok ? { text: 'City loaded', tone: 'ok' } : { text: 'No saved city yet', tone: 'bad' }));
   });
   const saveBtn = h(
     'button',

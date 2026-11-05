@@ -1,5 +1,5 @@
 import type { GameContext, GameModule } from '@/game/context';
-import { SHOWCASE_SEED, foundCity } from '@/game/newCity';
+import { SHOWCASE_SEED, foundCityStaged } from '@/game/newCity';
 import { openingView } from '@/game/opening';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
 import { openChapter } from './Chapter';
@@ -199,18 +199,27 @@ export const tutorialModule: GameModule = {
     const tut = new Tutorial(ctx);
     ctx.systems.add({ id: 'tutorial', phase: 'render', order: 140, update: (_c, f) => tut.update(f.dt) });
 
+    /** Founds the city behind the loading screen; the opening fly-in starts as it lifts. */
     const found = (
       scenario: 'fresh-island' | 'founding-city',
       seed: number,
       difficulty: DifficultyId,
       name?: string,
-    ) => {
-      foundCity(ctx, seed, difficulty, scenario);
-      if (name) ctx.commands.execute('nameCity', { name }, false);
-      ctx.engine.speed = 1;
-      const v = openingView(ctx.city);
-      ctx.cameraCtl.intro(v.x, v.z, v.distance, 5, v);
-    };
+    ): Promise<void> =>
+      ctx.services.get('loader').run(
+        scenario === 'founding-city' ? 'Opening the showcase city' : `Founding ${name ?? 'a new island'}`,
+        async (stage) => {
+          await foundCityStaged(ctx, seed, difficulty, scenario, stage);
+          if (name) ctx.commands.execute('nameCity', { name }, false);
+          ctx.engine.speed = 1;
+          const v = openingView(ctx.city);
+          ctx.cameraCtl.lookAt(v.x, v.z, v.distance, true);
+        },
+        () => {
+          const v = openingView(ctx.city);
+          ctx.cameraCtl.intro(v.x, v.z, v.distance, 5, v);
+        },
+      );
 
     const open = (first: boolean) =>
       void openChapter(ctx, {
@@ -221,16 +230,20 @@ export const tutorialModule: GameModule = {
           if (first && seed === ctx.city.seed && difficulty === ctx.city.steward.difficulty && ctx.city.growth.progression) {
             ctx.commands.execute('nameCity', { name }, false);
             ctx.commands.clearHistory();
-          } else found('fresh-island', seed, difficulty, name);
-          ctx.bus.emit('toast', {
-            text: `${name} is founded: a fishing hamlet on a quiet island (${DIFFICULTIES[difficulty].label})`,
-            tone: 'ok',
-          });
-          if (guide) setTimeout(() => tut.begin(), 1500);
+            done();
+          } else void found('fresh-island', seed, difficulty, name).then(done);
+          function done() {
+            ctx.bus.emit('toast', {
+              text: `${name} is founded: a fishing hamlet on a quiet island (${DIFFICULTIES[difficulty].label})`,
+              tone: 'ok',
+            });
+            if (guide) setTimeout(() => tut.begin(), 1500);
+          }
         },
         showcase() {
-          found('founding-city', SHOWCASE_SEED, ctx.city.steward.difficulty);
-          ctx.bus.emit('toast', { text: 'The showcase city: everything built and unlocked. Explore, or manage it.', tone: 'ok' });
+          void found('founding-city', SHOWCASE_SEED, ctx.city.steward.difficulty).then(() =>
+            ctx.bus.emit('toast', { text: 'The showcase city: everything built and unlocked. Explore, or manage it.', tone: 'ok' }),
+          );
         },
       });
 

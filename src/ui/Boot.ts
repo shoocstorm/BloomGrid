@@ -78,9 +78,20 @@ export interface BootScreen {
   fail(message: string): void;
 }
 
-/** Futuristic boot sequence: animated emblem, pollen, a boot log with real stages, and an iris reveal. */
-export function createBootScreen(el: HTMLElement, subtitle: string): BootScreen {
+export interface BootScreenOptions {
+  /** Shortest time on screen before the reveal (ms), so the emblem breathes on fast loads. */
+  minShow?: number;
+  /** A line of advice under the log (the city loader shows a tip). */
+  tip?: string;
+}
+
+/**
+ * Futuristic boot sequence: animated emblem, pollen, a boot log with real stages, and an iris reveal. The boot uses
+ * it once; the city loader (`modules/loader`) builds one per city change.
+ */
+export function createBootScreen(el: HTMLElement, subtitle: string, opts: BootScreenOptions = {}): BootScreen {
   el.replaceChildren();
+  el.classList.add('boot-screen');
   const pollen = document.createElement('div');
   pollen.className = 'bt-pollen';
   for (let i = 0; i < 32; i++) {
@@ -114,6 +125,12 @@ export function createBootScreen(el: HTMLElement, subtitle: string): BootScreen 
   const log = document.createElement('ol');
   log.className = 'bt-log';
   core.append(emblem(), title, sub, bar, meta, log);
+  if (opts.tip) {
+    const tip = document.createElement('p');
+    tip.className = 'bt-tip';
+    tip.textContent = opts.tip;
+    core.append(tip);
+  }
 
   const grid = document.createElement('div');
   grid.className = 'bt-grid';
@@ -157,7 +174,7 @@ export function createBootScreen(el: HTMLElement, subtitle: string): BootScreen 
       pct.textContent = '100%';
       bar.style.setProperty('--p', '1');
       // Let the emblem breathe for a moment on very fast loads.
-      const minShow = 1800 - (performance.now() - t0);
+      const minShow = (opts.minShow ?? 1800) - (performance.now() - t0);
       if (minShow > 0) await new Promise((r) => setTimeout(r, minShow));
       onReveal?.();
       el.classList.add('bt-reveal');
