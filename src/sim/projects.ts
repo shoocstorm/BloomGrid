@@ -36,7 +36,7 @@ export interface ProjectDef {
 
 const has = (city: City, id: string) => city.buildingEntities().some((e) => city.buildingDef(e).id === id);
 /** The cheapest building the city may place now that makes power (what "build a power plant" should pick). */
-const cheapestPower = (city: City) =>
+export const cheapestPower = (city: City) =>
   buildings
     .all()
     .filter((d) => d.category === 'energy' && d.stats.energy > 0 && !d.landmark && !lockReason(city, d.id))

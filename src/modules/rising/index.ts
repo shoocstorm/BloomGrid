@@ -7,6 +7,13 @@ import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import './rising.css';
 
+declare module '@/core/EventBus' {
+  interface GameEvents {
+    /** A newly placed building's last piece landed (D-118): the juice module celebrates it. */
+    'building:ready': { eid: number };
+  }
+}
+
 /**
  * Build progress (D-091): a newly placed building rises floor by floor over a few seconds, so the player should see
  * that it is under way and when it will stand. While it rises the lot shows:
@@ -44,6 +51,7 @@ interface Build {
   stage: HTMLElement;
   left: HTMLElement;
   shown: string;
+  ready: boolean;
 }
 
 const STAGES: [number, string][] = [
@@ -112,7 +120,7 @@ class RisingFx {
       h('div', { class: 'rise-text' }, h('b', {}, name), h('span', { class: 'rise-sub' }, stage, left)),
     );
     this.layer.append(tag);
-    this.builds.push({ eid, rise, name, t: 0, tag, ring, stage, left, shown: '' });
+    this.builds.push({ eid, rise, name, t: 0, tag, ring, stage, left, shown: '', ready: false });
   }
 
   private drop(which: (b: Build) => boolean): void {
@@ -150,6 +158,10 @@ class RisingFx {
       const { bounds: bd, base, seconds } = b.rise;
       const k = Math.min(1, b.t / seconds);
       const done = b.t >= seconds;
+      if (done && !b.ready) {
+        b.ready = true;
+        this.ctx.bus.emit('building:ready', { eid: b.eid });
+      }
       const fade = done ? Math.max(0, 1 - (b.t - seconds) / FADE) : 1;
       const top = Math.max(bd.top, 0.4);
       // The front: where pieces are growing in now (they start at y × RISE_PER_UNIT and take a moment to swell).

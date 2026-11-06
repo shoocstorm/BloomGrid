@@ -1,0 +1,604 @@
+/* Juice (D-118): tip bubbles, build-ready bursts, coins into the credits counter, the milestone tracker.
+   Keyframes on transform / opacity only (§7½). */
+
+/* ── World layer: under the HUD's panels like the rise tags, over the city ── */
+#hud > .jc-world {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+#hud > .jc-world.hidden {
+  display: none;
+}
+.jc-world > * {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.jc-world > .off {
+  visibility: hidden;
+}
+
+/* A tip bubble: a glass orb over the roof with a gentle bob (small, per the subtle-motion rule). */
+.jc-bubble {
+  pointer-events: auto;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.jc-bubble-in {
+  position: absolute;
+  left: -21px;
+  top: -46px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 238, 190, 0.9);
+  background: radial-gradient(
+    circle at 34% 30%,
+    rgba(255, 255, 255, 0.55),
+    rgba(255, 207, 106, 0.32) 40%,
+    rgba(40, 30, 6, 0.55) 100%
+  );
+  color: #fff6dc;
+  animation:
+    jc-bubble-in 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both,
+    jc-bob 2.6s ease-in-out 0.5s infinite;
+}
+.jc-bubble-in::after {
+  /* The stem to the roof. */
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1.5px;
+  height: 7px;
+  margin-left: -0.75px;
+  background: linear-gradient(rgba(255, 238, 190, 0.8), transparent);
+}
+.jc-bubble-in svg {
+  width: 18px;
+  height: 18px;
+}
+.jc-bubble-v {
+  position: absolute;
+  bottom: -9px;
+  padding: 0 5px;
+  border-radius: var(--pill);
+  background: rgba(40, 28, 4, 0.9);
+  color: #ffdf94;
+  font: 600 9.5px/14px var(--mono);
+}
+.jc-bubble:hover .jc-bubble-in {
+  scale: 1.12;
+}
+.jc-bubble.fading .jc-bubble-in {
+  animation:
+    jc-bob 2.6s ease-in-out infinite,
+    jc-fade 4s linear forwards;
+}
+.jc-bubble.popped {
+  pointer-events: none;
+}
+.jc-bubble.popped .jc-bubble-in {
+  animation: jc-pop 0.3s ease-out forwards;
+}
+@keyframes jc-bubble-in {
+  from {
+    transform: translateY(14px) scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes jc-bob {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes jc-fade {
+  to {
+    opacity: 0.15;
+  }
+}
+@keyframes jc-pop {
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+/* A burst: petals racing out from a point, and (ready) a ring. */
+.jc-burst {
+  width: 0;
+  height: 0;
+}
+.jc-petal {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50% 0;
+  background: var(--c, #ffcf6a);
+  transform: rotate(var(--a));
+  animation: jc-petal 0.85s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+}
+.tone-tip {
+  --c: #ffd77a;
+  translate: 0 -25px;
+}
+.tone-ready {
+  --c: #8ef07a;
+}
+.tone-ready .jc-petal:nth-child(odd) {
+  --c: #5ff2da;
+}
+@keyframes jc-petal {
+  to {
+    transform: rotate(var(--a)) translateY(calc(-1 * var(--r))) rotate(160deg) scale(0.3);
+    opacity: 0;
+  }
+}
+.jc-ring {
+  position: absolute;
+  left: -30px;
+  top: -30px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid #b8fff0;
+  animation: jc-ring 0.9s ease-out forwards;
+}
+@keyframes jc-ring {
+  from {
+    transform: scale(0.15);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* What a resident said, and the gains of a finished building: chips that float up and fade. */
+.jc-say,
+.jc-gain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  translate: -50% -100%;
+  white-space: nowrap;
+}
+.jc-say {
+  animation: jc-float 2.8s ease-out forwards;
+}
+.jc-say q {
+  padding: 5px 11px;
+  border-radius: var(--r-md);
+  background: rgba(255, 250, 236, 0.95);
+  color: #2b2410;
+  font: italic 500 12.5px/1.3 var(--ui);
+  quotes: '“' '”';
+}
+.jc-combo,
+.jc-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--pill);
+  background: #ffb84a;
+  color: #2b1a00;
+  font: 700 11px/16px var(--mono);
+  letter-spacing: 0.04em;
+  animation: jc-punch 0.4s cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+.jc-streak {
+  background: #8ef07a;
+  color: #062010;
+}
+.jc-gain {
+  animation: jc-float 2.6s ease-out 0.15s both;
+}
+.jc-gain > span:not(.jc-streak) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
+  background: var(--bg-strong);
+  color: var(--accent-2);
+  font: 600 12px/16px var(--mono);
+}
+.jc-gain svg,
+.jc-streak svg {
+  width: 13px;
+  height: 13px;
+}
+@keyframes jc-float {
+  0% {
+    transform: translateY(8px) scale(0.85);
+    opacity: 0;
+  }
+  12% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-26px);
+    opacity: 0;
+  }
+}
+@keyframes jc-punch {
+  from {
+    transform: scale(0.3);
+  }
+}
+
+/* ── Screen layer: coins and confetti over everything ── */
+.jc-top {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+/* A coin flies on an arc: the outer element moves across, the inner one rises and falls. */
+.jc-coin {
+  position: absolute;
+  width: 0;
+  height: 0;
+  animation: jc-fly-x 0.75s cubic-bezier(0.5, 0, 0.9, 0.6) var(--d) both;
+}
+.jc-coin > i {
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #ffc24a 55%, #c98412);
+  color: #5a3a00;
+  animation: jc-fly-y 0.75s cubic-bezier(0.2, 0.6, 0.4, 1) var(--d) both;
+}
+.jc-coin svg {
+  width: 11px;
+  height: 11px;
+}
+@keyframes jc-fly-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(var(--dx));
+  }
+}
+@keyframes jc-fly-y {
+  0% {
+    transform: translateY(0) scale(0.6);
+  }
+  30% {
+    transform: translateY(-40px) scale(1.1);
+  }
+  100% {
+    transform: translateY(var(--dy)) scale(0.7);
+  }
+}
+.jc-plus {
+  position: absolute;
+  color: #ffdf94;
+  font: 700 13px/1 var(--mono);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  animation: jc-plus 1.3s ease-out forwards;
+}
+@keyframes jc-plus {
+  0% {
+    transform: translateY(-6px) scale(0.7);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(0) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+}
+.topbar .stat-credits.jc-bump {
+  animation: jc-bump 0.45s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+@keyframes jc-bump {
+  40% {
+    transform: scale(1.14);
+  }
+}
+.jc-confetti {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.jc-bit {
+  position: absolute;
+  width: 7px;
+  height: 4px;
+  border-radius: 1px;
+  animation: jc-confetti 1.25s cubic-bezier(0.15, 0.7, 0.4, 1) forwards;
+}
+.jc-bit.c0 {
+  background: #ffcf6a;
+}
+.jc-bit.c1 {
+  background: #5ff2da;
+}
+.jc-bit.c2 {
+  background: #8ef07a;
+}
+.jc-bit.c3 {
+  background: #ff9fc4;
+}
+@keyframes jc-confetti {
+  70% {
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--x), calc(var(--y) + 40px)) rotate(var(--s));
+    opacity: 0;
+  }
+}
+
+/* ── Milestone tracker: under the top bar, right ── */
+.jc-m {
+  position: absolute;
+  right: 16px;
+  top: 72px;
+  z-index: 12;
+  width: 268px;
+  padding: 10px 12px 12px;
+}
+.jc-m.hidden {
+  display: none;
+}
+.jc-m-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warn);
+}
+.jc-m-head svg {
+  width: 13px;
+  height: 13px;
+}
+.jc-m-kicker {
+  font: 600 10px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.jc-m-count {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font: 500 10.5px/1 var(--mono);
+}
+.jc-m-fold {
+  width: 22px;
+  height: 22px;
+}
+.jc-m-main {
+  display: flex;
+  gap: 10px;
+  margin-top: 9px;
+}
+.jc-m-ico {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+  color: var(--accent);
+}
+.jc-m-ico svg {
+  width: 17px;
+  height: 17px;
+}
+.jc-m-title {
+  display: block;
+  color: var(--ink);
+  font-size: 14px;
+}
+.jc-m-hint {
+  margin: 2px 0 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.jc-m-bar {
+  height: 5px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: var(--pill);
+  background: rgba(95, 242, 218, 0.1);
+}
+.jc-m-bar > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transform-origin: left;
+  transition: transform 0.5s ease-out;
+}
+.jc-m.ready .jc-m-bar > i {
+  background: linear-gradient(90deg, var(--warn), #ffe7a8);
+}
+.jc-m-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  color: var(--ink-soft);
+  font: 500 11px/1 var(--mono);
+}
+.jc-m-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--warn);
+}
+.jc-m-reward svg {
+  width: 11px;
+  height: 11px;
+}
+.jc-m-act:empty {
+  display: none;
+}
+.jc-m-act {
+  margin-top: 9px;
+}
+.jc-do,
+.jc-claim {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  font: 600 12.5px/1 var(--ui);
+  cursor: pointer;
+}
+.jc-do {
+  border: 1px solid var(--line-strong);
+  background: var(--bg-raise);
+  color: var(--accent);
+}
+.jc-do:hover {
+  background: var(--bg-hover);
+}
+.jc-do svg,
+.jc-claim svg {
+  width: 14px;
+  height: 14px;
+}
+.jc-claim {
+  position: relative;
+  border: 0;
+  background: linear-gradient(180deg, #ffd77a, #ffad3a);
+  color: #2b1a00;
+  animation: jc-punch 0.45s cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+.jc-claim::after {
+  /* A sheen sweeping across, every couple of seconds. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
+  animation: jc-sheen 2.4s ease-in-out infinite;
+}
+.jc-claim:hover {
+  filter: brightness(1.08);
+}
+.jc-more {
+  padding: 1px 6px;
+  border-radius: var(--pill);
+  background: rgba(43, 26, 0, 0.18);
+  font: 600 10px/14px var(--mono);
+}
+@keyframes jc-sheen {
+  0% {
+    transform: translateX(-60%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  60%,
+  100% {
+    transform: translateX(60%);
+    opacity: 0;
+  }
+}
+/* Reached: the frame glows (an opacity pulse on a pseudo-element, not an animated shadow). */
+.jc-m::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 1.5px solid #ffcf6a;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+.jc-m.ready::before {
+  animation: jc-glow 1.6s ease-in-out infinite;
+}
+@keyframes jc-glow {
+  50% {
+    opacity: 0.9;
+  }
+}
+.jc-m.jc-ping {
+  animation: jc-ping 0.5s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+@keyframes jc-ping {
+  40% {
+    transform: scale(1.04);
+  }
+}
+.jc-m.jc-turn > :not(.jc-m-head) {
+  animation: jc-turn 0.45s ease-out both;
+}
+@keyframes jc-turn {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+/* Folded: just a pill. */
+.jc-m-pill {
+  display: none;
+}
+.jc-m.folded {
+  width: auto;
+  padding: 0;
+}
+.jc-m.folded > :not(.jc-m-pill) {
+  display: none;
+}
+.jc-m.folded .jc-m-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 600 12px/1 var(--ui);
+  cursor: pointer;
+}
+.jc-m.folded .jc-m-pill svg {
+  width: 13px;
+  height: 13px;
+  color: var(--warn);
+}
+.jc-m.folded.ready .jc-m-pill {
+  color: #ffdf94;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jc-bubble-in,
+  .jc-claim::after,
+  .jc-m.ready::before {
+    animation: none;
+  }
+}

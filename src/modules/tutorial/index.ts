@@ -68,7 +68,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Grow your credits',
-    body: 'Let time run (Space pauses, 1–3 set the speed) and earn 300 credits. Add homes along the road when you can: residents pay tax.',
+    body: 'Let time run (Space pauses, 1–3 set the speed) and earn 300 credits. Add homes along the road: residents pay tax. Pop the gold tip bubbles over happy buildings, and claim milestones from the card at the top right.',
     done: (c, s) => c.city.credits >= s.credits + 300,
   },
   {

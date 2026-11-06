@@ -436,7 +436,7 @@ export class City {
 
   private growthHash(): string {
     const g = this.growth;
-    return `${g.name}|${g.progression ? 1 : 0}|${g.unlocked.join(',')}|${g.projects.map((p) => `${p.id}@${p.endTick}`).join(',')}|${g.wonders.join(',')}|${g.fish.toFixed(4)}|${g.floraRequests}|${g.floraSpent.toFixed(2)}`;
+    return `${g.name}|${g.progression ? 1 : 0}|${g.unlocked.join(',')}|${g.projects.map((p) => `${p.id}@${p.endTick}`).join(',')}|${g.wonders.join(',')}|${g.fish.toFixed(4)}|${g.floraRequests}|${g.floraSpent.toFixed(2)}|${g.milestones.join(',')}|${g.tips}|${g.tipIncome.toFixed(2)}`;
   }
 
   private fireworksHash(): string {

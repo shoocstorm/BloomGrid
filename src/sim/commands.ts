@@ -8,6 +8,8 @@ import { registerFinanceCommands } from './finance';
 import { registerHazardCommands } from './hazards';
 import { registerFireworksCommands } from './fireworks';
 import { registerProjectCommands } from './projects';
+import { registerMilestoneCommands } from './milestones';
+import { registerTipCommands } from './tips';
 import { registerFloraCommands } from './flora';
 import { registerLevelCommands } from './levels';
 import { registerSwitchCommands } from './switches';
@@ -66,6 +68,8 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerHazardCommands(stack);
   registerFireworksCommands(stack);
   registerProjectCommands(stack);
+  registerMilestoneCommands(stack);
+  registerTipCommands(stack);
   registerFloraCommands(stack);
   registerLevelCommands(stack);
   registerSwitchCommands(stack);

@@ -2,6 +2,7 @@ import { buildings } from '@/content';
 import type { GameModule } from '@/game/context';
 import { PROJECTS, PROJECT_IDS, projectProgress, projectStatus } from '@/sim/projects';
 import { WONDERS } from '@/sim/wonders';
+import { MILESTONES, claimableMilestones, milestoneDone, openMilestones } from '@/sim/milestones';
 import { DAY_LENGTH } from '@/sim/pulseConst';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
@@ -147,8 +148,30 @@ export const goalsModule: GameModule = {
           h('span', {}, found ? 'Discovered' : w.hint),
         );
       });
+      // Steward milestones (D-118): the next few, with a Claim button once reached.
+      const milestones = openMilestones(city)
+        .slice(0, 4)
+        .map((m) => {
+          const p = m.progress(city);
+          const done = milestoneDone(city, m);
+          return h(
+            'div',
+            { class: `gl-ms ${done ? 'ready' : ''}` },
+            h('span', { class: 'gl-ico' }, icon(m.icon)),
+            h('div', { class: 'gl-ms-text' }, h('b', {}, m.title), h('span', {}, m.hint), h('div', { class: 'gl-bar' }, h('i', { style: `width:${Math.round(Math.min(1, p.have / p.need) * 100)}%` }))),
+            done
+              ? h(
+                  'button',
+                  { class: 'gl-start gl-claim', title: 'Claim the reward', onClick: () => ctx.commands.execute('claimMilestone', { id: m.id }, false) },
+                  `◈${fmt(m.reward)}`,
+                )
+              : h('span', { class: 'gl-ms-reward' }, `◈${fmt(m.reward)}`),
+          );
+        });
       const s = city.stats;
       el.replaceChildren(
+        h('div', { class: 'pulse-title' }, `Milestones · ${g.milestones.length} / ${MILESTONES.length}`),
+        ...(milestones.length ? milestones : [h('p', { class: 'gl-note' }, 'Every milestone claimed. The island is in good hands.')]),
         h('div', { class: 'pulse-title' }, 'Unlock projects'),
         ...projects,
         h('div', { class: 'pulse-title' }, 'Sea wonders'),
@@ -179,7 +202,7 @@ export const goalsModule: GameModule = {
     const badge = () => {
       const g = city.growth;
       const ready = g.progression
-        ? PROJECT_IDS.filter((id) => projectStatus(city, id) === 'ready').length
+        ? PROJECT_IDS.filter((id) => projectStatus(city, id) === 'ready').length + claimableMilestones(city).length
         : 0;
       tab.setBadge(ready ? String(ready) : '', ready ? 'warn' : '');
       // Phones keep the console folded over the city: say once when a project becomes ready to start.
@@ -210,6 +233,7 @@ export const goalsModule: GameModule = {
       'project:start',
       'project:done',
       'wonder:discovered',
+      'milestone:claimed',
       'city:reset',
       'load:done',
     ] as const)

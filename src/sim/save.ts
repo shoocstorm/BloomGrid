@@ -8,7 +8,7 @@ import { createFireworksState, type FireworksState } from './fireworksState';
 import { createGrowthState, type GrowthState } from './growthState';
 import { createConsequenceState, neutralMods, type ConsequenceState } from './consequenceState';
 
-export const SAVE_VERSION = 16;
+export const SAVE_VERSION = 17;
 
 export interface SaveData {
   version: number;
@@ -139,6 +139,11 @@ export function migrateSave(data: SaveData): SaveData {
     (data.pulse.history as Record<string, number[]>).food ??= [];
     data.fireworks.flow ??= 0;
     data.version = 16;
+  }
+  if (data.version === 16) {
+    // Milestones and residents' tips (v17, D-118): nothing claimed or popped yet.
+    Object.assign(data.growth, { milestones: data.growth.milestones ?? [], tips: data.growth.tips ?? 0, tipIncome: data.growth.tipIncome ?? 0 });
+    data.version = 17;
   }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;

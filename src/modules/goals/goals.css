@@ -173,3 +173,39 @@
   width: 11px;
   height: 11px;
 }
+
+/* Steward milestones (D-118). */
+.gl-ms {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.gl-ms-text {
+  flex: 1;
+  min-width: 0;
+}
+.gl-ms-text b {
+  display: block;
+  font-size: 12.5px;
+}
+.gl-ms-text > span {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+.gl-ms .gl-bar {
+  margin-top: 5px;
+}
+.gl-ms-reward {
+  color: var(--ink-faint);
+  font: 500 11px/1 var(--mono);
+}
+.gl-ms.ready .gl-ico {
+  color: var(--warn);
+}
+.gl-claim {
+  background: linear-gradient(180deg, #ffd77a, #ffad3a);
+  color: #2b1a00;
+}

@@ -218,6 +218,17 @@ export const settingsModule: GameModule = {
               ]
             : [];
         })(),
+        ...(() => {
+          // Tip bubbles (D-118): residents' tips over happy buildings.
+          const juice = ctx.services.tryGet('juice');
+          return juice
+            ? [
+                h('h4', {}, 'Tip bubbles'),
+                h('p', { class: 'set-hint' }, 'Now and then a happy building floats a bubble: pop it for a small tip and a word from its residents.'),
+                radio('tips', { on: 'On', off: 'Off' }, juice.tips ? 'on' : 'off', (m) => (juice.tips = m === 'on')),
+              ]
+            : [];
+        })(),
         h('h4', {}, 'Graphics'),
         radio('quality', QUALITY_LABELS, ctx.quality.tier, (q) => {
           render.setQuality(q);

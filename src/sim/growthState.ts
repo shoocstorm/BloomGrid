@@ -36,6 +36,11 @@ export interface GrowthState {
   fishIncome: number;
   floraRequests: number;
   floraSpent: number;
+  /** Steward milestones claimed (ids from `sim/milestones.ts`, D-118). */
+  milestones: string[];
+  /** Residents' tips popped, and what they paid (`sim/tips.ts`, D-118). */
+  tips: number;
+  tipIncome: number;
 }
 
 export function createGrowthState(): GrowthState {
@@ -49,6 +54,9 @@ export function createGrowthState(): GrowthState {
     fishIncome: 0,
     floraRequests: 0,
     floraSpent: 0,
+    milestones: [],
+    tips: 0,
+    tipIncome: 0,
   };
 }
 

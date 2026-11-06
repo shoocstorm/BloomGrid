@@ -458,6 +458,31 @@ export const audioModule: GameModule = {
         [220, 277, 330].forEach((f) => s.tone(f, 1.8, 0.05, 'triangle', undefined, 2));
       }
     });
+    // Juice cues (D-118): tip pops climb a pentatonic step per combo, build chimes step up with a streak.
+    const PENTA = [0, 2, 4, 7, 9, 12, 14];
+    const up = (f: number, step = 0) => f * 2 ** (PENTA[Math.min(PENTA.length - 1, step)]! / 12);
+    bus.on('juice', ({ sound, step = 0 }) => {
+      if (quiet()) return;
+      if (sound === 'tip') {
+        s.burst(0.07, 0.12, 'highpass', 2400);
+        s.tone(up(660, step), 0.16, 0.09, 'sine', up(1320, step));
+        s.tone(up(1320, step), 0.25, 0.035, 'triangle', undefined, 0.06);
+      } else if (sound === 'coin') {
+        s.tone(1568, 0.12, 0.05, 'triangle');
+        s.tone(2093, 0.3, 0.05, 'triangle', undefined, 0.07);
+      } else if (sound === 'ready') {
+        [523, 659, 784].forEach((f, i) => s.tone(up(f, step), 0.35, 0.06, 'triangle', undefined, i * 0.07));
+        s.burst(0.35, 0.05, 'bandpass', 3000, 6000, 0.05);
+      } else if (sound === 'claimable') {
+        s.tone(784, 0.3, 0.06, 'sine');
+        s.tone(1175, 0.5, 0.06, 'sine', undefined, 0.12);
+      } else {
+        // Claim: a quick rising run into a bright chord, with a shimmer.
+        [523, 659, 784, 1047].forEach((f, i) => s.tone(f, 0.3, 0.07, 'triangle', undefined, i * 0.06));
+        [784, 1047, 1319].forEach((f) => s.tone(f, 1.1, 0.045, 'sine', undefined, 0.26));
+        s.burst(0.6, 0.06, 'highpass', 5000, undefined, 0.24);
+      }
+    });
     bus.on('crisis:forecast', () => {
       s.tone(440, 0.35, 0.08, 'square', undefined, 0);
       s.tone(440, 0.35, 0.08, 'square', undefined, 0.5);

@@ -290,6 +290,15 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Lot grading: lots levelled and lifted to their street, rising banks cut to ramps; showcase hollows 23 → 3 (D-099)
 - **Accept:** ✅ snaps (day, night, WebGL), `tests/orient.test.ts`, draw calls and boot measured, flicker probe (D-095)
 
+
+## ✅ Juice: first-play rewards (2026-11-06)
+
+- [x] Steward milestones: 18 data-defined goals with claimable rewards, saved and hashed (`sim/milestones.ts`, save v17)
+- [x] Milestone tracker card (Build shortcut, glowing Claim, confetti, fold to a pill; phone strip) and Goals tab section
+- [x] Residents' tip bubbles: sim-valued tips (`collectTip`), quotes that hint at shortages, combos up to ×5, Settings toggle
+- [x] Build ready burst with what the building adds and build streaks; coins fly into the credits counter; sounds
+- **Accept:** ✅ snaps (desktop, phone, WebGL) with `scripts/scenes/juice.js`, `tests/milestones.test.ts`, perf unchanged (D-118)
+
 ---
 
 ## Tech debt / open issues

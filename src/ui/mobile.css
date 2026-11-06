@@ -587,3 +587,46 @@ body.compact.flora-open #hud > :not(.ai) {
 .compact .pz-pill {
   top: var(--chips, 104px);
 }
+
+/* Milestone tracker (D-118): a slim strip above the Build button (where the guide sits, so it steps aside while
+   the guide is open); the hint and the numbers are in the Goals tab. */
+.compact .jc-m {
+  top: auto;
+  bottom: calc(var(--bot) + 70px);
+  left: var(--gut);
+  right: var(--gut);
+  width: auto;
+  padding: 8px 10px;
+}
+.compact #hud:has(> .tt:not(.hidden)) > .jc-m {
+  display: none;
+}
+.compact .jc-m-kicker,
+.compact .jc-m-hint,
+.compact .jc-m-foot {
+  display: none;
+}
+.compact .jc-m-head {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.compact .jc-m-main {
+  margin-top: 0;
+  align-items: center;
+  padding-right: 70px;
+}
+.compact .jc-m-ico {
+  width: 28px;
+  height: 28px;
+}
+.compact .jc-m-bar {
+  margin-top: 7px;
+}
+.compact .jc-m-act {
+  margin-top: 7px;
+}
+.compact .jc-m.folded {
+  left: auto;
+  right: var(--gut);
+}

@@ -59,6 +59,9 @@ declare module '@/core/EventBus' {
     'project:done': { id: UnlockId };
     'wonder:discovered': { id: string; name: string };
     'city:named': { name: string };
+    /** Steward milestones and residents' tips (D-118): a reward claimed; a tip bubble popped (`eid` paid it). */
+    'milestone:claimed': { id: string; reward: number };
+    'tip:collected': { eid: number; amount: number; combo: number };
     /** Levels and ageing (D-073): a building changed level (grew, was upgraded, or an upgrade was undone); renovated. */
     'building:tier': { eid: number; tier: number; paid: boolean };
     'building:renovated': { eid: number };

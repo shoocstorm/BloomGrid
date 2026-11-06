@@ -1864,3 +1864,29 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   (`.blocked`); pressing it toasts the reason and nudges a warning card under the hazard buttons. The card's one step:
   Renovate (run down), Find credits (opens the Credits guide; shows the shortfall and the time at today's income), or
   the hazard buttons above it (fire, ruin). No card at the top level or for buildings that don't grow.
+
+## D-118 — Juice: milestones, tip bubbles and reward feedback for the first play (2026-11-06)
+
+- **Why**: a fresh island's first hour had long quiet stretches. Income is ≈◈2/s, the first population moment is at
+  1,000 residents, and placing a building ended with a "Ready" tag. Nothing rewarded attention between the guide and
+  the unlock projects.
+- **Milestones** (`sim/milestones.ts`): 18 ordered goals, as data, each with `progress(city)`, a reward and an
+  optional `build` hint. They come from the opening's real needs: the fresh island starts with food at ≈76% and power
+  margin at ≈20 of 40, so the early goals teach sound play, and two or three finish on their own within ten minutes.
+  The player claims them by hand (`claimMilestone`), because the claim is the reward beat. `growth.milestones` is
+  saved and hashed (save v17). Progression cities only.
+- **Tips** (`sim/tips.ts`): *where* and *when* a bubble floats is cosmetic, chosen in the `juice` module with
+  `Math.random` (not sim state). *What it pays* is the sim's (`tipValue`: 15 + 0.9·√population, × Harmony/60 clamped
+  0.5–1.5, × combo 1–2), so a replayed command log pays the same. Tips and claims run with `undoable = false`: they are
+  receipts, and ⌘Z should still undo the last build. A bubble lasts 32 s of running time, at most three float at once,
+  20–35 s apart, in view only.
+- **Feedback** (`modules/juice/`): a `building:ready` event from the rising module (the last piece landed) drives a
+  petal burst and the building's yields; quick builds step the chime up a pentatonic scale. Coins fly on a two-axis
+  arc into `.stat-credits`, which bumps when they land. Sounds hang off a `juice` bus event in the audio module.
+  Everything is DOM with transform / opacity keyframes. Anchored effects sit in a positioning wrapper because an
+  animated `transform` would override the inline one. Measured: main thread 23.4% active / 16.7% idle (≈ baseline),
+  draw calls unchanged.
+- **Rejected**: automatic claims (they lose the beat); tips as a sim system with `city.rng` (that would put
+  cosmetic spawning into the hash and the balance tests); offline "welcome back" earnings (they would fight the
+  steward role, where neglect is meant to matter).
+
