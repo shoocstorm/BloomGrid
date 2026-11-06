@@ -9,7 +9,7 @@ import { NO_ENTITY } from '@/sim/Grid';
 import { idForSelection } from '@/sim/inventory';
 import { RESPONSE_COST, fireAt, isRuined, repairCost } from '@/sim/hazards';
 import { DEMOLISH_REFUND } from '@/sim/commands';
-import { MAX_TIER, ageDays, levels, renovateCost, upgradeBlocker, upgradeCost } from '@/sim/levels';
+import { MAX_TIER, ageDays, levels, renovateCost, upgradeAdvice, upgradeCost } from '@/sim/levels';
 import { buildingReport, type BuildingReport, type FlowKey, type FlowLine } from '@/sim/buildingReport';
 import { rulesFor } from '@/sim/consequences';
 import { INDICATOR_NAMES as N } from '@/sim/indicators';
@@ -631,14 +631,26 @@ class Hud {
     const at = { x: Building.x[eid]!, z: Building.z[eid]! };
     const out: HTMLElement[] = [];
     if (levels(city, eid) && Building.tier[eid]! < MAX_TIER) {
-      const why = upgradeBlocker(city, eid);
+      // Never disabled: a blocked press says why and points at the fix (a disabled button only had a hover title).
       const b = h(
         'button',
-        { class: 'tool', title: why ?? `Grow it to level ${Building.tier[eid]! + 2} now: more room, more output, more upkeep`, onClick: () => ctx.commands.execute('upgradeBuilding', at) && this.select(eid) },
+        {
+          class: 'tool ix-up',
+          onClick: () => {
+            const why = upgradeAdvice(city, eid);
+            if (!why) return ctx.commands.execute('upgradeBuilding', at) && this.select(eid);
+            ctx.bus.emit('toast', { text: `Can't upgrade: ${why.reason.replace(/:.*/, '')}. ${why.fix}`, tone: 'bad' });
+            const card = this.infoBody.querySelector<HTMLElement>('.ix-upnote');
+            card?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            card?.classList.remove('nudge');
+            void card?.offsetWidth;
+            card?.classList.add('nudge');
+          },
+        },
         h('span', { class: 'g' }, icon('up')),
         `Upgrade ◈${fmt(upgradeCost(city, eid))}`,
-      ) as HTMLButtonElement;
-      b.disabled = !!why;
+      );
+      this.upgradeState(b, eid);
       out.push(b);
     }
     if (ageDays(eid) >= 0.5 || Service.condition[eid]! < 0.95) {
@@ -653,6 +665,70 @@ class Hud {
       out.push(b);
     }
     return out;
+  }
+
+  /** Marks the Upgrade button blocked or ready (credits change under it, so `updateInfo` calls this too). */
+  private upgradeState(b: HTMLElement, eid: number): void {
+    const why = upgradeAdvice(this.ctx.city, eid);
+    b.classList.toggle('blocked', !!why);
+    b.setAttribute('aria-disabled', String(!!why));
+    const label = b.getAttribute('aria-label') ?? '';
+    b.title = `${label ? `${label}: ` : ''}${why ? `can't yet (${why.reason.replace(/:.*/, '').toLowerCase()}). ${why.fix}` : `grow it to level ${Building.tier[eid]! + 2} now: more room, more output, more upkeep`}`;
+  }
+
+  private upKey = '';
+  /**
+   * Why Upgrade is blocked and the one step that unblocks it (D-117): renovate, the hazard buttons above, or the
+   * Credits guide. Nothing for a building at the top level or one that doesn't grow (its Level fact says so).
+   */
+  private upgradeNote(eid: number): void {
+    const box = this.infoBody.querySelector<HTMLElement>('[data-up]');
+    const btn = this.infoBody.querySelector<HTMLElement>('.ix-up');
+    if (btn) this.upgradeState(btn, eid);
+    if (!box) return;
+    const { city, commands, bus } = this.ctx;
+    const why = levels(city, eid) && Building.tier[eid]! < MAX_TIER ? upgradeAdvice(city, eid) : null;
+    // Credits short: round so the card isn't rebuilt every tick while income ticks in.
+    const key = `${eid}|${why ? `${why.act}|${why.act === 'credits' ? Math.ceil(why.short! / 10) : why.fix}` : ''}`;
+    if (key === this.upKey) return;
+    this.upKey = key;
+    if (!why) return box.replaceChildren();
+    const at = { x: Building.x[eid]!, z: Building.z[eid]! };
+    // How long today's income takes to cover the gap (sim seconds; 1× speed).
+    const net = netIncome(city);
+    const secs = why.act === 'credits' && net > 0 ? why.short! / net : 0;
+    const eta = secs ? ` At +${net.toFixed(1)}/s that's about ${secs < 90 ? `${Math.ceil(secs)} s` : `${Math.ceil(secs / 60)} min`}.` : '';
+    const fix =
+      why.act === 'renovate'
+        ? h(
+            'button',
+            {
+              class: 'tool ix-upnote-btn',
+              onClick: () => {
+                if (commands.execute('renovate', at)) this.select(eid);
+                else bus.emit('toast', { text: 'Not enough credits to renovate', tone: 'bad' });
+              },
+            },
+            icon('wrench'),
+            ` Renovate · ◈${fmt(renovateCost(city, eid))}`,
+          )
+        : why.act === 'credits'
+          ? h(
+              'button',
+              { class: 'tool ix-upnote-btn', title: 'Taxes, upkeep and loans: the Credits guide', onClick: () => this.statEls.get('credits')?.el.click() },
+              icon('credits'),
+              ' Find credits',
+            )
+          : null;
+    box.replaceChildren(
+      h(
+        'div',
+        { class: 'ix-upnote', role: 'status' },
+        icon('st-warn'),
+        h('div', {}, h('b', {}, `Can't upgrade yet: ${why.reason.replace(/:.*/, '').toLowerCase()}`), h('span', {}, why.fix + eta)),
+        fix ?? '',
+      ),
+    );
   }
 
   private askAbout(id: string): void {
@@ -736,7 +812,7 @@ class Hud {
   private select(eid: number | null): void {
     this.selected = eid === NO_ENTITY ? null : eid;
     this.group = [];
-    this.hzKey = '';
+    this.hzKey = this.upKey = '';
     if (this.selected === null) return this.hideInfo();
     this.showInfo();
     this.stageFor(this.selected);
@@ -754,6 +830,7 @@ class Hud {
       ),
       // Live parts (`updateInfo`): status and fixes, key facts, what it consumes and produces, notes.
       h('div', { class: 'info-hz', 'data-hz': '1' }),
+      h('div', { class: 'ix-upbox', 'data-up': '1' }),
       h('div', { class: 'ix-live', 'data-live': '1' }),
       this.infoActions(
         id,
@@ -781,6 +858,7 @@ class Hud {
     const notes = this.notes(eid);
     const key = JSON.stringify([r, notes]);
     this.hazardActions(eid);
+    this.upgradeNote(eid);
     if (key === this.liveKey) return;
     this.liveKey = key;
     box.replaceChildren(this.statusCard(r), this.keyFacts(eid, r), this.flows(r), notes.length ? h('ul', { class: 'ix-notes' }, ...notes.map(([ico, text, tone]) => h('li', { class: tone }, icon(ico), h('span', {}, text)))) : '');

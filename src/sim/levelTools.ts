@@ -3,7 +3,7 @@ import { Building, Service } from '@/ecs/components';
 import type { ActionCtx } from './actionTools';
 import { buildingId, getObject } from './inventory';
 import { DAY_LENGTH } from './pulseConst';
-import { ageDays, renovateCost, upgradeBlocker, upgradeCost } from './levels';
+import { ageDays, renovateCost, upgradeAdvice, upgradeCost } from './levels';
 import type { City } from './City';
 
 /**
@@ -35,8 +35,8 @@ export const levelTools: AgentTool<ActionCtx, never>[] = [
       const o = getObject(city, id);
       if (!o || o.ref.eid === undefined) throw new Error(`No building "${id}"`);
       const e = o.ref.eid;
-      const why = upgradeBlocker(city, e);
-      if (why) throw new Error(why);
+      const why = upgradeAdvice(city, e);
+      if (why) throw new Error(`${why.reason}. ${why.fix}`);
       const cost = upgradeCost(city, e);
       if (!commands.execute('upgradeBuilding', { x: Building.x[e]!, z: Building.z[e]! }))
         throw new Error('Could not upgrade.');

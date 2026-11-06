@@ -1853,3 +1853,14 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   crisis). Sky-bridges are keyed by tower anchors, so bridges woven to a moved tower come down; undo splices them
   back at their old indexes so the hash round-trips.
 - **Placement**: `City.checkPlacement` gained `moving` (its own lot doesn't block, no lock or limit check) and `cost`.
+
+## D-117 — A blocked upgrade says why and offers the fix (2026-11-05)
+
+- **Why**: a blocked Upgrade was a disabled button whose reason lived only in its hover title: nothing on phones, and
+  disabled buttons don't explain themselves. It also went stale (built once per selection while credits moved).
+- **Sim**: `upgradeAdvice` in `sim/levels.ts` returns `{ reason, fix, act, short }`; `upgradeBlocker` is its
+  `reason` (bulk tools, inventory tags unchanged). Flora's `upgrade_building` error carries the fix.
+- **Inspector** (`Hud.upgradeNote`, refreshed with the live parts): the button stays pressable but reads locked
+  (`.blocked`); pressing it toasts the reason and nudges a warning card under the hazard buttons. The card's one step:
+  Renovate (run down), Find credits (opens the Credits guide; shows the shortfall and the time at today's income), or
+  the hazard buttons above it (fire, ruin). No card at the top level or for buildings that don't grow.

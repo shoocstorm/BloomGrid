@@ -3,7 +3,7 @@ id: cause-effect-levels-ageing
 title: Levels and ageing
 category: cause-effect
 summary: How buildings grow levels when they thrive, how they age and wear, and when to upgrade or renovate.
-tags: [level, tier, upgrade, age, old, renovate, condition, wear, upkeep, look, storey, taller]
+tags: [level, tier, upgrade, age, old, renovate, condition, wear, upkeep, look, storey, taller, can't upgrade, upgrade blocked, greyed out]
 related: [reference-rules, systems-budget, playbooks-growth]
 order: 3
 ---
@@ -32,6 +32,16 @@ austerity it ages twice as fast. **Renovate** (inspector) to reset its age and c
 
 Condition falls with age, floods, fire, quakes and austerity. Below 60% a building is *Worn*, below 35% *Neglected*.
 Amenities only delight residents when they are kept in good repair.
+
+## Why can't I upgrade this building?
+
+When Upgrade can't run, the inspector shows a card with the reason and the fix (pressing the locked button says it too):
+
+- **Too run down**: condition under 50%. Renovate it (the card's button), then upgrade.
+- **Not enough credits**: the card says how much is missing and how long today's income takes; **Find credits**
+  opens the Credits guide (taxes, upkeep, loans).
+- **On fire or a ruin**: dispatch crews or rebuild first (the orange button above the card).
+- **Already at the top level** (level 3), or a building that doesn't grow: no upgrade exists.
 
 ## When to act
 

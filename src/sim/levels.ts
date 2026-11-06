@@ -77,14 +77,44 @@ export const renovateCost = (city: City, eid: number): number =>
 export const upgradeCost = (city: City, eid: number): number =>
   Math.round(city.buildingDef(eid).stats.cost * (0.6 + 0.4 * Building.tier[eid]!));
 
+/**
+ * Why a building can't be upgraded and what the steward can do about it, or null when it can. `act` names the
+ * one-step fix the inspector offers (renovate it, deal with the fire or ruin, find the credits).
+ */
+export interface UpgradeAdvice {
+  reason: string;
+  fix: string;
+  act?: 'renovate' | 'hazard' | 'credits';
+  /** Credits still missing (`act: 'credits'`). */
+  short?: number;
+}
+
+export function upgradeAdvice(city: City, eid: number): UpgradeAdvice | null {
+  if (!levels(city, eid)) return { reason: 'Only homes and workplaces grow', fix: 'Its output is fixed by its type: build another one to add more.' };
+  if (Building.tier[eid]! >= MAX_TIER) return { reason: 'Already at the top level', fix: 'Renovate it now and then to keep upkeep down.' };
+  if (fireAt(city, eid)) return { reason: 'Repair it first', fix: 'It is on fire: dispatch crews, then repair the damage.', act: 'hazard' };
+  if (isRuined(city, eid)) return { reason: 'Repair it first', fix: 'It is a ruin: rebuild it before it can grow.', act: 'hazard' };
+  const cond = Service.condition[eid]!;
+  if (cond < 0.5)
+    return {
+      reason: 'Too run down: renovate it first',
+      fix: `Condition is ${Math.round(cond * 100)}% (needs 50%). Renovate it for ◈${renovateCost(city, eid).toLocaleString()}, then upgrade.`,
+      act: 'renovate',
+    };
+  const short = upgradeCost(city, eid) - city.credits;
+  if (short > 0)
+    return {
+      reason: 'Not enough credits',
+      fix: `◈${Math.ceil(short).toLocaleString()} short. Wait for income, raise taxes, cut upkeep or take a loan.`,
+      act: 'credits',
+      short,
+    };
+  return null;
+}
+
 /** Why a building can't be upgraded, or null. */
 export function upgradeBlocker(city: City, eid: number): string | null {
-  if (!levels(city, eid)) return 'Only homes and workplaces grow';
-  if (Building.tier[eid]! >= MAX_TIER) return 'Already at the top level';
-  if (fireAt(city, eid) || isRuined(city, eid)) return 'Repair it first';
-  if (Service.condition[eid]! < 0.5) return 'Too run down: renovate it first';
-  if (city.credits < upgradeCost(city, eid)) return 'Not enough credits';
-  return null;
+  return upgradeAdvice(city, eid)?.reason ?? null;
 }
 
 /** Once per pulse, after condition and occupancy: buildings age, thriving ones grow toward their next level. */

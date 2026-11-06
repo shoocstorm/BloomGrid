@@ -4,7 +4,7 @@ import { Building, Greenery, Service } from '@/ecs/components';
 import { City } from '@/sim/City';
 import { applyScenario } from '@/sim/scenario';
 import { DAY_LENGTH } from '@/sim/pulseConst';
-import { LEVEL_DAYS, renovateCost, upgradeCost, upkeepMul } from '@/sim/levels';
+import { LEVEL_DAYS, MAX_TIER, renovateCost, upgradeAdvice, upgradeCost, upkeepMul } from '@/sim/levels';
 import { SAVE_VERSION, deserializeCity, migrateSave, serializeCity, type SaveData } from '@/sim/save';
 import { makeSim } from './helpers';
 
@@ -97,5 +97,22 @@ describe('building levels and ageing (Phase 18, D-073)', () => {
     const back = new City(new EventBus(), 1);
     deserializeCity(back, migrateSave(v11));
     expect(back.buildingEntities().every((b) => Building.tier[b] === 0 && Service.age[b] === 0)).toBe(true);
+  });
+
+  it('explains a blocked upgrade and names the fix (D-117)', () => {
+    const s = settled();
+    const { city } = s;
+    const e = thrivingHome(s);
+    Building.tier[e] = 0;
+    expect(upgradeAdvice(city, e)).toBeNull();
+    Service.condition[e] = 0.3;
+    expect(upgradeAdvice(city, e)).toMatchObject({ act: 'renovate', reason: 'Too run down: renovate it first' });
+    expect(upgradeAdvice(city, e)!.fix).toContain(`◈${renovateCost(city, e).toLocaleString()}`);
+    Service.condition[e] = 1;
+    city.credits = upgradeCost(city, e) - 120;
+    expect(upgradeAdvice(city, e)).toMatchObject({ act: 'credits', short: 120 });
+    expect(upgradeAdvice(city, e)!.fix).toContain('◈120 short');
+    Building.tier[e] = MAX_TIER;
+    expect(upgradeAdvice(city, e)?.act).toBeUndefined();
   });
 });
