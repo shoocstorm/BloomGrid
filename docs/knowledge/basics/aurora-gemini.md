@@ -3,7 +3,7 @@ id: basics-aurora-gemini
 title: The Aurora Gemini twin towers
 category: basics
 summary: The twin landmark at the island's centre, and how to put on its light show, stand on its sky deck or frame a postcard of it.
-tags: [aurora gemini, twin towers, twins, landmark, light show, searchlights, aurora, sky deck, postcard, sun gate, sol, luna, centre]
+tags: [aurora gemini, twin towers, twins, landmark, hero, light show, searchlights, aurora, sky deck, rooftop, stand on top, postcard, photo, sun gate, sol, luna, centre]
 related: [basics-on-foot, basics-welcome]
 order: 65
 ---
@@ -23,17 +23,19 @@ fan out and cycle through the spectrum, and an aurora ripples above the Sun Gate
 It is for the look of the city only: it costs nothing and changes no numbers. On ordinary nights the searchlights
 sweep the sky slowly on their own.
 
-## How do I stand on top of the towers?
+## How do I stand on top of the towers (or any landmark)?
 
-Click the twins and press **Sky deck**. You stand on their highest sky-garden terrace, about forty storeys up.
-**WASD** strolls round it, dragging looks round, **V** switches to first person, **Tab** moves on to the next
-landmark and **Esc** returns to the city view. The lobbies' glass doors at street level slide open with **E** in walk
+Click the twins, or any hero or landmark building, and press **Sky deck**. You stand on top: on the twins, their
+highest sky-garden terrace about forty storeys up. **WASD** walks you anywhere on top (walls, railings and trees
+are in the way like on the street, and the roof's edge holds you like a parapet), **Shift** walks faster, dragging
+looks round, **V** switches to first person, **Tab** moves on to the next landmark and **Esc** returns to the
+city view. The lobbies' glass doors at street level slide open with **E** in walk
 mode (see [walking the island](kb:basics-on-foot)).
 
 ## How do I take a picture of them?
 
-Press **Postcard** in the twins' inspector. The camera swings to a low view that frames both towers whole, in photo
-mode: **P** saves a PNG, dragging adjusts the view and **Esc** leaves.
+Press **Postcard** in the inspector of the twins, or of any hero or landmark. The camera swings to a low view that
+frames the building whole, in photo mode: **P** saves a PNG, dragging adjusts the view and **Esc** leaves.
 
 ## Where did the Wellspring Spire go?
 

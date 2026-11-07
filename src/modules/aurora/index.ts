@@ -22,8 +22,7 @@ import { placeBuilding } from '@/modules/construction/BuildingRenderer';
 
 /**
  * The Aurora Gemini's light-work (D-135). Golden searchlights sweep the sky from both crowns after dark, and the steward can put on a light show from the inspector: the beams speed up, fan out
- * and cycle through the spectrum while an aurora curtain ripples over the Aurora Ring. Two more buttons stand the
- * steward on a crown's sky deck (rooftop explore mode) and frame a postcard (photo mode). Render-only: nothing here
+ * and cycle through the spectrum while an aurora curtain ripples over the Aurora Ring. Render-only: nothing here
  * touches the sim, its hash or its undo history.
  *
  * Beams and curtain are one merged mesh, one material and one draw call, drawn only at night or during a show;
@@ -44,7 +43,7 @@ declare module '@/core/Services' {
 
 export const auroraModule: GameModule = {
   id: 'aurora',
-  deps: ['construction', 'explore', 'hud'],
+  deps: ['construction', 'hud'],
   init(ctx) {
     const { city, bus } = ctx;
     const sweep = uniform(0);
@@ -195,27 +194,18 @@ export const auroraModule: GameModule = {
       },
     });
 
-    // ── Inspector buttons ─────────────────────────────────────────────────────────────────────────────────────
-    const explore = ctx.services.get('explore');
-    const button = (glyph: string, label: string, title: string, run: () => void) =>
-      h('button', { class: 'tool', title, onClick: run }, h('span', { class: 'g' }, icon(glyph)), label);
-    ctx.services.get('hud').buildingActions((eid) => {
-      if (!isTwin(eid)) return [];
-      const rec = city.buildingRecord(eid);
-      const [cx, cz] = [rec.x + 7, rec.z + 7];
-      return [
-        button('sparkle', 'Light show', 'Searchlights dance through the spectrum and an aurora ripples over the Aurora Ring (best after dark)', () => startShow(eid)),
-        button('roof', 'Sky deck', 'Stand on the highest sky-garden terrace, 40 storeys up (WASD to stroll, Tab next landmark, Esc back)', () => {
-          ctx.cameraCtl.lookAt(cx, cz, undefined, true);
-          explore.setMode('roof');
-        }),
-        button('photo', 'Postcard', 'A low, sweeping view of the twins in photo mode (P saves a PNG, Esc back)', () => {
-          // Clear the selection first: its marker and the inspector's live model would sit in the shot.
-          bus.emit('selection:changed', { eid: null });
-          ctx.cameraCtl.setView({ x: cx, z: cz, yaw: 0.42, pitch: 0.16, distance: 120, aim: AURORA.top * 0.55 });
-          explore.setPhoto(true);
-        }),
-      ];
-    });
+    // ── Inspector button: the show (Sky deck and Postcard come from the explore module, for every landmark) ──
+    ctx.services.get('hud').buildingActions((eid) =>
+      isTwin(eid)
+        ? [
+            h(
+              'button',
+              { class: 'tool', title: 'Searchlights dance through the spectrum and an aurora ripples over the Sun Gate (best after dark)', onClick: () => startShow(eid) },
+              h('span', { class: 'g' }, icon('sparkle')),
+              'Light show',
+            ),
+          ]
+        : [],
+    );
   },
 };

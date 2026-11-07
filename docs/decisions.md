@@ -2257,3 +2257,19 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
 - **Rejected**: mirrored, counter-twisting towers in two colours (Sol gold, Luna silver): the steward asked for
   identical round twins. A sky-pod port on the twins (`transit`) lowered the flow further. Draw calls at the wide
   views (346 near-horizon, 364 overview) are the same as before this change: over budget already, not made worse.
+
+## D-136 — Sky deck and Postcard for every landmark; a free stroll on rooftops (2026-11-07)
+
+- **Every landmark** (`isLandmark` in `explore/roof.ts`: a hero, a `landmark` def or a big one-of-a-kind at least
+  4 tall, not a rail station) gets **Sky deck** and **Postcard** in its inspector, from the explore module (they
+  were the Aurora Gemini's only). The twins keep **Light show** (it needs their crowns).
+- **Sky deck** stands the steward on that building (`explore.standOn(eid)`), not the nearest landmark. Spawn: the
+  flat roof `findRoof` picks if it's clear, else the highest spot the collider finds on top with room to stand (most
+  of a ring of neighbours open at about the same height). 13 heroes had no `findRoof` roof; all have a deck now.
+- **Free stroll**: rooftop mode moved like walk mode, through the collider (walls, railings, trees and crowns block;
+  kerb-height steps climb), instead of being held to `findRoof`'s eroded flat cells. That held the steward to 0.9 m²
+  of scattered pockets on the twins' terrace (trees, ribs and rails cut it up), so it barely moved. Two guards keep the
+  steward on top: a move never drops more than `LEDGE` (0.45) and never leaves the lot. Probe: every landmark walks
+  the full distance of a W/D/S/A key run, except the Fog Harp (about a third: its strings stand close).
+- **Postcard** frames any landmark whole: distance from its height and footprint, orbit point (`aim`) at half its
+  height, current heading, photo mode; it clears the selection first.

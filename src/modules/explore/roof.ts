@@ -188,14 +188,17 @@ const HEROES = new Set(HERO_IDS);
  * one-of-a-kind building at least 6 tiles across (not everyday utilities like Pod Interchanges).
  */
 export function rooftopCandidates(city: City): number[] {
-  const out: number[] = [];
-  for (const eid of city.buildingEntities()) {
-    const def = city.buildingDef(eid);
-    const big = def.variants === 1 && Math.max(def.footprint[0], def.footprint[1]) >= 6;
-    if (!(HEROES.has(def.id) || def.landmark || big) || def.transit?.rail) continue;
-    const rec = city.buildingRecord(eid);
-    if (placeBuilding(city.grid, def, rec.x, rec.z, rec.rot).template.height < 4) continue;
-    out.push(eid);
-  }
-  return out;
+  return city.buildingEntities().filter((eid) => isLandmark(city, eid));
+}
+
+/**
+ * A landmark (D-135): a hero, the city's landmark or a big one-of-a-kind building, at least 4 tall (not a rail
+ * station). Landmarks get the Sky deck and Postcard actions in the inspector and are rooftop destinations.
+ */
+export function isLandmark(city: City, eid: number): boolean {
+  const def = city.buildingDef(eid);
+  const big = def.variants === 1 && Math.max(def.footprint[0], def.footprint[1]) >= 6;
+  if (!(HEROES.has(def.id) || def.landmark || big) || def.transit?.rail) return false;
+  const rec = city.buildingRecord(eid);
+  return placeBuilding(city.grid, def, rec.x, rec.z, rec.rot).template.height >= 4;
 }

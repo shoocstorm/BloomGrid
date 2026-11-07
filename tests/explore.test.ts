@@ -3,12 +3,28 @@ import { Vector3 } from 'three/webgpu';
 import { createCollider, TREE_STRIDE } from '@/modules/explore/collider';
 import { doorSteps, placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { applyScenario } from '@/sim/scenario';
-import { findRoof, roofAt } from '@/modules/explore/roof';
+import { findRoof, isLandmark, roofAt } from '@/modules/explore/roof';
+import { HERO_IDS } from '@/content/scenarios/founding-city';
 import { initPieces } from '@/assets/kit/pieces';
 import { BRIDGE_DECK } from '@/sim/City';
 import { Grid } from '@/sim/Grid';
 import { ROAD_LIFT } from '@/modules/construction/RoadRenderer';
 import { findLandRow, makeSim } from './helpers';
+
+describe('landmark actions (D-135)', () => {
+  it('every hero in the founding city is a landmark (Sky deck and Postcard in its inspector)', () => {
+    initPieces();
+    const s = makeSim(20261024);
+    applyScenario(s.city, 'founding-city');
+    const missing = s.city
+      .buildingEntities()
+      .filter((e) => HERO_IDS.includes(s.city.buildingDef(e).id) && !isLandmark(s.city, e))
+      .map((e) => s.city.buildingDef(e).id);
+    expect(missing).toEqual([]);
+    const twins = s.city.buildingEntities().find((e) => s.city.buildingDef(e).id === 'aurora-gemini')!;
+    expect(isLandmark(s.city, twins)).toBe(true);
+  });
+});
 
 describe('explore collider', () => {
   initPieces();

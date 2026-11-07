@@ -5,8 +5,16 @@ import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { BODY, STEP, createCollider } from './collider';
 import { createBalloon, createBoard, createDrone, createPerson, showOnly } from './avatars';
-import { findRoof, roofAt, rooftopCandidates, type Roof } from './roof';
+import { findRoof, isLandmark, rooftopCandidates } from './roof';
+import { Building } from '@/ecs/components';
+import { placeBuilding } from '@/modules/construction/BuildingRenderer';
 import './explore.css';
+
+/** On a rooftop: a top this far above the street counts as a roof; a move never drops further than `LEDGE`. */
+const ROOF_RISE = 1.2;
+const LEDGE = 0.45;
+/** Eight directions for the room-to-stand test round a spawn. */
+const RING = Array.from({ length: 8 }, (_, k) => [Math.cos((k * Math.PI) / 4), Math.sin((k * Math.PI) / 4)] as const);
 
 export type ExploreMode = 'city' | 'walk' | 'board' | 'drone' | 'balloon' | 'roof' | 'follow' | 'train';
 const CYCLE: ExploreMode[] = ['city', 'walk', 'board', 'drone', 'balloon', 'roof', 'follow', 'train'];
@@ -49,7 +57,8 @@ const GRAVITY = 6;
 
 /**
  * Explore modes (Phase 11, D-054): walking as the chibi steward (third person, V for first person), a jet
- * hoverboard, a quadcopter drone, a hot-air balloon, a stroll on a landmark's roof (held to its walkable area),
+ * hoverboard, a quadcopter drone, a hot-air balloon, a free stroll on top of a landmark (walls, rails and trees stop
+ * the steward and the roof's edge holds like a parapet, D-135),
  * and follow-cams on commuter pods and the Aeroline; plus photo mode (J). A small
  * kinematic controller collides with the terrain, water, bridge decks and building volumes
  * (solid bounds from the cached recipe templates, so parks and plazas stay walkable). While
@@ -129,7 +138,8 @@ export const exploreModule: GameModule = {
     let facing = 0;
     /** First person (V) in walk and on rooftops; the basket view in the balloon. */
     let firstPerson = false;
-    let roof: Roof | null = null;
+    /** The landmark the steward stands on: its name and footprint (the stroll stays inside it). */
+    let roof: { eid: number; name: string; x0: number; z0: number; x1: number; z1: number } | null = null;
     let roofList: number[] = [];
 
     // ── HUD ───────────────────────────────────────────────────────────────────
@@ -265,20 +275,57 @@ export const exploreModule: GameModule = {
       return pos.set(x, 0, z);
     };
 
-    /** Puts the steward on the first landmark from `from` (in `roofList` order) with a roof to stand on. */
+    /**
+     * Where to set the steward down on a landmark (D-135): the flat roof `findRoof` picks when it has one and that
+     * spot is clear, else the highest open spot the collider finds on top (a sky-garden, a crown deck, a dome's
+     * shoulder). From there the stroll is free, held only by walls and the roof's edge.
+     */
+    const _spawn = new Vector3();
+    const deckSpawn = (eid: number): Vector3 | null => {
+      const r = findRoof(city, eid);
+      const W = U.waterLevel.value;
+      if (r && !collider.blocked(r.spawn.x, r.spawn.z, r.spawn.y, false, W)) return _spawn.copy(r.spawn);
+      const rec = city.buildingRecord(eid);
+      const [w, d] = [Building.w[eid]!, Building.d[eid]!];
+      const base = g().rangeOver(rec.x, rec.z, w, d).max;
+      let best = -Infinity;
+      for (let z = rec.z + 0.3; z < rec.z + d - 0.3; z += 0.25)
+        for (let x = rec.x + 0.3; x < rec.x + w - 0.3; x += 0.25) {
+          const top = groundAt(x, z, 999);
+          if (top - base < ROOF_RISE || top <= best || collider.blocked(x, z, top, false, W)) continue;
+          // Room to stand: most of a ring of neighbours is open at about the same height.
+          let open = 0;
+          for (const [ox, oz] of RING) {
+            const nx = x + ox * 0.35;
+            const nz = z + oz * 0.35;
+            if (!collider.blocked(nx, nz, top, false, W) && Math.abs(groundAt(nx, nz, top) - top) < 0.25) open++;
+          }
+          if (open < 6) continue;
+          best = top;
+          _spawn.set(x, top, z);
+        }
+      return best > -Infinity ? _spawn : null;
+    };
+
+    /** Puts the steward on the first landmark from `from` (in `roofList` order) with somewhere to stand on top. */
     const pickRoof = (from: number): boolean => {
       for (let k = 0; k < roofList.length; k++) {
         const i = (((from + k) % roofList.length) + roofList.length) % roofList.length;
-        const r = findRoof(city, roofList[i]!);
-        if (!r) continue;
-        roof = r;
+        const eid = roofList[i]!;
+        const at = deckSpawn(eid);
+        if (!at) continue;
+        const rec = city.buildingRecord(eid);
+        const name = city.buildingDef(eid).name;
+        roof = { eid, name, x0: rec.x, z0: rec.z, x1: rec.x + Building.w[eid]!, z1: rec.z + Building.d[eid]! };
         followIdx = i;
-        pos.copy(r.spawn);
-        ctx.bus.emit('toast', { text: `On the roof of ${r.name}`, tone: 'info' });
+        pos.copy(at);
+        ctx.bus.emit('toast', { text: `On top of ${name}`, tone: 'info' });
         return true;
       }
       return false;
     };
+    /** Landmark to try first when entering rooftop mode (the inspector's Sky deck), else the nearest. */
+    let preferred = -1;
 
     function setMode(next: ExploreMode): void {
       if (next === 'follow' && !city.pulse.podRoutes.length) {
@@ -294,9 +341,11 @@ export const exploreModule: GameModule = {
         // Landmarks nearest the view first; Tab walks on through the list.
         const at = mode === 'city' ? cameraCtl.target : pos;
         roofList = rooftopCandidates(city).sort((a, b) => {
+          if (a === preferred || b === preferred) return a === preferred ? -1 : 1;
           const [ra, rb] = [city.buildingRecord(a), city.buildingRecord(b)];
           return (ra.x - at.x) ** 2 + (ra.z - at.z) ** 2 - ((rb.x - at.x) ** 2 + (rb.z - at.z) ** 2);
         });
+        preferred = -1;
         if (mode === 'city') savedView = cameraCtl.getView();
         if (!pickRoof(0)) {
           ctx.bus.emit('toast', { text: 'No landmark roof to stand on: build a hero building first', tone: 'bad' });
@@ -505,17 +554,23 @@ export const exploreModule: GameModule = {
           const floor = groundAt(camera.position.x, camera.position.z, 99);
           view(dt, 0.95, floor);
         } else if (mode === 'roof') {
-          // Held to the roof's walkable cells: each axis moves only onto roof (slides along the parapet).
+          // A free stroll on top (D-135): walls, rails, trees and crowns stop the steward like on the street (the
+          // collider), up a step like a kerb, and the roof's edge holds like a parapet: no move that would drop more
+          // than a short step or leave the building's lot.
           const moving = ix || iz ? 1 : 0;
           const speed = (fast ? 1.2 : 0.5) * moving;
           const len = Math.hypot(wishX, wishZ) || 1;
           const dx = (wishX / len) * speed * dt;
           const dz = (wishZ / len) * speed * dt;
           if (roof) {
-            if (roofAt(roof, pos.x + dx, pos.z) !== null) pos.x += dx;
-            if (roofAt(roof, pos.x, pos.z + dz) !== null) pos.z += dz;
-            const y = roofAt(roof, pos.x, pos.z);
-            if (y !== null) pos.y = MathUtils.lerp(pos.y, y, 1 - Math.exp(-dt * 20));
+            const r = roof;
+            const W = U.waterLevel.value;
+            const can = (x: number, z: number) =>
+              x > r.x0 + 0.1 && x < r.x1 - 0.1 && z > r.z0 + 0.1 && z < r.z1 - 0.1 && !collider.blocked(x, z, pos.y, false, W) && groundAt(x, z, pos.y) > pos.y - LEDGE;
+            if (dx && can(pos.x + dx, pos.z)) pos.x += dx;
+            if (dz && can(pos.x, pos.z + dz)) pos.z += dz;
+            const y = groundAt(pos.x, pos.z, pos.y);
+            if (y > pos.y - LEDGE) pos.y = MathUtils.lerp(pos.y, y, 1 - Math.exp(-dt * 20));
           }
           stroll(dt, speed, fast);
           view(dt, 1.1, pos.y - 0.02);
@@ -661,7 +716,41 @@ export const exploreModule: GameModule = {
       setPhoto(false);
       setMode('city');
     });
-    ctx.services.provide('explore', { setMode, get mode() { return mode; }, setPhoto, position: pos, get firstPerson() { return firstPerson; }, collider });
+    /** Stands the steward on top of landmark `eid` (the inspector's Sky deck). */
+    const standOn = (eid: number): boolean => {
+      if (!isLandmark(city, eid)) return false;
+      if (mode === 'roof') {
+        roofList = [eid, ...roofList.filter((e) => e !== eid)];
+        return pickRoof(0);
+      }
+      preferred = eid;
+      setMode('roof');
+      // setMode changes `mode` (TS can't see that through the call).
+      return (mode as ExploreMode) === 'roof';
+    };
+    ctx.services.provide('explore', { setMode, standOn, get mode() { return mode; }, setPhoto, position: pos, get firstPerson() { return firstPerson; }, collider });
+
+    // ── Landmark actions in the inspector (D-135): every hero and landmark gets Sky deck and Postcard ──────
+    ctx.services.get('hud').buildingActions((eid) => {
+      if (!isLandmark(city, eid)) return [];
+      const button = (glyph: string, label: string, title: string, run: () => void) => h('button', { class: 'tool', title, onClick: run }, h('span', { class: 'g' }, icon(glyph)), label);
+      return [
+        button('roof', 'Sky deck', 'Stand on top and stroll round it (WASD, drag to look, V first person, Tab next landmark, Esc back)', () => standOn(eid)),
+        button('photo', 'Postcard', 'A low, sweeping view of it in photo mode (P saves a PNG, Esc back)', () => postcard(eid)),
+      ];
+    });
+    /** Frames a landmark whole from low down (the orbit point lifted to its middle) and opens photo mode. */
+    const postcard = (eid: number) => {
+      const rec = city.buildingRecord(eid);
+      const def = city.buildingDef(eid);
+      const height = placeBuilding(g(), def, rec.x, rec.z, rec.rot).template.height;
+      const [w, d] = [Building.w[eid]!, Building.d[eid]!];
+      // The selection's marker and the inspector's live model would sit in the shot.
+      ctx.bus.emit('selection:changed', { eid: null });
+      const distance = Math.max(28, height * 2.1, Math.max(w, d) * 2.6);
+      cameraCtl.setView({ x: rec.x + w / 2, z: rec.z + d / 2, yaw: cameraCtl.yaw, pitch: 0.16, distance, aim: height * 0.5 });
+      setPhoto(true);
+    };
   },
 };
 
@@ -669,6 +758,8 @@ declare module '@/core/Services' {
   interface GameServices {
     explore: {
       setMode(m: ExploreMode): void;
+      /** Rooftop mode on landmark `eid` (D-135); false if it isn't a landmark or has nowhere to stand. */
+      standOn(eid: number): boolean;
       readonly mode: ExploreMode;
       setPhoto(on: boolean): void;
       /** Where the steward (or the ride) is now: read-only for other modules. */
