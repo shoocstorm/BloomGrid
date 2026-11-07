@@ -53,6 +53,11 @@ export interface PieceSpec {
    * widths (signed), and while open it and the doorway through hollow shells (`glassDome`) are passable.
    */
   door?: number;
+  /**
+   * A sign surface (D-133): the signs module writes text on the piece's outward face: `name` = the building's name
+   * and readable id (lit name strips), `number` = its id (a door's number plate). Residents use it as the door.
+   */
+  sign?: 'name' | 'number';
 }
 
 export interface KitBuilder {

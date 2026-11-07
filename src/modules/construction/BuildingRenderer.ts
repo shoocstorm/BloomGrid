@@ -27,6 +27,8 @@ export interface TemplatePiece {
   top?: number;
   /** A door leaf's slide, in its own widths along its local x (D-132). */
   door?: number;
+  /** A sign surface (D-133). */
+  sign?: 'name' | 'number';
 }
 
 export interface BuildingTemplate {
@@ -126,6 +128,7 @@ function runRecipe(
     const local = new Matrix4().compose(_v.set(p[0], p[1], p[2]), _q, sv);
     const piece: TemplatePiece = { piece: spec.piece, local, tint: spec.tint ?? 0xffffff, glow: spec.glow ?? 0, growAt: spec.growAt ?? 0, seed: cur.next(), y: p[1] };
     if (spec.door) piece.door = spec.door;
+    if (spec.sign) piece.sign = spec.sign;
     if (from > 0 || to < 2) {
       if (from <= to) ranged.push(Object.assign(piece, { from, to, top: p[1] + (spec.piece === 'ivy' ? 0 : sv.y) }));
       return;
@@ -408,6 +411,73 @@ export function doorSteps(grid: Grid, def: BuildingDef, place: Placement): Matri
     out.push(new Matrix4().multiplyMatrices(place.base, local));
   }
   return out;
+}
+
+/** A sign surface in world space (D-133): the outward face of a `sign` piece. */
+export interface SignSpot {
+  kind: 'name' | 'number';
+  /** Centre of the face, its outward normal, the reading direction (right) and the face's size (world units). */
+  at: Vector3;
+  normal: Vector3;
+  right: Vector3;
+  width: number;
+  height: number;
+}
+
+const _pos = new Vector3();
+const _scl = new Vector3();
+const _rot = new Quaternion();
+
+/**
+ * Where a building's signs go (D-133): the outward face of each `sign` piece (its thin horizontal axis, pointing away
+ * from the building's centre). A building with none gets a number plate at the middle of its front (+z) face.
+ */
+export function signSpots(place: Placement): SignSpot[] {
+  const out: SignSpot[] = [];
+  const centre = new Vector3().setFromMatrixPosition(place.base);
+  for (const p of place.template.pieces) {
+    if (!p.sign) continue;
+    _m.multiplyMatrices(place.base, p.local).decompose(_pos, _rot, _scl);
+    const alongX = _scl.x < _scl.z;
+    const normal = new Vector3(alongX ? 1 : 0, 0, alongX ? 0 : 1).applyQuaternion(_rot);
+    normal.y = 0;
+    normal.normalize();
+    if (normal.dot(_v.copy(_pos).sub(centre)) < 0) normal.negate();
+    const thick = alongX ? _scl.x : _scl.z;
+    const at = _pos.clone().addScaledVector(normal, thick / 2).add(_v.set(0, _scl.y / 2, 0));
+    const right = new Vector3().crossVectors(UP, normal).normalize();
+    out.push({ kind: p.sign, at, normal, right, width: alongX ? _scl.z : _scl.x, height: _scl.y });
+  }
+  if (!out.length) {
+    const b = place.template.bounds;
+    const at = new Vector3((b.minX + b.maxX) / 2, 0.12, b.maxZ).applyMatrix4(place.base);
+    const normal = new Vector3(0, 0, 1).transformDirection(place.base).setY(0).normalize();
+    const right = new Vector3().crossVectors(UP, normal).normalize();
+    out.push({ kind: 'number', at, normal, right, width: Math.min(0.5, b.maxX - b.minX), height: 0.12 });
+  }
+  return out;
+}
+
+/**
+ * The way into a building (D-133), for residents walking in and out: door leaves first, then number plates, then
+ * name strips, else the middle of its front. `y` is the lot's floor; `steps` = it has front steps (D-132).
+ */
+export function doorwayOf(grid: Grid, def: BuildingDef, place: Placement): { x: number; z: number; y: number; nx: number; nz: number; steps: boolean } {
+  const y = place.base.elements[13]!;
+  const doors = place.template.pieces.filter((p) => p.door);
+  if (doors.length) {
+    const c = new Vector3();
+    for (const d of doors) c.add(_v.setFromMatrixPosition(d.local));
+    c.divideScalar(doors.length);
+    const n = new Vector3().setFromMatrixColumn(doors[0]!.local, 2).setY(0).normalize();
+    if (n.dot(c) < 0) n.negate();
+    c.setY(0).applyMatrix4(place.base);
+    n.transformDirection(place.base);
+    return { x: c.x, z: c.z, y, nx: n.x, nz: n.z, steps: doorSteps(grid, def, place).length > 0 };
+  }
+  const spots = signSpots(place);
+  const s = spots.find((p) => p.kind === 'number') ?? spots[0]!;
+  return { x: s.at.x, z: s.at.z, y, nx: s.normal.x, nz: s.normal.z, steps: false };
 }
 
 interface Entry {

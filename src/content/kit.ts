@@ -312,7 +312,7 @@ export function piles(b: KitBuilder, x0: number, x1: number, z: number, top: num
 /** A door: frame, dark leaf and a small warm transom light. */
 export function door(b: KitBuilder, x: number, y: number, z: number, w = 0.16, h = 0.24, alongZ = false): void {
   b.add({ piece: 'slab', p: [x, y, z], s: alongZ ? [0.03, h + 0.03, w + 0.04] : [w + 0.04, h + 0.03, 0.03], tint: TRIM.cream });
-  b.add({ piece: 'timberBox', p: alongZ ? [x + 0.01, y, z] : [x, y, z + 0.01], s: alongZ ? [0.03, h, w] : [w, h, 0.03], tint: 0x6b4a32 });
+  b.add({ piece: 'timberBox', p: alongZ ? [x + 0.01, y, z] : [x, y, z + 0.01], s: alongZ ? [0.03, h, w] : [w, h, 0.03], tint: 0x6b4a32, sign: 'number' });
   b.add({ piece: 'lumenRib', p: alongZ ? [x + 0.02, y + h + 0.005, z] : [x, y + h + 0.005, z + 0.02], s: alongZ ? [0.02, 0.02, w * 0.6] : [w * 0.6, 0.02, 0.02], tint: 0xffd9a0, glow: 0.8 });
 }
 
@@ -340,7 +340,7 @@ export function entrance(b: KitBuilder, x: number, y: number, z: number, w = 0.7
   b.add({ piece: 'slab', p: [x, y + h + 0.1, z + 0.22], s: [w + 0.5, 0.04, 0.45], tint: PALETTE.timber });
   for (const sx of [-1, 1]) b.add({ piece: 'timberBox', p: [x + sx * (w / 2 + 0.18), y, z + 0.4], s: [0.04, h + 0.1, 0.04], tint: TRIM.charcoal });
   b.add({ piece: 'slab', p: [x, y + h + 0.16, z + 0.02], s: [w + 0.2, 0.1, 0.03], tint: TRIM.charcoal });
-  b.add({ piece: 'slab', p: [x, y + h + 0.18, z + 0.04], s: [w, 0.06, 0.01], tint: sign, glow: 0.9 });
+  b.add({ piece: 'slab', p: [x, y + h + 0.18, z + 0.04], s: [w, 0.06, 0.01], tint: sign, glow: 0.9, sign: 'name' });
 }
 
 /** A paved forecourt w × d centred at (x, z): planters at the ends, `lamps` along the front edge, benches between. */

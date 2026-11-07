@@ -96,7 +96,7 @@ export default defineBuilding({
     b.add({ piece: 'timberBox', p: [0, 0.57, 1.28], s: [0.42, 0.08, 0.36], tint: 0xb08a5c });
     b.add({ piece: 'glassBox', p: [0, 0.49, 1.4], s: [0.42, 0.08, 0.02], tint: 0xd6f2ee });
     b.add({ piece: 'slab', p: [0, 0.65, 1.34], s: [0.96, 0.04, 0.6], tint: PALETTE.timber });
-    b.add({ piece: 'slab', p: [0, 0.575, 1.465], s: [0.42, 0.06, 0.015], tint: 0x6a3f86, glow: 0.6 });
+    b.add({ piece: 'slab', p: [0, 0.575, 1.465], s: [0.42, 0.06, 0.015], tint: 0x6a3f86, glow: 0.6, sign: 'name' });
     // Deck furniture: planters, benches, lamps, a bike rack.
     for (const sx of [-1, 1]) {
       planter(b, sx * 0.85, 0.05, 1.2, 0.36, 0.2, 0.2);

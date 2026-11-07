@@ -2180,3 +2180,24 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   inspector for the city view.
 - **Rejected**: point lights per room (a pipeline and a shadow cost per light); hinged doors (a sliding leaf needs
   no pivot data and never swings through the steward); saving open doors (they close on their own).
+
+## D-133 — Building signs; residents walk in and out of doors (2026-11-07)
+
+- **Signs** (`src/modules/signs/`): a recipe marks sign surfaces with `sign: 'name' | 'number'` on a piece (the kit's
+  `entrance` name strip and `door` panel do this, so ~46 recipes have them for free). `signSpots` finds each
+  surface's outward face; a building with none gets a number plate mid-front. Name boards carry the building's name
+  (glyphs ~0.065, readable from the closest city view), number plates its readable id (`buildingId`, ~0.04) on the
+  door's upper part; a named building without a door plate gets its id under the board. Mint on deep teal / cream
+  on charcoal, glowing softly at night.
+- **One draw call, no text textures per building**: one instanced quad per sign; text rides in three vec4 attributes
+  (three base-96 glyphs per float, 33 characters, count + kind in the last float) and the shader reads glyphs from
+  a monospace atlas drawn once. Glyphs fade under ~4 px (no shimmer, D-064); the mesh draws only within 30 of the
+  city camera or in explore modes; rebuilt (debounced) on building and ground changes.
+- **Door trips** (walkers, D-122): up to a quarter of the crowd walks the pavement, turns at the kerb point before a
+  building's door and steps in (or out and away). `doorwayOf` gives the door (door leaves, else number plate, else
+  name strip, else front); the walker finds the road out of it, the pavement on its side and the climb (≤ 0.3, or
+  ≤ 1.2 with front steps). Encoded in the existing `aSeg` / `aInfo` (trip kind in `info.z`'s integer part): the
+  figure is at WebGPU's 8 vertex-buffer limit. Checked: in Westbrook all 211 trips start on pavement and end on
+  their building's lot.
+- **Rejected**: per-building canvas textures (uploads on every pan, D-077 power budget); HUD-floating labels (the
+  ask was signage on the building).
