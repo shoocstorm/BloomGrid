@@ -71,18 +71,26 @@ export const worldModule: GameModule = {
       for (let z = Building.z[eid]!; z < Building.z[eid]! + Building.d[eid]!; z++)
         for (let x = Building.x[eid]!; x < Building.x[eid]! + Building.w[eid]!; x++) fn(g.index(x, z));
     };
-    ctx.bus.on('building:added', ({ eid }) => footprintTiles(ctx, eid, (i) => flora.hideTile(i)));
+    // Free tiles round a change become (or stop being) a street verge or a garden (D-127).
+    ctx.bus.on('building:added', ({ eid }) => {
+      footprintTiles(ctx, eid, (i) => flora.hideTile(i));
+      const [x, z] = [Building.x[eid]!, Building.z[eid]!];
+      flora.refreshAround(x, z, x + Building.w[eid]! - 1, z + Building.d[eid]! - 1, !ctx.loading);
+    });
     ctx.bus.on('building:removed', ({ record }) => {
       const g = ctx.city.grid;
       const [w, d] = ctx.city.footprint(buildings.get(record.def), record.rot);
       for (let z = record.z; z < record.z + d; z++) for (let x = record.x; x < record.x + w; x++) flora.showTile(g.index(x, z));
+      flora.refreshAround(record.x, record.z, record.x + w - 1, record.z + d - 1, !ctx.loading);
     });
     for (const ev of ['building:added', 'building:removed', 'city:reset'] as const) ctx.bus.on(ev, () => atmosphere.invalidateShadows());
     ctx.bus.on('road:changed', ({ tiles }) => {
+      const g = ctx.city.grid;
       for (const t of tiles) {
-        if (ctx.city.grid.road[t]) flora.hideTile(t);
+        if (g.road[t]) flora.hideTile(t);
         else flora.showTile(t);
       }
+      for (const t of tiles) flora.refreshAround(t % g.w, (t / g.w) | 0, t % g.w, (t / g.w) | 0, !ctx.loading);
     });
 
     // Land reclamation: rebuild the touched terrain chunks, the water depth and the wild flora.

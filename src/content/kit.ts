@@ -14,10 +14,80 @@ export const PALETTE = {
 
 export const FLOOR = 0.32;
 
-/** A small tree: trunk + 1-3 canopy blobs. */
+/** Tropical colours (D-127): frond greens, rainforest greens, and the island's flowering trees. */
+export const TROPIC = {
+  fronds: [0x5fae3e, 0x74c046, 0x4f9a3a, 0x86c95a] as const,
+  forest: [0x2f7a3e, 0x3d8a3a, 0x2b6b45, 0x4a9a44] as const,
+  /** Flame tree, golden shower, frangipani, bougainvillea, jacaranda. */
+  bloom: [0xe8502e, 0xf0b52a, 0xfff1e6, 0xe0459a, 0xb58ae8, 0xff8c5a] as const,
+  stem: 0x8fae4a,
+};
+
+/**
+ * A garden tree, picked from the island's tropical mix (D-127): coconut palm, rain tree (a wide umbrella), a
+ * flowering tree (flame, frangipani, golden shower), a banana clump or a round shade tree. `size` is the crown
+ * radius scale, about a tile at 1.
+ */
 export function tree(b: KitBuilder, x: number, y: number, z: number, size: number, growAt = 0): void {
+  const kind = b.rand();
+  if (kind < 0.3) {
+    // Coconut palm: tall and slim, leaning a little away from the yaw.
+    const h = size * b.range(1.7, 2.3);
+    b.add({ piece: 'palm', p: [x, y, z], s: [size * 1.3, h, size * 1.3], r: b.rand() * Math.PI * 2, tint: b.pick(TROPIC.fronds), growAt });
+    return;
+  }
+  if (kind < 0.42) {
+    // Banana clump: two or three green stems with broad leaves on top.
+    const n = 2 + Math.floor(b.rand() * 2);
+    for (let i = 0; i < n; i++) {
+      const [ox, oz] = [b.range(-0.2, 0.2) * size, b.range(-0.2, 0.2) * size];
+      const h = size * b.range(0.4, 0.7);
+      b.add({ piece: 'trunk', p: [x + ox, y, z + oz], s: [size * 0.09, h, size * 0.09], tint: TROPIC.stem, growAt });
+      const r = size * b.range(0.75, 1);
+      b.add({ piece: 'bush', p: [x + ox, y + h * 0.7, z + oz], s: [r, r * 0.9, r], r: b.rand() * 6.28, tint: b.pick(TROPIC.fronds), growAt: growAt + 0.05 });
+    }
+    return;
+  }
   const h = size * b.range(0.9, 1.3);
   b.add({ piece: 'trunk', p: [x, y, z], s: [size * 0.16, h, size * 0.16], tint: PALETTE.bark, growAt });
+  if (kind < 0.64) {
+    // Rain tree: a low, wide umbrella of flattened crowns.
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + b.rand();
+      const r = size * b.range(0.75, 0.95);
+      b.add({
+        piece: 'canopy',
+        p: [x + Math.cos(a) * size * 0.3, y + h * 0.85 + i * size * 0.06, z + Math.sin(a) * size * 0.3],
+        s: [r * 1.35, r * 0.55, r * 1.35],
+        r: b.rand() * Math.PI * 2,
+        tint: b.pick(TROPIC.forest),
+        glow: b.rand() < 0.2 ? 0.5 : 0,
+        growAt: growAt + 0.05 * (i + 1),
+      });
+    }
+    return;
+  }
+  if (kind < 0.84) {
+    // Flowering tree: a leafy crown with a cap of blossom.
+    const bloom = b.pick(TROPIC.bloom);
+    const r = size * b.range(0.6, 0.8);
+    b.add({ piece: 'canopy', p: [x, y + h * 0.7, z], s: [r, r * 0.8, r], r: b.rand() * 6.28, tint: b.pick(PALETTE.leaves), growAt: growAt + 0.05 });
+    for (let i = 0; i < 2; i++) {
+      const a = b.rand() * Math.PI * 2;
+      const rr = r * b.range(0.6, 0.8);
+      b.add({
+        piece: 'canopy',
+        p: [x + Math.cos(a) * r * 0.35, y + h * 0.7 + r * 0.35, z + Math.sin(a) * r * 0.35],
+        s: [rr, rr * 0.7, rr],
+        r: b.rand() * 6.28,
+        tint: bloom,
+        glow: b.rand() < 0.35 ? 0.5 : 0,
+        growAt: growAt + 0.1 + 0.05 * i,
+      });
+    }
+    return;
+  }
+  // Round shade tree: trunk + 1-3 canopy blobs.
   const blobs = 1 + Math.floor(b.rand() * 3);
   for (let i = 0; i < blobs; i++) {
     const r = size * b.range(0.55, 0.85);

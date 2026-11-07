@@ -48,7 +48,8 @@ interface Solid {
   z1: number;
 }
 
-const PASSABLE = new Set(['grass', 'flower', 'ivy', 'fungus', 'lily', 'koi', 'haloRing', 'willowArch', 'waterfall', 'sunPetal', 'alert']);
+// Palms in a lot are passable: their crown's box would wall off the path under them (wild ones collide by trunk).
+const PASSABLE = new Set(['palm', 'grass', 'flower', 'ivy', 'fungus', 'lily', 'koi', 'haloRing', 'willowArch', 'waterfall', 'sunPetal', 'alert']);
 const ROUND = new Set(['glassCyl', 'concreteCyl', 'algaeTank', 'trunk', 'lumenRib', 'spireCone']);
 const ROUNDED = new Set(['dome', 'canopy', 'bush', 'pod', 'drone']);
 /** How far round a point to look for buildings whose pieces overhang their lots (tiles). */

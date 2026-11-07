@@ -1,9 +1,13 @@
 import type { Grid } from './Grid';
 
+/** How far (tiles, square ring round the footprint) a building reaches for a highway's utilities. */
+export const ROAD_REACH = 10;
+
 /**
  * Utility networks follow the Living Highways: energy and water conduits run beneath them.
- * Connected road tiles form a network component; a building joins the network of any road
- * tile touching its footprint perimeter (lowest id wins, for determinism).
+ * Connected road tiles form a network component; a building joins the network of the nearest road
+ * within `ROAD_REACH` tiles of its footprint (a short service lane: it need not front the highway;
+ * the nearest ring wins, then the lowest id, for determinism).
  */
 export class RoadNetworks {
   comp: Int32Array;
@@ -56,7 +60,7 @@ export class RoadNetworks {
     return tail;
   }
 
-  /** Network id for a footprint, or -1 when no highway touches it. */
+  /** Network id for a footprint, or -1 when no highway lies within `ROAD_REACH` tiles of it. */
   networkFor(x: number, z: number, w: number, d: number): number {
     const g = this.grid;
     let best = -1;
@@ -65,15 +69,18 @@ export class RoadNetworks {
       const c = this.comp[g.index(i, j)]!;
       if (c !== -1 && (best === -1 || c < best)) best = c;
     };
-    for (let i = x; i < x + w; i++) {
-      check(i, z - 1);
-      check(i, z + d);
-    }
-    for (let j = z; j < z + d; j++) {
-      check(x - 1, j);
-      check(x + w, j);
-    }
+    for (let r = 1; r <= ROAD_REACH && best === -1; r++) ring(x, z, w, d, r, check);
     return best;
+  }
+
+  /** True when a highway lies within `ROAD_REACH` tiles of the footprint (no recompute needed). */
+  static nearRoad(g: Grid, x: number, z: number, w: number, d: number): boolean {
+    let hit = false;
+    for (let r = 1; r <= ROAD_REACH && !hit; r++)
+      ring(x, z, w, d, r, (i, j) => {
+        if (!hit && g.inBounds(i, j) && g.road[g.index(i, j)]) hit = true;
+      });
+    return hit;
   }
 
   /** True when any perimeter tile of the footprint is a highway (no recompute needed). */
@@ -87,5 +94,24 @@ export class RoadNetworks {
       if (x + w < g.w && g.road[g.index(x + w, j)]) return true;
     }
     return false;
+  }
+}
+
+/** Visits the square ring of tiles `r` out from a footprint (r = 1 is its perimeter). */
+function ring(
+  x: number,
+  z: number,
+  w: number,
+  d: number,
+  r: number,
+  f: (i: number, j: number) => void,
+): void {
+  for (let i = x - r; i < x + w + r; i++) {
+    f(i, z - r);
+    f(i, z + d - 1 + r);
+  }
+  for (let j = z - r + 1; j < z + d - 1 + r; j++) {
+    f(x - r, j);
+    f(x + w - 1 + r, j);
   }
 }

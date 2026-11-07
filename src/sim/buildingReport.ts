@@ -96,7 +96,7 @@ export function buildingReport(city: City, eid: number): BuildingReport {
 
   const issues: Issue[] = [];
   const add = (text: string, fix: string) => issues.push({ text, fix });
-  if (p & Problem.NO_ROAD) add('No highway access', 'Draw a Living Highway that touches its lot: power, water and workers arrive by road.');
+  if (p & Problem.NO_ROAD) add('No highway access', 'Draw a Living Highway within 3 tiles of its lot: power, water and workers arrive by road.');
   if (p & Problem.NO_POWER) add(`Brownout: gets ${pct(Service.power[eid]!)} of its power`, 'Build power on this highway network (Energy), or switch off a big consumer.');
   if (p & Problem.NO_WATER) add(`Dry taps: gets ${pct(Service.water[eid]!)} of its water`, 'Build water works on this network (Water); they need power to pump.');
   if (p & Problem.UNSTAFFED && !off) add(`Understaffed: ${pct(occ)} of jobs filled`, `Build homes: about ${pct(LABOUR_SHARE)} of residents work. Unemployed workers fill the gaps first.`);

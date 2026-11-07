@@ -35,7 +35,7 @@ export const ACTION_HELP: Record<string, ActionHelp> = {
   },
   road: {
     short: 'Highway',
-    what: 'Highways are the city’s streets: they carry power, water and commuters. A building only gets power and water when it touches one. Drawn over water, a highway becomes a bridge. A new highway starts as a raw track (carries ×0.75); traffic wears it into a Living Highway and busy ones grow into Bloom Boulevards (×1.6, street trees and lamps). Click a highway to upgrade a stretch at once.',
+    what: 'Highways are the city’s streets: they carry power, water and commuters. A building gets power and water when one runs within 10 tiles of its lot. Drawn over water, a highway becomes a bridge. A new highway starts as a raw track (carries ×0.75); traffic wears it into a Living Highway and busy ones grow into Bloom Boulevards (×1.6, street trees and lamps). Click a highway to upgrade a stretch at once.',
     how: 'Drag from start to end; the path bends once (an L). Drawing over an overgrown stretch clears it.',
     cost: `◈${ROAD_COST} a tile · ◈${BRIDGE_COST} a tile over water`,
   },

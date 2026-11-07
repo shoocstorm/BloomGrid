@@ -65,7 +65,7 @@ const UP = new Vector3(0, 1, 0);
 
 const templates = new Map<string, BuildingTemplate>();
 /** Pieces whose materials read vitality from aParams.w. */
-const PLANT_PIECES = new Set(['mossBox', 'canopy', 'bush', 'grass', 'ivy', 'flower', 'fungus']);
+const PLANT_PIECES = new Set(['mossBox', 'canopy', 'palm', 'bush', 'grass', 'ivy', 'flower', 'fungus']);
 /** Pieces that make up a building's solid volume (for façade bounds). */
 // Domes and tanks are excluded: dressing their bounding box would float flowers in mid-air.
 const SOLID_PIECES = new Set(['slab', 'glassBox', 'glassCyl', 'concreteCyl', 'mossBox']);

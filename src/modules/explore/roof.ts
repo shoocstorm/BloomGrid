@@ -30,6 +30,7 @@ const PASSABLE = new Set([
   'koi',
   'haloRing',
   'canopy',
+  'palm',
   'waterfall',
 ]);
 /** Body height above the roof that has to be clear. */

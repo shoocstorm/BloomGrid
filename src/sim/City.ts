@@ -230,7 +230,7 @@ export class City {
       if (have >= max) return { ok: false, reason: `At most ${max} for now: more as the town grows` };
     }
     if (this.credits < cost) return { ok: false, reason: 'Not enough credits' };
-    if (!RoadNetworks.touchesRoad(g, x, z, w, d)) return { ok: true, warning: 'No highway access: no power or water' };
+    if (!RoadNetworks.nearRoad(g, x, z, w, d)) return { ok: true, warning: 'No highway within 3 tiles: no power or water' };
     return { ok: true };
   }
 

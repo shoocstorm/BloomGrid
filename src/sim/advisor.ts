@@ -92,8 +92,8 @@ registerAdvisorRule((city) => {
     id: 'no-road',
     severity: count > 10 ? 2 : 1,
     title: `${count} building${count > 1 ? 's' : ''} cut off from the grid`,
-    detail: 'Without a Living Highway touching them they get no power or water, and residents cannot reach work.',
-    fix: 'Draw a Living Highway (Build → Highway) to their edge.',
+    detail: 'With no Living Highway within 3 tiles they get no power or water, and residents cannot reach work.',
+    fix: 'Draw a Living Highway (Build → Highway) within 3 tiles of them.',
     focus,
   };
 });

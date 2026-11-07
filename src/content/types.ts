@@ -17,6 +17,7 @@ export type PieceId =
   | 'solarLeaf'
   | 'trunk'
   | 'canopy'
+  | 'palm'
   | 'bush'
   | 'flower'
   | 'fungus'

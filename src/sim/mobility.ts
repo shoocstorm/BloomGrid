@@ -7,6 +7,7 @@ import { buildSkyNet } from './skylanes';
 import { isOpen } from './growthState';
 import { size } from './levels';
 import { roadCapacity } from './roads';
+import { ROAD_REACH } from './networks';
 
 /** Commuters a highway tile carries per pulse before it starts to jam. */
 export const TILE_CAPACITY = 55;
@@ -46,7 +47,8 @@ export function mobilityLayers(city: City): MobilityLayers {
 /**
  * A building's entrances: on each side of its footprint that touches a highway, the highway tile nearest that
  * side's middle (sides N, E, S, W; ties to the lower index). Big buildings on a block corner get two or more, so
- * their arrivals split between streets instead of queueing along one. Written into `out`; returns the count.
+ * their arrivals split between streets instead of queueing along one. A lot set back from the street (no side
+ * touching, a highway within `ROAD_REACH`) gets one lane to the nearest highway tile. Written into `out`.
  */
 export function accessTiles(city: City, eid: number, out: number[]): number {
   const g = city.grid;
@@ -71,6 +73,22 @@ export function accessTiles(city: City, eid: number, out: number[]): number {
   side(x0 + w, z0, d, false);
   side(z0 + d, x0, w, true);
   side(x0 - 1, z0, d, false);
+  if (out.length) return out.length;
+  // Set back from the street: a short lane to the nearest highway tile within reach (lowest index on ties).
+  for (let r = 2; r <= ROAD_REACH; r++) {
+    let best = -1;
+    for (let z = z0 - r; z < z0 + d + r; z++)
+      for (let x = x0 - r; x < x0 + w + r; x++) {
+        if (x > x0 - r && x < x0 + w - 1 + r && z > z0 - r && z < z0 + d - 1 + r) continue;
+        if (!g.inBounds(x, z) || !g.road[g.index(x, z)]) continue;
+        const t = g.index(x, z);
+        if (best < 0 || t < best) best = t;
+      }
+    if (best >= 0) {
+      out.push(best);
+      break;
+    }
+  }
   return out.length;
 }
 

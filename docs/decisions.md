@@ -2021,3 +2021,26 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
 - **Measured** (headless): city view unchanged (277 / 284 / 296 draws); walk 170 draws (+2), drone 174, +0.1 M
   triangles, 60 fps, GPU within noise. No budget needed adjusting.
 
+
+## D-127 — Tropical greenery; highways reach 3 tiles (2026-11-07)
+
+- **Trees** (`world/Flora.ts`, `content/kit.ts` `tree()` / `TROPIC`, `assets/kit/pieces.ts`): the island grows as a rainy,
+  sunny tropical one. Wild tiles pick by setting: shore (coconut palm groves, sea grape), rainforest (emergent rain
+  trees on stout trunks, palms, tree ferns, a smaller second tree and banana / heliconia understorey), cloud forest
+  above 7 (tree ferns under round crowns), open country (rain trees, flame / frangipani / golden-shower trees as a
+  green crown capped with blossom, palms, bamboo stands). Free tiles beside a highway are **verges** (a palm or rain
+  tree on about half, broad-leaf beds), beside a building **gardens** (banana, frangipani, the odd palm, flowers);
+  `Flora.refreshAround` re-plants the ring round a building or road change when a tile's setting changes. Recipes'
+  `tree()` (44 buildings) draws from the same mix.
+- **Pieces**: one new piece, `palm` (curved trunk, folded fronds, nuts in one mesh, parts tagged in `uv.x`, its own
+  `palm` material: fronds tinted, bark and nuts divide the tint out, only frond tips sway). The `bush` geometry is now a
+  broad-leaf clump (double-sided) in the old unit volume, so every planter and verge turned tropical with no new draw
+  call. Rejected: separate pieces per species (each costs a draw per visible chunk; the overview sits at ≈290 of 300).
+- **Highway reach** (`sim/networks.ts` `ROAD_REACH` = 3): a building joins the nearest highway network within a
+  3-tile square ring of its lot (nearest ring first, then lowest id), not only one touching it; `nearRoad` drives the
+  placement warning, and `accessTiles` gives a set-back lot one lane to the nearest highway tile. The scenario
+  builder still lays lots along streets (`touchesRoad`).
+- **Measured** (headless, founding city, vs a HEAD worktree): draws 248→258 downtown, 214→223 Westbrook, 288→292
+  overview; flora instances 111k→155k; main thread 25–28% in both (no change); boot unchanged (scenario ≈425 ms,
+  modules ≈415 ms); palm flicker 0.008% at 260. `?stress=1500` stays on the loader headless in both builds, so it
+  was not measured.

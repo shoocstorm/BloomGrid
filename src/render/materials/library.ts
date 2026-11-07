@@ -366,7 +366,33 @@ export function initMaterials(): void {
     return m;
   };
   define('canopy', foliage(0.015), { vitality: true });
-  define('bush', foliage(0.015), { vitality: true });
+  // Broad-leaf clumps are open blades (D-127): both faces show.
+  define('bush', foliage(0.015, true), { vitality: true });
+  // Palms (D-127): one mesh, parts tagged in uv.x (0 trunk, 1 frond, 2 nut). Fronds take the instance tint and the
+  // foliage look; the trunk and nuts divide the tint out for their own colours. Only frond tips sway, gently.
+  define('palm', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.85, flatShading: true });
+    m.side = DoubleSide;
+    const part = uv().x;
+    const leaf = step(0.5, part).mul(step(part, 1.5));
+    const nut = step(1.5, part);
+    const tip = uv().y.mul(uv().y).mul(leaf);
+    const phase = positionLocal.x.mul(0.7).add(positionLocal.z.mul(0.5)).add(time.mul(1.1));
+    const gust = sin(time.mul(0.23).add(positionLocal.x.mul(0.05))).mul(0.35).add(0.65);
+    const sway = sin(phase).mul(0.03).mul(tip).mul(U.wind).mul(gust);
+    m.positionNode = positionLocal.add(vec3(sway, sway.mul(-0.4), sway.mul(0.6)));
+    const v = mx_noise_float(positionWorld.mul(2.3)).mul(0.18);
+    const tintIn = max(instanceColor, vec3(0.08));
+    const frond = mix(color(0xffffff).add(v), seasonTint.div(tintIn), U.seasonAmount.mul(0.6));
+    // Fronds lighten toward the tip: the young green of a sunlit crown.
+    const leafCol = frond.mul(uv().y.mul(0.25).add(0.9));
+    const bark = mix(vec3(0.09, 0.055, 0.03), vec3(0.22, 0.17, 0.1), positionGeometry.y.clamp(0, 1)).div(tintIn);
+    const coco = vec3(0.26, 0.16, 0.03).div(tintIn);
+    m.colorNode = mix(mix(bark, leafCol, leaf), coco, nut) as Node<'vec3'>;
+    const glow = activityGlow();
+    m.emissiveNode = mix(instanceColor, color(0x7ff7e6), 0.6).mul(iGlow.mul(0.2)).mul(leaf).mul(bioPulse()).mul(glow);
+    return m;
+  }, { vitality: true });
   define('grass', foliage(0.03, true, true), { vitality: true });
   define('ivy', foliage(0.025, true), { vitality: true });
 
