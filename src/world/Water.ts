@@ -1,6 +1,9 @@
 import { DataTexture, LinearFilter, Mesh, MeshStandardNodeMaterial, PlaneGeometry, RGBAFormat, ClampToEdgeWrapping } from 'three/webgpu';
 import {
+  abs,
+  cameraPosition,
   color,
+  dot,
   float,
   floor,
   fract,
@@ -10,7 +13,11 @@ import {
   max,
   mix,
   mx_noise_float,
+  normalize,
   positionWorld,
+  pow,
+  reflect,
+  sin,
   smoothstep,
   texture,
   time,
@@ -25,6 +32,8 @@ import { U } from '@/render/uniforms';
  * floods: depth = water level − ground), animated ripples, shore foam and an algal-bloom tint.
  * Weather shows on the surface: storms darken and roughen the sea and raise whitecaps, rain pocks it with
  * spreading rings, and an algal bloom drifts in as patchy scum rather than a flat tint.
+ * D-120: open water reflects the live sky (fresnel toward the horizon colour, so dusk seas blush), a sun-glitter
+ * path blooms at low sun, and a foam line washes up and back over the shallows.
  */
 /** Re-bakes the ground-height texel rectangle the water shader reads (after terrain edits). */
 export function updateWaterDepth(water: Mesh, grid: Grid, x0 = 0, z0 = 0, x1 = grid.w, z1 = grid.h): void {
@@ -93,11 +102,36 @@ export function createWater(grid: Grid): Mesh {
     .mul(smoothstep(0.12, 0.04, px));
   // Ripples fade with depth so open ocean reads calm from the overview camera.
   const rippleAmt = mix(float(0.04), float(0.012), smoothstep(0.3, 1.0, depth)).mul(chop);
-  const white = foam.mul(0.8).add(caps.mul(0.45)).min(float(1));
-  m.colorNode = mix(base.add(ripple.mul(rippleAmt)).add(ring.mul(0.22)), color(0xf4fffb), white);
+  // Shore wash: a foam line that runs up the shallows and slips back (≈11 s), broken by the ripples.
+  const washAt = sin(time.mul(0.55).add(x.mul(0.045)).add(z.mul(0.03))).mul(0.035).add(0.055);
+  const wash = smoothstep(0.014, 0.0, abs(depth.sub(washAt).add(ripple.mul(0.008))))
+    .mul(smoothstep(0.13, 0.04, depth))
+    .mul(smoothstep(-0.3, 0.4, ripple2))
+    .mul(smoothstep(1.2, 0.4, px));
+  const white = foam.mul(0.8).add(caps.mul(0.45)).add(wash.mul(0.55)).min(float(1));
+  // Sky reflection: grazing views mirror the horizon, steep ones see into the water (open water only).
+  const view = normalize(cameraPosition.sub(positionWorld));
+  const n = normalize(vec3(ripple.mul(0.12), float(1), ripple2.mul(0.12)));
+  const fres = pow(float(1).sub(max(dot(n, view), 0)), 4).mul(0.65).add(0.03).mul(smoothstep(0.15, 0.6, depth));
+  const skyRefl = mix(U.horizon, U.zenith, 0.25);
+  const lit = mix(base.add(ripple.mul(rippleAmt)).add(ring.mul(0.22)), skyRefl, fres.mul(float(1).sub(U.storm.mul(0.5))));
+  m.colorNode = mix(lit, color(0xf4fffb), white);
+  // Sun glitter: a path of sparkles toward a low sun, broken by the ripples and faded before it is sub-pixel.
+  const r = reflect(view.negate(), n);
+  const lowSun = smoothstep(0.85, 0.1, U.sunDir.y).mul(0.7).add(0.3);
+  const glint = pow(max(dot(r, U.sunDir), 0), 90)
+    .mul(smoothstep(0.1, 0.55, ripple2))
+    .mul(float(1).sub(U.night))
+    .mul(float(1).sub(U.storm))
+    .mul(lowSun)
+    .mul(smoothstep(1.5, 0.4, px));
   m.opacityNode = smoothstep(0.0, 0.08, depth).mul(0.75).add(0.2).add(foam.mul(0.3)).min(float(0.96));
   m.roughnessNode = float(0.05).add(ripple2.abs().mul(0.12)).add(U.storm.mul(0.25)).add(ring.mul(0.3));
-  m.emissiveNode = color(0x2fd0ff).mul(U.night).mul(0.08).add(color(0x9ff7ff).mul(foam).mul(U.night).mul(0.25));
+  m.emissiveNode = color(0x2fd0ff)
+    .mul(U.night)
+    .mul(0.08)
+    .add(color(0x9ff7ff).mul(foam.add(wash.mul(0.5))).mul(U.night).mul(0.25))
+    .add(U.sunColor.mul(glint).mul(1.4));
 
   const geo = new PlaneGeometry(grid.w * 4, grid.h * 4, 1, 1).rotateX(-Math.PI / 2);
   const mesh = new Mesh(geo, m);

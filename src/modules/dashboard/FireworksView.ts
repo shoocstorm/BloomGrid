@@ -153,7 +153,7 @@ export class FireworksView {
                 { class: 'fwv-show' },
                 h('b', {}, `Day ${r.day} · ${clockOf(r.time)}`),
                 h('span', {}, `${r.grand ? 'Grand show' : 'Show'} · ${r.shells} shells`),
-                h('span', { class: 'fwv-by' }, r.cause === 'night' ? 'nightly' : 'steward'),
+                h('span', { class: 'fwv-by' }, r.cause === 'night' ? 'nightly' : r.cause),
               ),
             )
         : [h('p', { class: 'fwv-note' }, 'No shows yet.')]),

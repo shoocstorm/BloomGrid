@@ -27,6 +27,8 @@ import { settingsModule } from '@/modules/settings';
 import { crisesModule } from '@/modules/crises';
 import { bloomModule } from '@/modules/bloom';
 import { mobilityModule } from '@/modules/mobility';
+import { walkersModule } from '@/modules/walkers';
+import { happeningsModule } from '@/modules/happenings';
 import { floranetModule } from '@/modules/floranet';
 import { weaverModule } from '@/modules/weaver';
 import { sceneryModule } from '@/modules/scenery';
@@ -52,7 +54,7 @@ import '@/ui/mobile.css';
  * Feature modules. New gameplay layers (city pulse, overlays, crises, bloom engine, mobility,
  * Flora-Net, Green Weaver, explore modes…) are added here as self-contained modules.
  */
-const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, juiceModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, debugModule];
+const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, juiceModule, happeningsModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, walkersModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, debugModule];
 
 /**
  * No browser or webview context menu anywhere in the game (right-click is a game gesture: leave build mode, slow the

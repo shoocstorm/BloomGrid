@@ -1,5 +1,5 @@
 import { Color, Vector3, Vector4 } from 'three/webgpu';
-import { uniform } from 'three/tsl';
+import { renderGroup, uniform } from 'three/tsl';
 
 /**
  * Global shader uniforms shared by every material. Updated once per frame by the atmosphere
@@ -50,4 +50,28 @@ export const U = {
   mapSize: uniform(256),
   /** Explore walker's feet (xyz) and the radius (w) in which grass and flowers bend away from them; w = 0 is off. */
   walker: uniform(new Vector4(0, 0, 0, 0)),
+  /**
+   * Colour grade in display space (D-120), set from the time-of-day ramp by the atmosphere and pushed by
+   * weather: lift (added to shadows), gain (multiplies highlights), saturation, contrast round mid-grey,
+   * and vignette strength.
+   */
+  gradeLift: uniform(new Vector3(0, 0, 0)),
+  gradeGain: uniform(new Vector3(1, 1, 1)),
+  gradeSat: uniform(1),
+  gradeCon: uniform(1),
+  vignette: uniform(0.18),
+  /** Selective bloom strength: soft at noon, stronger at night (set by the atmosphere). */
+  bloom: uniform(0.6),
+  /** Tint on the noon-baked environment light so reflections follow the sky through the day. */
+  envTint: uniform(new Color(1, 1, 1)),
+  /** Fog colour, start and end distance (the atmosphere and weather drive them). */
+  fogColor: uniform(new Color(0xcfeaff)),
+  fogNear: uniform(180),
+  fogFar: uniform(900),
+  /** Strength of drifting cloud shadows on lit surfaces (0 at night, ≤ 0.15 by day). */
+  cloudShadow: uniform(0.12),
 };
+
+// Shared by every material and only written between frames: one upload per render instead of a per-draw
+// check (the per-object default cost ≈1.5% main thread once fog, sun and grade inputs joined, D-120).
+for (const u of Object.values(U)) u.setGroup(renderGroup);

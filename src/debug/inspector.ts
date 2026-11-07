@@ -37,7 +37,7 @@ export function createInspector(ctx: GameContext): { container: HTMLElement; ref
     quality: ctx.quality.tier,
     profile: ctx.systems.profile,
     wind: 1,
-    bloom: 0.9,
+    bloom: 1,
   };
   pane
     .addBinding(state, 'timeOfDay', { min: 0, max: 0.999, step: 0.001, label: 'time' })
@@ -49,8 +49,8 @@ export function createInspector(ctx: GameContext): { container: HTMLElement; ref
     .on('change', (e) => ctx.services.get('render').setQuality(e.value as QualityTier));
   pane.addBinding(state, 'wind', { min: 0, max: 3 }).on('change', (e) => (U.wind.value = e.value));
   pane
-    .addBinding(state, 'bloom', { min: 0, max: 3 })
-    .on('change', (e) => (ctx.services.get('render').postfx.strength.value = e.value));
+    .addBinding(state, 'bloom', { label: 'bloom gain', min: 0, max: 3 })
+    .on('change', (e) => (ctx.services.get('world').atmosphere.bloomGain = e.value));
   pane
     .addBinding(state, 'profile', { label: 'profile systems' })
     .on('change', (e) => (ctx.systems.profile = e.value));

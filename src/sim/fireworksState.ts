@@ -28,7 +28,7 @@ export interface FireworkShow {
   fee: number;
   grand: boolean;
   /** `night`: the nightly show the factories put on; `steward`: launched by the steward (button or Flora). */
-  cause: 'night' | 'steward';
+  cause: 'night' | 'steward' | 'festival';
   /** A message written in the sky (cleaned by `skyText`), and a shape the show features (D-071). */
   text?: string;
   shape?: FireworkShape;

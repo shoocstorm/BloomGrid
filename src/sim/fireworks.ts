@@ -124,7 +124,7 @@ function takeShells(stock: Stock, n: number): Stock {
 }
 
 /** Starts a show from the next factory in turn. Assumes `launchBlocker` passed. */
-function startShow(
+export function startShow(
   city: City,
   grand: boolean,
   cause: FireworkShow['cause'],

@@ -1,4 +1,4 @@
-import { BoxGeometry, InstancedMesh, Matrix4, Vector3 } from 'three/webgpu';
+import { BoxGeometry, Color, InstancedMesh, Matrix4, RingGeometry, Vector3 } from 'three/webgpu';
 import type { GameContext, GameModule } from '@/game/context';
 import { getMaterial } from '@/render/materials/library';
 import { GeoBuilder, tf } from '@/render/bake';
@@ -36,6 +36,10 @@ const PER = 8;
 const FADE = 0.8;
 const TAG_HOLD = 1.6;
 const OUTSET = 0.18;
+/** Landing (D-121): seconds a finished building's ground ripple and dust ring take to sweep out and fade. */
+const LAND = 1.1;
+const RIPPLE = new Color(0x9ffff0);
+const DUST = new Color(0xe8d6b0);
 
 function beam(color: number, glow: number) {
   return new GeoBuilder().add(new BoxGeometry(1, 1, 1), tf(0, 0, 0), color, glow).build();
@@ -65,11 +69,14 @@ const SVG = 'http://www.w3.org/2000/svg';
 class RisingFx {
   private bright: InstancedMesh;
   private ghost: InstancedMesh;
+  /** Landing rings: a bright ground ripple and a slower, warm dust ring per finished build. */
+  private land: InstancedMesh;
   private builds: Build[] = [];
   private layer = h('div', { class: 'rise-tags' });
   private m = new Matrix4();
   private l = new Matrix4();
   private v = new Vector3();
+  private c = new Color();
   private ndc = new Vector3();
   private warm = 3;
   private slow = 0;
@@ -80,7 +87,10 @@ class RisingFx {
     const mat = getMaterial('beacon');
     this.bright = new InstancedMesh(beam(0x9ffff0, 5), mat, MAX * PER);
     this.ghost = new InstancedMesh(beam(0x24857a, 0), mat, MAX * PER);
-    for (const o of [this.bright, this.ghost]) {
+    const ring = new GeoBuilder();
+    ring.add(new RingGeometry(0.9, 1, 48, 1).rotateX(-Math.PI / 2), tf(0, 0, 0), 0xffffff, 3);
+    this.land = new InstancedMesh(ring.build(), getMaterial('land-ring'), MAX * 2);
+    for (const o of [this.bright, this.ghost, this.land]) {
       o.frustumCulled = false;
       o.castShadow = o.receiveShadow = false;
       o.name = 'rising';
@@ -89,6 +99,8 @@ class RisingFx {
       o.setMatrixAt(0, new Matrix4().makeScale(1e-4, 1e-4, 1e-4));
       ctx.scene.add(o);
     }
+    // Instance colours from the start, so the warm-up builds the shader the landing uses.
+    this.land.setColorAt(0, new Color(0, 0, 0));
     ctx.hud.append(this.layer);
     const { bus } = ctx;
     bus.on('building:added', ({ eid }) => !ctx.loading && this.start(eid));
@@ -132,7 +144,7 @@ class RisingFx {
   }
 
   update(dt: number): void {
-    if (this.warm > 0 && --this.warm === 0) this.bright.count = this.ghost.count = 0;
+    if (this.warm > 0 && --this.warm === 0) this.bright.count = this.ghost.count = this.land.count = 0;
     if (!this.builds.length) return;
     const text = (this.slow -= dt) <= 0;
     if (text) {
@@ -150,6 +162,7 @@ class RisingFx {
     const th = Math.max(0.05, dist * 0.0016);
     let nb = 0;
     let ng = 0;
+    let nl = 0;
     const W = innerWidth;
     const H = innerHeight;
     const live = this.ctx.cameraCtl.enabled;
@@ -185,6 +198,18 @@ class RisingFx {
         }
       }
 
+      // Landing: once it stands, a ripple and a dust ring sweep out over the ground from the footprint.
+      if (done && b.t - seconds < LAND) {
+        const u = (b.t - seconds) / LAND;
+        const ease = 1 - (1 - u) ** 3;
+        const r0 = Math.max(x1 - x0, z1 - z0) * 0.55;
+        const cx = (x0 + x1) / 2;
+        const cz = (z0 + z1) / 2;
+        const thin = (1 - u) * 0.9 + 0.1;
+        nl = this.ring(nl, base, cx, cz, r0 + ease * (r0 + 3), thin, RIPPLE, 1 - u);
+        nl = this.ring(nl, base, cx, cz, r0 + ease * (r0 * 0.6 + 1.5), thin * 1.6, DUST, (1 - u) * 0.7);
+      }
+
       // The tag, over the roof.
       const e = base.elements;
       this.ndc.set(e[12]!, e[13]! + Math.max(top, b.rise.height) + 1, e[14]!).project(this.ctx.camera);
@@ -204,9 +229,25 @@ class RisingFx {
     }
     this.bright.count = nb;
     this.ghost.count = ng;
+    this.land.count = nl;
+    if (nl > 0) {
+      this.land.instanceMatrix.needsUpdate = true;
+      if (this.land.instanceColor) this.land.instanceColor.needsUpdate = true;
+    }
     this.bright.instanceMatrix.needsUpdate = nb > 0;
     this.ghost.instanceMatrix.needsUpdate = ng > 0;
     this.drop((b) => b.t > b.rise.seconds + TAG_HOLD);
+  }
+
+  /**
+   * Writes a flat ring of radius `r` just above the lot, `w` thick-ish (thicker rings sit a hair lower so they
+   * don't z-fight), tinted `col` × `a` (the material is additive: darker = fainter).
+   */
+  private ring(i: number, base: Matrix4, x: number, z: number, r: number, w: number, col: Color, a: number): number {
+    this.l.makeScale(r, 1, r).setPosition(this.v.set(x, 0.06 + w * 0.01, z));
+    this.land.setMatrixAt(i, this.m.multiplyMatrices(base, this.l));
+    this.land.setColorAt(i, this.c.copy(col).multiplyScalar(Math.max(0, a)));
+    return i + 1;
   }
 
   /** Writes a beam (local box centred at x, y, z with size sx, sy, sz, in the lot's frame) and returns the next slot. */

@@ -6,6 +6,17 @@ import { allCrises } from './crises';
 import './hazards';
 import './disasters';
 import { RULES } from './consequences';
+import {
+  CATCH_MUL,
+  FESTIVAL_HARMONY,
+  HAPPENING_GAP,
+  HAPPENING_NAMES,
+  HAPPENING_SECONDS,
+  MOOD,
+  REQUEST_RADIUS,
+  REQUEST_REWARD,
+  VISITORS,
+} from './happenings';
 import { allOverlays } from './overlays';
 import { ISSUES } from './inventory';
 import { DIFFICULTIES } from './difficulty';
@@ -88,6 +99,34 @@ function rulesDoc(): KnowledgeDoc {
     tags: ['consequence', 'cause', 'effect', 'rule', ...RULES.map((r) => r.id)],
     related: ['cause-effect-chains', 'cause-effect-feedback-loops'],
     order: 20,
+    body,
+  });
+}
+
+function happeningsDoc(): KnowledgeDoc {
+  const m = (sec: number) => (sec % 60 ? `${Math.floor(sec / 60)} min ${sec % 60} s` : `${sec / 60} min`);
+  const body = [
+    `One happening at a time, ${m(HAPPENING_GAP[0])} to ${m(HAPPENING_GAP[1])} apart, never during a crisis or while Harmony is Critical. Guide: [Happenings](kb:systems-happenings).`,
+    '',
+    '| Happening | Lasts | Needs |',
+    '| --- | --- | --- |',
+    `| ${HAPPENING_NAMES.request} | ${m(HAPPENING_SECONDS.request)} to answer | homes; asks for a Nature, Food, Sports or Work building within ${REQUEST_RADIUS} tiles |`,
+    `| ${HAPPENING_NAMES.festival} | ${m(HAPPENING_SECONDS.festival)} | Harmony 55+, 150+ residents |`,
+    `| ${HAPPENING_NAMES['bumper-catch']} | ${m(HAPPENING_SECONDS['bumper-catch'])} | a fishing dock |`,
+    `| ${HAPPENING_NAMES.cruise} | ${m(HAPPENING_SECONDS.cruise)} | a waterfront building, 400+ residents |`,
+    '',
+    `- Request reward: ◈${REQUEST_REWARD.base} plus ◈${REQUEST_REWARD.perResident} per resident (up to ◈${REQUEST_REWARD.base + REQUEST_REWARD.cap}), and Harmony +${MOOD.claimed} for ${m(MOOD.seconds)}. A missed request: Harmony ${MOOD.missed} for ${m(MOOD.seconds)}. An answered request nobody claims pays out 2 min after its deadline.`,
+    `- Festival: Harmony +${FESTIVAL_HARMONY} and visitors (◈${VISITORS.festival.flat}/s plus ${VISITORS.festival.share * 100}% of tax income); a free fireworks show when a factory has shells.`,
+    `- Cruise: visitors (◈${VISITORS.cruise.flat}/s plus ${VISITORS.cruise.share * 100}% of tax income). Bumper catch: fishing haul ×${CATCH_MUL}.`,
+  ].join('\n');
+  return ref({
+    id: 'reference-happenings',
+    title: 'Happenings: numbers',
+    summary:
+      "Durations, conditions and rewards of residents' requests, festivals, bumper catches and cruise visits.",
+    tags: ['happening', 'request', 'festival', 'cruise', 'catch', 'reward'],
+    related: ['systems-happenings'],
+    order: 25,
     body,
   });
 }
@@ -282,6 +321,14 @@ let cache: KnowledgeDoc[] | null = null;
 
 /** The generated reference docs (built once: registries are fixed after load). */
 export function referenceDocs(): KnowledgeDoc[] {
-  cache ??= [rulesOfPlayDoc(), crisesDoc(), rulesDoc(), lensesDoc(), issuesDoc(), ...buildingDocs()];
+  cache ??= [
+    rulesOfPlayDoc(),
+    crisesDoc(),
+    rulesDoc(),
+    happeningsDoc(),
+    lensesDoc(),
+    issuesDoc(),
+    ...buildingDocs(),
+  ];
   return cache;
 }

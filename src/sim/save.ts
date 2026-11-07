@@ -7,8 +7,9 @@ import { createStewardState, type StewardState } from './stewardState';
 import { createFireworksState, type FireworksState } from './fireworksState';
 import { createGrowthState, type GrowthState } from './growthState';
 import { createConsequenceState, neutralMods, type ConsequenceState } from './consequenceState';
+import { createHappeningState, type HappeningState } from './happeningState';
 
-export const SAVE_VERSION = 17;
+export const SAVE_VERSION = 18;
 
 export interface SaveData {
   version: number;
@@ -46,6 +47,8 @@ export interface SaveData {
   growth: GrowthState;
   /** Consequence rules, credit rating, reputation, feed (v13+, D-074; modifiers are recomputed). */
   consequences: Omit<ConsequenceState, 'mods'>;
+  /** Residents' requests and good surprises (v18+, D-123). */
+  happenings: HappeningState;
   /** Feature modules persist their own state under their module id. */
   modules: Record<string, unknown>;
 }
@@ -145,6 +148,11 @@ export function migrateSave(data: SaveData): SaveData {
     Object.assign(data.growth, { milestones: data.growth.milestones ?? [], tips: data.growth.tips ?? 0, tipIncome: data.growth.tipIncome ?? 0 });
     data.version = 17;
   }
+  if (data.version === 17) {
+    // Happenings (v18, D-123): none yet; the first comes a few minutes after loading.
+    data.happenings = createHappeningState();
+    data.version = 18;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -179,6 +187,7 @@ export function serializeCity(city: City): SaveData {
     fireworks: structuredClone(city.fireworks),
     growth: structuredClone(city.growth),
     consequences: (({ mods, ...rest }) => (void mods, structuredClone(rest)))(city.consequences),
+    happenings: structuredClone(city.happenings),
     bridges: city.weaver.bridges.map((b) => [b.ax, b.az, b.bx, b.bz]),
     terrain: [...city.terrainEdits].map(([c, h]) => [c, round3(h)]),
     soil: { hydration: [...city.soil.hydration].map(round3), nutrients: [...city.soil.nutrients].map(round3) },
@@ -201,6 +210,7 @@ export function deserializeCity(city: City, input: SaveData): void {
   Object.assign(city.fireworks, structuredClone(data.fireworks));
   Object.assign(city.growth, structuredClone(data.growth));
   Object.assign(city.consequences, structuredClone(data.consequences), { mods: neutralMods() });
+  Object.assign(city.happenings, structuredClone(data.happenings));
   // Terrain first: highways, channels and buildings sit on the edited ground.
   if (data.terrain.length) {
     for (const [c, h] of data.terrain) {

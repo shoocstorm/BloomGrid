@@ -229,6 +229,18 @@ export class Weather {
     this.t += dt;
     this.lightning(dt, thunder, atmo);
     atmo.fog.color.copy(U.horizon.value);
+    // Grade (D-120): storms drain colour and flatten contrast, heat and dust warm the light. Overcast
+    // skies cast no separate cloud shadows.
+    if (U.storm.value > 0.01) {
+      U.gradeSat.value *= 1 - 0.3 * U.storm.value;
+      U.gradeCon.value *= 1 - 0.04 * U.storm.value;
+      U.cloudShadow.value *= 1 - U.storm.value;
+    }
+    const warm = Math.max(U.heat.value, this.haze);
+    if (warm > 0.01) {
+      U.gradeGain.value.x *= 1 + 0.05 * warm;
+      U.gradeGain.value.z *= 1 - 0.07 * warm;
+    }
 
     // Storm gusts: the wind rises and falls in slow surges (kept modest; ambient motion stays subtle).
     if (U.storm.value > 0.01) {

@@ -1902,3 +1902,96 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   `InfoId` (hover card, click panel, Flora's proposals for the season's focus), so levers run through the same code.
 - **Card and panel are solid** over City Pulse (`.si-season`), like `.xp-menu`: the panel opens over the console.
 - **Rejected**: a separate weather module with its own panel (it would duplicate lever and proposal handling).
+
+## D-120 — A graded, atmospheric look: grade, fog, live reflections, water and shore (2026-11-07)
+
+- **Why**: the city read flat and high-key: raw ACES at a fixed exposure, linear fog, an environment light baked
+  once at noon (dusk glass still reflected noon), a flat sea, and nothing grounding buildings and trees.
+- **Grade inside the existing output node** (`render/grade.ts`, no extra pass): `renderOutput` then lift / gain per
+  channel, saturation, contrast and a vignette from `U`. The atmosphere's time-of-day keys carry the grade and bloom
+  strength (warm light and cool shadow at golden hour, a blue lift at night, bloom 0.45 by noon to 0.9 at night);
+  weather pushes it (storms desaturate, heat and dust warm). Low quality (no pipeline) stays raw.
+- **Fog** is `scene.fogNode`: the old range fog thinned with height and tinted toward the sun when looking at it.
+  `atmosphere.fog` keeps its `color / near / far` shape (they are uniforms now), so weather writes it as before.
+- **Live reflections without re-baking**: `scene.environmentNode = pmremTexture(noonBake) × U.envTint`, the sky's hue
+  against noon. Brightness stays with `environmentIntensity`. The preview scene still copies `scene.environment`.
+- **Cloud shadows**: a broad drifting noise darkens lit albedo ≤ 13% by day (every `define()` material and the
+  terrain), ~80 tiles per feature so it never flickers; off at night, under lenses and in storms.
+- **AO on Ultra (removed again in D-124).** GTAO can't read a multisampled depth buffer (WebGPU has no depth resolve), and a
+  depth/normal pre-pass would double draw calls (≈250 → 500). So AO reconstructs normals from the scene pass's own
+  depth and runs at half resolution, and only where MSAA is off: Ultra now uses FXAA + GTAO; Medium gets FXAA
+  (had no anti-aliasing). Measured on High-equivalent settings: AO + FXAA ≈ MSAA in GPU time and ≈ +1 point main
+  thread, but day flicker rose ≈50% (half-res AO noise while panning), so High keeps MSAA. `?ao=1` tries it anywhere.
+- **Uniform group**: every `U` uniform is in `renderGroup` (one upload per render, not a per-draw check).
+- **Water**: fresnel toward the live horizon/zenith (dusk seas blush), a sun-glitter path into the emissive (blooms,
+  faded before sub-pixel), and a foam line washing up and back over the shallows; the terrain has a matching wet-sand
+  band that follows floods.
+- **Measured** (headless, founding city, High, several runs): main thread ≈ +1 point active and idle (inside the
+  baseline's own spread), CPU ms/frame unchanged, GPU within noise, draw calls unchanged; flicker at night unchanged,
+  by day ≈ +15% (the extra contrast).
+- **Rejected**: a LUT texture (one more sample and an asset for what four uniforms do), re-baking the environment per
+  time of day (a hitch and a pop at every swap), AO on High (flicker), an SSR water pass (cost).
+
+## D-121 — Placement says what it will do; zoom to the cursor; a landing (2026-11-07)
+
+- **Why**: placing gave a cyan or red ghost and a chime; coverage, pairing and land value were only visible after.
+- **Placement preview** (`sim/placementPreview.ts`, pure): the def's service area (response, drones, shelter, defence,
+  transit, pairing), partners it would pair with or complete, and the lot's land value. The Build tool draws the area
+  with the brush ring and adds the rest to the tooltip. A valid lot with a warning shows an **amber** ghost.
+- **Landing**: when the rise finishes, a ground ripple and a warm dust ring sweep out from the footprint
+  (`modules/rising`, additive `land-ring` material, one small instanced draw only while a ring lives). No camera shake
+  and no squash (ambient motion stays subtle).
+- **Camera**: the wheel zooms toward the ground under the cursor (`input/zoomPivot.ts`, tested), and a released drag
+  glides on for ≈0.3 s. The target keeps the map clamp: an island clamp would block the sea wonders near the edges.
+
+## D-122 — People in the streets, critters in the meadows (2026-11-07)
+
+- **Why**: apart from hover-cars the streets were empty; pedestrian activity was only a glow.
+- **Walkers** (`modules/walkers/`): like the hover-cars, static instance data (a stretch of pavement, heights, seed,
+  pace) rebuilt on `mobility:updated`, walked and bobbed in the shader; density from the activity field, fewer in the
+  small hours. They fill a region of ±80 tiles round the camera's focus (re-placed when it drifts 25 tiles; seeds come
+  from the tile, so walkers in view don't change) instead of thinly covering the island, which hit the 4,096 cap in
+  the northern rows. Hidden beyond 110. (Figures and critters reworked in D-124.)
+- **Critters**: one instanced mesh of wing pairs on green, unbuilt tiles round the focus: butterflies by day,
+  fireflies (glow, slow twinkle, dimmed to their pixel share) at night. Sparse on purpose.
+- Two draw calls, both near-view only.
+
+## D-123 — Happenings: residents' requests and good surprises (2026-11-07)
+
+- **Why**: every random event was a crisis, and a stable city (the founding city above all) had nothing to respond
+  to. Happenings give good surprises and small, meaningful asks.
+- **Sim** (`sim/happenings.ts`, state `sim/happeningState.ts`, save v18, in `hash()`): one at a time, 4–7 minutes
+  apart, never during a crisis or with Harmony Critical; `city.rng` only, and only while `auto` (tests and the trailer
+  switch it off). Kinds: a **request** (a neighbourhood asks for a Nature / Food / Sports / Work building it lacks and
+  the city can build, within 12 tiles; met when the count there rises over the baseline taken at the start, so it
+  survives save/load with no event tracking; claim for credits and a Harmony lift, miss it and Harmony dips; an
+  unclaimed met request pays out after its deadline so it never blocks the next), a **festival** (Harmony + visitors,
+  a free fireworks show if a factory has shells), a **bumper catch** (fishing ×1.5) and a **cruise visit** (visitors).
+- **Effects through the consequence modifiers** (`applyHappenings` inside `updateConsequences`), so visitor credits
+  land in `stats.tourism` and `netIncome` (D-115) and fishing reads `mods.fishing` as before.
+- **UI** (`modules/happenings/`): a card under the milestone card (Build the cheapest matching building, Locate,
+  Claim), a toast that flies to the spot, a minor moment for an answered request; `?happening=<kind>` drills one.
+- **Flora**: read-only `happenings_status`; the guide `systems/happenings.md` and the live `reference-happenings`.
+- **Dropped**: "newcomers" (a population boost): population growth has no modifier to hook, and a new one isn't
+  worth it for one kind.
+
+## D-124 — No AO; detailed walkers and explore-only butterflies (2026-11-07)
+
+- **Why**: players saw "freckles" morphing over close views (walk / drone). The cause was D-120's Ultra-only GTAO:
+  half resolution, no temporal filter, normals rebuilt from depth, so every surface near the camera carried a
+  shifting stipple (High, without AO, was clean and matched the old build). A denoise or temporal pass would cost
+  far more than the effect is worth here, so AO is gone: Ultra is back on MSAA, `?ao=1` and `U.aoAmount` are removed.
+  It was not the glass or the environment tint.
+- **Walkers** (`modules/walkers/figure.ts`): parts tagged with `aPart` (colour) and `aLimb` (signed swing, pivot);
+  one shader swings legs and the opposite arms on the stride, turns the body to its heading (normals too, through
+  `transformNormalToView`) and colours each part (shirt, trousers, shoes, skin, hair from per-walker palettes; eyes
+  and a smile). A detailed LOD (≈1,000 triangles) shows within distance 45 and in explore modes; a three-part LOD
+  further out. Both share the instance data, only one draws. Scale ≈0.3 tiles (the explore avatar's height; the
+  D-122 ×2.1 figure towered over it). Night glow only on the clothes (a glowing body read as a ghost). In explore
+  modes the crowd centres on the camera within 50 tiles (80 in the city view).
+- **Critters** (`critters.ts`): butterflies with rounded fore and hind wings (species pattern: base colour, dark
+  margins, pale spots, faint veins), a body and antennae; wings flap on the body axis and the body faces its flight.
+  At night wings rest and a lantern glows (fireflies). Drawn and placed only in explore modes, round the camera.
+- **Measured**: city view draws +1 (277 / 284 / 296 near / overview / near-horizon dusk), main thread within noise;
+  walk mode 60 fps, +2 draws, +0.68 M triangles, GPU ≈2 ms (headless).
+

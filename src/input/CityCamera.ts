@@ -1,4 +1,5 @@
 import { MathUtils, Vector3, type PerspectiveCamera } from 'three/webgpu';
+import { zoomPivot } from './zoomPivot';
 import type { Grid } from '@/sim/Grid';
 import type { Input } from './Input';
 
@@ -8,6 +9,7 @@ import type { Input } from './Input';
  * Left-drag panning is enabled by tools that request it (`dragPan`).
  * Touch: one-finger drag pans when the tool allows it (`touchPan`); two fingers pinch-zoom,
  * twist-rotate and drag to pan, or tilt with a parallel vertical drag where one finger already pans.
+ * The wheel zooms toward the ground under the cursor, and a released drag glides on briefly (D-121).
  */
 export interface CameraView {
   x: number;
@@ -28,6 +30,9 @@ export class CityCamera {
   private goalPitch = this.pitch;
   private goalDistance = this.distance;
   private tmp = new Vector3();
+  private ray = new Vector3();
+  /** Drag-pan velocity (camera-relative units per second), carried on after release. */
+  private vel = { x: 0, z: 0 };
   /** Damping rate; lower = slower, more cinematic glides. */
   smoothing = 10;
   /** Set by tools: left-drag pans the camera. */
@@ -171,6 +176,7 @@ export class CityCamera {
     const inp = this.input;
     const k = inp.keys;
     // The steward taking the controls ends a locate glide where it is.
+    if (k.size > 0 || inp.gesture || inp.buttons.has(2)) this.vel.x = this.vel.z = 0;
     if (this.glide && (k.size > 0 || inp.buttons.size > 0 || inp.wheel || inp.gesture)) {
       this.glide = null;
       this.goalTarget.copy(this.target);
@@ -197,14 +203,38 @@ export class CityCamera {
       this.goalPitch = MathUtils.clamp(this.goalPitch + inp.dragDY * 0.005, 0.25, 1.48);
     }
     const s = this.goalDistance * 0.0022;
-    if (b.has(1) || (b.has(0) && (this.dragPan || (inp.touch && this.touchPan)))) this.pan(-inp.dragDX * s, -inp.dragDY * s);
+    const dragging = b.has(1) || (b.has(0) && (this.dragPan || (inp.touch && this.touchPan)));
+    if (dragging) {
+      this.pan(-inp.dragDX * s, -inp.dragDY * s);
+      // Track the drag's speed (smoothed over a few frames) so release can carry it on.
+      if (dt > 0) {
+        const w = Math.min(1, dt * 20);
+        this.vel.x += ((-inp.dragDX * s) / dt - this.vel.x) * w;
+        this.vel.z += ((-inp.dragDY * s) / dt - this.vel.z) * w;
+      }
+    } else if (b.size === 0 && (this.vel.x !== 0 || this.vel.z !== 0)) {
+      // Inertia: a light glide after letting go, gone in ≈0.3 s.
+      this.pan(this.vel.x * dt, this.vel.z * dt);
+      const decay = Math.exp(-dt * 10);
+      this.vel.x *= decay;
+      this.vel.z *= decay;
+      if (Math.hypot(this.vel.x, this.vel.z) < this.goalDistance * 0.01) this.vel.x = this.vel.z = 0;
+    }
     if (inp.gesture) {
       this.goalDistance *= Math.exp(-inp.pinch);
       this.goalYaw += inp.twist;
       if (inp.gestureMode === 'tilt' && this.touchPan) this.goalPitch = MathUtils.clamp(this.goalPitch + inp.gestureDY * 0.005, 0.25, 1.48);
       else this.pan(-inp.gestureDX * s, -inp.gestureDY * s);
     }
-    if (inp.wheel) this.goalDistance *= Math.exp(inp.wheel * 0.0012);
+    if (inp.wheel) {
+      const before = this.goalDistance;
+      this.goalDistance = MathUtils.clamp(before * Math.exp(inp.wheel * 0.0012), this.minDistance, this.maxDistance);
+      // Zoom about the ground under the cursor: the target moves toward it by the share the distance shrank.
+      if (inp.pointer.inside && !inp.touch) {
+        const p = this.groundUnder(inp.pointer.nx, inp.pointer.ny);
+        if (p) zoomPivot(this.goalTarget, p, this.goalDistance / before);
+      }
+    }
     this.goalDistance = MathUtils.clamp(this.goalDistance, this.minDistance, this.maxDistance);
 
     const g = this.grid;
@@ -256,6 +286,21 @@ export class CityCamera {
       Math.abs(this.goalPitch - this.pitch) > 1e-4 ||
       this.input.keys.size > 0
     );
+  }
+
+  /**
+   * The point on the ground plane (at the target's height) under a screen position, or null when the ray
+   * runs near the horizon or lands far beyond the view (zooming toward the sky would fling the camera).
+   */
+  private groundUnder(nx: number, ny: number): Vector3 | null {
+    const o = this.camera.position;
+    const d = this.ray.set(nx, ny, 0.5).unproject(this.camera).sub(o).normalize();
+    if (d.y > -0.08) return null;
+    const t = (this.target.y - o.y) / d.y;
+    if (t <= 0) return null;
+    const p = this.tmp.copy(o).addScaledVector(d, t);
+    if (Math.hypot(p.x - this.target.x, p.z - this.target.z) > this.distance * 2.5) return null;
+    return p;
   }
 
   /** Pan in camera-relative ground space. */

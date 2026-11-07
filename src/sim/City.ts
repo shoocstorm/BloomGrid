@@ -13,6 +13,7 @@ import { computeShore, createFields, type Fields } from './fields';
 import { createStewardState, type StewardState } from './stewardState';
 import { FIREWORK_KINDS, createFireworksState, type FireworksState } from './fireworksState';
 import { UNLOCK_NAMES, createGrowthState, isOpen, type GrowthState } from './growthState';
+import { createHappeningState, type HappeningState } from './happeningState';
 import { createConsequenceState, type ConsequenceState } from './consequenceState';
 import { createSoil, initSoilLand, soilChecksum, type SoilState } from './floranet';
 import type { SkyBridge } from './weaver';
@@ -119,6 +120,8 @@ export class City {
   growth!: GrowthState;
   /** Cause-and-effect rules, credit rating, reputation and the feed (saved, D-074). */
   consequences!: ConsequenceState;
+  /** Happenings: residents' requests and good surprises (D-123). */
+  happenings!: HappeningState;
   /** Flora-Net soil zones (saved). */
   soil!: SoilState;
   /** Corner heights changed from the generated terrain (land reclamation), saved sparsely. */
@@ -167,6 +170,7 @@ export class City {
     this.fireworks = createFireworksState();
     this.growth = createGrowthState();
     this.consequences = createConsequenceState();
+    this.happenings = createHappeningState();
     this.roadCount = 0;
     this.nextUid = 1;
     this.uids.clear();
@@ -434,6 +438,13 @@ export class City {
     return `${rules}|${c.credit.toFixed(4)}|${c.reputation.toFixed(4)}|${c.harmonyStreak}|${c.feed.length}`;
   }
 
+  private happeningHash(): string {
+    const h = this.happenings;
+    const c = h.current;
+    const cur = c ? `${c.id}:${c.kind}:${c.status}@${c.startTick}-${c.endTick}:${c.category ?? ''}:${c.baseline ?? ''}:${c.earned.toFixed(2)}` : '-';
+    return `${h.auto ? 1 : 0}|${cur}|${h.nextTick}|${h.nextId}|${h.mood}@${h.moodUntil}|${h.history.length}`;
+  }
+
   private growthHash(): string {
     const g = this.growth;
     return `${g.name}|${g.progression ? 1 : 0}|${g.unlocked.join(',')}|${g.projects.map((p) => `${p.id}@${p.endTick}`).join(',')}|${g.wonders.join(',')}|${g.fish.toFixed(4)}|${g.floraRequests}|${g.floraSpent.toFixed(2)}|${g.milestones.join(',')}|${g.tips}|${g.tipIncome.toFixed(2)}`;
@@ -450,7 +461,7 @@ export class City {
       (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0},${r.tier ?? 0},${Math.round(r.age ?? 0)},${Math.round(r.thrive ?? 0)},${(r.scorch ?? 0).toFixed(3)},${r.off ? 1 : 0}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${roadLevelHash(this)}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}`,
     );
   }
 }

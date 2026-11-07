@@ -1,5 +1,6 @@
 import { buildings } from '@/content';
 import { NO_ENTITY } from '@/sim/Grid';
+import { placementPreview, type PlacementPreview } from '@/sim/placementPreview';
 import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from '@/sim/floranet';
 import { reclaimPlan, seaMask } from '@/sim/coast';
 import { banyanPlan, bridgePlan } from '@/sim/weaver';
@@ -26,6 +27,15 @@ declare module '@/core/EventBus' {
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
+
+/** Tooltip extras from the placement preview: land value, area, pairing (D-121). */
+const previewText = (pv: PlacementPreview): string => {
+  let t = ` · land value ${Math.round(pv.landValue * 100)}%`;
+  if (pv.area) t += ` · ${pv.area.label} ${pv.area.radius} tiles`;
+  if (pv.pairsWith.length) t += ` · ✿ pairs with ${pv.pairsWith[0]}`;
+  else if (pv.completes.length) t += ` · ✿ pairs ${pv.completes[0]}`;
+  return t;
+};
 
 export interface BuildState {
   def: string;
@@ -272,15 +282,20 @@ export function createTools(ghost: Ghost, build: BuildState) {
       if (key === lastKey) return;
       lastKey = key;
       const res = ctx.city.checkPlacement(def, x, z, build.rot);
-      ghost.setValid(res.ok);
+      ghost.setValid(res.ok, res.ok && !!res.warning);
       const inside = x >= 0 && z >= 0 && x + w <= ctx.city.grid.w && z + d <= ctx.city.grid.h;
+      const pv = inside ? placementPreview(ctx.city, def, x, z, build.rot) : null;
       if (inside) {
         ghost.showPieces(placementMatrices(placeBuilding(ctx.city.grid, def, x, z, build.rot)));
-        ghost.showCursor(x, ctx.city.grid.rangeOver(x, z, w, d).max, z, w, d);
+        const top = ctx.city.grid.rangeOver(x, z, w, d).max;
+        ghost.showCursor(x, top, z, w, d);
+        // The area it will serve, so coverage is judged before building (D-121).
+        if (pv?.area) ghost.showRing(x + w / 2, top - 0.4, z + d / 2, pv.area.radius);
+        else ghost.hideRing();
       } else ghost.hideAll();
       ctx.bus.emit('tool:tooltip', {
         text: res.ok
-          ? `${def.name} · ${fmt(def.stats.cost)} ◈ · ${ctx.input.touch ? 'tap it again to build' : 'R to rotate'}${res.warning ? ` · ⚠ ${res.warning}` : ''}`
+          ? `${def.name} · ${fmt(def.stats.cost)} ◈${pv ? previewText(pv) : ''} · ${ctx.input.touch ? 'tap it again to build' : 'R to rotate'}${res.warning ? ` · ⚠ ${res.warning}` : ''}`
           : `${def.name} — ${res.reason}`,
         tone: res.ok && !res.warning ? 'ok' : 'bad',
       });

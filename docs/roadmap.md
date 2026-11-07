@@ -301,6 +301,17 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 
 ---
 
+## ✅ Phase 23 — Quality pass: look, life, feel, happenings (2026-11-07)
+
+- [x] Look: display-space grade (time of day, weather), bloom by time of day, height + sunward fog, live environment tint, cloud shadows, FXAA on Medium (D-120; GTAO tried on Ultra and removed, D-124)
+- [x] Water: fresnel toward the live sky, sun glitter, a shore wash line and wet sand (D-120)
+- [x] Feel: amber ghost for warnings, service-area ring and pairing / land value in the Build tooltip, landing ripple and dust, zoom to the cursor, pan inertia (D-121)
+- [x] Life: street walkers from the activity field, butterflies by day and fireflies at night (D-122); detailed walkers (limbs that swing, hair, eyes, smile) and butterflies with patterned fore and hind wings, explore-only (D-124)
+- [x] Happenings: residents' requests, festivals, bumper catches, cruise visits; card, toasts, moment, Flora tool, guide; save v18 (D-123)
+- **Accept:** ✅ snaps WebGPU + WebGL, `tests/happenings.test.ts`, `placementPreview`, `zoomPivot`; perf within noise (D-120)
+
+---
+
 ## Tech debt / open issues
 
 Keep this list current; remove items when fixed.

@@ -5,8 +5,7 @@ import {
   MeshBasicNodeMaterial,
   MeshStandardNodeMaterial,
   type Material,
-  type Node,
-} from 'three/webgpu';
+  type Node, AdditiveBlending } from 'three/webgpu';
 import {
   abs,
   attribute,
@@ -41,6 +40,7 @@ import {
   vec3,
 } from 'three/tsl';
 import { U } from '../uniforms';
+import { cloudShade } from '@/render/grade';
 import { activityGlow, bloomAt, overlayDim, withOverlay } from './overlay';
 import { is, styleData } from './styles';
 
@@ -130,7 +130,7 @@ function define(name: string, make: () => Material, opts: DefineOptions = {}): v
   if (m instanceof MeshStandardNodeMaterial && opts.overlay !== 'none') {
     let base = (m.colorNode ?? materialColor) as Node<'vec3'>;
     if (opts.vitality) base = withVitality(base);
-    m.colorNode = withOverlay(base, (opts.overlay ?? 'instanced') === 'instanced');
+    m.colorNode = withOverlay(base, (opts.overlay ?? 'instanced') === 'instanced').mul(cloudShade());
     if (m.emissiveNode) {
       let e = m.emissiveNode as Node<'vec3'>;
       if (opts.vitality) e = e.mul(iVitality) as Node<'vec3'>;
@@ -612,6 +612,12 @@ export function initMaterials(): void {
   };
   define('beacon', beacon(false));
   define('beacon-xray', beacon(true));
+  // Landing rings (D-121): additive, so an instance colour fading to black fades the ring out.
+  define('land-ring', () => {
+    const m = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending });
+    m.colorNode = attribute('color', 'vec3');
+    return m;
+  });
 
   // Firework sparks (D-068): every particle's flight is a closed-form function of `U.clock` from its
   // per-instance launch data, so the CPU only writes a particle once (at launch) and never re-poses it.

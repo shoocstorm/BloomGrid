@@ -1,3 +1,4 @@
+import type { Happening } from './happeningState';
 import type { BuildingRecord } from './City';
 import type { SystemKey, Tier } from './pulseState';
 import type { CrisisInstance, FireIncident, IncidentRecord } from './stewardState';
@@ -61,6 +62,10 @@ declare module '@/core/EventBus' {
     'city:named': { name: string };
     /** Steward milestones and residents' tips (D-118): a reward claimed; a tip bubble popped (`eid` paid it). */
     'milestone:claimed': { id: string; reward: number };
+    /** Happenings (D-123): one began; a request was met (claimable); it ended (claimed, missed or run its course). */
+    'happening:start': { happening: Happening };
+    'happening:met': { happening: Happening };
+    'happening:end': { happening: Happening; outcome: 'claimed' | 'missed' | 'done' };
     'tip:collected': { eid: number; amount: number; combo: number };
     /** Levels and ageing (D-073): a building changed level (grew, was upgraded, or an upgrade was undone); renovated. */
     'building:tier': { eid: number; tier: number; paid: boolean };

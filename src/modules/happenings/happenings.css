@@ -1,0 +1,39 @@
+/* Happenings card (D-123): the milestone card's frame (.jc-m), placed under it by script, with a sea-green kicker
+   and a draining time bar. */
+.jc-m.hp .hp-head {
+  color: var(--accent);
+}
+.jc-m.hp .hp-bar > i {
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  transition: transform 0.25s linear;
+}
+.jc-m.hp.ready .hp-bar > i {
+  background: linear-gradient(90deg, var(--warn), #ffe7a8);
+}
+.hp-act {
+  display: flex;
+  gap: 6px;
+}
+.hp-act > .jc-do {
+  flex: 1 1 auto;
+  width: auto;
+}
+.hp-act > .hp-locate {
+  flex: 0 0 auto;
+}
+
+/* Phones: a slim strip under the top bar (the milestone card owns the corner there). */
+.compact .jc-m.hp {
+  top: auto;
+  bottom: 132px;
+  left: 8px;
+  right: 8px;
+  width: auto;
+}
+.compact .jc-m.hp .jc-m-hint,
+.compact .jc-m.hp .jc-m-foot {
+  display: none;
+}
+.compact .jc-m.hp .jc-m-main {
+  margin-top: 6px;
+}

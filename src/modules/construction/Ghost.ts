@@ -11,6 +11,8 @@ export interface GhostPiece {
 
 const VALID = new Color(0x7ff7e6);
 const INVALID = new Color(0xff7a7a);
+/** Valid, but with a warning (no highway access, a flood-prone lot…): amber (D-121). */
+const WARN = new Color(0xffc56b);
 const _m = new Matrix4();
 
 /** Translucent placement preview (instanced per piece type) plus a footprint cursor. */
@@ -32,8 +34,8 @@ export class Ghost {
     scene.add(this.group, this.cursor, this.tiles);
   }
 
-  setValid(ok: boolean): void {
-    U.ghost.value.copy(ok ? VALID : INVALID);
+  setValid(ok: boolean, warn = false): void {
+    U.ghost.value.copy(!ok ? INVALID : warn ? WARN : VALID);
   }
 
   /** Shows a building preview from world-space placed pieces. Meshes are pooled per piece type. */
@@ -95,7 +97,7 @@ export class Ghost {
 
   private ring: Mesh | null = null;
 
-  /** Radius brush outline (Bloom Retrofit). */
+  /** Radius outline: brush tools (Bloom Retrofit, mist) and a building's service area while placing. */
   showRing(x: number, y: number, z: number, r: number): void {
     if (!this.ring) {
       this.ring = new Mesh(new RingGeometry(0.97, 1, 96, 1).rotateX(-Math.PI / 2), getMaterial('cursor'));

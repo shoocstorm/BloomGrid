@@ -2,6 +2,7 @@ import { Building, Service } from '@/ecs/components';
 import type { City } from './City';
 import { DAY_LENGTH } from './pulseConst';
 import { seasonAt } from './seasons';
+import { applyHappenings } from './happenings';
 import { neutralMods, type ConsequenceMods, type FeedEntry } from './consequenceState';
 
 /**
@@ -309,6 +310,8 @@ export function updateConsequences(city: City): void {
     if (l > 0.01) r.apply(mods, l, city);
   }
   mods.tourism = Math.max(0, s.income * 0.2 * (st.reputation - 0.3));
+  // Happenings (D-123): festival and cruise visitors, a bumper catch, the mood after a request.
+  applyHappenings(city, mods);
   st.mods = mods;
   city.credits += mods.tourism - mods.insurance;
   st.tourismIncome += mods.tourism;

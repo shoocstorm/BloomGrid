@@ -23,6 +23,7 @@ import { inventoryTools } from '@/sim/inventoryTools';
 import { insightTools } from '@/sim/insightTools';
 import { hazardTools } from '@/sim/hazardTools';
 import { fireworksTools } from '@/sim/fireworksTools';
+import { happeningTools } from '@/sim/happeningTools';
 import { levelTools } from '@/sim/levelTools';
 import { consequenceTools } from '@/sim/consequenceTools';
 import { switchTools } from '@/sim/switchTools';
@@ -42,7 +43,7 @@ function founded() {
 function registry(s: ReturnType<typeof makeSim>) {
   const ctx: ActionCtx = { city: s.city, commands: s.commands };
   const r = new AgentToolRegistry<ActionCtx>(ctx);
-  for (const t of [...inventoryTools, ...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...proposalTools, ...bulkTools, ...roadTools]) r.register(t);
+  for (const t of [...inventoryTools, ...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...happeningTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...proposalTools, ...bulkTools, ...roadTools]) r.register(t);
   return r;
 }
 

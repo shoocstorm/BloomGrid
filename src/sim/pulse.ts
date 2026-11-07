@@ -16,6 +16,7 @@ import { updateProjects } from './projects';
 import { updateWonders, wonderHarmony } from './wonders';
 import { ageWear, size, updateLevels, upkeepMul, use } from './levels';
 import { updateConsequences } from './consequences';
+import { updateHappenings } from './happenings';
 import { netIncome, updateFinance } from './finance';
 import { updateCondition, updateOvergrowth } from './upkeep';
 import { updateStewardship } from './steward';
@@ -354,6 +355,7 @@ export const pulseSystem: System<SimCtx> = {
     updateStewardship(city);
     updateProjects(city);
     updateWonders(city);
+    updateHappenings(city);
     updateConsequences(city);
 
     // History.
