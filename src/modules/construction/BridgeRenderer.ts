@@ -1,8 +1,8 @@
 import { Color, Matrix4, Quaternion, Vector3 } from 'three/webgpu';
 import type { InstanceHandle } from '@/render/Instancer';
 import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
-import { hash2 } from '@/sim/random';
-import { findBridgeSpans, type BridgeSpan as Span } from '@/sim/bridges';
+import { BRIDGE_MIN, bridgeType, findBridgeSpans, type BridgeSpan as Span } from '@/sim/bridges';
+import { roadLevels } from '@/sim/roads';
 import type { GameContext } from '@/game/context';
 
 /** Spans shorter than this keep the plain deck and piers. */
@@ -20,6 +20,9 @@ const WHITE = new Color(0xf4f1ea);
 const PEARL = new Color(0xeaf6f4);
 const PETAL = [new Color(0xffb7d5), new Color(0xffe08a), new Color(0xc9b6ff)] as const;
 const DIM = [1, 0, 0.25, 1];
+const POST = new Color(0x3b3f42);
+const LAMP = new Color(0xffd9a0);
+const LEAF = [new Color(0x4e9a3a), new Color(0x6fbf4a), new Color(0x3f8f5f)] as const;
 const LIT = [1, 0, 0.8, 1];
 
 /**
@@ -34,10 +37,23 @@ export class BridgeRenderer {
   /** Bridge tiles currently dressed, to notice when one is removed. */
   private dressed = new Set<number>();
 
+  /** Grow-in delay for the pieces being added (seconds; -1 = appear at once), and a per-piece stagger. */
+  private grow = -1;
+  private stagger = 0;
+  /** Build delays of the batch being dressed (roadworks schedule, D-128). */
+  private delays: ReadonlyMap<number, number> = new Map();
+
   constructor(private ctx: GameContext) {
     ctx.bus.on('road:changed', ({ tiles }) => {
       const g = ctx.city.grid;
-      if (tiles.some((t) => g.road[t] === BRIDGE || this.dressed.has(t))) this.rebuild();
+      if (!tiles.some((t) => g.road[t] === BRIDGE || this.dressed.has(t))) return;
+      this.delays = ctx.services.tryGet('roadworks')?.schedule(tiles) ?? new Map();
+      this.rebuild();
+      this.delays = new Map();
+    });
+    // Bridge levels (D-128): lamps, planters and gateways follow the deck's level.
+    ctx.bus.on('road:level', ({ tiles }) => {
+      if (tiles.some((t) => ctx.city.grid.road[t] === BRIDGE)) this.rebuild();
     });
     ctx.bus.on('city:reset', () => this.clear());
     this.rebuild();
@@ -51,23 +67,59 @@ export class BridgeRenderer {
 
   rebuild(): void {
     this.clear();
-    for (const sp of findBridgeSpans(this.ctx.city.grid, MIN_SPAN)) {
-      const style = this.styleOf(sp);
-      if (style === 'suspension') this.suspension(sp);
-      else if (style === 'stayed') this.stayed(sp);
-      else if (style === 'helix') this.helix(sp);
-      else this.arch(sp);
-      const g = this.ctx.city.grid;
-      for (let k = 0; k < sp.len; k++) this.dressed.add(sp.alongX ? g.index(sp.x + k, sp.z) : g.index(sp.x, sp.z + k));
+    const g = this.ctx.city.grid;
+    const lv = roadLevels(this.ctx.city);
+    for (const sp of findBridgeSpans(g, BRIDGE_MIN)) {
+      const tiles: number[] = [];
+      for (let k = 0; k < sp.len; k++) tiles.push(sp.alongX ? g.index(sp.x + k, sp.z) : g.index(sp.x, sp.z + k));
+      // A span being built grows its structure once its deck has closed (D-128).
+      const ds = tiles.map((t) => this.delays.get(t)).filter((d): d is number => d !== undefined);
+      this.grow = ds.length ? Math.max(...ds) + 0.25 : -1;
+      this.stagger = 0;
+      if (sp.len >= MIN_SPAN) {
+        const style = this.styleOf(sp);
+        if (style === 'suspension') this.suspension(sp);
+        else if (style === 'stayed') this.stayed(sp);
+        else if (style === 'helix') this.helix(sp);
+        else this.arch(sp);
+      }
+      this.dressLevel(sp, Math.min(...tiles.map((t) => lv[t]!)));
+      for (const t of tiles) this.dressed.add(t);
     }
+    this.grow = -1;
     this.ctx.services.get('world').atmosphere.invalidateShadows();
   }
 
   private styleOf(sp: Span): Style {
-    if (sp.len >= 45) return 'suspension';
-    if (sp.len >= 28) return 'stayed';
-    if (sp.len >= 14) return hash2(sp.x, sp.z, 4021) < 0.5 ? 'helix' : 'arch';
-    return 'arch';
+    return bridgeType(sp) as Style;
+  }
+
+  /**
+   * Bridge levels (D-128): a Lantern span gets a lamp on each rail every other tile; a Grand span adds planted
+   * boxes between the lamps and a lit gateway (two columns and a glowing lintel with a petal crown) at each end.
+   * Existing pieces only, so a level adds instances, not draw calls.
+   */
+  private dressLevel(sp: Span, level: number): void {
+    if (level < 1) return;
+    const D = BRIDGE_DECK;
+    const L = sp.len;
+    for (let u = 1; u < L; u += 2)
+      for (const v of [-0.47, 0.47]) {
+        const p = this.at(sp, u, v, D);
+        this.put('timberBox', p, new Vector3(0.04, 0.5, 0.04), POST);
+        this.put('lumenRib', p.clone().setY(D + 0.48), new Vector3(0.09, 0.06, 0.09), LAMP, LIT);
+        if (level >= 2 && u + 1 < L) {
+          const q = this.at(sp, u + 1, v * 0.96, D);
+          this.put('concreteCyl', q, new Vector3(0.16, 0.1, 0.16), PEARL);
+          this.put('bush', q.clone().setY(D + 0.08), new Vector3(0.22, 0.2, 0.22), LEAF[(u + (v > 0 ? 1 : 0)) % 3]!);
+        }
+      }
+    if (level < 2) return;
+    for (const u of [0.15, L - 0.15]) {
+      for (const v of [-0.58, 0.58]) this.put('concreteCyl', this.at(sp, u, v, D), new Vector3(0.14, 1.5, 0.14), PEARL);
+      this.beam('lumenRib', this.at(sp, u, -0.6, D + 1.45), this.at(sp, u, 0.6, D + 1.45), 0.08, PEARL, LIT);
+      this.crown(this.at(sp, u, 0, D + 1.5), 0.45, sp.x + sp.z + Math.round(u));
+    }
   }
 
   /** World point at distance u along the span (0 = first tile's near edge), v across it, height y. */
@@ -85,11 +137,17 @@ export class BridgeRenderer {
     _d.subVectors(c, a);
     const len = _d.length() || 1e-3;
     _q.setFromUnitVectors(UP, _d.divideScalar(len));
-    this.handles.push(this.ctx.instancer.addMatrix(piece, _m.compose(a, _q, _s.set(thick, len, thick)), color, params));
+    this.handles.push(this.ctx.instancer.addMatrix(piece, _m.compose(a, _q, _s.set(thick, len, thick)), color, params, this.delay(), 0.8));
   }
 
   private put(piece: string, p: Vector3, s: Vector3, color = WHITE, params = DIM, q = _q.identity()): void {
-    this.handles.push(this.ctx.instancer.addMatrix(piece, _m.compose(p, q, s), color, params));
+    this.handles.push(this.ctx.instancer.addMatrix(piece, _m.compose(p, q, s), color, params, this.delay(), 0.8));
+  }
+
+  /** The next piece's grow-in delay: pieces of a span being built follow one another in quick succession. */
+  private delay(): number {
+    if (this.grow < 0) return -1;
+    return this.grow + Math.min(2.5, this.stagger++ * 0.012);
   }
 
   /** A crown of petals and a ring of light. */

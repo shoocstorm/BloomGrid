@@ -8,8 +8,10 @@ import { createFireworksState, type FireworksState } from './fireworksState';
 import { createGrowthState, type GrowthState } from './growthState';
 import { createConsequenceState, neutralMods, type ConsequenceState } from './consequenceState';
 import { createHappeningState, type HappeningState } from './happeningState';
+import { builderCode, builderFromCode } from './builders';
+import { loadBridges, saveBridges, type BridgeSave } from './bridges';
 
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 
 export interface SaveData {
   version: number;
@@ -19,8 +21,8 @@ export interface SaveData {
   day: number;
   credits: number;
   rngState: number;
-  /** [def, x, z, rot, greenery, occupancy, condition, level, uid, tier, age, thrive, scorch, off] (tier/age/thrive v12+, scorch/off v14+). */
-  buildings: [string, number, number, number, number, number, number, number, number?, number?, number?, number?, number?, number?][];
+  /** [def, x, z, rot, greenery, occupancy, condition, level, uid, tier, age, thrive, scorch, off, builder, spent] (tier/age/thrive v12+, scorch/off v14+, builder code and credits spent v19+). */
+  buildings: [string, number, number, number, number, number, number, number, number?, number?, number?, number?, number?, number?, string?, number?][];
   /** Next building serial (readable ids are never reused while the game lives). */
   nextUid: number;
   /** Named areas as [name, x0, z0, x1, z1], most specific first. */
@@ -49,6 +51,10 @@ export interface SaveData {
   consequences: Omit<ConsequenceState, 'mods'>;
   /** Residents' requests and good surprises (v18+, D-123). */
   happenings: HappeningState;
+  /** Named highway bridges as [key, name, built tick, builder code] (v19+, D-128). */
+  roadBridges: BridgeSave[];
+  /** Set by the v19 migration: bridge decks before named bridges carried the highway level, reset to Standard. */
+  resetBridgeLevels?: boolean;
   /** Feature modules persist their own state under their module id. */
   modules: Record<string, unknown>;
 }
@@ -153,6 +159,13 @@ export function migrateSave(data: SaveData): SaveData {
     data.happenings = createHappeningState();
     data.version = 18;
   }
+  if (data.version === 18) {
+    // Builders and named bridges (v19, D-128): older buildings and bridges are credited to the city; bridges get
+    // their names on load, and their decks (which carried the highway level) start at Standard.
+    data.roadBridges = [];
+    data.resetBridgeLevels = true;
+    data.version = 19;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -175,7 +188,7 @@ export function serializeCity(city: City): SaveData {
     rngState: city.rng.state,
     buildings: city
       .snapshotBuildings()
-      .map((b) => [b.def, b.x, b.z, b.rot, b.greenery, b.occupancy ?? 0, b.condition ?? 1, b.level ?? 0, b.uid ?? 0, b.tier ?? 0, round3(b.age ?? 0), round3(b.thrive ?? 0), round3(b.scorch ?? 0), b.off ? 1 : 0]),
+      .map((b) => [b.def, b.x, b.z, b.rot, b.greenery, b.occupancy ?? 0, b.condition ?? 1, b.level ?? 0, b.uid ?? 0, b.tier ?? 0, round3(b.age ?? 0), round3(b.thrive ?? 0), round3(b.scorch ?? 0), b.off ? 1 : 0, builderCode(b.by ?? 'system'), Math.round(b.spent ?? 0)]),
     nextUid: city.nextUid,
     districts: city.districts.map((d) => [d.name, d.x0, d.z0, d.x1, d.z1, d.zone ?? '']),
     channels: city.channelTiles(),
@@ -188,6 +201,7 @@ export function serializeCity(city: City): SaveData {
     growth: structuredClone(city.growth),
     consequences: (({ mods, ...rest }) => (void mods, structuredClone(rest)))(city.consequences),
     happenings: structuredClone(city.happenings),
+    roadBridges: saveBridges(city),
     bridges: city.weaver.bridges.map((b) => [b.ax, b.az, b.bx, b.bz]),
     terrain: [...city.terrainEdits].map(([c, h]) => [c, round3(h)]),
     soil: { hydration: [...city.soil.hydration].map(round3), nutrients: [...city.soil.nutrients].map(round3) },
@@ -221,7 +235,7 @@ export function deserializeCity(city: City, input: SaveData): void {
     city.bus.emit('terrain:changed', { x0: 0, z0: 0, x1: city.grid.w, z1: city.grid.h });
   }
   city.weaver.bridges = data.bridges.map(([ax, az, bx, bz]) => ({ ax, az, bx, bz }));
-  if (data.roads.length) city.setRoads(data.roads, true);
+  if (data.roads.length) city.setRoads(data.roads, true, 'system', true);
   if (data.roadLevels.length) {
     const lv = roadLevels(city);
     const wear = roadWear(city);
@@ -230,6 +244,8 @@ export function deserializeCity(city: City, input: SaveData): void {
       wear[t] = w;
     }
   }
+  if (data.resetBridgeLevels) for (const t of data.roads) if (city.grid.road[t] === 2) roadLevels(city)[t] = 0;
+  loadBridges(city, data.roadBridges);
   if (data.overgrowth.length) {
     const og = city.grid.addLayer('overgrowth', (n) => new Uint8Array(n));
     for (const [t, v] of data.overgrowth) og[t] = v;
@@ -242,8 +258,9 @@ export function deserializeCity(city: City, input: SaveData): void {
     city.soil.nutrients.set(data.soil.nutrients);
   }
   city.districts = data.districts.map(([name, x0, z0, x1, z1, zone]) => ({ name, ...(zone ? { zone } : {}), x0, z0, x1, z1 }));
-  for (const [def, x, z, rot, greenery, occupancy, condition, level, uid, tier, age, thrive, scorch, off] of data.buildings) {
-    const rec: BuildingRecord = { def, x, z, rot, greenery, occupancy, condition, level, uid, tier, age, thrive, scorch, off: off === 1 };
+  for (const [def, x, z, rot, greenery, occupancy, condition, level, uid, tier, age, thrive, scorch, off, by, spent] of data.buildings) {
+    // Older saves (no ledger) count a building's price.
+    const rec: BuildingRecord = { def, x, z, rot, greenery, occupancy, condition, level, uid, tier, age, thrive, scorch, off: off === 1, by: builderFromCode(by), spent };
     const eid = city.addBuilding(rec);
     Service.occupancy[eid] = occupancy;
   }

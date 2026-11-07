@@ -1,3 +1,7 @@
+import type { BridgeRecord } from '@/sim/bridges';
+import { BRIDGE_DECK } from '@/sim/City';
+import { pickObject } from './pick';
+import type { BuildingRenderer } from './BuildingRenderer';
 import { buildings } from '@/content';
 import { NO_ENTITY } from '@/sim/Grid';
 import { placementPreview, type PlacementPreview } from '@/sim/placementPreview';
@@ -21,7 +25,8 @@ declare module '@/core/EventBus' {
      * A building (eid) or, with `road`, the highway network containing that tile; with `eids`, a group of buildings
      * of one type (Ctrl/⌘-drag in Inspect, D-070).
      */
-    'selection:changed': { eid: number | null; road?: number; eids?: number[] };
+    /** `bridge`: a named bridge's key (D-128), sent with `road` (its deck tile) so road listeners still react. */
+    'selection:changed': { eid: number | null; road?: number; eids?: number[]; bridge?: string };
     /** With `at` (tile coordinates), the toast is a button that flies the camera there. */
     toast: { text: string; tone?: 'ok' | 'bad' | 'info'; at?: { x: number; z: number } };
   }
@@ -52,7 +57,7 @@ export interface BuildState {
   rot: number;
 }
 
-export function createTools(ghost: Ghost, build: BuildState) {
+export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingRenderer) {
   let selected: number | null = null;
   /**
    * Touch has no hover: the first tap previews (ghost, ring, highlight) and a second tap on the
@@ -70,6 +75,19 @@ export function createTools(ghost: Ghost, build: BuildState) {
     const r = city.buildingRecord(eid);
     const [w, d] = city.footprint(city.buildingDef(eid), r.rot);
     ghost.showCursor(r.x, city.grid.rangeOver(r.x, r.z, w, d).max, r.z, w, d);
+  };
+
+  /** What the pointer is over (D-129): buildings by their whole volume, bridges by deck and structure. */
+  const pick = (ctx: GameContext, hit: GroundHit | null) => pickObject(ctx, renderer, hit);
+  /** The building the pointer is over (its whole volume), or NO_ENTITY. */
+  const pickBuilding = (ctx: GameContext, hit: GroundHit | null) => {
+    const over = pick(ctx, hit);
+    return over?.kind === 'building' ? over.eid : NO_ENTITY;
+  };
+  /** The deck of a bridge as a footprint highlight. */
+  const bridgeCursor = (b: BridgeRecord) => {
+    const [w, d] = b.alongX ? [b.len, 1] : [1, b.len];
+    ghost.showCursor(b.x, BRIDGE_DECK, b.z, w, d);
   };
 
   let followsSelection = false;
@@ -185,8 +203,9 @@ export function createTools(ghost: Ghost, build: BuildState) {
         });
         return;
       }
-      const eid = hit?.inBounds ? ctx.city.buildingAt(hit.tx, hit.tz) : NO_ENTITY;
-      if (eid !== NO_ENTITY) footprintCursor(ctx, eid);
+      const over = pick(ctx, hit);
+      if (over?.kind === 'building') footprintCursor(ctx, over.eid);
+      else if (over?.kind === 'bridge') bridgeCursor(over.bridge);
       else if (selected !== null && ctx.city.buildingEntities().includes(selected)) footprintCursor(ctx, selected);
       else ghost.hideCursor();
       if (group.length) ghost.showTiles(groupTiles);
@@ -195,8 +214,9 @@ export function createTools(ghost: Ghost, build: BuildState) {
       if (e.touch || !hit?.inBounds) return;
       // Shift + drag picks a building up and carries it to a new lot.
       if (e.shift && !e.ctrl) {
-        const eid = ctx.city.buildingAt(hit.tx, hit.tz);
-        if (eid === NO_ENTITY) return;
+        const over = pick(ctx, hit);
+        if (over?.kind !== 'building') return;
+        const eid = over.eid;
         carry = { eid, rot: ctx.city.buildingRecord(eid).rot, at: null, key: '' };
         ctx.cameraCtl.dragPan = false;
         ghost.showTiles([]);
@@ -251,10 +271,12 @@ export function createTools(ghost: Ghost, build: BuildState) {
         return;
       }
       if (!ctx.input.isTap) return;
-      const eid = hit?.inBounds ? ctx.city.buildingAt(hit.tx, hit.tz) : NO_ENTITY;
-      selected = eid === NO_ENTITY ? null : eid;
-      const tile = hit?.inBounds ? ctx.city.grid.index(hit.tx, hit.tz) : -1;
-      if (selected === null && tile >= 0 && ctx.city.grid.road[tile]) ctx.bus.emit('selection:changed', { eid: null, road: tile });
+      // Forgiving picks (D-129): a building anywhere on its volume, a bridge on its deck or structure (D-128 panel),
+      // else the highway network under the cursor.
+      const over = pick(ctx, hit);
+      selected = over?.kind === 'building' ? over.eid : null;
+      if (over?.kind === 'bridge') ctx.bus.emit('selection:changed', { eid: null, road: over.tile, bridge: over.bridge.key });
+      else if (over?.kind === 'road') ctx.bus.emit('selection:changed', { eid: null, road: over.tile });
       else ctx.bus.emit('selection:changed', { eid: selected });
     },
   };
@@ -432,7 +454,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
         return;
       }
       ghost.showTiles([]);
-      const eid = ctx.city.buildingAt(hit.tx, hit.tz);
+      const eid = pickBuilding(ctx, hit);
       if (eid !== NO_ENTITY) {
         footprintCursor(ctx, eid);
         const def = ctx.city.buildingDef(eid);
@@ -454,14 +476,15 @@ export function createTools(ghost: Ghost, build: BuildState) {
       bzStart = null;
       ghost.showTiles([]);
       if (!start || !hit?.inBounds) return;
-      const eid = ctx.city.buildingAt(hit.tx, hit.tz);
+      const eid = pickBuilding(ctx, hit);
       if (start.x === hit.tx && start.z === hit.tz && eid !== NO_ENTITY) {
         if (e.touch && !confirmTap(`demolish:${eid}`, hit.tx, hit.tz, () => true)) {
           ctx.bus.emit('tool:tooltip', { text: `Tap ${ctx.city.buildingDef(eid).name} again to return it to nature`, tone: 'bad' });
           return;
         }
         armed = null;
-        ctx.commands.execute('demolish', { x: hit.tx, z: hit.tz });
+        const r = ctx.city.buildingRecord(eid);
+        ctx.commands.execute('demolish', { x: r.x, z: r.z });
         return;
       }
       const tiles = rectTiles(ctx, start, { x: hit.tx, z: hit.tz });
@@ -627,7 +650,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
     },
     hover(ctx, hit) {
       const { city } = ctx;
-      const eid = hit?.inBounds ? city.buildingAt(hit.tx, hit.tz) : NO_ENTITY;
+      const eid = pickBuilding(ctx, hit);
       if (eid !== NO_ENTITY) footprintCursor(ctx, eid);
       else ghost.hideCursor();
       const from = weaveFrom !== null && city.buildingEntities().includes(weaveFrom) ? weaveFrom : null;
@@ -656,7 +679,7 @@ export function createTools(ghost: Ghost, build: BuildState) {
     up(ctx, hit) {
       if (!hit?.inBounds || !ctx.input.isTap) return;
       const { city } = ctx;
-      const eid = city.buildingAt(hit.tx, hit.tz);
+      const eid = pickBuilding(ctx, hit);
       if (eid === NO_ENTITY || !city.buildingDef(eid).tower) {
         weaveFrom = null;
         return;

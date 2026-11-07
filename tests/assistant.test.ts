@@ -103,20 +103,17 @@ describe('action tools', () => {
   it('connects an isolated highway network to the grid', async () => {
     const s = founded();
     const r = registry(s);
-    const isolated = queryInventory(s.city, {
-      kind: 'network',
-      issue: 'power-short',
-      sort: 'tiles',
-      desc: false,
-      limit: 1,
-    }).items[0];
+    // A separate network with buildings on it (not the main grid, the largest; D-128 puts stray buildings on it).
+    const nets = queryInventory(s.city, { kind: 'network', sort: 'tiles', limit: 50 }).items;
+    const isolated = nets.slice(1).find((n) => n.metrics.buildings! > 0);
     if (!isolated) return; // seed-dependent: nothing isolated
     const path = connectPath(s.city, isolated)!;
     expect(path.length).toBeGreaterThan(0);
     const res = await r.call('connect_highway', { id: isolated.id });
     if (!res.ok) throw new Error(res.error);
     s.step(12);
-    expect(getObject(s.city, isolated.id)?.issues ?? []).not.toContain('power-short');
+    const comp = s.city.networks.comp;
+    expect(comp[isolated.ref.tile!]).toBe(comp[nets[0]!.ref.tile!]);
   });
 
   it('fix_issue applies the standard remedy for the worst issue', async () => {

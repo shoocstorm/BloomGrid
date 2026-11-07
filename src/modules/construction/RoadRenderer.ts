@@ -1,5 +1,6 @@
 import { BufferAttribute, BufferGeometry, Color, Group, Matrix4, Mesh, Quaternion, Vector3 } from 'three/webgpu';
 import { getMaterial } from '@/render/materials/library';
+import { U } from '@/render/uniforms';
 import type { Grid } from '@/sim/Grid';
 import { BRIDGE, BRIDGE_DECK, ROAD } from '@/sim/City';
 import { hash2 } from '@/sim/random';
@@ -46,7 +47,7 @@ export class RoadRenderer {
   ) {
     this.group.name = 'roads';
     ctx.scene.add(this.group);
-    ctx.bus.on('road:changed', ({ tiles }) => this.onChanged(tiles));
+    ctx.bus.on('road:changed', ({ tiles }) => this.onChanged(tiles, true));
     // Highway levels (D-096): the surface and the verge dressing change with the level.
     ctx.bus.on('road:level', ({ tiles }) => this.onChanged(tiles));
     ctx.bus.on('road:overgrowth', ({ tiles }) => {
@@ -70,8 +71,16 @@ export class RoadRenderer {
     if (existing.length) this.onChanged(existing);
   }
 
-  private onChanged(tiles: number[]): void {
+  /** Clock time each recently laid tile builds in (D-128; pruned once long past). */
+  private born = new Map<number, number>();
+  /** Build delays (seconds from now) of the batch being synced, from the roadworks schedule. */
+  private delays: ReadonlyMap<number, number> = new Map();
+
+  private onChanged(tiles: number[], laid = false): void {
     const g = this.ctx.city.grid;
+    this.delays = (laid && this.ctx.services.tryGet('roadworks')?.schedule(tiles)) || new Map();
+    const now = U.clock.value;
+    for (const [t, d] of this.delays) this.born.set(t, now + d);
     const dirty = new Set<number>();
     const kerbs = new Set<number>();
     for (const t of tiles) {
@@ -88,6 +97,7 @@ export class RoadRenderer {
     }
     for (const k of dirty) this.rebuild(k);
     for (const t of kerbs) this.syncFungi(t);
+    this.delays = new Map();
   }
 
   private syncBridge(t: number, x: number, z: number): void {
@@ -100,10 +110,12 @@ export class RoadRenderer {
     if (city.grid.road[t] !== BRIDGE) return;
     const hs: InstanceHandle[] = [];
     const deck = BRIDGE_DECK;
-    hs.push(instancer.addMatrix('slab', _m.compose(_v.set(x + 0.5, deck - 0.16, z + 0.5), _q.identity(), _s.set(1.02, 0.17, 1.02)), _c, _params));
+    // On the roadworks timeline (D-128): the pier rises from the water first, then the slab lands on it.
+    const d = this.delays.get(t);
+    hs.push(instancer.addMatrix('slab', _m.compose(_v.set(x + 0.5, deck - 0.16, z + 0.5), _q.identity(), _s.set(1.02, 0.17, 1.02)), _c, _params, d ?? -1, 0.35));
     if ((x + z) % 3 === 0) {
       const floor = Math.min(0, city.grid.heightAt(x + 0.5, z + 0.5)) - 0.5;
-      hs.push(instancer.addMatrix('concreteCyl', _m.compose(_v.set(x + 0.5, floor, z + 0.5), _q.identity(), _s.set(0.32, deck - floor - 0.15, 0.32)), _c, _params));
+      hs.push(instancer.addMatrix('concreteCyl', _m.compose(_v.set(x + 0.5, floor, z + 0.5), _q.identity(), _s.set(0.32, deck - floor - 0.15, 0.32)), _c, _params, d === undefined ? -1 : Math.max(0, d - 0.4), 0.7));
     }
     this.bridgeParts.set(t, hs);
   }
@@ -201,6 +213,8 @@ export class RoadRenderer {
     const mask: number[] = [];
     const cond: number[] = [];
     const lvl: number[] = [];
+    const born: number[] = [];
+    const now = U.clock.value;
     const lv = roadLevels(this.ctx.city);
     const idx: number[] = [];
     const og = g.layer<Uint8Array>('overgrowth');
@@ -216,8 +230,17 @@ export class RoadRenderer {
         mask.push(m, m, m, m);
         const o = og ? og[g.index(x, z)]! / 255 : 0;
         cond.push(o, o, o, o);
-        const l = lv[g.index(x, z)]!;
+        const t = g.index(x, z);
+        // A bridge deck is always paved: Standard and Lantern decks read as a Living Highway, Grand as a boulevard.
+        const l = g.road[t] === BRIDGE ? (lv[t]! >= 2 ? 2 : 1) : lv[t]!;
         lvl.push(l, l, l, l);
+        // Build-in time (D-128): the road material raises the tile out of the ground with a flash after it.
+        let b = this.born.get(t) ?? 0;
+        if (b && b < now - 10) {
+          this.born.delete(t);
+          b = 0;
+        }
+        born.push(b, b, b, b);
         idx.push(v, v + 2, v + 1, v + 1, v + 2, v + 3);
       }
     const old = this.chunks.get(key);
@@ -233,6 +256,7 @@ export class RoadRenderer {
     geo.setAttribute('aMask', new BufferAttribute(new Float32Array(mask), 1));
     geo.setAttribute('aOvergrowth', new BufferAttribute(new Float32Array(cond), 1));
     geo.setAttribute('aLevel', new BufferAttribute(new Float32Array(lvl), 1));
+    geo.setAttribute('aBorn', new BufferAttribute(new Float32Array(born), 1));
     geo.setIndex(idx);
     geo.computeVertexNormals();
     const mesh = new Mesh(geo, getMaterial('road'));

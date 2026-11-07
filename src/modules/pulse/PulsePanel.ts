@@ -107,7 +107,8 @@ export class PulsePanel {
     const body = this.body;
     this.el = h(
       'section',
-      { class: 'pulse console panel holo' },
+      // Folded at launch: the city comes first; the top-bar button or P opens it.
+      { class: 'pulse console panel holo collapsed' },
       h(
         'div',
         { class: 'pulse-headrow' },

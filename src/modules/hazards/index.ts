@@ -20,6 +20,7 @@ import { RESPONSE_COST, eidOfUid } from '@/sim/hazards';
 import { placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
+import { closeX } from '@/ui/closeX';
 import './hazards.css';
 
 /** Flame and smoke instances per fire (scaled by intensity), and smoke for each ruin. */
@@ -235,10 +236,24 @@ export const hazardsModule: GameModule = {
       },
       'Log',
     );
+    // Closing the panel (D-128) hides it until a fire that wasn't burning then starts.
+    let closedFires = new Set<number>();
     const panel = h(
       'section',
       { class: 'hz-panel panel holo crit hidden' },
-      h('header', {}, h('span', { class: 'hz-dot' }), title, allBtn, nextBtn, logBtn),
+      h(
+        'header',
+        {},
+        h('span', { class: 'hz-dot' }),
+        title,
+        allBtn,
+        nextBtn,
+        logBtn,
+        closeX('the fire alerts', () => {
+          closedFires = new Set(ctx.city.steward.fires.map((f) => f.id));
+          panel.classList.add('hidden');
+        }),
+      ),
       list,
     );
     (document.querySelector('.crisis-wrap') ?? ctx.hud).append(panel);
@@ -325,8 +340,10 @@ export const hazardsModule: GameModule = {
 
     const refreshPanel = () => {
       const { fires, ruins } = ctx.city.steward;
-      panel.classList.toggle('hidden', !fires.length);
+      const closed = fires.every((f) => closedFires.has(f.id));
+      panel.classList.toggle('hidden', !fires.length || closed);
       if (!fires.length) return rows.clear();
+      if (closed) return;
       const idle = fires.filter((f) => !f.crew).length;
       setText(
         title,

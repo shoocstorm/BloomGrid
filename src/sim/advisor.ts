@@ -1,3 +1,4 @@
+import { ROAD_REACH } from './networks';
 import { INDICATOR_NAMES as N } from './indicators';
 import { query } from 'bitecs';
 import { Building, Problem, Service } from '@/ecs/components';
@@ -92,8 +93,8 @@ registerAdvisorRule((city) => {
     id: 'no-road',
     severity: count > 10 ? 2 : 1,
     title: `${count} building${count > 1 ? 's' : ''} cut off from the grid`,
-    detail: 'With no Living Highway within 3 tiles they get no power or water, and residents cannot reach work.',
-    fix: 'Draw a Living Highway (Build → Highway) within 3 tiles of them.',
+    detail: `With no Living Highway within ${ROAD_REACH} tiles they get no power or water, and residents cannot reach work.`,
+    fix: `Draw a Living Highway (Build → Highway) within ${ROAD_REACH} tiles of them.`,
     focus,
   };
 });

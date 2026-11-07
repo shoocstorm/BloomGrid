@@ -2044,3 +2044,59 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   overview; flora instances 111k→155k; main thread 25–28% in both (no change); boot unchanged (scenario ≈425 ms,
   modules ≈415 ms); palm flicker 0.008% at 260. `?stress=1500` stays on the loader headless in both builds, so it
   was not measured.
+
+## D-128 — Named bridges, dramatic roadworks, builders and cost to date, closable notices (2026-11-07)
+
+- **Named bridges** (`sim/bridges.ts`, `sim/bridgeReport.ts`): every straight bridge span of 3+ tiles is a record
+  (`city.bridges`: key = first deck tile + axis, unique name from a tropical word list, `built` tick, `by`). `setRoads`
+  runs `syncBridges` after each change (spans that grow or shrink keep their record by overlap; removed ones drop;
+  `unroad` undo restores names). Founding bridges are dated 20–920 days before day 1. A bridge's **level**
+  (Standard / Lantern / Grand, capacity ×1 / 1.4 / 1.9, `BRIDGE_CAPACITY` in `roads.ts`) lives in the `roadLevel`
+  layer of its deck tiles, so traffic reads it through `roadCapacity` and saves / the hash carry it;
+  `upgradeBridge` (undoable) charts 30 / 70 credits per tile. Bridge decks used to carry the highway level; the
+  scenario now leaves them at Standard and the v19 migration resets them.
+- **Bridge panel** (`Hud.selectBridge`): a click on a deck sends `selection:changed` with `bridge` (and `road`, so
+  road listeners still react); name, type, ends, length, traffic, capacity, a level ladder, age, builder, flow,
+  peak, Upgrade. It re-reads on `mobility:updated` without replaying its entrance (`.ix-quiet`). Inventory `bridge`
+  objects come from the records (metrics: length, level, traffic, capacity, ageDays; `jammed` over 90%).
+  `BridgeRenderer.dressLevel` adds rail lamps (Lantern) and planters plus lit gateways (Grand) from existing pieces.
+- **Roadworks** (`modules/roadworks/`): `schedule(tiles)` times every newly laid tile of a `road:changed` batch:
+  a survey beat, then land tiles in path order (30–80 ms each), bridge runs with piers first and the deck closing
+  from both banks; a job fits 7 s. The road material raises each tile from under the ground with a flash
+  (`aBorn` per vertex, `RoadRenderer`); deck slabs, piers and the span's signature structure grow in on the same
+  timeline (instancer grow delays). Sparks, dust, pier spray, survey stakes and opening confetti reuse the
+  `firework` material (written once, flown from `U.clock`); a new bridge gets a minor moment with its name; sounds
+  on the `roadworks` cue. Nothing animates while a city loads.
+- **Builders and cost to date** (`sim/builders.ts`, `City.builders` / `City.spent` by serial): `build` and `road`
+  take `by` (default `player`; Flora's tools pass `flora`; scenario and scripted content is `system`). Every credit
+  spent on a building is booked (`addSpend`): its price, then upgrades, renovations, Bloom Retrofit (an even share),
+  banyan merges, repairs and moves; undo takes it back. Shown in the inspector and as the inventory metric `cost`
+  and tags `by-player` / `by-system` / `by-flora`. Save v19 (builder code and spent per building, named bridges).
+- **UI**: City Pulse starts folded. Toasts, crisis cards, the council warning, the fire panel, the tornado /
+  tsunami Prepare panel and the happening card each have a ✕ (`ui/closeX.ts`); a closed alert returns only for a
+  new incident (a new fire, threat or crisis, or a request that changes state).
+- **Measured** (headless, vs a HEAD worktree): main thread 23.7–24.0% vs 24.1–24.4%, draws 277 / 258 downtown
+  unchanged, boot unchanged (scenario ≈450 ms, modules ≈415 ms); the roadworks mesh draws only during a job.
+- **Known**: `tests/pacing.test.ts` fails with `ROAD_REACH` = 10 (passes at 3): the scripted steward's population
+  crashes at ≈45 min and never charters the sky-lanes. Left for the owner of that change.
+
+## D-129 — Buildings join the largest network in reach; forgiving object picking (2026-11-07)
+
+- **Network choice** (`sim/networks.ts` `networkFor`): with `ROAD_REACH` = 10 a lot often has several highway networks
+  in reach, and "nearest ring, then lowest id" put buildings on stubs of street cut short by lots (no plant, no
+  water works): in the fresh-island pacing run a new street laid round existing lots dropped 1 375 residents to 927
+  and the sky-lanes never came. A building now joins the **largest** network in reach (road tiles, `size` from
+  `recompute`), then the nearer, then the lower id. Real fragments (a separate district with its own plant) keep
+  their buildings; a stray building beside a 3-tile stub joins the trunk.
+- **Pacing** (`tests/pacing.test.ts`, unchanged targets) now passes at reach 10: Flora 14 min, sky-lanes 72, Aeroline
+  started 107 (was 32–36 / 97–101 / 137–143 at reach 3): the wider reach makes the opening markedly easier.
+  `tests/assistant.test.ts` "connects an isolated highway network" picked "the smallest power-short network", which
+  is now the main grid itself; it now picks a separate network with buildings and checks it joins the main grid.
+- **Picking** (`modules/construction/pick.ts` `pickObject`): the select, bulldoze and weave tools no longer read only
+  the ground tile under the cursor. The pointer ray is walked tile by tile (from below the city's tallest structure
+  to the ground); buildings (footprint × drawn height, `BuildingRenderer.verticalExtent`, level included) and
+  bridges (deck plus towers, arches and cables by type) on each tile and its neighbours are tested as boxes padded by
+  ≈6 px of screen (×2 on touch); the nearest along the ray wins. A miss falls back to the ground tile, then the
+  nearest building or bridge within the margin, then a highway tile. Hovering highlights the picked building or
+  bridge deck. ≈0.01–0.04 ms per pick. `scripts/scenes/pick.js` clicks a tower's upper floors, the ground beside
+  it, a bridge's arch and its deck edge.

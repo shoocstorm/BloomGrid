@@ -489,6 +489,21 @@ export const audioModule: GameModule = {
         s.burst(0.6, 0.06, 'highpass', 5000, undefined, 0.24);
       }
     });
+    // Roadworks (D-128): a survey sweep, a soft paving thud per stretch climbing as it goes, pier splashes, a
+    // two-note finish, and a bright chime run when a bridge opens.
+    bus.on('roadworks', ({ cue, x, z, step = 0 }) => {
+      if (quiet()) return;
+      const h = s.heard(x, z);
+      if (cue === 'start') s.tone(330, 0.5, 0.05 * h.vol, 'sine', 990);
+      else if (cue === 'lay') {
+        s.burst(0.12, 0.12 * h.vol, 'lowpass', 500, 120, h.delay);
+        s.tone(up(196, Math.min(6, Math.floor(step / 8))), 0.12, 0.05 * h.vol, 'triangle', undefined, h.delay);
+      } else if (cue === 'pier') s.burst(0.5, 0.14 * h.vol, 'bandpass', 900, 300, h.delay);
+      else if (cue === 'done') {
+        s.tone(523, 0.3, 0.06 * h.vol, 'triangle', undefined, h.delay);
+        s.tone(784, 0.5, 0.06 * h.vol, 'triangle', undefined, h.delay + 0.1);
+      } else [659, 784, 988, 1319, 1568].forEach((f, i) => s.tone(f, 0.6, 0.05 * Math.max(0.4, h.vol), 'sine', undefined, i * 0.07));
+    });
     bus.on('crisis:forecast', () => {
       s.tone(440, 0.35, 0.08, 'square', undefined, 0);
       s.tone(440, 0.35, 0.08, 'square', undefined, 0.5);

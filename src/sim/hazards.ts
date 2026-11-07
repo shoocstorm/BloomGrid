@@ -442,6 +442,7 @@ export function registerHazardCommands(stack: CommandStack<SimCtx>): void {
         const cost = repairCost(city, eid);
         if (city.credits < cost) return null;
         city.credits -= cost;
+        city.addSpend(eid, cost);
         const uid = Building.uid[eid]!;
         if (ruined) city.steward.ruins.splice(city.steward.ruins.indexOf(uid), 1);
         Service.condition[eid] = ruined ? 0.6 : 1;
@@ -455,6 +456,7 @@ export function registerHazardCommands(stack: CommandStack<SimCtx>): void {
         Service.condition[eid] = u.condition;
         Service.scorch[eid] = u.scorch;
         city.credits += u.cost;
+        city.addSpend(eid, -u.cost);
         if (u.ruined) {
           city.steward.ruins.push(u.uid);
           city.bus.emit('building:ruined', { eid, cause: 'undo' });

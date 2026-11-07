@@ -19,7 +19,7 @@ while the city is small.
 ## 2. Homes need four things
 
 Every home needs a **Living Highway** connection (power and water run beneath highways), **power**, **water** and
-nearby **jobs**. A highway within 3 tiles of the lot counts (it need not touch). Lay a short highway first, then place
+nearby **jobs**. A highway within 10 tiles of the lot counts (it need not touch). Lay a short highway first, then place
 homes along it. Watch City Pulse: a new home with no supply
 shows an issue in the inspector.
 

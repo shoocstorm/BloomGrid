@@ -5,12 +5,15 @@ export const ROAD_REACH = 10;
 
 /**
  * Utility networks follow the Living Highways: energy and water conduits run beneath them.
- * Connected road tiles form a network component; a building joins the network of the nearest road
- * within `ROAD_REACH` tiles of its footprint (a short service lane: it need not front the highway;
- * the nearest ring wins, then the lowest id, for determinism).
+ * Connected road tiles form a network component; a building joins a network with a road within
+ * `ROAD_REACH` tiles of its footprint (a short service lane: it need not front the highway). With several in
+ * reach it joins the **largest** (the trunk, not a stub of street cut short by lots), then the nearer, then the
+ * lower id, for determinism.
  */
 export class RoadNetworks {
   comp: Int32Array;
+  /** Road tiles per network id (from the last recompute). */
+  size: number[] = [];
   count = 0;
   dirty = true;
   private queue: Int32Array;
@@ -25,6 +28,7 @@ export class RoadNetworks {
     const comp = this.comp.fill(-1);
     const q = this.queue;
     let id = 0;
+    this.size = [];
     for (let start = 0; start < comp.length; start++) {
       if (!this.passable(start) || comp[start] !== -1) continue;
       let head = 0;
@@ -40,6 +44,7 @@ export class RoadNetworks {
         if (z > 0) tail = this.push(t - g.w, id, tail);
         if (z < g.h - 1) tail = this.push(t + g.w, id, tail);
       }
+      this.size.push(tail);
       id++;
     }
     this.count = id;
@@ -60,16 +65,29 @@ export class RoadNetworks {
     return tail;
   }
 
-  /** Network id for a footprint, or -1 when no highway lies within `ROAD_REACH` tiles of it. */
+  /**
+   * Network id for a footprint, or -1 when no highway lies within `ROAD_REACH` tiles of it: the largest network in
+   * reach, then the nearer (rings are visited nearest first, so the first sighting is the nearest), then the
+   * lower id.
+   */
   networkFor(x: number, z: number, w: number, d: number): number {
     const g = this.grid;
     let best = -1;
+    let bestSize = 0;
+    let bestRing = Infinity;
+    let r = 1;
     const check = (i: number, j: number) => {
       if (i < 0 || j < 0 || i >= g.w || j >= g.h) return;
       const c = this.comp[g.index(i, j)]!;
-      if (c !== -1 && (best === -1 || c < best)) best = c;
+      if (c === -1 || c === best) return;
+      const s = this.size[c] ?? 0;
+      if (s > bestSize || (s === bestSize && (r < bestRing || (r === bestRing && c < best)))) {
+        best = c;
+        bestSize = s;
+        bestRing = r;
+      }
     };
-    for (let r = 1; r <= ROAD_REACH && best === -1; r++) ring(x, z, w, d, r, check);
+    for (; r <= ROAD_REACH; r++) ring(x, z, w, d, r, check);
     return best;
   }
 

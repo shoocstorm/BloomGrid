@@ -1,3 +1,4 @@
+import { closeX } from '@/ui/closeX';
 import type { GameContext, GameModule } from '@/game/context';
 import { forecastCrisis, getCrisis } from '@/sim/crises';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
@@ -101,7 +102,20 @@ export const crisesModule: GameModule = {
 
     // Banner.
     const banner = h('div', { class: 'crisis-banner' });
-    const warn = h('div', { class: 'fail-warn hidden' });
+    // Cards and the council warning close with ✕ (D-128): a card stays closed for that crisis, the warning until
+    // the council's clock resets.
+    const closedCrises = new Set<number>();
+    let warnClosed = false;
+    const warnText = h('span');
+    const warn = h(
+      'div',
+      { class: 'fail-warn hidden' },
+      warnText,
+      closeX('the warning', () => {
+        warnClosed = true;
+        warn.classList.add('hidden');
+      }),
+    );
     ctx.hud.append(h('div', { class: 'crisis-wrap' }, warn, banner));
     let cards = new Map<number, { el: HTMLElement; status: HTMLElement; bar: HTMLElement }>();
 
@@ -118,7 +132,17 @@ export const crisesModule: GameModule = {
           const el = h(
             'div',
             { class: 'crisis panel' },
-            h('div', { class: 'cr-head' }, h('span', { class: 'cr-icon' }, icon(d.icon)), h('b', {}, d.name), status),
+            h(
+              'div',
+              { class: 'cr-head' },
+              h('span', { class: 'cr-icon' }, icon(d.icon)),
+              h('b', {}, d.name),
+              status,
+              closeX(`the ${d.name} card`, () => {
+                closedCrises.add(c.id);
+                el.classList.add('hidden');
+              }),
+            ),
             h('div', { class: 'cr-bar' }, bar),
             h('div', { class: 'cr-text' }),
             c.x !== undefined || c.def === 'grid-failure' || c.def === 'blight'
@@ -146,12 +170,13 @@ export const crisesModule: GameModule = {
       if (!live.size) cards = new Map();
 
       const st = city.steward;
-      warn.classList.toggle('hidden', st.failClock <= 0 || st.failed);
+      if (st.failClock <= 0) warnClosed = false;
+      warn.classList.toggle('hidden', st.failClock <= 0 || st.failed || warnClosed);
       if (st.failClock > 0) {
         const why = [city.pulse.tiers.harmony === 4 && 'harmony has collapsed', city.pulse.tiers.budget === 4 && 'credits are deep in debt']
           .filter(Boolean)
           .join(' and ');
-        setText(warn, `⚠ The council is losing confidence${why ? ` (${why})` : ''}: ${Math.max(0, FAIL_SECONDS - st.failClock)}s to turn it around`);
+        setText(warnText, `⚠ The council is losing confidence${why ? ` (${why})` : ''}: ${Math.max(0, FAIL_SECONDS - st.failClock)}s to turn it around`);
       }
     };
     let timer = 0;

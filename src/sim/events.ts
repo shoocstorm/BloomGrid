@@ -4,6 +4,7 @@ import type { SystemKey, Tier } from './pulseState';
 import type { CrisisInstance, FireIncident, IncidentRecord } from './stewardState';
 import type { FireworkKind, FireworkShow, ShowRecord } from './fireworksState';
 import type { UnlockId } from './growthState';
+import type { Builder } from './builders';
 
 declare module '@/core/EventBus' {
   interface GameEvents {
@@ -19,6 +20,10 @@ declare module '@/core/EventBus' {
     'road:overgrowth': { tiles: number[] };
     /** Highway tiles whose level changed (D-096). */
     'road:level': { tiles: number[] };
+    /** A new named bridge span opened (D-128; not for founding content or loads). */
+    'bridge:opened': { key: string; by: Builder };
+    /** A bridge was raised a level (D-128). */
+    'bridge:upgraded': { key: string; level: number };
     'loan:repaid': { id: number };
     'season:changed': { index: number };
     /** The bloom field was recomputed (renderers re-upload it). */

@@ -2788,3 +2788,104 @@ body:not(.booted) .holo::after {
 :root:not(.kbd-nav) :focus:not(input, textarea, select, [contenteditable]) {
   outline: none;
 }
+
+/* Bridge inspector (D-128): live re-reads skip the entrance animations; the level ladder; who built it. */
+.info.ix-quiet *,
+.info.ix-quiet *::before,
+.info.ix-quiet *::after {
+  animation: none !important;
+}
+.br-levels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  margin: 0 0 8px;
+}
+.br-lv {
+  padding: 4px 0 3px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--line);
+  font: 600 9px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--ink-faint);
+}
+.br-lv.on {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.br-lv.now {
+  border-color: var(--accent);
+}
+.ix-by {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 10px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.ix-by b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.ix-cost {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ix-cost b {
+  font-family: var(--mono);
+}
+
+/* Popup close button (D-128): toasts, alert cards, requests. */
+.pop-x.icon-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  min-width: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-xs);
+  background: transparent;
+  border: 0;
+  color: var(--ink-faint);
+  opacity: 0.75;
+  z-index: 2;
+}
+.pop-x.icon-btn:hover {
+  opacity: 1;
+  color: var(--ink);
+  background: var(--bg-raise);
+}
+.pop-x .ico {
+  width: 12px;
+  height: 12px;
+}
+/* Toasts can be closed and held (D-128): each takes the pointer; hovering pauses its fade. */
+.toasts .toast {
+  position: relative;
+  pointer-events: auto;
+  padding-right: 30px;
+}
+.toasts .toast:hover {
+  animation-play-state: paused;
+  opacity: 1;
+}
+.toast .pop-x.icon-btn {
+  top: 50%;
+  transform: translateY(-50%);
+}
+/* In a flex header the ✕ sits in line, last. */
+header > .pop-x.icon-btn,
+.cr-head > .pop-x.icon-btn {
+  position: static;
+  margin-left: 2px;
+  flex: none;
+}

@@ -296,7 +296,7 @@ export const actionTools: AgentTool<ActionCtx, never>[] = [
         : findSites(city, def, c, 1)[0];
       if (!site)
         throw new Error(`No free lot with highway access for ${def.name} within 80 tiles of ${c.label}.`);
-      if (!commands.execute('build', { def: def.id, x: site.x, z: site.z, rot: site.rot }))
+      if (!commands.execute('build', { def: def.id, x: site.x, z: site.z, rot: site.rot, by: 'flora' }))
         throw new Error(`The city refused to build ${def.name} at ${site.x}E ${site.z}S.`);
       const eid = city.buildingAt(site.x, site.z);
       return {
@@ -335,7 +335,7 @@ export const actionTools: AgentTool<ActionCtx, never>[] = [
       for (let i = 0; i < a.count; i++) {
         if (city.credits < def.stats.cost) break;
         const site = findSites(city, def, c, 1)[0];
-        if (!site || !commands.execute('build', { def: def.id, x: site.x, z: site.z, rot: site.rot })) break;
+        if (!site || !commands.execute('build', { def: def.id, x: site.x, z: site.z, rot: site.rot, by: 'flora' })) break;
         built.push(buildingId(city, city.buildingAt(site.x, site.z)));
       }
       if (!built.length)
@@ -406,7 +406,7 @@ export const actionTools: AgentTool<ActionCtx, never>[] = [
         throw new Error(
           `The route needs ${path.length} tiles costing ${money(cost)}; the city has ${money(city.credits)}.`,
         );
-      if (!commands.execute('road', { tiles: path, bridges: true }))
+      if (!commands.execute('road', { tiles: path, bridges: true, by: 'flora' }))
         throw new Error('The city refused the highway route.');
       return {
         connected: o.id,

@@ -7,6 +7,11 @@ import { buildings } from '@/content';
 import { CATEGORY_ICONS, ZONES } from '@/content/types';
 import { NO_ENTITY } from '@/sim/Grid';
 import { idForSelection } from '@/sim/inventory';
+import { bridgeByKey } from '@/sim/bridges';
+import { bridgeReport } from '@/sim/bridgeReport';
+import { BUILDER_NAMES, type Builder } from '@/sim/builders';
+
+const BUILDER_ICONS: Record<Builder, string> = { player: 'profile', system: 'district', flora: 'sparkle' };
 import { RESPONSE_COST, fireAt, isRuined, repairCost } from '@/sim/hazards';
 import { DEMOLISH_REFUND } from '@/sim/commands';
 import { MAX_TIER, ageDays, levels, renovateCost, upgradeAdvice, upgradeCost } from '@/sim/levels';
@@ -17,6 +22,7 @@ import type { GameContext, GameModule } from '@/game/context';
 import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from './dom';
 import { icon } from './icons';
+import { closeX } from './closeX';
 import './styles.css';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -112,9 +118,16 @@ class Hud {
       }
     });
     bus.on('toast', ({ text, tone, at }) => this.toast(text, tone, at));
-    bus.on('selection:changed', ({ eid, road, eids }) =>
-      eids?.length ? this.selectGroup(eids) : road !== undefined ? this.selectNetwork(road) : this.select(eid),
-    );
+    bus.on('selection:changed', ({ eid, road, eids, bridge }) => {
+      this.bridgeKey = null;
+      if (eids?.length) this.selectGroup(eids);
+      else if (bridge !== undefined) this.selectBridge(bridge);
+      else if (road !== undefined) this.selectNetwork(road);
+      else this.select(eid);
+    });
+    // A selected bridge reads live traffic each mobility pass; it closes if the span is removed (D-128).
+    for (const ev of ['mobility:updated', 'road:level', 'road:changed'] as const)
+      bus.on(ev, () => this.bridgeKey !== null && this.selectBridge(this.bridgeKey, true));
     bus.on('building:removed', ({ eid }) => {
       if (eid === this.selected) this.select(null);
       else if (this.group.includes(eid)) {
@@ -185,20 +198,24 @@ class Hud {
   private toast(text: string, tone: 'ok' | 'bad' | 'info' = 'info', at?: { x: number; z: number }): void {
     // Tones are prefixed: a bare `info` class would pick up the inspector's `.info` layout (a bottom sheet on phones).
     // Located toasts (incidents) are buttons that fly there, and stay a little longer to be clicked.
-    const t = at
-      ? h(
-          'button',
-          {
-            class: `toast panel tone-${tone} go`,
-            title: 'Show me',
-            onClick: () => (this.ctx.cameraCtl.locate(at.x, at.z), t.remove()),
-          },
-          text,
-          h('span', { class: 'toast-go' }, '⌖ Show'),
-        )
-      : h('div', { class: `toast panel tone-${tone}` }, text);
+    // Every toast has a ✕ (D-128); hovering one holds it (its fade pauses) until the pointer leaves.
+    const t = h(
+      'div',
+      {
+        class: `toast panel tone-${tone} ${at ? 'go' : ''}`,
+        role: at ? 'button' : 'status',
+        title: at ? 'Show me' : undefined,
+        onClick: at ? () => (this.ctx.cameraCtl.locate(at.x, at.z), t.remove()) : undefined,
+      },
+      h('span', { class: 'toast-t' }, text),
+      at ? h('span', { class: 'toast-go' }, '⌖ Show') : null,
+      closeX('this notice', () => t.remove()),
+    );
     this.toasts.append(t);
-    setTimeout(() => t.remove(), at ? 5400 : 2900);
+    const life = at ? 5400 : 2900;
+    let timer = window.setTimeout(() => t.remove(), life);
+    t.addEventListener('mouseenter', () => clearTimeout(timer));
+    t.addEventListener('mouseleave', () => (timer = window.setTimeout(() => t.remove(), 1200)));
     while (this.toasts.children.length > 3) this.toasts.firstChild!.remove();
   }
 
@@ -434,6 +451,7 @@ class Hud {
 
   private showInfo(): void {
     clearTimeout(this.closing);
+    this.info.classList.remove('ix-quiet');
     this.info.classList.remove('hidden', 'closing');
   }
 
@@ -737,6 +755,91 @@ class Hud {
     void assistant.ask(`Tell me about ${id}: how is it doing, and what should I do about any problems?`);
   }
 
+  /** Key of the bridge in the inspector, if one is (D-128). */
+  private bridgeKey: string | null = null;
+
+  /**
+   * Bridge inspector (D-128): its name, type, the districts it links, length, age, traffic against capacity, who
+   * built it, and its level with an upgrade to the next. `live` re-reads it in place (no entrance animation).
+   */
+  private selectBridge(key: string, live = false): void {
+    const { city } = this.ctx;
+    const b = bridgeByKey(city, key);
+    if (!b) {
+      this.bridgeKey = null;
+      return this.hideInfo();
+    }
+    if (live && (this.info.classList.contains('hidden') || this.info.classList.contains('closing'))) return void (this.bridgeKey = null);
+    this.bridgeKey = key;
+    this.selected = null;
+    this.group = [];
+    if (!live) {
+      this.stageFor(null);
+      this.showInfo();
+    }
+    const r = bridgeReport(city, b);
+    const id = idForSelection(city, { bridge: key });
+    const row = (k: string, v: string | number) => h('div', { class: 'row' }, h('span', {}, k), h('b', {}, String(v)));
+    const pct = (v: number) => `${Math.round(v * 100)}%`;
+    const busy = r.peak > 0.9 ? 'bad' : r.traffic < 0.6 ? 'good' : '';
+    const [ea, eb] = r.ends;
+    const scroll = this.infoBody.querySelector('.ix-scroll')?.scrollTop ?? 0;
+    // A live re-read replaces the content in place: no entrance animations.
+    this.info.classList.toggle('ix-quiet', live);
+    this.fillInfo(
+      ...this.infoHead(
+        icon('bridge'),
+        this.idTag(id, city.districtAt(b.x, b.z)),
+        r.name,
+        `${r.type} · ${ea === eb ? `in ${ea}` : `links ${ea} ↔ ${eb}`}`,
+      ),
+      h(
+        'div',
+        { class: 'ix-vitals' },
+        this.vital('road', 'Length', `${r.length} tiles`),
+        this.vital('traffic', 'Traffic', pct(r.traffic), busy),
+        this.vital('people', 'Capacity', `${fmt(r.capacity)}/s`),
+      ),
+      h(
+        'div',
+        { class: 'br-levels', title: r.levelNote },
+        ...[0, 1, 2].map((l) => h('span', { class: `br-lv ${l <= r.level ? 'on' : ''} ${l === r.level ? 'now' : ''}` }, ['Standard', 'Lantern', 'Grand'][l]!)),
+      ),
+      row('Level', r.levelName),
+      row('Age', r.ageDays === 0 ? 'Opened today' : `${fmt(r.ageDays)} day${r.ageDays === 1 ? '' : 's'}`),
+      row('Built by', r.builtBy),
+      row('Crossing now', `≈${fmt(r.flow)} commuters/s`),
+      row('Busiest stretch', pct(r.peak)),
+      h('p', { class: 'ix-note' }, r.next ? `${r.levelNote} Next: ${r.next.note}` : `${r.levelNote} The top level.`),
+      this.infoActions(
+        id,
+        ...(r.next
+          ? [
+              h(
+                'button',
+                {
+                  class: 'tool br-up',
+                  title: `Raise ${r.name} to a ${r.next.name}: carries ${fmt(r.next.capacity)} commuters/s (⌘Z undoes)`,
+                  disabled: city.credits < r.next.cost ? 'true' : undefined,
+                  onClick: () => {
+                    if (this.ctx.commands.execute('upgradeBridge', { key }))
+                      this.ctx.bus.emit('toast', { text: `${r.name} is now a ${r.next!.name}`, tone: 'ok', at: { x: b.x + 0.5, z: b.z + 0.5 } });
+                  },
+                },
+                h('span', { class: 'g' }, icon('up')),
+                `Upgrade ◈${fmt(r.next.cost)}`,
+              ),
+            ]
+          : []),
+      ),
+    );
+    if (live) {
+      const sc = this.infoBody.querySelector('.ix-scroll');
+      if (sc) sc.scrollTop = scroll;
+    }
+    this.info.querySelector('[data-led]')?.classList.toggle('bad', r.peak > 0.9);
+  }
+
   /** Highway network ("district") inspector. */
   private selectNetwork(road: number): void {
     const { city } = this.ctx;
@@ -828,6 +931,15 @@ class Hud {
         def.name,
         def.description,
       ),
+      // Who built it and what it has cost in all (D-128); the cost re-reads live (`updateInfo`).
+      h(
+        'div',
+        { class: 'ix-by' },
+        icon(BUILDER_ICONS[this.ctx.city.builders.get(Building.uid[this.selected]!) ?? 'system']),
+        'Built by ',
+        h('b', {}, BUILDER_NAMES[this.ctx.city.builders.get(Building.uid[this.selected]!) ?? 'system']),
+        h('span', { class: 'ix-cost', title: 'Credits spent on it in all: its price plus upgrades, renovations, retrofits, repairs and moves' }, icon('credits'), h('b', { 'data-spent': '1' }, `◈${fmt(this.ctx.city.spent.get(Building.uid[this.selected]!) ?? s.cost)}`), ' spent'),
+      ),
       // Live parts (`updateInfo`): status and fixes, key facts, what it consumes and produces, notes.
       h('div', { class: 'info-hz', 'data-hz': '1' }),
       h('div', { class: 'ix-upbox', 'data-up': '1' }),
@@ -854,6 +966,8 @@ class Hud {
     const box = this.infoBody.querySelector<HTMLElement>('[data-live]');
     if (!box) return;
     const eid = this.selected;
+    const spent = this.infoBody.querySelector<HTMLElement>('[data-spent]');
+    if (spent) setText(spent, `◈${fmt(this.ctx.city.spent.get(Building.uid[eid]!) ?? 0)}`);
     const r = buildingReport(this.ctx.city, eid);
     const notes = this.notes(eid);
     const key = JSON.stringify([r, notes]);

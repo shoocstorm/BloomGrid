@@ -149,6 +149,7 @@ export function registerLevelCommands(stack: CommandStack<SimCtx>): void {
       const cost = upgradeCost(city, eid);
       const undo = { uid: Building.uid[eid]!, tier: Building.tier[eid]!, thrive: Service.thrive[eid]!, cost };
       city.credits -= cost;
+      city.addSpend(eid, cost);
       Building.tier[eid] = undo.tier + 1;
       Service.thrive[eid] = 0;
       city.bus.emit('building:tier', { eid, tier: undo.tier + 1, paid: true });
@@ -160,6 +161,7 @@ export function registerLevelCommands(stack: CommandStack<SimCtx>): void {
       Building.tier[eid] = u.tier;
       Service.thrive[eid] = u.thrive;
       city.credits += u.cost;
+      city.addSpend(eid, -u.cost);
       city.bus.emit('building:tier', { eid, tier: u.tier, paid: true });
     },
   });
@@ -179,6 +181,7 @@ export function registerLevelCommands(stack: CommandStack<SimCtx>): void {
         cost,
       };
       city.credits -= cost;
+      city.addSpend(eid, cost);
       Service.age[eid] = 0;
       Service.condition[eid] = 1;
       Service.scorch[eid] = 0;
@@ -192,6 +195,7 @@ export function registerLevelCommands(stack: CommandStack<SimCtx>): void {
       Service.condition[eid] = u.condition;
       Service.scorch[eid] = u.scorch;
       city.credits += u.cost;
+      city.addSpend(eid, -u.cost);
       city.bus.emit('building:renovated', { eid });
     },
   });

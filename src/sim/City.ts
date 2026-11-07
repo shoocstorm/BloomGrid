@@ -7,7 +7,7 @@ import { Grid, NO_ENTITY, SEA_LEVEL } from './Grid';
 import { roadLevelHash, roadLevels, roadWear } from './roads';
 import { generateTerrain } from './terrain';
 import { Rng, fnv1a } from './random';
-import { RoadNetworks } from './networks';
+import { ROAD_REACH, RoadNetworks } from './networks';
 import { createPulseState, type PulseState } from './pulseState';
 import { computeShore, createFields, type Fields } from './fields';
 import { createStewardState, type StewardState } from './stewardState';
@@ -17,6 +17,8 @@ import { createHappeningState, type HappeningState } from './happeningState';
 import { createConsequenceState, type ConsequenceState } from './consequenceState';
 import { createSoil, initSoilLand, soilChecksum, type SoilState } from './floranet';
 import type { SkyBridge } from './weaver';
+import type { Builder } from './builders';
+import { bridgeHash, syncBridges, type BridgeRecord } from './bridges';
 import type { DifficultyId } from './difficulty';
 import './events';
 
@@ -41,6 +43,10 @@ export interface BuildingRecord {
   /** Char from fire (0..1) and switched off by the steward (D-075). */
   scorch?: number;
   off?: boolean;
+  /** Who built it (D-128); missing = the city (`system`). */
+  by?: Builder;
+  /** Credits spent on it in all: its price plus upgrades, renovations, retrofits, repairs and moves (D-128). */
+  spent?: number;
 }
 
 /** A named area of the map (town, quarter, park), laid down by the scenario and saved. Inclusive tile rectangle. */
@@ -136,6 +142,12 @@ export class City {
   nextUid = 1;
   /** Building serial → entity id. */
   readonly uids = new Map<number, number>();
+  /** Building serial → who built it (D-128). */
+  readonly builders = new Map<number, Builder>();
+  /** Building serial → credits spent on it in all (D-128). */
+  readonly spent = new Map<number, number>();
+  /** Named highway bridges (D-128): see `sim/bridges.ts`. */
+  bridges: BridgeRecord[] = [];
   /** Named areas, most specific first (the first containing a tile names it). */
   districts: District[] = [];
   seed = 0;
@@ -174,6 +186,9 @@ export class City {
     this.roadCount = 0;
     this.nextUid = 1;
     this.uids.clear();
+    this.builders.clear();
+    this.spent.clear();
+    this.bridges = [];
     this.districts = [];
     this.channelsDirty = true;
     this.pulse = createPulseState();
@@ -230,7 +245,7 @@ export class City {
       if (have >= max) return { ok: false, reason: `At most ${max} for now: more as the town grows` };
     }
     if (this.credits < cost) return { ok: false, reason: 'Not enough credits' };
-    if (!RoadNetworks.nearRoad(g, x, z, w, d)) return { ok: true, warning: 'No highway within 3 tiles: no power or water' };
+    if (!RoadNetworks.nearRoad(g, x, z, w, d)) return { ok: true, warning: `No highway within ${ROAD_REACH} tiles: no power or water` };
     return { ok: true };
   }
 
@@ -281,6 +296,8 @@ export class City {
     this.nextUid = Math.max(this.nextUid, uid + 1);
     Building.uid[eid] = uid;
     this.uids.set(uid, eid);
+    this.builders.set(uid, rec.by ?? 'system');
+    this.spent.set(uid, rec.spent ?? def.stats.cost);
     for (let j = rec.z; j < rec.z + d; j++)
       for (let i = rec.x; i < rec.x + w; i++) this.grid.occupant[this.grid.index(i, j)] = eid;
     this.bus.emit('building:added', { eid });
@@ -294,6 +311,8 @@ export class City {
     for (let j = rec.z; j < rec.z + d; j++)
       for (let i = rec.x; i < rec.x + w; i++) this.grid.occupant[this.grid.index(i, j)] = NO_ENTITY;
     this.uids.delete(rec.uid!);
+    this.builders.delete(rec.uid!);
+    this.spent.delete(rec.uid!);
     removeEntity(this.world, eid);
     this.bus.emit('building:removed', { eid, record: rec });
     return rec;
@@ -324,7 +343,15 @@ export class City {
       thrive: Service.thrive[eid]!,
       scorch: Service.scorch[eid]!,
       off: Service.off[eid] === 1,
+      by: this.builders.get(Building.uid[eid]!) ?? 'system',
+      spent: this.spent.get(Building.uid[eid]!) ?? 0,
     };
+  }
+
+  /** Books credits spent on a building (negative to take them back on undo; D-128). */
+  addSpend(eid: number, credits: number): void {
+    const uid = Building.uid[eid]!;
+    this.spent.set(uid, Math.max(0, (this.spent.get(uid) ?? 0) + credits));
   }
 
   /** Live building with serial `uid`, or NO_ENTITY. */
@@ -364,7 +391,11 @@ export class City {
     return max - min <= 0.9;
   }
 
-  setRoads(tiles: number[], on: boolean): void {
+  /**
+   * Lays or removes highway tiles. `by` is who built them: new bridge spans are named and credited to them
+   * (D-128); `founding` dates new bridges before day 1 (scenario content, loads).
+   */
+  setRoads(tiles: number[], on: boolean, by: Builder = 'system', founding = false): void {
     const g = this.grid;
     const og = g.layer<Uint8Array>('overgrowth');
     for (const t of tiles) {
@@ -385,6 +416,8 @@ export class City {
     }
     this.networks.dirty = true;
     this.bus.emit('road:changed', { tiles });
+    const opened = syncBridges(this, by, founding);
+    if (!founding) for (const b of opened) this.bus.emit('bridge:opened', { key: b.key, by });
   }
 
   channelAt(idx: number): number {
@@ -458,10 +491,10 @@ export class City {
 
   hash(): string {
     const b = this.snapshotBuildings().map(
-      (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0},${r.tier ?? 0},${Math.round(r.age ?? 0)},${Math.round(r.thrive ?? 0)},${(r.scorch ?? 0).toFixed(3)},${r.off ? 1 : 0}`,
+      (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0},${r.tier ?? 0},${Math.round(r.age ?? 0)},${Math.round(r.thrive ?? 0)},${(r.scorch ?? 0).toFixed(3)},${r.off ? 1 : 0},${r.by ?? 'system'},${Math.round(r.spent ?? 0)}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}`,
     );
   }
 }

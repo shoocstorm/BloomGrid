@@ -1,3 +1,5 @@
+import type { Builder } from './builders';
+import { registerBridgeCommands, restoreBridges, type BridgeRecord } from './bridges';
 import { registerRoadCommands, roadLevels, setRoadLevels } from './roads';
 import type { CommandStack } from '@/core/Commands';
 import { buildings } from '@/content';
@@ -34,6 +36,8 @@ export interface BuildPayload {
   x: number;
   z: number;
   rot: number;
+  /** Who builds it (D-128); default the steward. */
+  by?: Builder;
 }
 export interface TilePayload {
   x: number;
@@ -43,6 +47,8 @@ export interface RoadPayload {
   tiles: number[];
   /** Allow bridge decks over water tiles on the path. */
   bridges?: boolean;
+  /** Who builds it (D-128); default the steward. */
+  by?: Builder;
 }
 export interface TaxPayload {
   rate: number;
@@ -84,12 +90,13 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerReclaim(stack);
   registerWeaver(stack);
   registerRoadCommands(stack);
+  registerBridgeCommands(stack);
   stack.register<BuildPayload, { corners: [number, number][]; edits: [number, number | undefined][] }>('build', {
     apply({ city }, p) {
       const def = buildings.get(p.def);
       if (!city.checkPlacement(def, p.x, p.z, p.rot).ok) return null;
       city.credits -= def.stats.cost;
-      city.addBuilding({ ...p, greenery: 0 });
+      city.addBuilding({ ...p, greenery: 0, by: p.by ?? 'player' });
       // Grade the lot to its street and cut back banks round it (D-099); undo puts the ground back.
       const [w, d] = city.footprint(def, p.rot);
       const grade = gradeLots(city, [{ x: p.x, z: p.z, w, d }]);
@@ -169,7 +176,7 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
       city.credits -= plan.cost;
       // Abutments first: the bank must be graded before the tile is judged land or bridge.
       if (plan.grade.length) setCorners(city, plan.grade);
-      if (plan.place.length) city.setRoads(plan.place, true);
+      if (plan.place.length) city.setRoads(plan.place, true, p.by ?? 'player');
       if (cleared.length) setOvergrowth(city, cleared.map(([t]) => [t, 0]));
       return { placed: plan.place, cleared, cost: plan.cost, corners, edits };
     },
@@ -185,18 +192,21 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
     },
   });
 
-  stack.register<RoadPayload, { tiles: number[]; levels: number[] }>('unroad', {
+  stack.register<RoadPayload, { tiles: number[]; levels: number[]; bridges: BridgeRecord[] }>('unroad', {
     apply({ city }, p) {
       const removed = p.tiles.filter((t) => city.grid.road[t]);
       if (!removed.length) return null;
       const lv = roadLevels(city);
       const levels = removed.map((t) => lv[t]!);
+      const bridges = city.bridges.map((b) => ({ ...b }));
       city.setRoads(removed, false);
-      return { tiles: removed, levels };
+      return { tiles: removed, levels, bridges };
     },
     revert({ city }, _p, u) {
-      city.setRoads(u.tiles, true);
+      city.setRoads(u.tiles, true, 'system', true);
       setRoadLevels(city, u.tiles.map((t, i) => [t, u.levels[i]!]));
+      // Restored spans keep their names, dates and builders (D-128).
+      restoreBridges(city, u.bridges);
     },
   });
 
@@ -256,6 +266,8 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
       }
       if (plan.channels.length) city.setChannels(plan.channels.map((t) => [t, 2]));
       city.credits -= plan.cost;
+      // Each retrofitted building books an even share of the bill (D-128).
+      for (const e of plan.eids) city.addSpend(e, plan.cost / plan.eids.length);
       city.bus.emit('buildings:level', { eids: plan.eids, origin: { x: p.x, z: p.z, radius: p.radius } });
       return undo;
     },
@@ -263,6 +275,7 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
       for (const [e, g] of u.eids) {
         Building.level[e] = 0;
         Greenery.value[e] = g;
+        city.addSpend(e, -u.cost / u.eids.length);
       }
       if (u.channels.length) city.setChannels(u.channels);
       city.credits += u.cost;
@@ -358,6 +371,7 @@ function registerWeaver(stack: CommandStack<SimCtx>): void {
       Building.level[eid] = BANYAN_LEVEL;
       Greenery.value[eid] = 1;
       city.credits -= plan.cost;
+      city.addSpend(eid, plan.cost);
       city.bus.emit('buildings:level', { eids: [eid] });
       return undo;
     },
@@ -365,6 +379,7 @@ function registerWeaver(stack: CommandStack<SimCtx>): void {
       Building.level[u.eid] = u.level;
       Greenery.value[u.eid] = u.greenery;
       city.credits += u.cost;
+      city.addSpend(u.eid, -u.cost);
       city.bus.emit('buildings:level', { eids: [u.eid] });
     },
   });

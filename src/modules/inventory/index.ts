@@ -1,3 +1,4 @@
+import { bridgeAt } from '@/sim/bridges';
 import type { GameContext, GameModule } from '@/game/context';
 import {
   filterObjects,
@@ -62,6 +63,8 @@ function createService(ctx: GameContext): InventoryService {
       focus(o);
       if (o.ref.eid !== undefined && o.kind === 'building')
         ctx.bus.emit('selection:changed', { eid: o.ref.eid });
+      else if (o.kind === 'bridge' && o.ref.tile !== undefined && bridgeAt(ctx.city, o.ref.tile))
+        ctx.bus.emit('selection:changed', { eid: null, road: o.ref.tile, bridge: bridgeAt(ctx.city, o.ref.tile)!.key });
       else if (o.ref.tile !== undefined && ctx.city.grid.road[o.ref.tile])
         ctx.bus.emit('selection:changed', { eid: null, road: o.ref.tile });
       return true;

@@ -1,3 +1,4 @@
+import { syncBridges } from './bridges';
 import { seawardScore } from './orient';
 import { roadLevels } from './roads';
 import { startWonders } from './wonders';
@@ -164,10 +165,12 @@ export function applyScenario(city: City, id: string): { buildings: number; road
   // Highway levels (D-096): the scenario's default, then its boulevards.
   const lv = roadLevels(city);
   const base = def.roadLevel ?? 1;
-  for (const t of roadTiles) lv[t] = base;
+  // Bridges open at Standard (their level is their own, D-128).
+  for (const t of roadTiles) if (g.road[t] === 1) lv[t] = base;
   for (const [x0, z0, x1, z1, l] of levelRects)
     for (let z = Math.min(z0, z1); z <= Math.max(z0, z1); z++)
       for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) if (g.inBounds(x, z) && g.road[g.index(x, z)] === 1) lv[g.index(x, z)] = l;
   if (roadTiles.length) city.bus.emit('road:changed', { tiles: roadTiles });
+  syncBridges(city, 'system', true);
   return { buildings: placed, roads: roadTiles.length };
 }

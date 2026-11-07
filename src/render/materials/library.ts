@@ -584,7 +584,20 @@ export function initMaterials(): void {
     const lit = lines.mul(float(1).sub(smoothstep(0.3, 0.9, og))).mul(float(1).sub(raw));
     const paved = mix(mix(turf.add(rut), kerbCol, kerb.mul(blvd)), color(0xd9fff4), lit.mul(0.6));
     m.colorNode = mix(mix(paved, track, raw), wild, smoothstep(0.2, 1, og));
-    m.emissiveNode = color(0x7ff7e6).mul(lit).mul(dots.mul(0.6).add(0.4)).mul(U.night.mul(1.2).mul(activityGlow()).add(0.12)).mul(blvd.mul(0.3).add(1));
+    // Roadworks (D-128): a newly laid tile waits under the ground until its time (`aBorn`, clock seconds; 0 = old),
+    // rises out of it in a third of a second and flashes as it lands, the flash fading behind the paving wave.
+    const born = attribute('aBorn', 'float');
+    const isNew = step(0.001, born);
+    const since = U.clock.sub(born);
+    const up = mix(float(1), smoothstep(0, 0.35, since), isNew);
+    m.positionNode = positionLocal.sub(vec3(0, float(1).sub(up).mul(0.6), 0));
+    const flash = isNew.mul(step(0, since)).mul(exp(since.max(0).mul(-2.2))).mul(float(1).sub(d.mul(1.4)).clamp(0.25, 1));
+    m.emissiveNode = color(0x7ff7e6)
+      .mul(lit)
+      .mul(dots.mul(0.6).add(0.4))
+      .mul(U.night.mul(1.2).mul(activityGlow()).add(0.12))
+      .mul(blvd.mul(0.3).add(1))
+      .add(mix(color(0xfff1c4), color(0x7ff7e6), since.clamp(0, 1)).mul(flash).mul(1.6));
     return m;
   }, { overlay: 'plain' });
 

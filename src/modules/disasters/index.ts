@@ -1,3 +1,4 @@
+import { closeX } from '@/ui/closeX';
 import {
   AdditiveBlending,
   BoxGeometry,
@@ -113,10 +114,22 @@ export const disastersModule: GameModule = {
       ' Feather turbines',
     ) as HTMLButtonElement;
     const tip = h('p', { class: 'ds-tip' });
+    // Closed per threat (D-128): a new tornado or tsunami brings it back.
+    let closedThreat = -1;
     const panel = h(
       'section',
       { class: 'ds-panel panel holo hidden' },
-      h('header', {}, h('span', { class: 'ds-dot' }), title, when),
+      h(
+        'header',
+        {},
+        h('span', { class: 'ds-dot' }),
+        title,
+        when,
+        closeX('the warning', () => {
+          closedThreat = city.steward.crises.find((c) => c.def === 'tornado' || c.def === 'tsunami')?.id ?? -1;
+          panel.classList.add('hidden');
+        }),
+      ),
       tip,
       h('div', { class: 'ds-acts' }, evac, gates, feather),
     );
@@ -180,8 +193,8 @@ export const disastersModule: GameModule = {
         if ((ui += f.dt) < 0.25) return;
         ui = 0;
         const threat = crises.find((c) => c.def === 'tornado' || c.def === 'tsunami');
-        panel.classList.toggle('hidden', !threat);
-        if (!threat) return;
+        panel.classList.toggle('hidden', !threat || threat.id === closedThreat);
+        if (!threat || threat.id === closedThreat) return;
         const d = getCrisis(threat.def);
         const secs = Math.max(
           0,

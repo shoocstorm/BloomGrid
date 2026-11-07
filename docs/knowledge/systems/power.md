@@ -12,7 +12,7 @@ order: 10
 
 Generators (Energy category: solar, wind, reeds, algae and more) make power; almost every other building uses some.
 Power travels along **Living Highways**: one connected set of highways and the buildings on them is a **network**,
-and each network must make at least what it uses. A building with no highway within 3 tiles of its lot gets nothing.
+and each network must make at least what it uses. A building with no highway within 10 tiles of its lot gets nothing; with several networks in reach it joins the largest.
 
 ## The energy tier
 

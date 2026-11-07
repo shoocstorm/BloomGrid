@@ -32,7 +32,7 @@ export const constructionModule: GameModule = {
     new ChannelRenderer(ctx, chunkSizeFor(ctx.city.size));
     const ghost = new Ghost(ctx.scene);
     const state: BuildState = { def: buildings.all()[0]!.id, rot: 0 };
-    for (const t of createTools(ghost, state)) ctx.tools.register(t);
+    for (const t of createTools(ghost, state, renderer)) ctx.tools.register(t);
 
     ctx.services.provide('construction', {
       renderer,

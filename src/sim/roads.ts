@@ -28,9 +28,13 @@ const STEP = 5;
 export const roadLevels = (city: City): Uint8Array => city.grid.addLayer('roadLevel', (n) => new Uint8Array(n));
 export const roadWear = (city: City): Uint8Array => city.grid.addLayer('roadWear', (n) => new Uint8Array(n));
 
-/** Capacity multiplier of a highway tile (bridges always count as paved). */
+/** Commuter capacity per bridge level (Standard, Lantern, Grand; D-128). */
+export const BRIDGE_CAPACITY = [1, 1.4, 1.9] as const;
+
+/** Capacity multiplier of a highway tile (a bridge deck by its bridge level, D-128). */
 export function roadCapacity(city: City, t: number): number {
-  return city.grid.road[t] === 2 ? 1 : ROAD_CAPACITY[roadLevels(city)[t]!]!;
+  const l = roadLevels(city)[t]!;
+  return city.grid.road[t] === 2 ? BRIDGE_CAPACITY[Math.min(2, l)]! : ROAD_CAPACITY[l]!;
 }
 
 /** Sets levels (and clears wear) on tiles, and tells the renderers. */

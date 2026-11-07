@@ -555,6 +555,14 @@ export class BuildingRenderer {
   }
 
   /** A building that has just been placed and is still rising (null once it appeared at once, or is unknown). */
+  /** World heights a building is drawn between (its base and its current top, level included), for picking. */
+  verticalExtent(eid: number): { y0: number; y1: number } | null {
+    const entry = this.entries.get(eid);
+    if (!entry) return null;
+    const y0 = entry.base.elements[13]!;
+    return { y0: y0 - 0.4, y1: y0 + (entry.collapsed ? Math.max(0.35, entry.height * 0.25) : entry.height) };
+  }
+
   rising(eid: number): Rising | null {
     const entry = this.entries.get(eid);
     if (!entry?.rise) return null;

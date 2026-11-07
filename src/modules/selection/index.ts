@@ -1,3 +1,4 @@
+import { BRIDGE_DECK } from '@/sim/City';
 import { CylinderGeometry, InstancedMesh, Matrix4, Mesh, OctahedronGeometry, Quaternion, TorusGeometry, Vector3, type BufferGeometry } from 'three/webgpu';
 import type { GameContext, GameModule } from '@/game/context';
 import { Building } from '@/ecs/components';
@@ -111,7 +112,7 @@ class SelectionFx {
     this.ripples.count = 2;
     for (let k = 0; k < 2; k++) this.ripples.setMatrixAt(k, new Matrix4().makeScale(1e-4, 1e-4, 1e-4));
     const bus = ctx.bus;
-    bus.on('selection:changed', ({ eid, road }) => this.select(eid, road));
+    bus.on('selection:changed', ({ eid, road, bridge }) => this.select(eid, road, bridge));
     bus.on('building:removed', ({ eid }) => this.target && this.selectedEid === eid && this.select(null));
     bus.on('city:reset', () => this.select(null));
     bus.on('terrain:changed', () => this.selectedEid !== null && this.select(this.selectedEid));
@@ -119,7 +120,7 @@ class SelectionFx {
 
   private selectedEid: number | null = null;
 
-  select(eid: number | null, road?: number): void {
+  select(eid: number | null, road?: number, bridge?: string): void {
     this.selectedEid = eid;
     const city = this.ctx.city;
     if (eid !== null && city.buildingEntities().includes(eid)) {
@@ -128,6 +129,11 @@ class SelectionFx {
       const e = p.base.elements;
       const [w, d] = [Building.w[eid]!, Building.d[eid]!];
       this.target = { x: e[12]!, y: e[13]!, z: e[14]!, r: Math.hypot(w, d) / 2 + 0.6, h: p.template.height, t: 0 };
+    } else if (bridge !== undefined && city.bridges.some((b) => b.key === bridge)) {
+      // A bridge: the reticle spans the deck (D-128).
+      const b = city.bridges.find((r) => r.key === bridge)!;
+      const [x, z] = b.alongX ? [b.x + b.len / 2, b.z + 0.5] : [b.x + 0.5, b.z + b.len / 2];
+      this.target = { x, y: BRIDGE_DECK, z, r: Math.min(7, b.len / 2 + 0.8), h: 1.2, t: 0 };
     } else if (road !== undefined && road >= 0) {
       const g = city.grid;
       const [x, z] = [(road % g.w) + 0.5, Math.floor(road / g.w) + 0.5];

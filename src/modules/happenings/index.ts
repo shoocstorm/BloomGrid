@@ -13,6 +13,7 @@ import { PULSE_TICKS } from '@/sim/pulseConst';
 import { isCompact } from '@/platform/device';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
+import { closeX } from '@/ui/closeX';
 import './happenings.css';
 
 const ICON: Record<HappeningKind, string> = {
@@ -52,6 +53,8 @@ class HappeningsCard {
   private act = h('div', { class: 'jc-m-act hp-act' });
   private shown = '';
   private slow = 0;
+  /** `id|status` the steward closed (D-128): it stays away until the request changes (met, or a new one). */
+  private dismissed = '';
 
   constructor(private ctx: GameContext) {
     this.card = h(
@@ -62,6 +65,11 @@ class HappeningsCard {
       h('div', { class: 'jc-m-bar hp-bar' }, this.bar),
       h('div', { class: 'jc-m-foot' }, h('span', { class: 'jc-m-have' }, ''), this.value),
       this.act,
+      closeX('this card', () => {
+        const hp = ctx.city.happenings.current;
+        if (hp) this.dismissed = `${hp.id}|${hp.status}`;
+        this.card.classList.add('hidden');
+      }),
     );
     ctx.hud.append(this.card);
 
@@ -141,8 +149,9 @@ class HappeningsCard {
       c.cameraCtl.enabled &&
       !document.body.classList.contains('chapter-open') &&
       !c.services.tryGet('moments')?.playing;
-    this.card.classList.toggle('hidden', !hp || !live);
-    if (!hp || !live) return;
+    const closed = !!hp && this.dismissed === `${hp.id}|${hp.status}`;
+    this.card.classList.toggle('hidden', !hp || !live || closed);
+    if (!hp || !live || closed) return;
     // Sit under the milestone card when it shows.
     const above = document.querySelector<HTMLElement>('#hud > .jc-m:not(.hp):not(.hidden)');
     this.card.style.top = above && !isCompact() ? `${above.offsetTop + above.offsetHeight + 8}px` : '';

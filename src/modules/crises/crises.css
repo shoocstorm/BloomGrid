@@ -193,3 +193,14 @@
   font-size: 11.5px;
   color: var(--ink-soft);
 }
+/* Closed by the steward (D-128). */
+.crisis.hidden {
+  display: none;
+}
+.fail-warn {
+  position: relative;
+  padding-right: 30px;
+}
+.fail-warn .pop-x.icon-btn {
+  color: #fff;
+}

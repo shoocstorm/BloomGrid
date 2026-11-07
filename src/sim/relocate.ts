@@ -72,7 +72,7 @@ export function registerRelocateCommands(stack: CommandStack<SimCtx>): void {
         city.bus.emit('weaver:changed', undefined);
       }
       city.credits -= fee;
-      city.addBuilding({ ...record, x: p.x, z: p.z, rot: p.rot });
+      city.addSpend(city.addBuilding({ ...record, x: p.x, z: p.z, rot: p.rot }), fee);
       const [w, d] = city.footprint(buildings.get(record.def), p.rot);
       const grade = gradeLots(city, [{ x: p.x, z: p.z, w, d }]);
       const h = city.grid.heights;

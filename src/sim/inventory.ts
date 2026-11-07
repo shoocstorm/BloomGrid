@@ -5,7 +5,9 @@ import { buildings } from '@/content';
 import { CATEGORY_CODES, CATEGORY_LABELS, ZONES } from '@/content/types';
 import { NO_ENTITY } from './Grid';
 import type { City } from './City';
-import { findBridgeSpans } from './bridges';
+import { bridgeAt, bridgeType } from './bridges';
+import { bridgeReport } from './bridgeReport';
+import { BUILDER_NAMES } from './builders';
 import { activeBridges } from './weaver';
 
 /**
@@ -136,6 +138,7 @@ export const ISSUES: Record<string, IssueInfo> = {
     hint: 'Over 10% of its buildings report problems: inspect them.',
   },
   failing: { label: 'Failing', severity: 2, hint: 'Over 10% of its buildings are critical: inspect them.' },
+  jammed: { label: 'Jammed', severity: 1, hint: 'Traffic over 90% of capacity: upgrade the bridge or add another crossing.' },
 };
 export const registerIssue = (code: string, info: IssueInfo) => void (ISSUES[code] = info);
 
@@ -235,10 +238,13 @@ function buildingObject(city: City, eid: number): CityObject {
   if (s.water < 0) metrics.waterSupply = r3(Service.water[eid]!);
   if (s.food) metrics.food = s.food;
   if (def.transit) metrics.riders = Math.round(Service.riders[eid]!);
+  // Credits spent on it in all: price plus upgrades, renovations, retrofits, repairs and moves (D-128).
+  metrics.cost = Math.round(city.spent.get(Building.uid[eid]!) ?? def.stats.cost);
   const tags: string[] = [];
   if (Service.age[eid]! >= OLD_DAYS * DAY_LENGTH) tags.push('old');
   if (Building.tier[eid]! >= MAX_TIER) tags.push('top');
   else if (levels(city, eid) && !upgradeBlocker(city, eid)) tags.push('upgradable');
+  tags.push(`by-${city.builders.get(Building.uid[eid]!) ?? 'system'}`);
   return {
     id: buildingId(city, eid),
     kind: 'building',
@@ -283,6 +289,8 @@ registerInventoryKind({
       origin: [Building.x[eid], Building.z[eid]],
       rotation: Building.rot[eid],
       retrofit: ['original', 'Bloom Retrofit', 'banyan merge'][Building.level[eid]!] ?? 'original',
+      builtBy: BUILDER_NAMES[city.builders.get(Building.uid[eid]!) ?? 'system'],
+      totalCost: Math.round(city.spent.get(Building.uid[eid]!) ?? def.stats.cost),
       network: net >= 0 ? networkIdOf(city, net) : null,
       stats: def.stats,
       ...(sym && {
@@ -430,32 +438,38 @@ registerInventoryKind({
   icon: '⌒',
   prefixes: ['BRG'],
   description:
-    'Straight highway bridge spans over water (3+ tiles). Id = BRG-<x>.<z> of its first deck tile + E (east–west) or S (north–south).',
+    'Named highway bridges over water (3+ tiles, D-128): type, length, age, traffic, capacity, level and builder. Id = BRG-<x>.<z> of its first deck tile + E (east–west) or S (north–south).',
   list(city) {
-    return findBridgeSpans(city.grid, 3).map((s) => {
-      const [w, d] = s.alongX ? [s.len, 1] : [1, s.len];
-      const [x, z] = [s.x + w / 2, s.z + d / 2];
-      const t = city.grid.index(s.x, s.z);
+    return city.bridges.map((b) => {
+      const [w, d] = b.alongX ? [b.len, 1] : [1, b.len];
+      const [x, z] = [b.x + w / 2, b.z + d / 2];
+      const t = city.grid.index(b.x, b.z);
       const network = networkIdAtTile(city, t);
+      const r = bridgeReport(city, b);
+      const issues = [...(network ? [] : ['overgrown']), ...(r.peak > 0.9 ? ['jammed'] : [])];
       return {
-        id: `${tileId('BRG', city, t)}${s.alongX ? 'E' : 'S'}`,
+        id: bridgeId(city, b),
         kind: 'bridge',
-        type: s.len >= 12 ? 'suspension-bridge' : 'bridge',
-        name: `${s.len >= 12 ? 'Suspension bridge' : 'Bridge'} · ${s.len} tiles`,
-        group: s.alongX ? 'East–west' : 'North–south',
+        type: bridgeType(b) === 'suspension' ? 'suspension-bridge' : 'bridge',
+        name: b.name,
+        group: r.type,
         district: districtOf(city, x, z),
         x,
         z,
         w,
         d,
-        status: network ? 'ok' : 'warning',
-        issues: network ? [] : ['overgrown'],
-        metrics: { length: s.len },
+        status: statusOf(issues),
+        issues,
+        metrics: { length: b.len, level: r.level + 1, traffic: r.traffic, capacity: r.capacity, ageDays: r.ageDays },
+        tags: [`by-${b.by}`, ...(r.next ? ['upgradable'] : ['top'])],
         ref: { tile: t },
       } satisfies CityObject;
     });
   },
-  details: (city, obj) => ({ network: networkIdAtTile(city, obj.ref.tile!) }),
+  details(city, obj) {
+    const b = bridgeAt(city, obj.ref.tile!);
+    return { network: networkIdAtTile(city, obj.ref.tile!), ...(b && bridgeReport(city, b)) };
+  },
 });
 
 // ── Sky-bridges (Green Weaver) ──────────────────────────────────────────────
@@ -903,7 +917,15 @@ export function summarize(objects: readonly CityObject[]): InventorySummary {
 }
 
 /** Readable id for whatever a HUD selection points at (a building entity or a road tile). */
-export function idForSelection(city: City, sel: { eid?: number | null; road?: number }): string | null {
+/** Readable id of a named bridge (`BRG-<x>.<z>E|S`). */
+export const bridgeId = (city: City, b: { x: number; z: number; alongX: boolean }): string =>
+  `${tileId('BRG', city, city.grid.index(b.x, b.z))}${b.alongX ? 'E' : 'S'}`;
+
+export function idForSelection(city: City, sel: { eid?: number | null; road?: number; bridge?: string }): string | null {
+  if (sel.bridge !== undefined) {
+    const b = city.bridges.find((r) => r.key === sel.bridge);
+    if (b) return bridgeId(city, b);
+  }
   if (sel.road !== undefined) return networkIdAtTile(city, sel.road);
   if (sel.eid === undefined || sel.eid === null || sel.eid === NO_ENTITY) return null;
   return buildingId(city, sel.eid);
