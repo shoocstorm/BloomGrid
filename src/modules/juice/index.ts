@@ -14,7 +14,9 @@ import { tipValue } from '@/sim/tips';
 import { isRuined } from '@/sim/hazards';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
-import { isCompact } from '@/platform/device';
+import { isCompact, onCompactChange } from '@/platform/device';
+import { buildBlock } from '@/sim/buildGate';
+import { runGate } from '@/ui/gateSteps';
 import { TIP_ICONS, quoteFor } from './quotes';
 import './juice.css';
 
@@ -131,6 +133,7 @@ class Juice {
   private cHave = h('span', { class: 'jc-m-have' });
   private cReward = h('span', { class: 'jc-m-reward' });
   private cAct = h('div', { class: 'jc-m-act' });
+  private cWhy = h('p', { class: 'jc-m-why' });
   private cPill = h('span', { class: 'jc-m-pill-text' });
   private shown = '';
   private ready = new Set<string>();
@@ -165,13 +168,26 @@ class Juice {
       this.cAct,
       h(
         'button',
-        { class: 'jc-m-pill', title: 'Show the next milestone', onClick: () => this.fold(false) },
+        {
+          class: 'jc-m-pill',
+          title: 'Show the next milestone',
+          onClick: () => {
+            // Inspecting something: the card waits as a pill beside the inspector, so showing it closes that.
+            if (this.card.parentElement?.querySelector(':scope > .info:not(.hidden)')) ctx.bus.emit('selection:changed', { eid: null });
+            this.fold(false);
+          },
+        },
         icon('star'),
         this.cPill,
       ),
     );
     this.card.classList.toggle('folded', this.folded);
-    ctx.hud.append(this.card);
+    // Desktops: the card heads the right column, so the inspector (and the advisor) stack under it instead of
+    // sliding beneath it; while something is inspected it shrinks to its pill (CSS). Phones: a strip above Build.
+    const right = ctx.services.get('hud').right;
+    const place = (compact: boolean) => (compact ? ctx.hud.append(this.card) : right.prepend(this.card));
+    place(isCompact());
+    onCompactChange(place);
 
     const { bus } = ctx;
     bus.on('building:ready', ({ eid }) => this.built(eid));
@@ -432,7 +448,10 @@ class Juice {
     setText(this.cCount, `${got + 1} / ${MILESTONES.length}`);
     setText(this.cPill, done ? `Claim ◈${fmt(m.reward)}` : `${m.title} · ${Math.round(k * 100)}%`);
     const build = done ? undefined : m.build?.(this.ctx.city);
-    const key = `${m.id}|${done}|${claimable}|${build ?? ''}`;
+    // Can't be built right now (locked, at its limit, too dear): the card says why and offers the way forward.
+    const block = build && buildings.has(build) ? buildBlock(city, build) : null;
+    if (block) setText(this.cWhy, block.reason);
+    const key = `${m.id}|${done}|${claimable}|${build ?? ''}|${block?.kind ?? ''}|${block?.steps.find((s) => s.act)?.act?.label ?? ''}`;
     this.card.classList.toggle('ready', done);
     if (key === this.shown) return;
     this.shown = key;
@@ -450,18 +469,21 @@ class Juice {
       );
       this.cAct.replaceChildren(btn);
     } else if (build && buildings.has(build)) {
-      this.cAct.replaceChildren(
-        h(
-          'button',
-          {
-            class: 'jc-do',
-            title: `Build a ${buildings.get(build).name}`,
-            onClick: () => this.ctx.services.get('construction').startBuilding(build),
-          },
-          icon('build'),
-          `Build ${buildings.get(build).name}`,
-        ),
-      );
+      const name = buildings.get(build).name;
+      const step = block?.steps.find((s) => s.act)?.act;
+      const parts: HTMLElement[] = [];
+      if (block) parts.push(this.cWhy);
+      if (!block || block.kind === 'credits')
+        parts.push(
+          h(
+            'button',
+            { class: 'jc-do', title: `Build a ${name}`, onClick: () => this.ctx.services.get('construction').startBuilding(build) },
+            icon('build'),
+            `Build ${name}`,
+          ),
+        );
+      if (step) parts.push(h('button', { class: 'jc-do jc-next', onClick: () => runGate(this.ctx, step.action) }, icon('next'), step.label));
+      this.cAct.replaceChildren(...parts);
     } else this.cAct.replaceChildren();
   }
 

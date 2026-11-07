@@ -2100,3 +2100,22 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   nearest building or bridge within the margin, then a highway tile. Hovering highlights the picked building or
   bridge deck. ≈0.01–0.04 ms per pick. `scripts/scenes/pick.js` clicks a tower's upper floors, the ground beside
   it, a bridge's arch and its deck edge.
+
+## D-130 — The build gate: every "can't build it" says what to do next; milestone card in the right column (2026-11-07)
+
+- **Why**: "At most 3 for now: more as the town grows" (fishing docks) and a bare "Locked" stopped players with no
+  way forward. `sim/buildGate.ts` (`buildBlock`) explains a block (locked behind a project, at a `limit`, short of
+  credits) and lists next steps, each with an action (`place` a building, open a `category`, `start` a ready project,
+  open `goals`, open the `credits` guide). The limit maths is `sim/limits.ts` (pure, no imports) so
+  `City.checkPlacement` shares it: "3 of 3 built: the 4th opens at 600 residents (134 now)".
+- **Surfaces**: Build panel cards show the block ("3/3 · next at 600 pop", "Locked"); a click on a locked or capped card
+  pins its explanation card with the steps instead of picking up a building that can't be placed; the steps
+  (`ui/gateSteps.ts`) sit first on the card. The placement tooltip and a refused click toast say why and, for a
+  block, the first step. The milestone card's Build button turns into the way forward when its building is blocked.
+  Lot refusals (steep, occupied, no highway) also say what to do. Planners (`proposals`, `statGuide`,
+  `seasonGuide`) skip `unavailable` buildings (locked or capped), so they never suggest a dock past the limit.
+- **Services**: `pulse.show(tab)` opens a City Pulse tab; `statinfo.open(id)` opens an indicator guide.
+- **Milestone card** (desktop) moved from its own absolute spot (which sat on the inspector) into the head of the
+  right column (`hud.right`): the inspector and the advisor stack under it, and while something is inspected it
+  shrinks to its pill (clicking the pill closes the inspector and unfolds it). Phones hide the strip while the
+  inspector sheet or build mode is open.

@@ -1,10 +1,10 @@
+import { unavailable } from './buildGate';
 import { buildings } from '@/content';
 import type { BuildingCategory, BuildingDef, BuildingStats } from '@/content/types';
 import type { City } from './City';
 import { LABOUR_SHARE } from './pulseConst';
 import { TAX_MAX, TAX_MIN, TIERS, tierFromRatio, type HistoryMetric, type Tier } from './pulseState';
 import { creditLimit, LOAN_SIZES, netIncome, totalDebt } from './finance';
-import { lockReason } from './projects';
 import type { ProposalFocus } from './proposals';
 import { INDICATOR_NAMES as N } from './indicators';
 
@@ -97,7 +97,7 @@ export function bestFor(city: City, key: keyof BuildingStats, category?: Buildin
   let best: BuildingDef | null = null;
   let score = 0;
   for (const d of buildings.all()) {
-    if (d.landmark || (category && d.category !== category) || lockReason(city, d.id)) continue;
+    if (d.landmark || (category && d.category !== category) || unavailable(city, d.id)) continue;
     const v = d.stats[key];
     if (v <= 0) continue;
     const sc = v / Math.max(1, d.stats.cost);

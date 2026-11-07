@@ -18,6 +18,7 @@ import { faceWater } from '@/sim/orient';
 import { moveFee, relocatePlan } from '@/sim/relocate';
 import { placeBuilding, placementMatrices } from './BuildingRenderer';
 import type { Ghost } from './Ghost';
+import { buildBlock } from '@/sim/buildGate';
 
 declare module '@/core/EventBus' {
   interface GameEvents {
@@ -55,6 +56,18 @@ const previewText = (pv: PlacementPreview): string => {
 export interface BuildState {
   def: string;
   rot: number;
+}
+
+/**
+ * A placement refusal in the player's words (D-130): a lock, a limit or a short purse says what opens it (from
+ * `sim/buildGate.ts`); `next` adds the first step to take. Lot problems (steep, occupied…) pass through.
+ */
+function blockedText(ctx: GameContext, defId: string, reason: string, next = false): string {
+  if (!/^(Locked|Not enough credits|\d+ of \d+ built)/.test(reason)) return reason;
+  const block = buildBlock(ctx.city, defId);
+  if (!block) return reason;
+  const step = block.steps.find((s) => s.act) ?? block.steps[0];
+  return next && step ? `${block.reason}. ${step.text}` : block.reason;
 }
 
 export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingRenderer) {
@@ -328,7 +341,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
       ctx.bus.emit('tool:tooltip', {
         text: res.ok
           ? `${def.name} · ${fmt(def.stats.cost)} ◈${pv ? previewText(pv) : ''} · ${ctx.input.touch ? 'tap it again to build' : 'R to rotate'}${res.warning ? ` · ⚠ ${res.warning}` : ''}`
-          : `${def.name} — ${res.reason}`,
+          : `${def.name} — ${blockedText(ctx, def.id, res.reason!)}`,
         tone: res.ok && !res.warning ? 'ok' : 'bad',
       });
     },
@@ -346,6 +359,11 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
       if (ctx.commands.execute('build', { def: def.id, x, z, rot: build.rot })) {
         ctx.bus.emit('toast', { text: `${def.name} is taking root`, tone: 'ok' });
         lastKey = '';
+      } else {
+        // Say why, and for a lock, limit or empty purse what to do next (the Build panel's card lists the steps).
+        const res = ctx.city.checkPlacement(def, x, z, build.rot);
+        const why = res.ok ? null : res.reason;
+        if (why) ctx.bus.emit('toast', { text: `${def.name}: ${blockedText(ctx, def.id, why, true)}`, tone: 'bad' });
       }
     },
     key(_ctx, e) {

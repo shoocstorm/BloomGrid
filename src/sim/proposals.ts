@@ -1,12 +1,12 @@
 import { netIncome } from './finance';
 import { query } from 'bitecs';
+import { unavailable } from './buildGate';
 import { buildings } from '@/content';
 import { CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
 import { Building } from '@/ecs/components';
 import type { City } from './City';
 import { evaluateAdvisor, type Advisory } from './advisor';
 import { findSites, type Site } from './actionTools';
-import { lockReason } from './projects';
 import { activeRules } from './consequences';
 import { SYSTEMS, TIERS } from './pulseState';
 
@@ -56,7 +56,7 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 /** Buildings the steward may place now (unlocked, not one-off landmarks). */
-const usable = (city: City) => buildings.all().filter((d) => !d.landmark && !lockReason(city, d.id));
+const usable = (city: City) => buildings.all().filter((d) => !d.landmark && !unavailable(city, d.id));
 
 /**
  * Ways to cover `need` units of `stat` with at most 3 buildings of one type, best first: ones that cover it

@@ -23,6 +23,7 @@ export const pulseModule: GameModule = {
         return panel.collapsed;
       },
       fold: (folded) => void panel.el.classList.toggle('collapsed', folded),
+      show: (id) => panel.select(id, true),
     });
     const hud = ctx.services.get('hud');
     // Show / hide the console from the top bar (P does the same); lit while it is open.

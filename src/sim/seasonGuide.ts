@@ -1,9 +1,9 @@
+import { unavailable } from './buildGate';
 import { buildings } from '@/content';
 import type { City } from './City';
 import { DAY_LENGTH, PULSE_TICKS } from './pulseConst';
 import { SEASONS, SEASON_SECONDS, SEASON_TICKS, seasonAt, showerAt, type Season } from './seasons';
 import { allCrises } from './crises';
-import { lockReason } from './projects';
 import { bestFor, type GuideLever, type GuidePart } from './statGuide';
 import type { ProposalFocus } from './proposals';
 
@@ -67,7 +67,7 @@ const sorted = (levers: (GuideLever | null | false | undefined)[]) => levers.fil
 
 /** A named, unlocked building type as a "place" lever (null when it is locked or missing). */
 function place(city: City, id: string, why: string, weight: number): GuideLever | null {
-  if (!buildings.has(id) || lockReason(city, id)) return null;
+  if (!buildings.has(id) || unavailable(city, id)) return null;
   const d = buildings.get(id);
   return { label: `Build ${d.name}`, detail: `◈${Math.round(d.stats.cost).toLocaleString('en-US')} · ${why}`, action: { kind: 'place', def: id }, weight };
 }

@@ -24,6 +24,8 @@ export interface PulseService {
   readonly collapsed: boolean;
   /** Hides / shows the console. */
   fold(folded: boolean): void;
+  /** Opens the console on tab `id` (the Goals tab from a "how to unlock it" button). */
+  show(id: string): void;
 }
 
 declare module '@/core/Services' {

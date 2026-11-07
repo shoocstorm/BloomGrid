@@ -1,11 +1,12 @@
 import { buildings } from '@/content';
 import { CATEGORY_ICONS, CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
-import { lockReason } from '@/sim/projects';
+import { buildBlock, type BuildBlock } from '@/sim/buildGate';
 import type { GameContext } from '@/game/context';
 import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { ACTION_HELP, buildingAbilities, buildingStats } from '@/ui/buildHelp';
+import { gateSteps } from '@/ui/gateSteps';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
 /** Build actions in the panel, in order. Inspect is not one: leaving build mode (Done, Esc) is. */
@@ -43,6 +44,14 @@ export class BuildPanel {
   private actionBtns = new Map<string, HTMLElement>();
   private catBtns = new Map<BuildingCategory, HTMLElement>();
   private cards = new Map<string, HTMLElement>();
+  /** Each card's cost line (it becomes "Locked" or "3/3 · next at 1.2k pop" while blocked). */
+  private cardCost = new Map<string, HTMLElement>();
+  private cardKey = new Map<string, string>();
+  /** A blocked building that was clicked: the card explains how to get it instead of picking it up (D-130). */
+  private pinned: string | null = null;
+  /** The explanation card's "what next" section, refreshed at 5 Hz apart from the rest of the card. */
+  private gate = h('div', { class: 'bp-gate' });
+  private gateKey = '';
   private list = h('div', { class: 'bd-list' });
   private listTitle = h('div', { class: 'pulse-title bd-list-title' });
   private hint = h('span', { class: 'bd-hint' });
@@ -180,6 +189,7 @@ export class BuildPanel {
     this.fab.classList.toggle('on', open);
     this.fab.setAttribute('aria-pressed', String(open));
     this.peeking = null;
+    this.pinned = null;
     this.briefKey = '';
     if (open) this.renderList();
     this.renderBrief();
@@ -212,26 +222,38 @@ export class BuildPanel {
     setText(this.listTitle, `${CATEGORY_LABELS[this.category]} buildings`);
     this.list.replaceChildren();
     this.cards.clear();
+    this.cardCost.clear();
+    this.cardKey.clear();
     for (const def of buildings.all().filter((b) => b.category === this.category)) {
-      const locked = lockReason(ctx.city, def.id);
+      const cost = h('div', { class: 'c' });
       const card = h(
         'button',
         {
-          class: locked ? 'card locked' : 'card',
-          title: locked ? `${locked}. ${def.description}` : def.description,
+          class: 'card',
+          title: def.description,
           onClick: () => {
             const holding = ctx.tools.active?.id === 'build' && construction.state.def === def.id;
             // A second press on the building in hand puts it down again.
-            if (holding) ctx.tools.setActive('select');
-            else construction.startBuilding(def.id);
+            if (holding) return ctx.tools.setActive('select');
+            // Locked or at its limit: say how to get it rather than picking up a building that can't be placed.
+            const block = buildBlock(ctx.city, def.id);
+            if (block && block.kind !== 'credits') {
+              if (ctx.tools.active?.id !== 'select') ctx.tools.setActive('select');
+              this.pinned = def.id;
+              this.renderBrief();
+              return;
+            }
+            this.pinned = null;
+            construction.startBuilding(def.id);
           },
         },
         h('div', { class: 'n' }, def.name),
-        h('div', { class: 'c' }, locked ? icon('st-off') : icon('credits'), locked ? ' Locked' : ` ${fmt(def.stats.cost)} · ${def.footprint[0]}×${def.footprint[1]}`),
+        cost,
         tags(def),
       );
       this.hoverPeek(card, { def: def.id });
       this.cards.set(def.id, card);
+      this.cardCost.set(def.id, cost);
       this.list.append(card);
     }
     this.sync();
@@ -240,6 +262,7 @@ export class BuildPanel {
   /** Follows the active tool: lit action, the building in hand (its category opens), the hint line. */
   toolChanged(id: string): void {
     for (const [tid, b] of this.actionBtns) b.classList.toggle('on', tid === id);
+    if (id === 'build') this.pinned = null;
     if (id === 'build') {
       const cat = buildings.get(this.ctx.services.get('construction').state.def).category;
       if (cat !== this.category) this.showCategory(cat);
@@ -255,7 +278,7 @@ export class BuildPanel {
     const tool = ctx.tools.active?.id ?? 'select';
     for (const [id, c] of this.cards) {
       c.classList.toggle('on', tool === 'build' && st.def === id);
-      c.classList.toggle('poor', buildings.get(id).stats.cost > ctx.city.credits);
+      this.syncCard(id, c, buildBlock(ctx.city, id));
     }
     const touch = isTouchDevice();
     const holding = tool !== 'select';
@@ -273,6 +296,33 @@ export class BuildPanel {
     this.renderBrief();
   }
 
+  /** A card's state and cost line: locked, at its limit (with when the next opens), unaffordable or open. */
+  private syncCard(id: string, c: HTMLElement, block: BuildBlock | null): void {
+    const def = buildings.get(id);
+    const kind = block?.kind ?? 'open';
+    const key = `${kind}|${block?.short ?? ''}`;
+    if (this.cardKey.get(id) === key) return;
+    this.cardKey.set(id, key);
+    c.classList.toggle('locked', kind === 'locked');
+    c.classList.toggle('capped', kind === 'capped');
+    c.classList.toggle('poor', kind === 'credits');
+    c.title = block && kind !== 'credits' ? `${block.reason}. Click for how to get it.` : def.description;
+    this.cardCost.get(id)?.replaceChildren(
+      ...(kind === 'locked' || kind === 'capped'
+        ? [icon(kind === 'locked' ? 'st-off' : 'st-warn'), ` ${block!.short}`]
+        : [icon('credits'), ` ${fmt(def.stats.cost)} · ${def.footprint[0]}×${def.footprint[1]}`]),
+    );
+  }
+
+  /** The explanation card's "what next" steps for a building that can't be built now. */
+  private renderGate(defId: string | null): void {
+    const block = defId ? buildBlock(this.ctx.city, defId) : null;
+    const key = block ? `${defId}|${block.kind}|${block.reason}|${block.steps.map((s) => s.text).join('|')}` : '';
+    if (key === this.gateKey) return;
+    this.gateKey = key;
+    this.gate.replaceChildren(...(block ? [gateSteps(this.ctx, block)] : []));
+  }
+
   private peek(what: { tool: string } | { def: string } | null): void {
     this.peeking = what;
     this.renderBrief();
@@ -283,7 +333,10 @@ export class BuildPanel {
     const { ctx } = this;
     const construction = ctx.services.get('construction');
     const active = ctx.tools.active?.id ?? 'select';
-    const what = this.peeking ?? (active === 'build' ? { def: construction.state.def } : active !== 'select' ? { tool: active } : null);
+    const what =
+      this.peeking ??
+      (active === 'build' ? { def: construction.state.def } : active !== 'select' ? { tool: active } : this.pinned ? { def: this.pinned } : null);
+    this.renderGate(this.open && what && 'def' in what ? what.def : null);
     const key = !this.open ? 'closed' : !what ? 'none' : 'def' in what ? `d:${what.def}` : `t:${what.tool}`;
     if (key === this.briefKey) return this.placeFloat();
     this.briefKey = key;
@@ -308,17 +361,18 @@ export class BuildPanel {
       return this.placeFloat();
     }
     const def = buildings.get(what.def);
-    const locked = lockReason(ctx.city, def.id);
+    const blocked = this.gate.childElementCount > 0;
     this.brief.className = 'brief building';
     this.brief.replaceChildren(
       h('div', { class: 'bp-head' }, h('span', { class: 'bp-ico' }, icon(`cat:${def.category}`, CATEGORY_ICONS[def.category])), h('b', {}, def.name), h('span', { class: 'bp-cat' }, CATEGORY_LABELS[def.category])),
+      // Can't be built now: why and what to do come first (D-130).
+      this.gate,
       h('p', { class: 'bp-desc' }, def.description),
       h('div', { class: 'bp-stats' }, ...buildingStats(def).map((r) => h('div', { class: `bp-stat ${r.tone ?? ''}` }, h('span', {}, r.label), h('b', {}, r.value)))),
       h('ul', { class: 'bp-abilities' }, ...buildingAbilities(def).map((a) => h('li', {}, a))),
-      ...(locked ? [h('p', { class: 'bp-lock' }, icon('st-off'), `${locked}: see the Goals tab.`)] : []),
       h(
         'div',
-        { class: 'bp-place' },
+        { class: blocked && this.pinned === def.id ? 'bp-place hidden' : 'bp-place' },
         h('span', {}, isTouchDevice() ? 'Tap the map to preview, tap again to build.' : 'Click the map to place it · R rotates'),
         h('button', { class: 'bp-rot', title: 'Rotate (R)', onClick: () => (construction.state.rot = (construction.state.rot + 1) % 4) }, icon('rotate'), ' Rotate'),
       ),

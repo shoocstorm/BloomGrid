@@ -564,6 +564,57 @@
     opacity: 0;
   }
 }
+/* Desktops (D-130): the card heads the right column, so the inspector and the advisor stack under it rather than
+   behind it. While something is inspected it gives the column up and shows only its pill. */
+.rightcol > .jc-m {
+  position: relative;
+  top: auto;
+  right: auto;
+  flex: none;
+  width: auto;
+  margin: 1px 1px 0;
+}
+.rightcol:has(> .info:not(.hidden)) > .jc-m,
+.rightcol > .jc-m.folded {
+  align-self: flex-end;
+}
+.rightcol:has(> .info:not(.hidden)) > .jc-m:not(.folded) {
+  width: auto;
+  padding: 0;
+}
+.rightcol:has(> .info:not(.hidden)) > .jc-m > :not(.jc-m-pill) {
+  display: none;
+}
+.rightcol:has(> .info:not(.hidden)) > .jc-m .jc-m-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 600 12px/1 var(--ui);
+  cursor: pointer;
+}
+.rightcol:has(> .info:not(.hidden)) > .jc-m .jc-m-pill svg {
+  width: 13px;
+  height: 13px;
+  color: var(--warn);
+}
+/* Can't build what the milestone asks for yet: why, and the way forward. */
+.jc-m-why {
+  margin: 0 0 7px;
+  color: var(--warn);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.jc-m-act > .jc-do + .jc-do {
+  margin-top: 6px;
+}
+.jc-next {
+  color: var(--ink);
+}
+
 /* Folded: just a pill. */
 .jc-m-pill {
   display: none;

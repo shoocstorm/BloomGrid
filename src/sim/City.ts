@@ -12,6 +12,7 @@ import { createPulseState, type PulseState } from './pulseState';
 import { computeShore, createFields, type Fields } from './fields';
 import { createStewardState, type StewardState } from './stewardState';
 import { FIREWORK_KINDS, createFireworksState, type FireworksState } from './fireworksState';
+import { limitReason, limitStatus } from './limits';
 import { UNLOCK_NAMES, createGrowthState, isOpen, type GrowthState } from './growthState';
 import { createHappeningState, type HappeningState } from './happeningState';
 import { createConsequenceState, type ConsequenceState } from './consequenceState';
@@ -227,11 +228,11 @@ export class City {
     if (x < 0 || z < 0 || x + w > g.w || z + d > g.h) return { ok: false, reason: 'Out of bounds' };
     const { min, max } = g.rangeOver(x, z, w, d);
     if (min < 0.05) return { ok: false, reason: 'Needs dry land' };
-    if (max - min > 1.6) return { ok: false, reason: 'Too steep' };
+    if (max - min > 1.6) return { ok: false, reason: 'Too steep: try flatter ground nearby' };
     for (let j = z; j < z + d; j++) {
       for (let i = x; i < x + w; i++) {
         const idx = g.index(i, j);
-        if (g.occupant[idx] !== NO_ENTITY && g.occupant[idx] !== moving) return { ok: false, reason: 'Occupied' };
+        if (g.occupant[idx] !== NO_ENTITY && g.occupant[idx] !== moving) return { ok: false, reason: 'Occupied: pick an empty lot' };
         if (g.road[idx]) return { ok: false, reason: 'Living Highway in the way' };
         if (this.channelAt(idx)) return { ok: false, reason: 'Filtration channel in the way' };
       }
@@ -239,13 +240,14 @@ export class City {
     if (def.placement?.nearWater && !this.touchesWater(x, z, w, d)) return { ok: false, reason: 'Must touch the sea or a reservoir' };
     if (moving === NO_ENTITY && def.requires && !isOpen(this.growth, def.requires)) return { ok: false, reason: `Locked: needs ${UNLOCK_NAMES[def.requires]}` };
     if (def.limit && moving === NO_ENTITY) {
-      const max = def.limit.base + Math.floor(this.stats.population / def.limit.perPopulation);
       const idx = buildings.indexOf(def.id);
       const have = this.buildingEntities().filter((e) => Building.def[e] === idx).length;
-      if (have >= max) return { ok: false, reason: `At most ${max} for now: more as the town grows` };
+      const lim = limitStatus(def.limit, this.stats.population, have);
+      if (have >= lim.max) return { ok: false, reason: limitReason(lim, this.stats.population) };
     }
-    if (this.credits < cost) return { ok: false, reason: 'Not enough credits' };
-    if (!RoadNetworks.nearRoad(g, x, z, w, d)) return { ok: true, warning: `No highway within ${ROAD_REACH} tiles: no power or water` };
+    if (this.credits < cost)
+      return { ok: false, reason: `Not enough credits: ◈${Math.ceil(cost - this.credits).toLocaleString('en-US')} short` };
+    if (!RoadNetworks.nearRoad(g, x, z, w, d)) return { ok: true, warning: `No highway within ${ROAD_REACH} tiles: no power or water until you draw one to it` };
     return { ok: true };
   }
 

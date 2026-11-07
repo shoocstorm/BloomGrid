@@ -598,7 +598,9 @@ body.compact.flora-open #hud > :not(.ai) {
   width: auto;
   padding: 8px 10px;
 }
-.compact #hud:has(> .tt:not(.hidden)) > .jc-m {
+.compact #hud:has(> .tt:not(.hidden)) > .jc-m,
+.compact #hud:has(.info:not(.hidden)) > .jc-m,
+.compact.building #hud > .jc-m {
   display: none;
 }
 .compact .jc-m-kicker,

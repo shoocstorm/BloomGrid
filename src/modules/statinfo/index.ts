@@ -232,6 +232,11 @@ class StatInfo {
     else this.hoverTimer = window.setTimeout(show, 160);
   }
 
+  /** Opens `id`'s panel (left open if it already is). */
+  open(id: InfoId): void {
+    if (this.openId !== id && this.stats.has(id)) this.toggle(id);
+  }
+
   private toggle(id: InfoId): void {
     if (this.openId === id) return this.close();
     this.hover(null);
@@ -496,10 +501,22 @@ class StatInfo {
   }
 }
 
+export interface StatInfoService {
+  /** Opens an indicator's guide panel (e.g. 'credits' from a "ways to earn" button). */
+  open(id: StatId): void;
+}
+
+declare module '@/core/Services' {
+  interface GameServices {
+    statinfo: StatInfoService;
+  }
+}
+
 export const statInfoModule: GameModule = {
   id: 'statinfo',
   deps: ['hud', 'build', 'overlays', 'dashboard', 'inventory', 'construction', 'bloom'],
   init(ctx) {
-    new StatInfo(ctx);
+    const info = new StatInfo(ctx);
+    ctx.services.provide('statinfo', { open: (id) => info.open(id) });
   },
 };
