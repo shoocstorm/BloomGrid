@@ -18,6 +18,7 @@ import { registerDisasterCommands } from './disasters';
 import { registerRelocateCommands } from './relocate';
 import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from './floranet';
 import { RECLAIM_HEIGHT, cornersOf, reclaimPlan, setCorners } from './coast';
+import { planRoad } from './roadPlan';
 import { gradeLots } from './grading';
 import { BANYAN_LEVEL, banyanPlan, bridgePlan, towerAt } from './weaver';
 import { Building, Greenery } from '@/ecs/components';
@@ -49,6 +50,8 @@ export interface TaxPayload {
 
 export const ROAD_COST = 4;
 export const BRIDGE_COST = 20;
+/** Costs the highway planner works with (D-125): a redraw that clears overgrowth costs a road tile. */
+export const ROAD_PLAN_COSTS = { road: ROAD_COST, bridge: BRIDGE_COST, clear: ROAD_COST };
 export const DEMOLISH_REFUND = 0.5;
 
 /** Writes overgrowth values for road tiles, keeping counts, networks and renderers in sync. */
@@ -144,38 +147,40 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
     },
   });
 
-  stack.register<RoadPayload, { placed: number[]; cleared: [number, number][]; cost: number }>('road', {
+  stack.register<
+    RoadPayload,
+    {
+      placed: number[];
+      cleared: [number, number][];
+      cost: number;
+      corners: [number, number][];
+      edits: [number, number | undefined][];
+    }
+  >('road', {
     apply({ city }, p) {
-      const placed: number[] = [];
-      const cleared: [number, number][] = [];
-      const seen = new Set<number>();
+      // One plan for the preview and the command (D-125): abutments, landing, skips and the budget.
+      const plan = planRoad(city, p.tiles, !!p.bridges, ROAD_PLAN_COSTS);
+      if (!plan.place.length && !plan.clear.length) return null;
       const og = city.grid.layer<Uint8Array>('overgrowth');
-      let cost = 0;
-      for (const t of p.tiles) {
-        if (seen.has(t)) continue;
-        // Redrawing over an overgrown highway clears it.
-        if (city.grid.road[t] && og && og[t]! > 0 && city.credits >= cost + ROAD_COST) {
-          seen.add(t);
-          cleared.push([t, og[t]!]);
-          cost += ROAD_COST;
-          continue;
-        }
-        if (!city.canRoad(t, p.bridges)) continue;
-        const c = roadTileCost(city, t);
-        if (city.credits < cost + c) break;
-        seen.add(t);
-        placed.push(t);
-        cost += c;
-      }
-      if (!placed.length && !cleared.length) return null;
-      city.credits -= cost;
-      if (placed.length) city.setRoads(placed, true);
+      const cleared = plan.clear.map((t) => [t, og?.[t] ?? 0] as [number, number]);
+      const h = city.grid.heights;
+      const corners = plan.grade.map(([c]) => [c, h[c]!] as [number, number]);
+      const edits = plan.grade.map(([c]) => [c, city.terrainEdits.get(c)] as [number, number | undefined]);
+      city.credits -= plan.cost;
+      // Abutments first: the bank must be graded before the tile is judged land or bridge.
+      if (plan.grade.length) setCorners(city, plan.grade);
+      if (plan.place.length) city.setRoads(plan.place, true);
       if (cleared.length) setOvergrowth(city, cleared.map(([t]) => [t, 0]));
-      return { placed, cleared, cost };
+      return { placed: plan.place, cleared, cost: plan.cost, corners, edits };
     },
     revert({ city }, _p, u) {
       if (u.placed.length) city.setRoads(u.placed, false);
       if (u.cleared.length) setOvergrowth(city, u.cleared);
+      if (u.corners.length) {
+        setCorners(city, u.corners);
+        for (const [c, e] of u.edits) if (e === undefined) city.terrainEdits.delete(c);
+        else city.terrainEdits.set(c, e);
+      }
       city.credits += u.cost;
     },
   });

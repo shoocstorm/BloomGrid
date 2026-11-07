@@ -1995,3 +1995,29 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
 - **Measured**: city view draws +1 (277 / 284 / 296 near / overview / near-horizon dusk), main thread within noise;
   walk mode 60 fps, +2 draws, +0.68 M triangles, GPU ≈2 ms (headless).
 
+## D-125 — Highways land on both banks: one plan for preview and command (2026-11-07)
+
+- **Why**: dragging a highway across water often left one bank unconnected. A bank tile steeper than a highway allows
+  (corners > 0.9 apart) was silently skipped, so the bridge ended a tile short; a drag released over the water
+  stopped there; and the L route could turn mid-river. The preview showed every tile, the command laid fewer.
+- **How** (`sim/roadPlan.ts`, pure): `planRoad` grades steep bank tiles next to a crossing into abutments (low corners
+  raised ≤ 1.6, up to 3 tiles out, never corners touching buildings, channels or other highways), carries a path that
+  ends over water on to the next land (≤ 4 tiles, only for drawn paths), and lists every skipped tile with its reason
+  and where credits run out. `bestRoute` picks the L route with no wet bend and fewest skips. The `road` command and
+  the Build tool use the same plan; undo restores corners and terrain edits exactly (hash-tested).
+- **Walkers and cars**: hover-car lanes moved to ±0.13 of the carriageway, walkers to the outer 0.39–0.44 and twice
+  as fast (pace 0.2–0.3 tiles/s). Wider roads were not done: the road is one tile on the grid.
+
+## D-126 — Close-up wildlife: fish, rabbits, birds (2026-11-07)
+
+- **What** (`modules/walkers/`, shared helpers `kit.ts`): fish (five patterned species with fins and eyes, swimming
+  loops with a tail wave, some leaping in arcs), rabbits (four coats, belly, tail, long ears; hop bouts with stretch
+  and ears laid back, then sit, nibble and twitch) and birds (gulls, swallows, finches in flocks circling 7–17 above
+  the ground, flapping in bouts and gliding, the wing hand bending further, banking into the turn). One instanced mesh
+  per kind, every motion in the shader, homes placed on the CPU round the camera; like the butterflies (D-124) they
+  draw only in explore modes.
+- **Water**: the water no longer writes depth, and fish draw after it (`renderOrder` 2), tinted toward the sea colour
+  by depth, so they show through clear water. Nothing else transparent sits below the surface.
+- **Measured** (headless): city view unchanged (277 / 284 / 296 draws); walk 170 draws (+2), drone 174, +0.1 M
+  triangles, 60 fps, GPU within noise. No budget needed adjusting.
+

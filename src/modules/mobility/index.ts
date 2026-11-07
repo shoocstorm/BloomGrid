@@ -141,7 +141,8 @@ export const mobilityModule: GameModule = {
       const speed = float(1.6).div(float(1).add(max(cong.sub(0.8), 0).mul(2.5)));
       const u = fract(time.mul(speed).div(len).add(seed.mul(13.7)));
       const t = mix(float(1).sub(u), u, toWork);
-      const lane = toWork.mul(2).sub(1).mul(0.2);
+      // Lanes keep to the carriageway's middle, clear of the pavements where walkers stroll (D-125).
+      const lane = toWork.mul(2).sub(1).mul(0.13);
       const flat = mix(a, b, t).add(vec2(dir.y.negate(), dir.x).mul(lane));
       const y = mix(info.x, info.y, t).add(0.12);
       const shown = step(fract(seed.mul(7.31)), density).mul(smoothstep(0, 0.06, u)).mul(smoothstep(1, 0.94, u));

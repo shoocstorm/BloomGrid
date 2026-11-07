@@ -308,7 +308,9 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Feel: amber ghost for warnings, service-area ring and pairing / land value in the Build tooltip, landing ripple and dust, zoom to the cursor, pan inertia (D-121)
 - [x] Life: street walkers from the activity field, butterflies by day and fireflies at night (D-122); detailed walkers (limbs that swing, hair, eyes, smile) and butterflies with patterned fore and hind wings, explore-only (D-124)
 - [x] Happenings: residents' requests, festivals, bumper catches, cruise visits; card, toasts, moment, Flora tool, guide; save v18 (D-123)
-- **Accept:** ✅ snaps WebGPU + WebGL, `tests/happenings.test.ts`, `placementPreview`, `zoomPivot`; perf within noise (D-120)
+- [x] Highways land on both banks: abutments on steep banks, landing a drag released over water, the better L route, skip reasons in the tooltip (D-125)
+- [x] Walkers faster and clear of the car lanes (D-125); fish, rabbits and birds in explore modes (D-126)
+- **Accept:** ✅ snaps WebGPU + WebGL, `tests/happenings.test.ts`, `placementPreview`, `zoomPivot`; perf within noise (D-120), `tests/roadPlan.test.ts`
 
 ---
 

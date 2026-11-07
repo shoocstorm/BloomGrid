@@ -58,7 +58,9 @@ export function createWater(grid: Grid): Mesh {
   tex.wrapS = tex.wrapT = ClampToEdgeWrapping;
   tex.needsUpdate = true;
 
-  const m = new MeshStandardNodeMaterial({ roughness: 0.06, metalness: 0.15, transparent: true });
+  // No depth write: fish drawn after the water show through it, tinted by their depth (D-126). Nothing else
+  // transparent sits below the surface.
+  const m = new MeshStandardNodeMaterial({ roughness: 0.06, metalness: 0.15, transparent: true, depthWrite: false });
   const mapUV = vec2(positionWorld.x, positionWorld.z).div(U.mapSize);
   const ground = texture(tex, mapUV).r.mul(8).sub(4);
   const depth = U.waterLevel.sub(ground).div(2).clamp(0, 1);

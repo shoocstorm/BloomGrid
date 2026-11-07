@@ -4,7 +4,8 @@ import { placementPreview, type PlacementPreview } from '@/sim/placementPreview'
 import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from '@/sim/floranet';
 import { reclaimPlan, seaMask } from '@/sim/coast';
 import { banyanPlan, bridgePlan } from '@/sim/weaver';
-import { CHANNEL_COST, RETROFIT_RADIUS, retrofitPlan, roadTileCost } from '@/sim/commands';
+import { CHANNEL_COST, RETROFIT_RADIUS, ROAD_PLAN_COSTS, retrofitPlan } from '@/sim/commands';
+import { bestRoute, type RoadPlan } from '@/sim/roadPlan';
 import type { GameContext } from '@/game/context';
 import type { Tool } from '@/game/Tools';
 import type { GroundHit } from '@/world/Picking';
@@ -27,6 +28,15 @@ declare module '@/core/EventBus' {
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
+
+/** Why some tiles of a highway drag won't be laid (D-125), for the tooltip. */
+const SKIP_WORDS: Record<string, string> = { building: 'a building', channel: 'a channel', steep: 'too steep', credits: 'not enough credits' };
+const skipText = (plan: RoadPlan): string => {
+  if (!plan.skipped.length) return '';
+  const n = new Map<string, number>();
+  for (const s of plan.skipped) n.set(s.reason, (n.get(s.reason) ?? 0) + 1);
+  return ` · ⚠ ${[...n].map(([r, k]) => `${k} skipped: ${SKIP_WORDS[r]}`).join(', ')}`;
+};
 
 /** Tooltip extras from the placement preview: land value, area, pairing (D-121). */
 const previewText = (pv: PlacementPreview): string => {
@@ -371,17 +381,17 @@ export function createTools(ghost: Ghost, build: BuildState) {
     hover(ctx, hit) {
       if (!hit?.inBounds) return ghost.hideAll();
       const cur = { x: hit.tx, z: hit.tz };
-      const tiles = pathTiles(ctx, dragStart ?? cur, cur);
-      const valid = tiles.filter((t) => ctx.city.canRoad(t, true));
-      const cost = valid.reduce((a, t) => a + roadTileCost(ctx.city, t), 0);
-      const bridges = valid.filter((t) => ctx.city.isWaterTile(t % ctx.city.grid.w, (t / ctx.city.grid.w) | 0)).length;
-      ghost.setValid(valid.length > 0);
-      ghost.showTiles(tileList(ctx, tiles));
+      // One plan for preview and command (D-125): the better L route, bridges landed on the far bank, steep
+      // banks graded as abutments; what can't be laid says why.
+      const plan = bestRoute(ctx.city, dragStart ?? cur, cur, ROAD_PLAN_COSTS);
+      ghost.setValid(plan.place.length > 0 || plan.clear.length > 0, plan.skipped.length > 0);
+      ghost.showTiles(tileList(ctx, plan.place.length ? [...plan.place, ...plan.clear] : plan.path));
+      const why = skipText(plan);
       ctx.bus.emit('tool:tooltip', {
         text: dragStart
-          ? `${valid.length} tiles${bridges ? ` (${bridges} bridge)` : ''} · ${fmt(cost)} ◈`
-          : 'Drag to grow a moss highway · crosses water as a bridge',
-        tone: valid.length ? 'ok' : 'bad',
+          ? `${plan.place.length} tiles${plan.bridges ? ` (${plan.bridges} bridge)` : ''}${plan.grade.length ? ' · banks graded' : ''} · ${fmt(plan.cost)} ◈${why}`
+          : `Drag to grow a moss highway · crosses water as a bridge${why}`,
+        tone: plan.place.length && !plan.skipped.length ? 'ok' : 'bad',
       });
     },
     down(_ctx, hit) {
@@ -389,7 +399,10 @@ export function createTools(ghost: Ghost, build: BuildState) {
     },
     cancel: () => (dragStart = null),
     up(ctx, hit) {
-      if (dragStart && hit?.inBounds) ctx.commands.execute('road', { tiles: pathTiles(ctx, dragStart, { x: hit.tx, z: hit.tz }), bridges: true });
+      if (dragStart && hit?.inBounds) {
+        const plan = bestRoute(ctx.city, dragStart, { x: hit.tx, z: hit.tz }, ROAD_PLAN_COSTS);
+        ctx.commands.execute('road', { tiles: plan.path, bridges: true });
+      }
       dragStart = null;
     },
   };

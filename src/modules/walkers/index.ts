@@ -24,6 +24,9 @@ import { activityLayer } from '@/sim/nightlife';
 import { hash2 } from '@/sim/random';
 import { ROAD_LIFT } from '@/modules/construction/RoadRenderer';
 import { Critters } from './critters';
+import { Fish } from './fish';
+import { Rabbits } from './rabbits';
+import { Birds } from './birds';
 import { figureGeometry, poseFigure } from './figure';
 
 /** Instanced batches stay above the 1024-instance UBO path (AGENTS.md §8). */
@@ -35,7 +38,7 @@ const FIG = 1.4;
 /** Longest straight stretch a walker strolls before fading out (tiles). */
 const MAX_RUN = 6;
 /** Pavement: how far from the road's centre line walkers keep (tiles). */
-const KERB = 0.42;
+const KERB = 0.44;
 /** Camera distance beyond which walkers are sub-pixel specks (hidden: they would only flicker, D-064). */
 const SHOW_WITHIN = 110;
 /** Closer than this (and in explore modes) walkers are the detailed figure: limbs, hair, a face (D-124). */
@@ -95,7 +98,10 @@ export const walkersModule: GameModule = {
       m.colorNode = fig.color;
       // A faint glow by night so the evening crowd reads, dimmed to its share of a pixel (D-064).
       const cover = min(float(1), float(0.05).div(max(length(fwidth(positionGeometry)), float(1e-5))));
-      m.emissiveNode = fig.shirt.mul(fig.cloth).mul(U.night.mul(detailed ? 0.05 : 0.18)).mul(cover);
+      m.emissiveNode = fig.shirt
+        .mul(fig.cloth)
+        .mul(U.night.mul(detailed ? 0.05 : 0.18))
+        .mul(cover);
       const mesh = new InstancedMesh(geo, m, CAP);
       mesh.count = 0;
       mesh.frustumCulled = false;
@@ -106,7 +112,9 @@ export const walkersModule: GameModule = {
     const mesh = make(true);
     const far = make(false);
     const critters = new Critters();
-    ctx.scene.add(mesh, far, critters.mesh);
+    // Close-up wildlife (D-126): one instanced mesh each, drawn and placed only in explore modes, round the camera.
+    const wildlife = [critters, new Fish(), new Rabbits(), new Birds()];
+    ctx.scene.add(mesh, far, ...wildlife.map((w) => w.mesh));
 
     const g = city.grid;
     let visited = new Uint8Array(0);
@@ -163,7 +171,7 @@ export const walkersModule: GameModule = {
             const h = hash2(t, w, 37);
             const side = h < 0.5 ? -1 : 1;
             // Perpendicular offset to the pavement, a little jitter so pairs don't walk in single file.
-            const off = side * (KERB - hash2(t, w, 41) * 0.08);
+            const off = side * (KERB - hash2(t, w, 41) * 0.05);
             const ox = dz * off;
             const oz = dx * off;
             let ax = x + 0.5 + ox;
@@ -184,7 +192,7 @@ export const walkersModule: GameModule = {
             inf[o] = roadY(ax, az, t);
             inf[o + 1] = roadY(bx, bz, g.index(x + dx * (len - 1), z + dz * (len - 1)));
             inf[o + 2] = hash2(t, w, 77);
-            inf[o + 3] = 0.11 + hash2(t, w, 83) * 0.07;
+            inf[o + 3] = 0.2 + hash2(t, w, 83) * 0.1;
             count++;
           }
         }
@@ -194,8 +202,11 @@ export const walkersModule: GameModule = {
 
     ctx.bus.on('mobility:updated', () => rebuild());
     ctx.bus.on('city:reset', () => {
-      mesh.count = far.count = critters.mesh.count = 0;
-      critters.cx = critters.cz = -1e9;
+      mesh.count = far.count = 0;
+      for (const w of wildlife) {
+        w.mesh.count = 0;
+        w.cx = w.cz = -1e9;
+      }
       focus.x = focus.z = -1e9;
     });
     rebuild();
@@ -212,15 +223,15 @@ export const walkersModule: GameModule = {
         if ((Math.hypot(tg.x - focus.x, tg.z - focus.z) > RECENTRE || explore !== wasExplore) && !ctx.loading)
           rebuild(tg.x, tg.z);
         wasExplore = explore;
-        // Critters are close-up detail: only drawn (and placed) in explore modes (D-124).
-        if (explore && Math.hypot(tg.x - critters.cx, tg.z - critters.cz) > 12 && !ctx.loading)
-          critters.place(city, tg.x, tg.z);
+        // Wildlife is close-up detail: only drawn (and placed) in explore modes (D-124, D-126).
+        if (explore && !ctx.loading)
+          for (const w of wildlife) if (Math.hypot(tg.x - w.cx, tg.z - w.cz) > 12) w.place(city, tg.x, tg.z);
         // Fewer people out in the small hours; explore modes always see them (the camera is in the street).
         shown.value = 1 - 0.7 * U.lateNight.value;
         const d = c.cameraCtl.distance;
         mesh.visible = mesh.count > 0 && (explore || d < NEAR_DETAIL);
         far.visible = far.count > 0 && !explore && d >= NEAR_DETAIL && d < SHOW_WITHIN;
-        critters.mesh.visible = explore && critters.mesh.count > 0;
+        for (const w of wildlife) w.mesh.visible = explore && w.mesh.count > 0;
       },
     });
   },
