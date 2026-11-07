@@ -504,6 +504,19 @@ export const audioModule: GameModule = {
         s.tone(784, 0.5, 0.06 * h.vol, 'triangle', undefined, h.delay + 0.1);
       } else [659, 784, 988, 1319, 1568].forEach((f, i) => s.tone(f, 0.6, 0.05 * Math.max(0.4, h.vol), 'sine', undefined, i * 0.07));
     });
+    // Hands-on buildings (D-132): sliding glass doors hiss open (or shut), a light switch clicks with a rising (on)
+    // or falling (off) blip.
+    bus.on('building:interact', ({ kind, on, x, z }) => {
+      if (quiet()) return;
+      const h = s.heard(x, z);
+      if (kind === 'door') {
+        s.burst(0.45, 0.06 * h.vol, 'bandpass', on ? 1800 : 2600, on ? 2600 : 1400, h.delay);
+        if (on) s.tone(880, 0.25, 0.03 * h.vol, 'sine', 1320, h.delay + 0.05);
+      } else {
+        s.burst(0.03, 0.1 * h.vol, 'highpass', 3500, undefined, h.delay);
+        s.tone(on ? 660 : 990, 0.14, 0.05 * h.vol, 'triangle', on ? 990 : 660, h.delay + 0.02);
+      }
+    });
     bus.on('crisis:forecast', () => {
       s.tone(440, 0.35, 0.08, 'square', undefined, 0);
       s.tone(440, 0.35, 0.08, 'square', undefined, 0.5);

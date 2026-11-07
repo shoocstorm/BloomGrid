@@ -408,6 +408,15 @@ export class ChunkedInstancer {
     if (handle.batch) handle.batch.setParam(handle.slot, component, value);
   }
 
+  /**
+   * Moves an instance (a door leaf sliding, D-132). It stays in the batch of the chunk it was added to, so keep
+   * moves small. A grow tween still playing on it is retargeted instead.
+   */
+  setMatrix(handle: InstanceHandle, m: Matrix4): void {
+    for (const t of this.tweens) if (t.handle === handle && !t.out) return void t.matrix.copy(m);
+    handle.batch?.writeSlot(handle.slot, m, null, null);
+  }
+
   clear(): void {
     for (const b of this.batches.values()) b.dispose();
     this.batches.clear();

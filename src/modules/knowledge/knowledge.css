@@ -48,7 +48,7 @@
   color: var(--ink);
   font: inherit;
   font-size: 12px;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .kb-btn:hover {
   background: var(--bg-hover);
@@ -94,7 +94,7 @@
   color: var(--ink-soft);
   font: inherit;
   font-size: 11.5px;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .kb-chip:hover {
   color: var(--ink);
@@ -141,7 +141,7 @@
   color: var(--ink);
   font: inherit;
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .kb-item:hover {
   background: var(--bg-hover);
@@ -332,7 +332,7 @@
   color: var(--accent);
   text-decoration: none;
   border-bottom: 1px dotted var(--line-strong);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .kb-link:hover {
   border-bottom-style: solid;
@@ -402,7 +402,7 @@
   font-size: 12px;
   line-height: 1.45;
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .kb-card:hover:not(:disabled) {
   border-color: var(--line-strong);

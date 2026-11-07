@@ -48,6 +48,11 @@ export interface PieceSpec {
   glow?: number;
   /** Building greenery level (0..1) at which this piece grows in. 0 = present on placement. */
   growAt?: number;
+  /**
+   * A door leaf the steward can open in walk mode (D-132): it slides along its own local x by this many of its own
+   * widths (signed), and while open it and the doorway through hollow shells (`glassDome`) are passable.
+   */
+  door?: number;
 }
 
 export interface KitBuilder {

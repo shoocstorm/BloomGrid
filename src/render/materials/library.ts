@@ -8,6 +8,7 @@ import {
   type Node, AdditiveBlending } from 'three/webgpu';
 import {
   abs,
+  atan,
   attribute,
   color,
   float,
@@ -27,6 +28,7 @@ import {
   mod,
   mx_noise_float,
   mx_worley_noise_float,
+  normalGeometry,
   normalView,
   normalWorld,
   positionGeometry,
@@ -36,6 +38,7 @@ import {
   sin,
   smoothstep,
   step,
+  texture,
   time,
   uv,
   vec2,
@@ -45,6 +48,7 @@ import { U } from '../uniforms';
 import { cloudShade } from '@/render/grade';
 import { activityGlow, bloomAt, overlayDim, withOverlay } from './overlay';
 import { is, styleData } from './styles';
+import { CODE_LINES, DISPLAY_FRAMES, DISPLAY_RECTS, displayAtlas } from './display';
 
 /**
  * Shared material library. Every instanced piece references one of these, so the whole city
@@ -500,11 +504,72 @@ export function initMaterials(): void {
     return m;
   });
 
-  // Device screens (laptops, kiosks): dark glass by day with a soft lit face, glowing in the instance tint at night.
+  // Laptop screens (D-132): the -z face shows a BloomGrid app from the display atlas (display.ts), each laptop on its
+  // own cycle through splash, City Pulse, code and map, with the moving parts drawn here (loading bar, live chart,
+  // current line and caret, radar sweep); the +z face is the silver lid with a glowing logo. Glow 0 (lights
+  // switched off) turns the screen off. Fine motion fades to the atlas once a screen is a few pixels wide (D-070).
+  const atlas = displayAtlas();
   define('screen', () => {
-    const m = new MeshStandardNodeMaterial({ roughness: 0.15, metalness: 0.3 });
-    m.colorNode = mix(color(0x20262b), instanceColor, 0.25);
-    m.emissiveNode = instanceColor.mul(iGlow).mul(U.night.mul(0.7).add(0.15)).mul(pieceCover(6));
+    const m = new MeshStandardNodeMaterial({ roughness: 0.2, metalness: 0.35 });
+    const g = uv();
+    const nz = normalGeometry.z;
+    const face = smoothstep(0.5, 0.9, nz.negate());
+    const lid = smoothstep(0.5, 0.9, nz);
+    // The display inside its bezel, in frame space (0..1, y up).
+    const q = vec2(g.x.sub(0.05).div(0.9), g.y.sub(0.07).div(0.88));
+    const inside = step(0, q.x).mul(step(q.x, 1)).mul(step(0, q.y)).mul(step(q.y, 1));
+    const seed = fract(iSeed.mul(7.31));
+    const t = time.add(seed.mul(40));
+    const frame = floor(mod(t.mul(0.11).add(seed.mul(4)), DISPLAY_FRAMES));
+    const at = (k: number) => step(abs(frame.sub(k)), float(0.5));
+    const qy = q.y.clamp(0.003, 0.997);
+    const base = atlas ? texture(atlas, vec2(q.x.clamp(0, 1), float(DISPLAY_FRAMES - 1).sub(frame).add(qy).div(DISPLAY_FRAMES))).rgb : vec3(0.05, 0.14, 0.13);
+    const detail = float(1).sub(smoothstep(0.01, 0.05, length(fwidth(g))));
+    const within = (r: readonly number[]) => step(r[0]!, q.x).mul(step(q.x, r[2]!)).mul(step(r[1]!, q.y)).mul(step(q.y, r[3]!));
+    const teal = vec3(0.37, 0.95, 0.85);
+    const leaf = vec3(0.56, 0.94, 0.48);
+    // 0 Splash: the loading bar fills, again and again.
+    const B = DISPLAY_RECTS.bar;
+    const fill = step(q.x, float(B[0]).add(fract(t.mul(0.22)).mul(B[2] - B[0]))).mul(within(B));
+    // 1 City Pulse: a live line over a soft area.
+    const C = DISPLAY_RECTS.chart;
+    const px = q.x.sub(C[0]).div(C[2] - C[0]);
+    const py = q.y.sub(C[1]).div(C[3] - C[1]);
+    const val = sin(px.mul(9).sub(t.mul(1.6))).mul(0.2).add(sin(px.mul(23).add(t.mul(0.9))).mul(0.08)).add(0.5);
+    const line = float(1).sub(smoothstep(0.015, 0.05, abs(py.sub(val)))).mul(within(C));
+    const area = step(py, val).mul(within(C)).mul(0.16);
+    // 2 Code: the current line glows and a caret blinks along it.
+    const K = DISPLAY_RECTS.code;
+    const row = floor(float(1).sub(q.y.sub(K[1]).div(K[3] - K[1])).mul(CODE_LINES));
+    const cur = floor(mod(t.mul(0.7), CODE_LINES));
+    const onRow = step(abs(row.sub(cur)), float(0.5)).mul(within(K));
+    const caretX = float(K[0]).add(fract(cur.mul(0.37)).mul(0.45));
+    const caret = onRow.mul(step(caretX, q.x)).mul(step(q.x, caretX.add(0.014))).mul(step(0.5, fract(t.mul(1.7))));
+    // 3 Map: a radar sweep turns over the island.
+    const Rr = DISPLAY_RECTS.radar;
+    const d = vec2(q.x.sub(Rr[0]).mul(512 / 358), q.y.sub(Rr[1]));
+    const sweep = fract(atan(d.y, d.x).div(Math.PI * 2).sub(t.mul(0.25)));
+    const radar = float(1).sub(sweep).pow(6).mul(step(length(d), float(Rr[2]))).mul(0.55);
+    const moving = teal
+      .mul(fill.mul(at(0)))
+      .add(leaf.mul(line.add(area)).mul(at(1)))
+      .add(vec3(1).mul(onRow.mul(0.1).add(caret)).mul(at(2)))
+      .add(teal.mul(radar).mul(at(3)))
+      .mul(detail);
+    const shine = sin(q.y.mul(220)).mul(0.03).mul(detail).add(1);
+    const disp = base.add(moving).mul(shine).mul(inside);
+    // Lid: a small four-petal logo glows in the middle.
+    const lu = abs(g.x.sub(0.5));
+    const lv = abs(g.y.sub(0.5)).mul(0.7);
+    const logo = float(1).sub(smoothstep(0.08, 0.1, lu.add(lv))).mul(lid);
+    const on = iGlow.min(1);
+    m.colorNode = mix(color(0x15191c), color(0xc9ced2), lid).add(disp.mul(face).mul(on).mul(0.15));
+    m.emissiveNode = disp
+      .mul(face)
+      .mul(U.night.mul(0.35).add(0.85))
+      .add(teal.mul(logo).mul(0.6))
+      .mul(on)
+      .mul(pieceCover(6));
     return m;
   });
 

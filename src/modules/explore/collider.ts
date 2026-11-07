@@ -3,7 +3,7 @@ import { Building } from '@/ecs/components';
 import type { City } from '@/sim/City';
 import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
 import { NO_ENTITY } from '@/sim/Grid';
-import { piecesAt, placeBuilding } from '@/modules/construction/BuildingRenderer';
+import { doorSteps, piecesAt, placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { ROAD_LIFT } from '@/modules/construction/RoadRenderer';
 import { getPiece } from '@/assets/kit/pieces';
 
@@ -11,6 +11,14 @@ import { getPiece } from '@/assets/kit/pieces';
 export const RADIUS = 0.06;
 export const STEP = 0.18;
 export const BODY = 0.21;
+/** A lot's plinth is climbed like front steps (D-132): buildings stand up to this far above the street. */
+const PLINTH_STEP = 0.4;
+const AROUND = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+] as const;
 
 /**
  * Explore-mode collision (D-025, D-055): terrain, bridge decks, water, every building piece and wild trees. Each
@@ -21,7 +29,7 @@ export const BODY = 0.21;
  * `clear()` when buildings or terrain change. Wild trees come from the flora (trunk cylinders, canopy spheres).
  */
 
-type Shape = 0 | 1 | 2; // box, upright cylinder, ellipsoid
+type Shape = 0 | 1 | 2 | 3; // box, upright cylinder, ellipsoid, hollow dome shell (D-132)
 interface Part {
   inv: Matrix4;
   world: Matrix4;
@@ -39,9 +47,15 @@ interface Part {
   x1: number;
   y1: number;
   z1: number;
+  /** A door leaf (D-132): passable while its building's door is open. */
+  door?: boolean;
+  /** The lot's plinth: stepped onto from up to `PLINTH_STEP` below (D-132). */
+  plinth?: boolean;
 }
 interface Solid {
   parts: Part[];
+  /** Doorways (D-132): boxes through each door leaf, deep enough to cut through a hollow shell round it. */
+  passages: Part[];
   x0: number;
   z0: number;
   x1: number;
@@ -52,6 +66,11 @@ interface Solid {
 const PASSABLE = new Set(['palm', 'grass', 'flower', 'ivy', 'fungus', 'lily', 'koi', 'haloRing', 'willowArch', 'waterfall', 'sunPetal', 'alert']);
 const ROUND = new Set(['glassCyl', 'concreteCyl', 'algaeTank', 'trunk', 'lumenRib', 'spireCone']);
 const ROUNDED = new Set(['dome', 'canopy', 'bush', 'pod', 'drone']);
+/** Glass skins with a room inside (D-132): only their surface is solid, so the steward can walk about under them. */
+const HOLLOW = new Set(['glassDome']);
+/** How far a doorway reaches either side of its door leaf (world units), and how much taller than the leaf it is. */
+const PASSAGE_DEPTH = 1.2;
+const PASSAGE_RISE = 1.3;
 /** How far round a point to look for buildings whose pieces overhang their lots (tiles). */
 const REACH = 5;
 
@@ -62,7 +81,7 @@ export const TREE_STRIDE = 7;
 const _p = new Vector3();
 const _c = new Vector3();
 
-export function createCollider(city: City, trees?: TreeLookup) {
+export function createCollider(city: City, trees?: TreeLookup, doorOpen?: (eid: number) => boolean) {
   const solids = new Map<number, Solid>();
   const partOf = (piece: string, world: Matrix4): Part => {
     const geo = getPiece(piece).geometry;
@@ -72,7 +91,7 @@ export function createCollider(city: City, trees?: TreeLookup) {
     const part: Part = {
       inv: world.clone().invert(),
       world,
-      shape: ROUND.has(piece) ? 1 : ROUNDED.has(piece) ? 2 : 0,
+      shape: HOLLOW.has(piece) ? 3 : ROUND.has(piece) ? 1 : ROUNDED.has(piece) ? 2 : 0,
       min: b.min.clone(),
       max: b.max.clone(),
       sx: Math.hypot(e[0]!, e[1]!, e[2]!) || 1e-6,
@@ -101,12 +120,24 @@ export function createCollider(city: City, trees?: TreeLookup) {
     if (s) return s;
     const r = city.buildingRecord(eid);
     const place = placeBuilding(city.grid, city.buildingDef(eid), r.x, r.z, r.rot);
-    const parts: Part[] = [partOf('plinth', place.plinth.clone())];
+    const parts: Part[] = [Object.assign(partOf('plinth', place.plinth.clone()), { plinth: true })];
+    const passages: Part[] = [];
     for (const p of piecesAt(place.template, Building.tier[eid]!)) {
       if (PASSABLE.has(p.piece)) continue;
-      parts.push(partOf(p.piece, new Matrix4().multiplyMatrices(place.base, p.local)));
+      const world = new Matrix4().multiplyMatrices(place.base, p.local);
+      const part = partOf(p.piece, world);
+      if (p.door) {
+        part.door = true;
+        // The leaf's own box, deepened through its thickness and a little taller (unit box: base at y = 0).
+        const e = world.elements;
+        const thick = Math.hypot(e[8]!, e[9]!, e[10]!) || 1e-3;
+        passages.push(partOf('glassBox', world.clone().multiply(new Matrix4().makeScale(1, PASSAGE_RISE, (PASSAGE_DEPTH * 2) / thick))));
+      }
+      parts.push(part);
     }
-    s = { parts, x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity };
+    // Front steps up to a raised door (D-132): solid treads, each a rise the walker steps up.
+    for (const m of doorSteps(city.grid, city.buildingDef(eid), place)) parts.push(partOf('slab', m));
+    s = { parts, passages, x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity };
     for (const p of parts) {
       s.x0 = Math.min(s.x0, p.x0);
       s.z0 = Math.min(s.z0, p.z0);
@@ -147,6 +178,14 @@ export function createCollider(city: City, trees?: TreeLookup) {
       return _p.x >= min.x - mx && _p.x <= max.x + mx && _p.y >= min.y - my && _p.y <= max.y + my && _p.z >= min.z - mz && _p.z <= max.z + mz;
     const cx = (min.x + max.x) / 2;
     const cz = (min.z + max.z) / 2;
+    if (p.shape === 3) {
+      // A hemispherical skin on its base: touching only near the surface, never inside or below it.
+      if (_p.y < min.y - my) return false;
+      const [hx, hy, hz] = [(max.x - min.x) / 2, max.y - min.y, (max.z - min.z) / 2];
+      const d = Math.hypot((_p.x - cx) / hx, (_p.y - min.y) / hy, (_p.z - cz) / hz);
+      const band = r / Math.min(hx * p.sx, hy * p.sy, hz * p.sz) + 0.02;
+      return Math.abs(d - 1) <= band;
+    }
     const rx = (max.x - min.x) / 2 + mx;
     const rz = (max.z - min.z) / 2 + mz;
     const u = ((_p.x - cx) / rx) ** 2 + ((_p.z - cz) / rz) ** 2;
@@ -157,7 +196,7 @@ export function createCollider(city: City, trees?: TreeLookup) {
   };
   /** Top surface of the piece over (x, z), or -Infinity if it doesn't cover the point. */
   const topOf = (p: Part, x: number, z: number) => {
-    if (x < p.x0 || x > p.x1 || z < p.z0 || z > p.z1) return -Infinity;
+    if (p.shape === 3 || x < p.x0 || x > p.x1 || z < p.z0 || z > p.z1) return -Infinity;
     _p.set(x, p.y1, z).applyMatrix4(p.inv);
     const { min, max } = p;
     let ly = max.y;
@@ -189,9 +228,18 @@ export function createCollider(city: City, trees?: TreeLookup) {
     return false;
   };
 
-  /** True if a ball of radius `r` at (x, y, z) touches a building piece or a wild tree. */
-  const hits = (x: number, y: number, z: number, r: number): boolean => {
-    for (const eid of buildingsNear(x, z, r)) for (const p of solids.get(eid)!.parts) if (inside(p, x, y, z, r)) return true;
+  /** True if a ball of radius `r` at (x, y, z) touches a building piece or a wild tree; `plinths` = false skips lots. */
+  const hits = (x: number, y: number, z: number, r: number, plinths = true): boolean => {
+    for (const eid of buildingsNear(x, z, r)) {
+      const s = solids.get(eid)!;
+      const open = s.passages.length > 0 && !!doorOpen?.(eid);
+      const through = open && s.passages.some((q) => inside(q, x, y, z, 0));
+      for (const p of s.parts) {
+        if (open && (p.door || (through && p.shape === 3))) continue;
+        if (!plinths && p.plinth) continue;
+        if (inside(p, x, y, z, r)) return true;
+      }
+    }
     return treesNear(x, z, (t, o) => {
       const [tx, tz, g0, th, tr, cy, cr] = [t[o]!, t[o + 1]!, t[o + 2]!, t[o + 3]!, t[o + 4]!, t[o + 5]!, t[o + 6]!];
       if (y >= g0 && y <= g0 + th && (x - tx) ** 2 + (z - tz) ** 2 <= (tr + r) ** 2) return true;
@@ -207,9 +255,10 @@ export function createCollider(city: City, trees?: TreeLookup) {
     let y = g.road[t] === BRIDGE ? BRIDGE_DECK + ROAD_LIFT : g.heightAt(x, z) + (g.road[t] ? ROAD_LIFT : 0);
     for (const eid of buildingsNear(x, z, 0))
       for (const p of solids.get(eid)!.parts) {
-        if (p.y1 < y || p.y0 > feet + STEP) continue;
+        const step = p.plinth ? PLINTH_STEP : STEP;
+        if (p.y1 < y || p.y0 > feet + step) continue;
         const top = topOf(p, x, z);
-        if (top <= feet + STEP && top > y) y = top;
+        if (top <= feet + step && top > y) y = top;
       }
     return y;
   };
@@ -220,7 +269,17 @@ export function createCollider(city: City, trees?: TreeLookup) {
     if (x < 0.2 || z < 0.2 || x > g.w - 0.2 || z > g.h - 0.2) return true;
     if (!swim && g.heightAt(x, z) < waterLevel - 0.04 && g.road[g.index(Math.floor(x), Math.floor(z))] !== BRIDGE) return true;
     // Anything below the step height is climbable; one ball just above it spans the rest of a 0.22-tall body.
-    return hits(x, feet + STEP + RADIUS, z, RADIUS);
+    // Stepping up onto a plinth: test the body from the ground it lands on, or the lot's own floor walls it off.
+    // (Probed a body's radius round, so the plinth's edge counts as a step before the body is over it.)
+    let up = Math.max(feet, groundAt(x, z, feet));
+    for (const [ox, oz] of AROUND) up = Math.max(up, groundAt(x + ox * RADIUS, z + oz * RADIUS, feet));
+    if (hits(x, up + STEP + RADIUS, z, RADIUS, false)) return true;
+    // Plinths are front steps: only one taller than that walls the walker off.
+    for (const eid of buildingsNear(x, z, RADIUS)) {
+      const p = solids.get(eid)!.parts[0]!;
+      if (inside(p, x, feet + PLINTH_STEP + RADIUS, z, RADIUS)) return true;
+    }
+    return false;
   };
 
   /**

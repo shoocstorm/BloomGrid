@@ -24,6 +24,8 @@ const ICONS: Record<string, string> = {
   down: '<path d="m5.5 8.5 6.5 7 6.5-7"/>',
   next: '<path d="M3 12h13M11 6l6 6-6 6M21 5v14"/>',
   caret: '<path d="m7 10 5 5 5-5"/>',
+  door: '<path d="M4 21h16M6 21V3.5h12V21"/><path d="M14.5 12.5h.01"/>',
+  bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
   // ── Top bar ──
   pause: '<path d="M9 5v14M15 5v14" stroke-width="2.6"/>',
   play: '<path class="f" d="M7.5 5v14l11-7z"/>',

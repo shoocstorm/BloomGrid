@@ -312,7 +312,7 @@ body.chapter-open .pulse {
   accent-color: var(--accent);
 }
 .ch-adv summary {
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   font-size: 11px;
   color: var(--ink-faint);
 }

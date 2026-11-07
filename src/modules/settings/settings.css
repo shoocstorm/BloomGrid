@@ -212,7 +212,7 @@
   align-items: center;
   padding: 4px 6px;
   border-radius: 8px;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .set-opt:hover {
   background: rgba(0, 0, 0, 0.05);

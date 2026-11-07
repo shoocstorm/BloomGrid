@@ -632,7 +632,7 @@ kbd,
   align-items: center;
   gap: 12px;
   pointer-events: auto;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   animation-duration: 5.3s;
 }
 .toast-go {
@@ -2557,7 +2557,7 @@ body:not(.booted) .holo::after {
   border: 1px solid var(--line-strong);
   color: var(--ink);
   background: rgba(3, 14, 16, 0.75);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   transition:
     background 0.15s,
     border-color 0.15s;
@@ -2671,7 +2671,7 @@ body:not(.booted) .holo::after {
   border: 1px solid var(--line);
   color: var(--ink-soft);
   background: rgba(3, 14, 16, 0.7);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .ix-stage-reset:hover {
   color: var(--accent);
@@ -2821,7 +2821,7 @@ body:not(.booted) .holo::after {
   background: var(--bg-raise);
   color: var(--accent);
   font: 600 11px/1.2 var(--ui);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .gate-do:hover {
   background: var(--bg-hover);
@@ -2953,4 +2953,25 @@ header > .pop-x.icon-btn,
   position: static;
   margin-left: 2px;
   flex: none;
+}
+
+/* Game cursors (D-132, `ui/cursor.ts`): a leaf-tipped arrow everywhere, a blooming one on whatever can be clicked.
+   The variables hold drawn PNGs; without them the system cursors stand in. Text fields keep the caret. */
+body {
+  cursor: var(--cur-default, default);
+}
+button,
+a[href],
+summary,
+select,
+label[for],
+[role='button'],
+[role='menuitem'],
+[role='tab'],
+[role='option'] {
+  cursor: var(--cur-pointer, pointer);
+}
+button:disabled,
+[aria-disabled='true'] {
+  cursor: var(--cur-default, default);
 }

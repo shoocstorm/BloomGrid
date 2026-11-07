@@ -164,7 +164,7 @@
   color: var(--accent);
   font: inherit;
   font-size: 10.5px;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .gl-do:hover {
   background: var(--bg-hover);

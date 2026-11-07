@@ -3,7 +3,7 @@
  * Power rules (§7½): transform/opacity animations only, static shadows, no backdrop-filter.
  */
 .stats .stat {
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   transition: background-color 0.15s;
 }
 .stats .stat:hover,
@@ -446,7 +446,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   color: var(--ink-soft);
   font-size: 11px;
   list-style: none;
@@ -484,7 +484,7 @@
   border-radius: var(--r-sm);
   border: 1px solid var(--line);
   background: var(--bg-raise);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   transition: background-color 0.15s, border-color 0.15s;
 }
 .si-lever:hover {
@@ -584,7 +584,7 @@
   font: inherit;
   font-size: 11px;
   border-radius: var(--pill);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   color: var(--ink);
   border: 1px solid var(--line);
   background: var(--bg-raise);
@@ -623,7 +623,7 @@
   --bg-strong: #061315;
 }
 .clock .season {
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   align-self: stretch;
   justify-content: center;
   border-radius: var(--r-xs);

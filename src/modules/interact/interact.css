@@ -1,0 +1,72 @@
+/* Hands-on buildings (D-132): a small card above the walk hint naming the building in reach and what to do there. */
+.ia-card {
+  position: fixed;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  z-index: 21;
+}
+.ia-card.hidden,
+.ia-card .hidden {
+  display: none;
+}
+.ia-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.ia-row {
+  display: flex;
+  gap: 6px;
+}
+.ia-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: rgba(6, 19, 21, 0.4);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: var(--cur-pointer, pointer);
+}
+.ia-btn:hover {
+  border-color: var(--line-strong);
+}
+.ia-btn .g {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  color: var(--ink-soft);
+}
+.ia-btn.on .g {
+  color: #ffd98a;
+}
+.ia-btn kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+/* Phones: above the touch pad's stick and buttons, keys hidden (taps work the buttons). */
+body.compact .ia-card,
+body.touch .ia-card {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 168px);
+}
+body.compact .ia-btn kbd,
+body.touch .ia-btn kbd {
+  display: none;
+}
+body.compact .ia-btn {
+  padding: 9px 12px;
+}

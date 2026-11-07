@@ -73,7 +73,7 @@ button {
   color: inherit;
   border: 0;
   background: transparent;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 
 /* Top bar */
@@ -461,7 +461,7 @@ button {
   background: transparent;
   border: 1px solid var(--line);
   padding: 1px 6px;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .info-id-btn:hover {
   background: var(--bg-hover);

@@ -142,7 +142,7 @@
   gap: 8px;
   padding: 6px 8px;
   border-radius: 9px;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   font-size: 13px;
 }
 .nc-diff:hover {

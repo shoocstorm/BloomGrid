@@ -33,7 +33,7 @@ const MENU: Record<ExploreMode, [icon: string, note: string]> = {
 };
 const HINTS: Record<ExploreMode, string> = {
   city: '',
-  walk: 'WASD walk · Shift run · Space jump · drag to look · V first person · N next mode · Esc city view',
+  walk: 'WASD walk · Shift run · Space jump · drag to look · V first person · E door · L lights · N next mode · Esc city view',
   board: 'WASD ride · Shift boost · Space hop · glides over water · N next mode · Esc city view',
   drone: 'WASD fly · E up · Q down · Shift fast · drag to look · N next mode · Esc city view',
   balloon: 'WASD drift · E or Space burn (rise) · Q vent (sink) · drag to look · V basket view · Esc city view',
@@ -76,7 +76,8 @@ export const exploreModule: GameModule = {
     let capture = false;
 
     // ── Collision ──────────────────────────────────────────────────────────────
-    const collider = createCollider(city, (t) => ctx.services.tryGet('world')?.flora.treesAt(t));
+    const buildingsR = ctx.services.get('construction').renderer;
+    const collider = createCollider(city, (t) => ctx.services.tryGet('world')?.flora.treesAt(t), (eid) => buildingsR.doorOpen(eid));
     for (const ev of ['building:added', 'building:removed', 'city:reset', 'terrain:changed'] as const) ctx.bus.on(ev, () => collider.clear());
     const g = () => city.grid;
     const groundAt = (x: number, z: number, feet: number) => collider.groundAt(x, z, feet);
@@ -495,7 +496,7 @@ export const exploreModule: GameModule = {
           const gy = groundAt(pos.x, pos.z, pos.y);
           if (pos.y <= gy) {
             // Step up gently onto kerbs and plazas; snap down slopes.
-            pos.y = gy - pos.y > STEP ? gy : MathUtils.lerp(pos.y, gy, 1 - Math.exp(-dt * 30));
+            pos.y = gy - pos.y > 0.45 ? gy : MathUtils.lerp(pos.y, gy, 1 - Math.exp(-dt * (gy - pos.y > STEP ? 14 : 30)));
             if (gy - pos.y < 0.01) pos.y = gy;
             vel.y = 0;
             grounded = true;
@@ -660,13 +661,22 @@ export const exploreModule: GameModule = {
       setPhoto(false);
       setMode('city');
     });
-    ctx.services.provide('explore', { setMode, get mode() { return mode; }, setPhoto });
+    ctx.services.provide('explore', { setMode, get mode() { return mode; }, setPhoto, position: pos, get firstPerson() { return firstPerson; }, collider });
   },
 };
 
 declare module '@/core/Services' {
   interface GameServices {
-    explore: { setMode(m: ExploreMode): void; readonly mode: ExploreMode; setPhoto(on: boolean): void };
+    explore: {
+      setMode(m: ExploreMode): void;
+      readonly mode: ExploreMode;
+      setPhoto(on: boolean): void;
+      /** Where the steward (or the ride) is now: read-only for other modules. */
+      readonly position: Readonly<Vector3>;
+      readonly firstPerson: boolean;
+      /** Explore-mode collision (collider.ts), for scripts and probes. */
+      readonly collider: ReturnType<typeof createCollider>;
+    };
   }
 }
 declare module '@/core/EventBus' {

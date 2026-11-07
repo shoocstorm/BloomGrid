@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Vector3 } from 'three/webgpu';
 import { createCollider, TREE_STRIDE } from '@/modules/explore/collider';
+import { doorSteps, placeBuilding } from '@/modules/construction/BuildingRenderer';
+import { applyScenario } from '@/sim/scenario';
 import { findRoof, roofAt } from '@/modules/explore/roof';
 import { initPieces } from '@/assets/kit/pieces';
 import { BRIDGE_DECK } from '@/sim/City';
@@ -30,6 +32,61 @@ describe('explore collider', () => {
     expect(c.groundAt(x0 + 7, z - 1, parkFeet)).toBeGreaterThanOrEqual(parkFeet);
     // Off the map is blocked.
     expect(c.blocked(-1, 5, 0, true, 0)).toBe(true);
+  });
+
+  it('a door opens the way into a glass dome; inside is open floor, the glass is a wall (D-132)', () => {
+    const s = makeSim(42);
+    s.city.credits = 1e6;
+    const { x0, z } = findLandRow(s.city, 12);
+    const g = s.city.grid;
+    expect(s.commands.execute('road', { tiles: Array.from({ length: 8 }, (_, i) => g.index(x0 + i, z)) })).toBe(true);
+    expect(s.commands.execute('build', { def: 'greenhouse-hub', x: x0 + 2, z: z - 3, rot: 0 })).toBe(true);
+    let open = false;
+    const c = createCollider(s.city, undefined, () => open);
+    // Walk from the street, up the plinth, through the vestibule and into the dome (local z 1.8 → 0.6).
+    const [cx, cz] = [x0 + 3.5, z - 1.5];
+    const walk = () => {
+      let feet = g.heightAt(cx, cz + 1.8);
+      let stops = 0;
+      for (let lz = 1.8; lz >= 0.6; lz -= 0.04) {
+        if (c.blocked(cx, cz + lz, feet, false, 0)) stops++;
+        else feet = Math.max(feet, c.groundAt(cx, cz + lz, feet));
+      }
+      return { stops, feet };
+    };
+    expect(walk().stops).toBeGreaterThan(0);
+    open = true;
+    const inside = walk();
+    expect(inside.stops).toBe(0);
+    // On the dome's floor, well above the street.
+    expect(inside.feet).toBeGreaterThan(g.heightAt(cx, cz + 1.8) + 0.1);
+    // Open floor beside the table, but the glass skin walls the edge.
+    expect(c.blocked(cx, cz + 0.6, inside.feet, false, 0)).toBe(false);
+    expect(c.blocked(cx + 1.26, cz, inside.feet, false, 0)).toBe(true);
+  });
+
+  it('front steps climb to a door that stands a storey above the street (D-132)', () => {
+    const s = makeSim(20261024);
+    applyScenario(s.city, 'founding-city');
+    const g = s.city.grid;
+    // A showcase Work Dome on a sloping block: its door stands about one unit above the street.
+    const eid = s.city.buildingAt(289, 312);
+    expect(s.city.buildingDef(eid).id).toBe('greenhouse-hub');
+    const rec = s.city.buildingRecord(eid);
+    const place = placeBuilding(g, s.city.buildingDef(eid), rec.x, rec.z, rec.rot);
+    const steps = doorSteps(g, s.city.buildingDef(eid), place);
+    expect(steps.length).toBeGreaterThan(4);
+    const c = createCollider(s.city, undefined, () => true);
+    const [cx, cz] = [rec.x + 1.5, rec.z + 1.5];
+    let feet = g.heightAt(cx, cz + 2.6);
+    const street = feet;
+    let stops = 0;
+    for (let lz = 2.6; lz >= 0.6; lz -= 0.03) {
+      if (c.blocked(cx, cz + lz, feet, false, 0)) stops++;
+      else feet = Math.max(feet, c.groundAt(cx, cz + lz, feet));
+    }
+    expect(stops).toBe(0);
+    expect(feet - street).toBeGreaterThan(0.8);
   });
 
   it('ground height follows the drawn triangles, so feet meet the surface on a twisted tile', () => {

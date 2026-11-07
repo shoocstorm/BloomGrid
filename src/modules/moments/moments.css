@@ -13,7 +13,7 @@ body.moment-on #hud {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   overflow: hidden;
   color: var(--ink);
 }

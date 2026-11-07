@@ -3,7 +3,7 @@
  * transform or opacity only and runs only while the card is shown (§7½); no backdrop-filter.
  */
 .brand {
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .brand:hover .logo {
   transform: rotate(90deg);

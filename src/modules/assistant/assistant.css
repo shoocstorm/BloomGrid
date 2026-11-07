@@ -367,7 +367,7 @@ body.flora-max .rightcol {
   color: var(--ink);
   background: rgba(95, 242, 218, 0.06);
   padding: 5px 8px;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   white-space: nowrap;
   border-radius: var(--r-sm);
 }
@@ -647,7 +647,7 @@ body.flora-max .rightcol {
   border: 0;
   border-bottom: 1px solid rgba(95, 242, 218, 0.5);
   padding: 0 3px;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .ai-id:hover {
   background: rgba(95, 242, 218, 0.18);
@@ -774,7 +774,7 @@ body.flora-max .rightcol {
   box-shadow:
     0 0 14px rgba(95, 242, 218, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   transition:
     transform 0.14s ease,
     filter 0.14s ease;
@@ -833,7 +833,7 @@ body.flora-max .rightcol {
   border-left: 2px solid var(--line-strong);
   border-radius: var(--r-md);
   background: var(--bg-raise);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   user-select: none;
   transition:
     border-color 0.18s ease,
@@ -891,7 +891,7 @@ body.flora-max .rightcol {
   border: 1px solid var(--line-strong);
   border-radius: var(--pill);
   background: rgba(0, 0, 0, 0.4);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   transition:
     border-color 0.18s ease,
     background-color 0.18s ease;
@@ -1470,7 +1470,7 @@ body.flora-max .rightcol {
     linear-gradient(var(--fx), var(--fx)) right top / 1px 10px no-repeat,
     linear-gradient(135deg, color-mix(in srgb, var(--fx) 9%, transparent), transparent 55%),
     rgba(2, 10, 12, 0.55);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   opacity: 0;
   animation: ai-in 0.3s ease-out forwards;
   animation-delay: calc(var(--i) * 25ms);
@@ -1716,7 +1716,7 @@ body.flora-max .rightcol {
   border: 1px solid var(--line-strong);
   color: var(--ink);
   background: rgba(95, 242, 218, 0.06);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   transition:
     background 0.15s,
     color 0.15s,
@@ -1812,7 +1812,7 @@ body.flora-open:not(.compact) .ai.panel:not(.max) {
   text-transform: uppercase;
   color: var(--accent);
   background: transparent;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .aim-done:hover {
   background: var(--bg-hover);
@@ -1912,7 +1912,7 @@ body.flora-open:not(.compact) .ai.panel:not(.max) {
   color: #052522;
   background: linear-gradient(95deg, var(--accent), var(--accent-2));
   box-shadow: 0 0 10px rgba(95, 242, 218, 0.3);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
   transition: transform 0.15s;
 }
 .aim-btn:hover:not(:disabled) {
@@ -2376,7 +2376,7 @@ body.flora-open:not(.compact) .ai.panel:not(.max) {
   gap: 8px;
   padding: 5px 7px;
   border-radius: var(--r-xs);
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .ai-slash-row:hover {
   background: var(--bg-raise);
@@ -2725,7 +2725,7 @@ body.flora-open:not(.compact) .ai.panel:not(.max) {
   font: inherit;
   font-size: 11.5px;
   font-weight: 600;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 .fd-do:hover {
   background: var(--accent);
@@ -2766,7 +2766,7 @@ body.flora-open:not(.compact) .ai.panel:not(.max) {
   border-color: var(--accent);
   background: linear-gradient(90deg, #14e0bd, #8ef07a);
   color: #052a24;
-  cursor: pointer;
+  cursor: var(--cur-pointer, pointer);
 }
 /* A ring that pulses out from the ready button (transform / opacity). */
 .ai-dormant[data-phase='ready'] .fd-wake::after {

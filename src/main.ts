@@ -43,9 +43,11 @@ import { tutorialModule } from '@/modules/tutorial';
 import { disastersModule } from '@/modules/disasters';
 import { audioModule } from '@/modules/audio';
 import { exploreModule } from '@/modules/explore';
+import { interactModule } from '@/modules/interact';
 import { createBootScreen } from '@/ui/Boot';
 import { watchDevice } from '@/platform/device';
 import { watchFocusRing } from '@/ui/focusRing';
+import { installCursors } from '@/ui/cursor';
 // The HUD theme loads after every module stylesheet so it can restyle them from one place; the
 // phone layout loads after it.
 import '@/ui/theme.css';
@@ -55,7 +57,7 @@ import '@/ui/mobile.css';
  * Feature modules. New gameplay layers (city pulse, overlays, crises, bloom engine, mobility,
  * Flora-Net, Green Weaver, explore modes…) are added here as self-contained modules.
  */
-const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, roadworksModule, juiceModule, happeningsModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, walkersModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, debugModule];
+const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, roadworksModule, juiceModule, happeningsModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, walkersModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, interactModule, debugModule];
 
 /**
  * No browser or webview context menu anywhere in the game (right-click is a game gesture: leave build mode, slow the
@@ -75,6 +77,7 @@ async function boot() {
   const hud = document.getElementById('hud')!;
   watchDevice();
   watchFocusRing();
+installCursors();
   const screen = createBootScreen(document.getElementById('boot')!, 'SOLARPUNK ISLAND CITY SYSTEMS');
   hud.style.opacity = '0';
   try {

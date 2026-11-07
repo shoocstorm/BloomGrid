@@ -2143,3 +2143,40 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
 - **Verified**: production build under the CSP boots on WebGPU and WebGL, fonts load, a blob worker compiles
   wllama's wasm, and a ranged fetch of a pinned model follows the CDN redirect, with no violations.
 - **Rejected**: `'unsafe-eval'` (nothing needs it), `connect-src https:` (too broad).
+
+## D-132 — Hands-on buildings: doors to walk through, lights to switch; the Work Dome as a real workplace (2026-11-07)
+
+- **What**: walking the streets, a card names the building in reach. **E** opens or closes its door when the steward
+  stands at one (the Mycelium Work Dome's two glass leaves slide apart into the portal's walls), **L** switches its
+  lights (every glowing piece: lamps, screens, signs, light panels; and its lit windows). Doors close by themselves
+  once the steward is ~2.4 units away. Sounds on `building:interact` (a hiss for doors, a click for lights).
+- **Render-only**: a door or a switch changes how the city looks, never the sim, so no command, no hash, no undo.
+  Lights are kept in the save by building uid (module hook `interact`); a new city starts lit. Lit windows return to
+  power × occupancy when the lights go back on.
+- **Data**: `door` on a recipe piece (slide in its own widths along its local x, signed) marks a leaf; the collider
+  skips leaves while the building's door is open and cuts a doorway (`PASSAGE_DEPTH` either side) through hollow
+  shells. `glassDome` is the first hollow piece (a `domeClear` skin with only its surface solid), so the dome's floor
+  is walkable. `ChunkedInstancer.setMatrix` moves a leaf in place (it stays in its chunk's batch).
+- **Plinths are front steps**: a lot standing up to `PLINTH_STEP` (0.4) above the street is climbed, and the body is
+  tested from the ground it steps onto (probed a body radius round), or a lot's own floor walled the walker off.
+- **Work Dome**: clear glass (its own `domeClear` material, not the frosted shared `dome` used by 31 buildings), the
+  trees inside removed, and a workplace: seven desks facing the glass (chair, laptop on the new `screen` piece,
+  mycelium desk lamp, a hanging light panel), a shared round table, fungus floor lamps. Two new pieces: a draw
+  call each per visible chunk that holds the dome.
+- **Front steps**: lots stand on their highest corner, so a door on the low side can be a storey above the street
+  (7 of 51 showcase Work Domes: 0.4–1.0). `doorSteps` lays stone treads (rise 0.1, under the walker's step) from the
+  lot's edge before the door down to the ground; the renderer draws them and the collider walks on them, from the
+  same function. Tested on the showcase dome at (289, 312), whose door stands ~1 unit up.
+- **Laptop screens**: a canvas atlas (`render/materials/display.ts`) of four BloomGrid apps (splash with the
+  wordmark, City Pulse, code, island map); the `screen` material picks a frame per laptop on its own cycle and draws
+  the moving parts in the shader (loading bar, live chart, current line + caret, radar sweep), fading them to the
+  atlas once a screen is a few pixels wide. The lid shows a glowing logo. The hanging lights moved to `lumenRib`
+  discs so the `screen` material is only screens.
+- **Cursors** (`ui/cursor.ts`): a dark-teal arrow with a leaf (default) and a bright teal arrow with a bloom (clickable),
+  drawn on a canvas at 1x and 2x and published as `--cur-default` / `--cur-pointer`; every `cursor: pointer` in the
+  CSS uses the variable with the system cursor as fallback. PNG, not SVG: SVG cursors are blurry or unsupported in
+  some webviews. The arrow silhouette and tip hotspot stay standard so aiming feels the same.
+- **Next**: more buildings with a designed door and room (homes, the library, cafés); `interact` switches in the
+  inspector for the city view.
+- **Rejected**: point lights per room (a pipeline and a shadow cost per light); hinged doors (a sliding leaf needs
+  no pivot data and never swings through the steward); saving open doors (they close on their own).

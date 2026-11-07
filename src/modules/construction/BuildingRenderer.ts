@@ -25,6 +25,8 @@ export interface TemplatePiece {
   to?: number;
   /** Local top of a designed level piece, for the level's height. */
   top?: number;
+  /** A door leaf's slide, in its own widths along its local x (D-132). */
+  door?: number;
 }
 
 export interface BuildingTemplate {
@@ -59,6 +61,7 @@ const _q = new Quaternion();
 const _v = new Vector3();
 const _s = new Vector3();
 const _m = new Matrix4();
+const _m2 = new Matrix4();
 const _c = new Color();
 const _params = new Float32Array(4);
 const UP = new Vector3(0, 1, 0);
@@ -122,6 +125,7 @@ function runRecipe(
     _q.setFromEuler(_e.set(spec.rx ?? 0, spec.r ?? 0, spec.rz ?? 0, 'YXZ'));
     const local = new Matrix4().compose(_v.set(p[0], p[1], p[2]), _q, sv);
     const piece: TemplatePiece = { piece: spec.piece, local, tint: spec.tint ?? 0xffffff, glow: spec.glow ?? 0, growAt: spec.growAt ?? 0, seed: cur.next(), y: p[1] };
+    if (spec.door) piece.door = spec.door;
     if (from > 0 || to < 2) {
       if (from <= to) ranged.push(Object.assign(piece, { from, to, top: p[1] + (spec.piece === 'ivy' ? 0 : sv.y) }));
       return;
@@ -365,6 +369,47 @@ export function placeBuilding(grid: Grid, def: BuildingDef, x: number, z: number
   return { template: buildingTemplate(def, variantFor(def, x, z)), base, plinth };
 }
 
+/** Front steps (D-132): rise per step (under the walker's step height), tread depth, width. */
+const STAIR_RISE = 0.1;
+const STAIR_TREAD = 0.075;
+const STAIR_WIDTH = 0.5;
+
+/**
+ * Front steps from a door building's lot down to the ground before its door (D-132): unit `slab` boxes in world
+ * space, each a rise below the last, stepping out from the lot's edge until they meet the ground. Lots stand on
+ * their highest corner, so a door on the low side can be a storey above the street. Empty when the building has no
+ * door or its door is at street level. The renderer draws these and the explore collider walks on them.
+ */
+export function doorSteps(grid: Grid, def: BuildingDef, place: Placement): Matrix4[] {
+  const doors = place.template.pieces.filter((p) => p.door);
+  if (!doors.length) return [];
+  const c = new Vector3();
+  for (const d of doors) c.add(_v.setFromMatrixPosition(d.local));
+  c.divideScalar(doors.length);
+  // Outward: the leaf's thin (local z) axis, pointing away from the building's centre.
+  const n = new Vector3().setFromMatrixColumn(doors[0]!.local, 2).setY(0).normalize();
+  if (n.dot(c) < 0) n.negate();
+  const side = new Vector3(-n.z, 0, n.x);
+  const lateral = c.dot(side);
+  const half = Math.abs(n.x) * (def.footprint[0] / 2) + Math.abs(n.z) * (def.footprint[1] / 2);
+  const baseY = place.base.elements[13]!;
+  const yaw = Math.atan2(n.x, n.z);
+  const out: Matrix4[] = [];
+  const p = new Vector3();
+  for (let i = 1; i < 60; i++) {
+    const top = -i * STAIR_RISE;
+    p.copy(n).multiplyScalar(half + (i - 0.5) * STAIR_TREAD).addScaledVector(side, lateral);
+    const w = _v.copy(p).applyMatrix4(place.base);
+    const ground = (grid.inBounds(Math.floor(w.x), Math.floor(w.z)) ? grid.heightAt(w.x, w.z) : baseY) - baseY;
+    if (top <= ground + 0.02) break;
+    const bottom = ground - 0.05;
+    _q.setFromAxisAngle(UP, yaw);
+    const local = new Matrix4().compose(_v.set(p.x, bottom, p.z), _q, _s.set(STAIR_WIDTH, top - bottom, STAIR_TREAD));
+    out.push(new Matrix4().multiplyMatrices(place.base, local));
+  }
+  return out;
+}
+
 interface Entry {
   handles: InstanceHandle[];
   /** The terrain-meeting plinth it was placed with (re-seated when the ground under it changes). */
@@ -405,6 +450,13 @@ interface Entry {
   shade: number;
   problems: number;
   alert: InstanceHandle | null;
+  /** Door leaves (D-132): their handles and pieces, how far open they are (0..1) and where they are heading. */
+  doors: { h: InstanceHandle; p: TemplatePiece }[];
+  open: number;
+  openTo: number;
+  /** Lamps: pieces that glow (fungus lamps, screens, signs), with their glow, for the lights switch. */
+  lamps: { h: InstanceHandle; glow: number }[];
+  lightsOn: boolean;
   /** Seconds the build-in animation takes from `building:added` (0 = appeared at once). */
   rise: number;
 }
@@ -500,6 +552,54 @@ export class BuildingRenderer {
 
   get count(): number {
     return this.entries.size;
+  }
+
+  // ── Interactive parts (D-132): render-only, so a door or a light switch never touches the sim or its hash ──
+  /** Uids of buildings whose lights the steward switched off (kept across re-seats; saved by the interact module). */
+  readonly dark = new Set<number>();
+  private moving = new Set<Entry>();
+
+  /** World centres of a building's door leaves, and whether its doors are open (or opening). */
+  doorsOf(eid: number): { at: Vector3[]; open: boolean } | null {
+    const entry = this.entries.get(eid);
+    if (!entry?.doors.length || entry.collapsed) return null;
+    const at = entry.doors.map((d) => new Vector3().setFromMatrixPosition(_m.multiplyMatrices(entry.base, d.p.local)));
+    return { at, open: entry.openTo > 0 };
+  }
+
+  /** Is (any) door of the building open? The collider asks this to let the steward through. */
+  doorOpen(eid: number): boolean {
+    const entry = this.entries.get(eid);
+    return !!entry && entry.open > 0.6;
+  }
+
+  setDoor(eid: number, open: boolean): void {
+    const entry = this.entries.get(eid);
+    if (!entry?.doors.length) return;
+    entry.openTo = open ? 1 : 0;
+    if (entry.open !== entry.openTo) this.moving.add(entry);
+  }
+
+  lightsOn(eid: number): boolean {
+    return this.entries.get(eid)?.lightsOn ?? true;
+  }
+
+  /** Does switching this building's lights show anything (lamps or lit windows)? */
+  hasLights(eid: number): boolean {
+    const entry = this.entries.get(eid);
+    return !!entry && !entry.collapsed && (entry.lamps.length > 0 || entry.glass.length > 0);
+  }
+
+  setLights(eid: number, on: boolean): void {
+    const entry = this.entries.get(eid);
+    if (!entry || entry.lightsOn === on) return;
+    entry.lightsOn = on;
+    const uid = Building.uid[eid]!;
+    if (on) this.dark.delete(uid);
+    else this.dark.add(uid);
+    const { instancer } = this.ctx;
+    for (const l of entry.lamps) instancer.setParam(l.h, 2, on ? l.glow : 0);
+    for (const h of entry.glass) instancer.setParam(h, 3, on ? entry.power : 0);
   }
 
   /**
@@ -625,6 +725,11 @@ export class BuildingRenderer {
       problems: 0,
       alert: null,
       rise: 0,
+      doors: [],
+      open: 0,
+      openTo: 0,
+      lamps: [],
+      lightsOn: !this.dark.has(Building.uid[eid]!),
     };
     this.entries.set(eid, entry);
     _params.set([rec.greenery, 0.5, 0, 1]);
@@ -662,6 +767,9 @@ export class BuildingRenderer {
         },
       );
     } else spawnTemplate();
+    // Front steps up to a door that stands above the street (D-132).
+    _params.set([1, 0.5, 0, 1]);
+    for (const m of doorSteps(city.grid, def, place)) entry.handles.push(instancer.addMatrix('slab', m, _c.setHex(0xd8cfbf), _params, animate ? 0.2 : -1));
     if (Building.level[eid]) this.addRetrofit(entry, animate ? 0.3 : -1, Building.level[eid]!);
     if (Building.tier[eid] || entry.template?.ranged.length) this.setTier(entry, Building.tier[eid]!, animate ? 0.5 : -1, rec.greenery);
     if (city.steward.ruins.includes(Building.uid[eid]!)) this.collapse(entry, false);
@@ -747,6 +855,8 @@ export class BuildingRenderer {
     entry.skins = entry.skins.filter((h) => !drop(h));
     entry.plants = entry.plants.filter((h) => !drop(h));
     entry.moss = entry.moss.filter((h) => !drop(h));
+    entry.doors = entry.doors.filter((d) => !drop(d.h));
+    entry.lamps = entry.lamps.filter((l) => !drop(l.h));
   }
 
   /** Adds the retrofit (and, at level 2, banyan) overlay; `delay` < 0 = instant, else pop-in bottom-up. */
@@ -771,16 +881,20 @@ export class BuildingRenderer {
     const styled = isStyled(p.piece);
     // Styled pieces carry the style index in the seed's integer part (the shaders split it off).
     _params[1] = styled ? entry.styleIndex + p.seed * 0.999 : p.seed;
-    _params[2] = p.glow;
+    const lamp = p.glow > 0 && (!PLANT_PIECES.has(p.piece) || p.piece === 'fungus');
+    _params[2] = lamp && !entry.lightsOn ? 0 : p.glow;
     const glass = p.piece === 'glassBox' || p.piece === 'glassCyl';
     const plant = PLANT_PIECES.has(p.piece);
-    _params[3] = glass ? entry.power : plant ? entry.vitality : 1;
+    _params[3] = glass ? (entry.lightsOn ? entry.power : 0) : plant ? entry.vitality : 1;
     const skin = glass || p.piece === 'timberBox';
     if (skin) _params[0] = 1 - entry.weather;
     const world = _m.multiplyMatrices(entry.base, p.local);
+    if (p.door && entry.open > 0) world.multiply(_m2.makeTranslation(p.door * entry.open, 0, 0));
     const tint = styled ? restyle(p.piece, p.tint, entry.style, entry.shade) : p.tint;
     const h = this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(tint), _params, delay, PIECE_GROW);
     if (base) entry.handles.push(h);
+    if (p.door) entry.doors.push({ h, p });
+    if (lamp) entry.lamps.push({ h, glow: p.glow });
     if (p.piece === 'mossBox') entry.moss.push(h);
     if (p.piece === 'slab' || p.piece === 'concreteCyl') entry.walls.push(h);
     if (skin) entry.skins.push(h);
@@ -796,6 +910,7 @@ export class BuildingRenderer {
   private remove(eid: number, animate = false): void {
     const entry = this.entries.get(eid);
     if (!entry) return;
+    this.moving.delete(entry);
     const { instancer } = this.ctx;
     if (entry.alert) instancer.remove(entry.alert);
     for (const h of entry.rubble) instancer.remove(h);
@@ -860,7 +975,7 @@ export class BuildingRenderer {
       const power = Service.power[eid]! * occupied * (0.3 + 0.7 * cond);
       if (Math.abs(power - entry.power) > 0.03) {
         entry.power = power;
-        for (const h of entry.glass) instancer.setParam(h, 3, power);
+        if (entry.lightsOn) for (const h of entry.glass) instancer.setParam(h, 3, power);
       }
       // Nature reclaims worn-down buildings: moss spreads over every surface.
       const wild = cond < 0.6 ? (0.6 - cond) / 0.6 : 0;
@@ -894,6 +1009,17 @@ export class BuildingRenderer {
 
   /** Per-frame: stage plant growth and feed live greenery to membrane shaders. */
   update(dt: number): void {
+    // Doors slide every frame while they move (D-132); only the few moving leaves are re-written.
+    for (const entry of this.moving) {
+      const step = dt * 2.5;
+      entry.open = entry.openTo > entry.open ? Math.min(entry.openTo, entry.open + step) : Math.max(entry.openTo, entry.open - step);
+      const k = entry.open * entry.open * (3 - 2 * entry.open);
+      for (const d of entry.doors) {
+        _m.multiplyMatrices(entry.base, d.p.local).multiply(_m2.makeTranslation(d.p.door! * k, 0, 0));
+        this.ctx.instancer.setMatrix(d.h, _m);
+      }
+      if (entry.open === entry.openTo) this.moving.delete(entry);
+    }
     // Greenery changes slowly (~1%/s), so check at 2 Hz and only re-upload moss coverage once it
     // has visibly moved: every param write is GPU upload traffic.
     this.mossTimer += dt;
