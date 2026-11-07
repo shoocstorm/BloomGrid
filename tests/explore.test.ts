@@ -69,19 +69,24 @@ describe('explore collider', () => {
     const s = makeSim(20261024);
     applyScenario(s.city, 'founding-city');
     const g = s.city.grid;
-    // A showcase Work Dome on a sloping block: its door stands about one unit above the street.
-    const eid = s.city.buildingAt(289, 312);
-    expect(s.city.buildingDef(eid).id).toBe('greenhouse-hub');
+    // A showcase Work Dome on a sloping block (door to +z): its door stands about one unit above the street. Found,
+    // not hard-coded, so the test survives layout changes in the showcase.
+    const eid = s.city.buildingEntities().find((e) => {
+      const d = s.city.buildingDef(e);
+      const r = s.city.buildingRecord(e);
+      return d.id === 'greenhouse-hub' && r.rot === 0 && doorSteps(g, d, placeBuilding(g, d, r.x, r.z, r.rot)).length > 4;
+    })!;
+    expect(eid).toBeDefined();
     const rec = s.city.buildingRecord(eid);
-    const place = placeBuilding(g, s.city.buildingDef(eid), rec.x, rec.z, rec.rot);
-    const steps = doorSteps(g, s.city.buildingDef(eid), place);
-    expect(steps.length).toBeGreaterThan(4);
     const c = createCollider(s.city, undefined, () => true);
     const [cx, cz] = [rec.x + 1.5, rec.z + 1.5];
-    let feet = g.heightAt(cx, cz + 2.6);
+    // Start at the first clear spot in front of the door (a verge planting may stand on the street line).
+    let start = 2.6;
+    while (start > 1.6 && c.blocked(cx, cz + start, g.heightAt(cx, cz + start), false, 0)) start -= 0.03;
+    let feet = g.heightAt(cx, cz + start);
     const street = feet;
     let stops = 0;
-    for (let lz = 2.6; lz >= 0.6; lz -= 0.03) {
+    for (let lz = start; lz >= 0.6; lz -= 0.03) {
       if (c.blocked(cx, cz + lz, feet, false, 0)) stops++;
       else feet = Math.max(feet, c.groundAt(cx, cz + lz, feet));
     }

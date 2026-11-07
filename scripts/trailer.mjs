@@ -177,7 +177,7 @@ const ASK_FLORA = (q) => `void window.bloomgrid.services.get('assistant').ask(${
 // hive/yard resolved from the live city at boot.
 let hive = { x: 282, z: 333 }; // flora-hive, resolved from the live city at boot
 let yard = { x: 54, z: 281 }; // fireworks factory yard, resolved from the live city at boot
-let spire = { x: 256, z: 256 }; // wellspring-spire lot centre, resolved from the live city at boot
+let spire = { x: 256, z: 256 }; // the centrepiece's lot centre (the Aurora Gemini, D-135), resolved from the live city at boot
 const shots = [
   // Cold open: tight on the spire against the sunrise, one exponential pull to the whole island. The
   // title lands while the island is still forming in frame; easeOut grabs in the first second.
@@ -463,8 +463,8 @@ await page.evaluate(async () => {
   };
   const h = find('flora-hive', { x: 282, z: 333 });
   const y = find('fireworks-factory', { x: 54, z: 281 });
-  // Records are lot origins: the 14×14 spire's visual centre is +7/+7.
-  const s = find('wellspring-spire', { x: 249, z: 249 });
+  // Records are lot origins: the 14×14 Aurora Gemini's visual centre is +7/+7.
+  const s = find('aurora-gemini', { x: 249, z: 249 });
   return { hive: { x: h.x, z: h.z }, yard: { x: y.x, z: y.z }, spire: { x: s.x + 7, z: s.z + 7 } };
 }));
 const od = await page.evaluate(() => window.bloomgrid.cameraCtl.overviewDistance);

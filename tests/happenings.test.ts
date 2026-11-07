@@ -43,7 +43,11 @@ describe('happenings (D-123)', () => {
     expect(h).not.toBeNull();
     expect(h.baseline).toBe(countNear(s.city, h.category!, h.x, h.z, h.radius!));
     // Build the asked-for category as near the residents as the ground allows.
-    const def = buildings.all().find((d) => d.category === h.category && !d.requires)!;
+    // The smallest everyday building of that category (not a landmark, which wouldn't fit a residents' street).
+    const def = buildings
+      .all()
+      .filter((d) => d.category === h.category && !d.requires && !d.landmark)
+      .sort((p, q) => p.footprint[0] * p.footprint[1] - q.footprint[0] * q.footprint[1])[0]!;
     let built = false;
     for (let r = 2; r <= h.radius! - 3 && !built; r++)
       for (let a = 0; a < 16 && !built; a++) {

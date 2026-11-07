@@ -49,7 +49,10 @@ describe('readable ids', () => {
     const names = city.districts.map((d) => d.name);
     for (const n of ['Civic Ring', 'Bayfront', 'Westbrook', 'Sunfield']) expect(names).toContain(n);
     const spire = queryInventory(city, { kind: 'building', type: 'wellspring-spire' }).items[0]!;
-    expect(spire.district).toBe('Civic Ring');
+    // Moved out of the centre for the Aurora Gemini (D-135).
+    expect(spire.district).toBe('Working Hills');
+    const twins = queryInventory(city, { kind: 'building', type: 'aurora-gemini' }).items[0]!;
+    expect(twins.district).toBe('Civic Ring');
     expect(getObject(city, 'DST-WESTBROOK')!.metrics.buildings).toBeGreaterThan(20);
   });
 

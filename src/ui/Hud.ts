@@ -57,6 +57,8 @@ class Hud {
   actions!: HTMLElement;
   /** Leading group of the actions panel: City Pulse, city map and fireworks buttons (modules add them). */
   readonly lead = h('div', { class: 'act-lead' });
+  /** Modules' own buttons for a selected building (the Aurora Gemini's light show, D-135), after its switch. */
+  readonly extraActions: ((eid: number) => HTMLElement[])[] = [];
   /** The central stats panel; modules may prepend a control (the city map button). */
   stats!: HTMLElement;
   private statEls = new Map<string, { el: HTMLElement; v: HTMLElement; sub: HTMLElement }>();
@@ -947,6 +949,7 @@ class Hud {
       this.infoActions(
         id,
         ...this.switchButton(this.selected),
+        ...this.extraActions.flatMap((f) => f(this.selected!)),
         ...this.levelButtons(this.selected),
         h(
           'button',
@@ -1185,6 +1188,8 @@ export interface HudService {
   readout: HTMLElement;
   /** Register a panel that folds with a `collapsed` class; phones show these as exclusive sheets. */
   sheet(el: HTMLElement): void;
+  /** Adds buttons to the building inspector's action row: `fn` returns them for the selected building (or none). */
+  buildingActions(fn: (eid: number) => HTMLElement[]): void;
 }
 
 declare module '@/core/Services' {
@@ -1198,7 +1203,7 @@ export const hudModule: GameModule = {
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
-    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, lead: hud.lead, dock: hud.dock, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, sheet: (el) => hud.sheet(el) });
+    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, lead: hud.lead, dock: hud.dock, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, sheet: (el) => hud.sheet(el), buildingActions: (fn) => void hud.extraActions.push(fn) });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

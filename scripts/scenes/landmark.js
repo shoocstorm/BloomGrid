@@ -1,4 +1,4 @@
-// Frames the Wellspring Spire at the island centre. `window.NEAR` = distance, `window.NIGHT` = night,
+// Frames the Aurora Gemini twin towers at the island centre (D-135; add `aim` to setView to see their crowns). `window.NEAR` = distance, `window.NIGHT` = night,
 // `window.YAW` / `window.PITCH` = orbit angles, `window.CX` / `window.CZ` = focus tile (the hero avenue is around CX 290).
 (() => {
   const g = window.bloomgrid;

@@ -45,6 +45,7 @@ import { audioModule } from '@/modules/audio';
 import { exploreModule } from '@/modules/explore';
 import { interactModule } from '@/modules/interact';
 import { signsModule } from '@/modules/signs';
+import { auroraModule } from '@/modules/aurora';
 import { createBootScreen } from '@/ui/Boot';
 import { watchDevice } from '@/platform/device';
 import { watchFocusRing } from '@/ui/focusRing';
@@ -58,7 +59,7 @@ import '@/ui/mobile.css';
  * Feature modules. New gameplay layers (city pulse, overlays, crises, bloom engine, mobility,
  * Flora-Net, Green Weaver, explore modes…) are added here as self-contained modules.
  */
-const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, roadworksModule, juiceModule, happeningsModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, walkersModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, interactModule, signsModule, debugModule];
+const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, roadworksModule, juiceModule, happeningsModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, walkersModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, interactModule, signsModule, auroraModule, debugModule];
 
 /**
  * No browser or webview context menu anywhere in the game (right-click is a game gesture: leave build mode, slow the

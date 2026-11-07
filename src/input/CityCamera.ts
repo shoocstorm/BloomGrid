@@ -17,6 +17,8 @@ export interface CameraView {
   yaw: number;
   pitch: number;
   distance: number;
+  /** Height above the ground the camera orbits (0 = the ground): frames a tall landmark whole (D-135). */
+  aim?: number;
 }
 
 export class CityCamera {
@@ -41,6 +43,8 @@ export class CityCamera {
   touchPan = true;
   /** False while an explore mode drives the camera (target / distance still describe the focus). */
   enabled = true;
+  /** Height of the orbit point above the ground (`CameraView.aim`); any pan or new view drops it back to 0. */
+  aim = 0;
   /** Set by explore modes so power pacing treats a moving first-person view as active. */
   externalMotion = false;
 
@@ -65,6 +69,7 @@ export class CityCamera {
   }
 
   lookAt(x: number, z: number, distance?: number, instant = false): void {
+    this.aim = 0;
     this.goalTarget.set(x, 0, z);
     if (distance !== undefined) this.goalDistance = distance;
     if (instant) {
@@ -98,6 +103,7 @@ export class CityCamera {
    */
   locate(x: number, z: number, opts: { size?: number; height?: number } = {}): void {
     if (!this.enabled) return;
+    this.aim = 0;
     const size = opts.size ?? 6;
     const height = opts.height ?? 8;
     const d1 = MathUtils.clamp(Math.max(38, size * 2.6, height * 2.4), this.minDistance, 260);
@@ -125,7 +131,8 @@ export class CityCamera {
   }
 
   /** Smooth, slower glide to a point (advisor "show me", bookmarks, overview). */
-  flyTo(x: number, z: number, distance?: number, pitch?: number): void {
+  flyTo(x: number, z: number, distance?: number, pitch?: number, aim = 0): void {
+    this.aim = aim;
     this.goalTarget.set(x, 0, z);
     if (distance !== undefined) this.goalDistance = Math.min(this.maxDistance, distance);
     if (pitch !== undefined) this.goalPitch = pitch;
@@ -140,12 +147,12 @@ export class CityCamera {
   }
 
   getView(): CameraView {
-    return { x: this.goalTarget.x, z: this.goalTarget.z, yaw: this.goalYaw, pitch: this.goalPitch, distance: this.goalDistance };
+    return { x: this.goalTarget.x, z: this.goalTarget.z, yaw: this.goalYaw, pitch: this.goalPitch, distance: this.goalDistance, aim: this.aim };
   }
 
   setView(v: CameraView): void {
     this.goalYaw = v.yaw;
-    this.flyTo(v.x, v.z, v.distance, v.pitch);
+    this.flyTo(v.x, v.z, v.distance, v.pitch, v.aim ?? 0);
   }
 
   /** Cinematic establishing shot: start high over the island, glide down to the target view. */
@@ -240,7 +247,7 @@ export class CityCamera {
     const g = this.grid;
     this.goalTarget.x = MathUtils.clamp(this.goalTarget.x, 0, g.w);
     this.goalTarget.z = MathUtils.clamp(this.goalTarget.z, 0, g.h);
-    this.goalTarget.y = Math.max(0, g.heightAt(this.goalTarget.x, this.goalTarget.z));
+    this.goalTarget.y = Math.max(0, g.heightAt(this.goalTarget.x, this.goalTarget.z)) + this.aim;
 
     if (this.glide) this.stepGlide(dt);
 
@@ -305,6 +312,7 @@ export class CityCamera {
 
   /** Pan in camera-relative ground space. */
   pan(dx: number, dz: number): void {
+    this.aim = 0;
     const s = Math.sin(this.yaw);
     const c = Math.cos(this.yaw);
     this.goalTarget.x += dx * c + dz * s;

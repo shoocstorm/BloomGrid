@@ -46,13 +46,13 @@ function byTheSea(b: ScenarioBuilder, [x0, z0, x1, z1]: [number, number, number,
   return lot ? [lot[1], lot[2]] : null;
 }
 
-/** Street spacing of the hero district's grid: blocks of GRID - 1 tiles, the spire's footprint. */
+/** Street spacing of the hero district's grid: blocks of GRID - 1 tiles, the centrepiece's footprint. */
 export const GRID = 15;
-/** Blocks west/east of the spire's block, north of it and south of it (the south edge stops short of downtown). */
+/** Blocks west/east of the centre block, north of it and south of it (the south edge stops short of downtown). */
 export const [GRID_W, GRID_N, GRID_S] = [4, 4, 3];
 
 /**
- * Quarters of the hero district as block rectangles [i0, j0, i1, j1] (block (0, 0) is the spire's, +i east,
+ * Quarters of the hero district as block rectangles [i0, j0, i1, j1] (block (0, 0) is the Aurora Gemini's, +i east,
  * +j south), each with its heroes in order of importance. A hero takes the free block nearest the spire in
  * its quarter (any block if the quarter is full or flooded on this seed); blocks left over stay empty lots,
  * streets already in place, for future heroes: add an id to a quarter to build one. Quarters follow the render
@@ -62,7 +62,7 @@ export const [GRID_W, GRID_N, GRID_S] = [4, 4, 3];
  * the nearest workplace in one stream, which jams every tile of the trip, so that trip must be short.
  */
 const QUARTERS: { name: string; zone: ZoneKind; blocks: [number, number, number, number]; heroes: (string | [string, string])[] }[] = [
-  // Civic ring around the spire plaza.
+  // Civic ring around the Aurora Gemini's plaza (D-135).
   { name: 'Civic Ring', zone: 'civic', blocks: [-1, -1, 1, 1], heroes: ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes', 'quartz-spire', 'nautilus-library', 'harmony-gate', 'skylane-nexus'] },
   // Skyline hill (north-east): towers, homes and the skyport.
   { name: 'Skyline Hill', zone: 'living', blocks: [1, -4, 4, 0], heroes: ['dragonfly-port', ['glass-pine', 'vertical-forest'], 'moss-monolith', 'coral-arcology', 'lotus-pagoda', 'rain-vortex', 'bloom-eye', 'fog-harp'] },
@@ -70,8 +70,9 @@ const QUARTERS: { name: string; zone: ZoneKind; blocks: [number, number, number,
   { name: 'The Exchange', zone: 'work', blocks: [1, 1, 4, 3], heroes: ['zephyr-airport', 'seedpod-labs', 'bloom-clock', 'starlight-observatory', 'algae-lantern', 'wavecrest-gallery', 'sunset-amphitheatre', 'corkscrew-orchard'] },
   // Garden quarter (south-west): timber halls, gardens and markets.
   { name: 'Garden Quarter', zone: 'parks', blocks: [-4, 1, -1, 3], heroes: ['elder-banyan', 'levitating-gardens', 'bamboo-cathedral', 'canopy-skywalk', 'moonflower-hall', 'habitat-cascade', 'mycelium-towers', 'solar-sail-bazaar', 'aeolian-reeds'] },
-  // Working hills (north-west), by the lake: food, water, energy and baths.
-  { name: 'Working Hills', zone: 'utility', blocks: [-4, -4, -1, 0], heroes: ['great-noria', 'rice-terraces', 'heliostat-array', 'kite-meadow', 'honeycomb-apiary', 'travertine-baths'] },
+  // Working hills (north-west), by the lake: food, water, energy and baths; the (smaller) Wellspring Spire takes
+  // the last block here, well clear of the twins it used to stand in for (D-135).
+  { name: 'Working Hills', zone: 'utility', blocks: [-4, -4, -1, 0], heroes: ['great-noria', 'rice-terraces', 'heliostat-array', 'kite-meadow', 'honeycomb-apiary', 'travertine-baths', 'wellspring-spire'] },
 ];
 
 /** All hero ids on the grid, for tests. */
@@ -209,10 +210,11 @@ const UTILITY: Town[] = [{ name: 'Sunfield', blocks: [-9, -2, -7, -2], mix: () =
 const TERRACE_STEP = 0.8;
 
 /**
- * Builds the hero district around the spire's block at (sx, sz): grades every block into a terrace (each as
+ * Builds the hero district around the centre block at (sx, sz): grades every block into a terrace (each as
  * close to its ground as the TERRACE_STEP limit allows, so the streets between them stay drivable and the
- * empty lots are ready to build on), places the spire, then the heroes of QUARTERS. Each hero sits flush with
- * the street on its block's side facing away from the spire, long side along it. Returns false if the spire won't fit.
+ * empty lots are ready to build on), places the Aurora Gemini (D-135), then the heroes of QUARTERS. Each hero sits
+ * flush with the street on its block's side facing away from the centre, long side along it. Returns false if the
+ * twins won't fit.
  */
 function heroDistrict(b: ScenarioBuilder, sx: number, sz: number): boolean {
   const n = GRID - 1;
@@ -245,7 +247,7 @@ function heroDistrict(b: ScenarioBuilder, sx: number, sz: number): boolean {
     });
     b.level(sx + GRID * i, sz + GRID * j, sx + GRID * i + n - 1, sz + GRID * j + n - 1, 3, (lo + hi) / 2);
   });
-  if (!b.building('wellspring-spire', sx, sz, 0)) return false;
+  if (!b.building('aurora-gemini', sx, sz, 0)) return false;
 
   const land = (x: number, z: number, w: number, d: number) => {
     for (let k = z; k < z + d; k++) for (let m = x; m < x + w; m++) if (!b.isLand(m, k)) return false;
@@ -307,7 +309,7 @@ function bloomtopia(b: ScenarioBuilder, cx: number, cz: number): [number, number
 }
 
 /**
- * The founding city: one planned grid round the Wellspring Spire, with the hero district at its heart, Bayfront
+ * The founding city: one planned grid round the Aurora Gemini twin towers, with the hero district at its heart, Bayfront
  * (downtown) down the river to the bay, Eastgate, Westbrook and Hillcrest round it (TOWNS), the Sunfield solar farm,
  * an industrial islet and Bloomtopia on bridged islets. Laid out on the 512 map's tile grid (only the industrial islet
  * still uses `fit`). Deliberately left a little short on water so the steward has something to fix in the first
@@ -336,9 +338,10 @@ export default defineScenario({
     const park = bloomtopia(b, ...P(0.493, 0.862));
     if (park) b.road(park[0] + 18, lineZ(6), park[0] + 18, park[1] - 1, true);
 
-    // The hero district: one street grid of GRID-tile blocks centred on the Wellspring Spire, which fills
-    // block (0, 0) at the island's exact centre where the river rises. Heroes are placed now (so the utility
-    // sweeps count them) but the grid's streets are drawn last, so the sweeps never fill its lots.
+    // The hero district: one street grid of GRID-tile blocks centred on the Aurora Gemini, which fills block
+    // (0, 0) at the island's exact centre where the river rises; the Wellspring Spire moved out to the Working Hills.
+    // Heroes are placed now (so the utility sweeps count them) but the grid's streets are drawn last, so the
+    // sweeps never fill its lots.
     const spire = heroDistrict(b, sx, sz);
 
     // The towns continue the hero district's grid on every side, so the island reads as one planned city: blocks

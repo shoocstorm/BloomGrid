@@ -74,14 +74,14 @@ describe('hero models', () => {
 });
 
 describe('central landmark', () => {
-  it('the founding city grades a street grid at the island centre for the Wellspring Spire and its hero district, with road access, and saves it', () => {
+  it('the founding city grades a street grid at the island centre for the Aurora Gemini and its hero district, with road access, and saves it', () => {
     const s = makeSim(7);
     applyScenario(s.city, 'founding-city');
     const g = s.city.grid;
     const h = s.city.size / 2;
     const eid = g.occupant[g.index(h, h)]!;
     expect(eid).toBeGreaterThanOrEqual(0);
-    expect(buildings.at(Building.def[eid]!).id).toBe('wellspring-spire');
+    expect(buildings.at(Building.def[eid]!).id).toBe('aurora-gemini');
     const [x, z] = [Building.x[eid]!, Building.z[eid]!];
     const { min, max } = g.rangeOver(x, z, 14, 14);
     expect(max - min).toBeLessThan(0.01);
@@ -89,7 +89,9 @@ describe('central landmark', () => {
     expect(s.city.terrainEdits.size).toBeGreaterThan(200);
     // The hero district around it: every hero placed, each with highway access, and empty graded lots left
     // on the grid for future heroes.
-    expect(HERO_IDS.length).toBe(40);
+    // The Wellspring Spire is one of them now, smaller, out in the Working Hills (D-135).
+    expect(HERO_IDS.length).toBe(41);
+    expect(HERO_IDS).toContain('wellspring-spire');
     for (const id of HERO_IDS) {
       const e = s.city.buildingEntities().find((b) => buildings.at(Building.def[b]!).id === id);
       expect(e, id).toBeDefined();
@@ -106,7 +108,8 @@ describe('central landmark', () => {
         }
         if (free && g.rangeOver(bx, bz, GRID - 1, GRID - 1).max - g.rangeOver(bx, bz, GRID - 1, GRID - 1).min < 0.01) lots++;
       }
-    expect(lots).toBeGreaterThanOrEqual(10);
+    // Nine left since the Wellspring Spire moved out of the centre onto a spare block of the Working Hills (D-135).
+    expect(lots).toBeGreaterThanOrEqual(9);
     expect(openingView(s.city).x).toBeLessThan(h);
     s.step(10);
     const c2 = new City(new EventBus(), 1);

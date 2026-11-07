@@ -4,16 +4,17 @@ import type { City } from '@/sim/City';
 import type { CameraView } from '@/input/CityCamera';
 
 /**
- * Where a city opens: a low, sweeping view of its largest landmark (the Wellspring Spire and its
- * hero quarter in the founding city), else the middle of what is built (a fresh island), else the old downtown view.
+ * Where a city opens: a low, sweeping view of its largest landmark, the dearest on a tie (the Aurora Gemini and its
+ * hero quarter in the founding city, D-135), else the middle of what is built (a fresh island), else the old downtown view.
  */
 export function openingView(city: City): CameraView {
   let best = -1;
   let area = 0;
+  let cost = 0;
   for (const eid of city.buildingEntities()) {
     const def = buildings.at(Building.def[eid]!);
     const a = def.footprint[0] * def.footprint[1];
-    if (def.landmark && a > area) [best, area] = [eid, a];
+    if (def.landmark && (a > area || (a === area && def.stats.cost > cost))) [best, area, cost] = [eid, a, def.stats.cost];
   }
   if (best < 0) {
     // No landmark (a fresh island, D-072): the middle of what is built, else the old downtown view.

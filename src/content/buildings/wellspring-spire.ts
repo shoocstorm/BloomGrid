@@ -9,8 +9,12 @@ import {
   ivyEdge,
   lamp,
   railRing,
+  scaled,
   tree,
 } from '../kit';
+
+/** Drawn at 70 % on a 10 × 10 lot (D-135): the Aurora Gemini is the island's centrepiece now, and the spire must not compete. */
+const SCALE = 0.7;
 
 const TAU = Math.PI * 2;
 const TIER = 1.28; // four glass floors
@@ -44,25 +48,27 @@ export default defineBuilding({
   id: 'wellspring-spire',
   name: 'Wellspring Spire',
   description:
-    'The island’s heart, rising where the river is born: a twisting arcology of research labs and sky-gardens on living root buttresses, a cantilevered sky-park whose rim pours four waterfalls into the moat, a solar halo, and a beacon spire seen from every shore.',
+    'A landmark of the Working Hills by the lake, rising where the river is born: a twisting arcology of research labs and sky-gardens on living root buttresses, a cantilevered sky-park whose rim pours four waterfalls into the moat, a solar halo, and a beacon spire seen from every shore.',
   category: 'commercial',
-  footprint: [14, 14],
+  footprint: [10, 10],
+  // About half the floor area it had at full size (D-135), and half the jobs and output.
   stats: {
-    cost: 9000,
-    energy: 60,
-    eco: 40,
-    happiness: 40,
+    cost: 6000,
+    energy: 30,
+    eco: 28,
+    happiness: 30,
     population: 0,
-    jobs: 320,
-    pollution: -6,
-    water: -16,
+    jobs: 160,
+    pollution: -4,
+    water: -8,
   },
   growthTime: 240,
   pollinators: 3,
   cleanEnergy: true,
   variants: 1,
   landmark: true,
-  recipe(b) {
+  recipe(lot) {
+    const b = scaled(lot, SCALE);
     // Plaza: paving, a square moat, corner gardens and fungus lamps along the edge.
     b.add({ piece: 'slab', p: [0, 0, 0], s: [13.8, 0.16, 13.8], tint: PALETTE.concrete });
     const Y = 0.16;

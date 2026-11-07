@@ -376,3 +376,30 @@ export function footbridge(b: KitBuilder, x: number, y: number, z: number, len: 
     if (alongX) railing(b, x, y + 0.07, z + s * (w / 2 - 0.03), len);
     else railing(b, x + s * (w / 2 - 0.03), y + 0.07, z, len, true);
 }
+
+/**
+ * A builder that draws a recipe at `k` times its size (positions and scales; rotations unchanged), for a landmark
+ * reused smaller (the Wellspring Spire at 0.7 once the Aurora Gemini took the centre, D-135). Its `w` / `d` are the
+ * footprint in the recipe's own (unscaled) units.
+ */
+export function scaled(b: KitBuilder, k: number): KitBuilder {
+  return {
+    get w() {
+      return b.w / k;
+    },
+    get d() {
+      return b.d / k;
+    },
+    rand: () => b.rand(),
+    range: (lo, hi) => b.range(lo, hi),
+    pick: (arr) => b.pick(arr),
+    add: (spec) =>
+      b.add({
+        ...spec,
+        p: spec.p && [spec.p[0] * k, spec.p[1] * k, spec.p[2] * k],
+        s: spec.s === undefined ? k : typeof spec.s === 'number' ? spec.s * k : [spec.s[0] * k, spec.s[1] * k, spec.s[2] * k],
+      }),
+    level: (n, fn) => b.level(n, fn),
+    upTo: (n, fn) => b.upTo(n, fn),
+  };
+}

@@ -2229,3 +2229,31 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   side streets are mostly empty.
 - **Rejected**: one `InstancedMesh` per vehicle kind (+3 draw calls, near the 300 budget); car shadows (sub-texel
   at the shadow map's resolution, no visible gain for a shadow-pass batch).
+
+## D-135 — The Aurora Gemini: a twin landmark at the island centre; the Wellspring Spire moves out, smaller (2026-11-07)
+
+- **The building** (`content/buildings/aurora-gemini.ts`, 14×14, the founding city's centre block): two identical
+  round glass towers (32 storeys of `glassCyl` drums, ~56 tall with spires) on a plaza with a lily canal, living root
+  buttresses, round lobbies with sliding doors (E in walk mode) and a lit entrance. Light ribs spiral up the drums;
+  round sky-garden lawns cantilever past the shaft every few storeys (green bands from afar). A garden bridge and a
+  sky-pool bridge link the towers, and the pool pours a waterfall into the canal. The **Sun Gate** hangs between the
+  spires: three Aurora Rings with golden light-rib rays (petals were flat and vanished edge-on; round ribs read from
+  any side). Designed levels: a light bridge and ivy (2), a crossed gyroscope ring, taller spires and gold beacons (3).
+  Only existing kit pieces, so no new instanced batches.
+- **Stats**: mostly homes (600 residents, 240 jobs). As offices (360 jobs) the twins pulled commuters in from the towns
+  and the showcase's traffic flow fell under the zoning guard (0.847 < 0.85); homes at the centre bring it to 0.853.
+- **Interactions** (`modules/aurora/`, render-only): golden searchlights sweep from both crowns at night; **Light show**
+  (42 s: beams fan out, speed up and cycle the spectrum, an aurora curtain ripples over the Sun Gate); **Sky deck**
+  (rooftop explore mode on the highest sky-garden); **Postcard** (clears the selection, frames both towers whole,
+  photo mode). Beams and curtain are one additive mesh posed in the shader (sweep angle advanced on the CPU so speed
+  changes never jump), drawn only at night or during a show. Inspector buttons come through a new generic hook,
+  `hud.buildingActions(eid => buttons)`.
+- **Camera `aim`**: `CameraView.aim` lifts the orbit point above the ground so a tall landmark fits the frame (the
+  Postcard, screenshots); any pan, `lookAt`, `locate` or new view resets it to 0.
+- **Wellspring Spire**: the opening landmark until now. It moved to the end of the Working Hills quarter (by the lake)
+  and is drawn at 0.7 through `scaled(b, k)` (a builder that scales every piece's position and size) on a 10×10 lot,
+  ~29 tall against the twins' ~56, with half its stats. The Quartz Spire keeps its Civic Ring block. One spare hero
+  lot fewer (9). The opening camera prefers the larger landmark, then the dearer one.
+- **Rejected**: mirrored, counter-twisting towers in two colours (Sol gold, Luna silver): the steward asked for
+  identical round twins. A sky-pod port on the twins (`transit`) lowered the flow further. Draw calls at the wide
+  views (346 near-horizon, 364 overview) are the same as before this change: over budget already, not made worse.

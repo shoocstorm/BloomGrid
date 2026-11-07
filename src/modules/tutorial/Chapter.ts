@@ -187,7 +187,7 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
         { class: 'ch-list' },
         h('li', {}, icon('city'), 'About 2,000 buildings and 25,000 residents across named towns'),
         h('li', {}, icon('train'), 'The Aeroline maglev, sky-lane pods and Flora, all unlocked'),
-        h('li', {}, icon('sparkle'), 'The Wellspring Spire, Bloomtopia park, a wind farm and sea wonders'),
+        h('li', {}, icon('sparkle'), 'The Aurora Gemini twin towers, Bloomtopia park, a wind farm and sea wonders'),
         h('li', {}, icon('eye'), 'Explore it on foot, by drone or by train, or run it as its steward'),
       ),
       h('p', { class: 'ch-note' }, o.first ? 'Your saved city stays saved.' : 'Replaces the city on screen.'),
