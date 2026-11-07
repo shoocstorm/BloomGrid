@@ -417,6 +417,12 @@ export const audioModule: GameModule = {
       s.burst(0.25, 0.5 * h.vol, 'highpass', 3000);
       s.burst(2.2, 0.45 * h.vol, 'lowpass', 300, 60, h.delay);
     });
+    // Storm lightning (crises/Weather) rolls in as thunder; strikes already crack above, so only ambient strokes rumble.
+    bus.on('weather:flash', ({ x, z, power }) => {
+      if (power >= 1) return;
+      const h = s.heard(x, z);
+      s.burst(3.2, 0.35 * power * Math.max(0.35, h.vol), 'lowpass', 220, 45, 0.4 + h.delay);
+    });
     bus.on('quake:shock', ({ magnitude }) => s.burst(3, Math.min(0.6, 0.08 * magnitude), 'lowpass', 120, 40));
     bus.on('fireworks:volley', ({ show, kinds }) => {
       const h = s.heard(show.x, show.z);

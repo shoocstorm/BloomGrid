@@ -31,7 +31,8 @@ const DRIFT = 0.7;
 /**
  * Cumulus clouds: puffy clusters of soft spheres drifting slowly east high over the island, all in one
  * draw call (positions are shader-animated from `U.clock`). Clouds part along the line from the camera to
- * its focus, so they frame the view instead of hiding the city; storms bring more, darker clouds.
+ * its focus, so they frame the view instead of hiding the city; storms bring more, darker clouds, and lightning
+ * (`U.flash`) lights them from inside.
  */
 export class Clouds {
   readonly mesh: Mesh;
@@ -98,13 +99,17 @@ export class Clouds {
     const under = mix(float(0.7), float(1), smoothstep(-0.7, 0.5, nrm.y));
     const day = mix(shade, U.sunColor.mul(1.05), lam).mul(under);
     const lit = mix(day, vec3(0.035, 0.045, 0.08).mul(under), U.night);
-    m.colorNode = mix(
+    const stormy = mix(
       lit,
       vec3(0.42, 0.46, 0.5)
         .mul(under)
         .mul(max(float(0.3), float(1).sub(U.night))),
       U.storm.mul(0.75),
     );
+    // Lightning lights the clouds near the strike from inside, brightest on their undersides.
+    const reach = smoothstep(U.flash.z, U.flash.z.mul(0.2), distance(vec2(centre.x, centre.z), vec2(U.flash.x, U.flash.y)));
+    const glow = U.flash.w.mul(reach.mul(0.85).add(0.15)).mul(mix(float(1), float(0.55), smoothstep(-0.4, 0.6, nrm.y)));
+    m.colorNode = stormy.add(vec3(0.78, 0.84, 1).mul(glow));
     this.mesh = new Mesh(geo, m);
     this.mesh.frustumCulled = false;
     this.mesh.name = 'clouds';

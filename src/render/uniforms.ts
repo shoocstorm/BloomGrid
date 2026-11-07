@@ -31,6 +31,8 @@ export const U = {
   heat: uniform(0),
   algae: uniform(0),
   rain: uniform(0),
+  /** Lightning flash lighting the clouds from inside: centre x, z, radius and strength 0..1 (crises/Weather). */
+  flash: uniform(new Vector4(0, 0, 1, 0)),
   /** Season look: tint colour and strength for flowers and canopies. */
   seasonTint: uniform(new Color(0xffb7d5)),
   seasonAmount: uniform(0),
