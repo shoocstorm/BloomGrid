@@ -1,7 +1,6 @@
 import {
   AdditiveBlending,
   NormalBlending,
-  SphereGeometry,
   CylinderGeometry,
   DoubleSide,
   InstancedBufferAttribute,
@@ -31,17 +30,19 @@ import {
   normalGeometry,
   normalize,
   positionGeometry,
+  positionView,
   reflect,
   sin,
   smoothstep,
   step,
   time,
+  transformNormalToView,
   uniform,
   uv,
   vec2,
   vec3,
 } from 'three/tsl';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { Node } from 'three/webgpu';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { skyShade } from '@/render/bake';
@@ -52,6 +53,7 @@ import { hash2 } from '@/sim/random';
 import { Building } from '@/ecs/components';
 import { heightAt, placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { podGeometry } from './podModel';
+import { CAR_HOVER, CAR_MIX, CAR_PART, CAR_TYPE, carGeometry } from './carModel';
 import { arcProfile, arcProfileNode, arcY, orientNode, podInfo as packPodInfo, podPathAt, podPathNode } from './skypath';
 
 /** Ride-a-pod camera hook (explore mode): pose of pod i at a clock, mirroring the pod shader. */
@@ -95,8 +97,8 @@ const MAX_LIFT = 90;
 /** Pods set down beside an Aeroline platform this far above its deck (riders change to the trains there). */
 const RAIL_Y = 1.6;
 const MAX_RUN = 8;
-/** Agents per tile of a run at congestion 1 (density reads as traffic). */
-const AGENTS_PER_TILE = 4;
+/** Agents per tile of a run at congestion 1 (density reads as traffic; 4 crowded the streets, D-134). */
+const AGENTS_PER_TILE = 1.5;
 
 /**
  * Mobility visuals (Phase 8). Everything moves on the GPU from static per-instance data that is
@@ -120,17 +122,16 @@ export const mobilityModule: GameModule = {
     // ── Hover-commuters ────────────────────────────────────────────────────────
     const aSeg = new InstancedBufferAttribute(new Float32Array(AGENTS * 4), 4);
     const aInfo = new InstancedBufferAttribute(new Float32Array(AGENTS * 4), 4);
-    // A small rounded hover-car (D-096): a low body with a glass canopy (long axis x).
-    const agentGeo = mergeGeometries([
-      new SphereGeometry(0.5, 12, 6).scale(0.34, 0.1, 0.17).translate(0, 0.05, 0),
-      new SphereGeometry(0.5, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).scale(0.17, 0.09, 0.13).translate(-0.02, 0.075, 0),
-    ])!;
+    // A compact hover-car (D-134, carModel.ts): hull, glass cabin, solar roof, light bars and glowing skids.
+    const agentGeo = carGeometry();
     agentGeo.setAttribute('aSeg', aSeg);
     agentGeo.setAttribute('aInfo', aInfo);
-    const am = new MeshStandardNodeMaterial({ roughness: 0.4, metalness: 0.2 });
+    const am = new MeshStandardNodeMaterial({ roughness: 0.35, metalness: 0.15 });
     {
       const seg = attribute('aSeg', 'vec4');
       const info = attribute('aInfo', 'vec4');
+      const partId = attribute('aPart', 'float');
+      const isPart = (id: number) => step(abs(partId.sub(id)), 0.5);
       const seed = info.z;
       const cong = info.w;
       const a = seg.xy;
@@ -141,30 +142,67 @@ export const mobilityModule: GameModule = {
       const speed = float(1.6).div(float(1).add(max(cong.sub(0.8), 0).mul(2.5)));
       const u = fract(time.mul(speed).div(len).add(seed.mul(13.7)));
       const t = mix(float(1).sub(u), u, toWork);
-      // Lanes keep to the carriageway's middle, clear of the pavements where walkers stroll (D-125).
-      const lane = toWork.mul(2).sub(1).mul(0.13);
+      // Lanes keep to the carriageway's middle, clear of the pavements where walkers stroll (D-125); each
+      // direction its own lane between the centre guideline and the kerb (D-134).
+      const lane = toWork.mul(2).sub(1).mul(0.16);
       const flat = mix(a, b, t).add(vec2(dir.y.negate(), dir.x).mul(lane));
-      const y = mix(info.x, info.y, t).add(0.12);
+      const y = mix(info.x, info.y, t).add(CAR_HOVER).add(sin(time.mul(2.3).add(seed.mul(40))).mul(0.004));
       const shown = step(fract(seed.mul(7.31)), density).mul(smoothstep(0, 0.06, u)).mul(smoothstep(1, 0.94, u));
-      // Runs are axis-aligned: swap x/z of the body when travelling along z.
-      const g = positionGeometry;
-      const alongZ = step(abs(dir.x), abs(dir.y));
-      const body = mix(g, vec3(g.z, g.y, g.x), alongZ);
-      am.positionNode = vec3(flat.x, y, flat.y).add(body.mul(shown));
+      // Nose first: heading is the run's direction, reversed for cars heading home.
+      const h = dir.mul(toWork.mul(2).sub(1));
+      const turn = (v: Node<'vec3'>) => vec3(v.x.mul(h.x).sub(v.z.mul(h.y)), v.y, v.x.mul(h.y).add(v.z.mul(h.x)));
+      // Each car is one kind (compact, micro, van, bus; CAR_MIX); the geometry's other kinds collapse to a point.
+      const roll = fract(seed.mul(29.17));
+      const kind = step(CAR_MIX[0], roll).add(step(CAR_MIX[1], roll)).add(step(CAR_MIX[2], roll));
+      const keep = step(abs(attribute('aType', 'float').sub(kind)), 0.5);
+      am.positionNode = vec3(flat.x, y, flat.y).add(turn(positionGeometry).mul(shown.mul(keep)));
+      am.normalNode = transformNormalToView(turn(normalGeometry));
       // Warm headlights (distinct from the cyan guidelines) turning amber, then coral, as lanes jam.
       const tint = mix(mix(color(0xfff1c9), color(0xffb347), smoothstep(0.5, 1.0, cong)), color(0xff5f6d), smoothstep(1.0, 1.5, cong));
-      // By day a pastel body per car and a dark glass canopy (D-096); at night the glow as before.
-      const pick = fract(seed.mul(17.31)).mul(5).floor();
+      // A pastel body per car (D-096), smoked glass, a dark solar roof with gold busbars, dark sill and skids.
+      const pick = fract(seed.mul(17.31)).mul(6).floor();
       const paint = mix(
         mix(mix(color(0xf4f1e8), color(0x7fd1c7), step(0.5, pick)), mix(color(0xffc58a), color(0x9ec5ff), step(2.5, pick)), step(1.5, pick)),
-        color(0xf7d36b),
+        mix(color(0xf7d36b), color(0xe79bb4), step(4.5, pick)),
         step(3.5, pick),
       );
-      const canopy = step(0.098, positionGeometry.y);
-      am.colorNode = mix(mix(paint, color(0x2a3a44), canopy), tint, U.night.mul(0.6));
-      // Sub-pixel commuters twinkle as they move: dim their glow to their share of a pixel (~2 px across, D-064).
-      const cover = min(float(1), float(0.08).div(max(length(fwidth(positionGeometry)), float(1e-5))));
-      am.emissiveNode = tint.mul(U.night.mul(1.6).add(0.05)).mul(cover);
+      const glass = isPart(CAR_PART.glass);
+      const solar = isPart(CAR_PART.solar);
+      const head = isPart(CAR_PART.head);
+      const tail = isPart(CAR_PART.tail);
+      const skid = isPart(CAR_PART.skid);
+      const trim = isPart(CAR_PART.trim);
+      const leaf = isPart(CAR_PART.leaf);
+      // Liveries: shuttle buses wear the transit teal, vans a cream cargo box over their own colour.
+      const isBus = step(CAR_TYPE.bus - 0.5, kind);
+      const isVan = step(CAR_TYPE.van - 0.5, kind).mul(float(1).sub(isBus));
+      const cargo = isVan.mul(step(0.075, positionGeometry.y)).mul(step(positionGeometry.x, 0.06));
+      const livery = mix(mix(paint, color(0xf2ecdc), cargo), color(0x2fa39a), isBus);
+      const g = positionGeometry;
+      const busbar = smoothstep(0.0016, 0.0006, abs(fract(g.z.mul(32).add(0.5)).sub(0.5)).div(32)).mul(solar);
+      const fresnel = float(1).sub(max(dot(transformNormalToView(turn(normalGeometry)).normalize(), positionView.normalize().negate()), 0)).pow(3);
+      const pane = mix(color(0x16232a), mix(U.horizon, U.zenith, 0.5), fresnel.mul(0.45).add(0.05));
+      let body = mix(livery, pane, glass);
+      body = mix(body, mix(color(0x23305e), color(0xd6b25a), busbar), solar);
+      body = mix(body, color(0x2b3136), trim.add(skid).min(1));
+      body = mix(body, color(0xfff6e0), head);
+      body = mix(body, color(0xb3202e), tail);
+      const sprig = sin(positionGeometry.z.mul(150)).mul(0.5).add(0.5);
+      body = mix(body, mix(color(0x4f8f3a), color(0x7fbf4a), sprig), leaf);
+      // Up close the parts read; once a car is a few pixels across its detail would shimmer, so it turns into a
+      // single soft swatch of its traffic tint at night, as before (D-064).
+      const pxw = length(fwidth(positionGeometry));
+      const near = smoothstep(0.05, 0.022, pxw);
+      const cover = min(float(1), float(0.08).div(max(pxw, float(1e-5))));
+      am.colorNode = mix(mix(livery, tint, U.night.mul(0.6)), body, near);
+      am.roughnessNode = mix(float(0.35), float(0.08), glass.add(solar).min(1).mul(near));
+      // Lights: the nose bar and the skids carry the traffic tint, tail bars glow red, cabins warm after dark.
+      const lights = tint
+        .mul(head.mul(2.2).add(skid.mul(0.9)))
+        .mul(U.night.mul(1.4).add(0.25))
+        .add(color(0xff3b3b).mul(tail).mul(U.night.mul(1.6).add(0.35)))
+        .add(color(0xffb45e).mul(glass).mul(U.night.mul(0.25)));
+      am.emissiveNode = mix(tint.mul(U.night.mul(1.6).add(0.05)), lights, near).mul(cover);
     }
     const agents = new InstancedMesh(agentGeo, am, AGENTS);
     agents.count = 0;
@@ -378,7 +416,7 @@ export const mobilityModule: GameModule = {
         }
         const cong = sum / len;
         runs.push(t, next[end]!, cong, len);
-        want += Math.max(1, cong * len * AGENTS_PER_TILE);
+        want += cong * len * AGENTS_PER_TILE;
       }
       // Spread the agent budget evenly over the island when the city wants more than it holds.
       const scale = Math.min(1, AGENTS / Math.max(1, want));
@@ -387,7 +425,8 @@ export const mobilityModule: GameModule = {
         const t = runs[r]!;
         const tip = runs[r + 1]!;
         const cong = runs[r + 2]!;
-        const k = Math.min(AGENTS - count, Math.max(1, Math.round(Math.max(1, cong * runs[r + 3]! * AGENTS_PER_TILE) * scale)));
+        // Quiet runs roll for their car rather than all getting one (D-134): side streets stay mostly empty.
+        const k = Math.min(AGENTS - count, Math.floor(cong * runs[r + 3]! * AGENTS_PER_TILE * scale + hash2(t, tip, 53)));
         for (let i = 0; i < k; i++) {
           const o = count * 4;
           seg[o] = (t % g.w) + 0.5;

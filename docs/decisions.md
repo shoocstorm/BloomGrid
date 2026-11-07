@@ -2201,3 +2201,31 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   their building's lot.
 - **Rejected**: per-building canvas textures (uploads on every pan, D-077 power budget); HUD-floating labels (the
   ask was signage on the building).
+
+## D-134 — Street detail: kerbs, pavements, markings; four kinds of hover vehicle, fewer of them (2026-11-07)
+
+- **Road geometry** (`RoadRenderer`, `TileBuilder`): a paved tile (Living Highway, Boulevard, bridge deck) facing open
+  ground is a 6×6 vertex grid: carriageway in the middle, a pavement band (`PAVE_W` 0.13 / 0.17 by level) raised
+  `KERB_H` (0.028) along each open side with a near-vertical kerb face, and a skirt down into the ground under the
+  open edge. The kerb drops to the carriageway where the neighbour's pavement doesn't carry on (crossings,
+  junctions, a width change). Raw tracks and junction interiors stay one quad. One mesh per chunk as before (no new
+  draw calls); `aMask` / `aOvergrowth` / `aLevel` / `aBorn` are packed into one `aRoad` vec4; normals are written,
+  not computed. Walkers (`paveRise`), roadside fungi and boulevard trees / lamps stand on the raised pavement;
+  boulevard trees moved into a planting strip behind the kerb (0.385 from centre), fungi to the outer edge.
+- **Road material**: dark permeable eco-paving with moss joints and a moss gutter at each kerb, white lane-edge lines,
+  pale stone flag pavements (boulevards: a flower strip behind the kerb), kerb caps, zebra crossings on the
+  approaches to a junction (mask bits 4–7 flag a junction neighbour); the cyan pollen guideline is unchanged.
+  Joints and zebras use `stripes()` so they fade to their mean far out: flicker probe identical to before at
+  12–260 tiles, day and night.
+- **Vehicles** (`mobility/carModel.ts`): compact car, micro bubble-car, delivery van with a planted cargo roof and a
+  teal solar shuttle bus, merged into one geometry (`aType`, `aPart`); the shader keeps each car's kind
+  (`CAR_MIX` 56 / 22 / 14 / 8 %) and collapses the rest, so the mix costs no draw call (≤ ~200 visible tris per
+  car). Cars now face their direction of travel (heading-rotated position and normals), keep to ±0.16 lanes and
+  hover 0.03 over the road. Up close: smoked glass with a sky fresnel, solar roofs with busbars, a nose light bar
+  and skids in the traffic tint, red tail bars; once a car is under ~10 px it turns into the old single-tint
+  swatch (D-064) so the congestion read-out at night survives.
+- **Fewer cars**: `AGENTS_PER_TILE` 4 → 1.5, and a run's car count is rolled (`floor(expected + hash)`) instead of
+  at least one per run: ≈965 → ≈213 cars island-wide at morning rush in the founding city; busy roads keep traffic,
+  side streets are mostly empty.
+- **Rejected**: one `InstancedMesh` per vehicle kind (+3 draw calls, near the 300 budget); car shadows (sub-texel
+  at the shadow map's resolution, no visible gain for a shadow-pass batch).

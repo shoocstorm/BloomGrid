@@ -622,15 +622,19 @@ export function initMaterials(): void {
     return m;
   }, { overlay: 'plain' });
 
-  // Living Highway: bio-turf track with a glowing pollen guideline toward connected neighbours.
+  // Living Highway (D-134): a carriageway of dark permeable eco-paving with moss gutters, lane edge lines and the
+  // glowing pollen guideline toward connected neighbours; raised stone pavements along open sides (geometry in
+  // RoadRenderer), zebra crossings on the approaches to junctions. `aRoad` = neighbour mask, overgrowth, level, born.
   define('road', () => {
-    const m = new MeshStandardNodeMaterial({ roughness: 0.95 });
-    const mask = attribute('aMask', 'float');
+    const m = new MeshStandardNodeMaterial({ roughness: 0.92 });
+    const info = attribute('aRoad', 'vec4');
+    const mask = info.x;
+    const bit = (k: number) => mod(floor(mask.div(2 ** k)), 2);
     const c = uv().sub(0.5);
-    const bN = mod(mask, 2);
-    const bE = mod(floor(mask.div(2)), 2);
-    const bS = mod(floor(mask.div(4)), 2);
-    const bW = floor(mask.div(8));
+    const bN = bit(0);
+    const bE = bit(1);
+    const bS = bit(2);
+    const bW = bit(3);
     const far = float(1);
     const dN = mix(far, abs(c.x), bN.mul(step(c.y, 0)));
     const dS = mix(far, abs(c.x), bS.mul(step(0, c.y)));
@@ -639,43 +643,90 @@ export function initMaterials(): void {
     const d = min(min(min(dN, dS), min(dE, dW)), c.length().mul(0.8));
     // Anti-aliased guideline (D-064). Zoomed out, a tile spans a few pixels: a hairline and its running dashes
     // flicker in and out of pixels as the camera moves, and bloom turns that into flashes. The line is drawn at
-    // least about a pixel wide and dimmed as it widens (its average light stays put); dashes and turf noise fade
-    // to their average once they are smaller than a pixel.
+    // least about a pixel wide and dimmed as it widens (its average light stays put); dashes and paving joints
+    // fade to their average once they are smaller than a pixel.
     const px = groundPx();
-    const hw = float(0.035);
+    const hw = float(0.03);
     const drawW = max(hw, px.mul(0.7));
-    const soft = max(px.mul(0.5), float(0.015));
-    const line = float(1).sub(smoothstep(drawW.sub(soft), drawW.add(soft), d)).mul(min(float(1), hw.mul(1.5).div(drawW)));
+    const soft = max(px.mul(0.5), float(0.012));
+    const lineAt = (dist: Node<'float'>) => float(1).sub(smoothstep(drawW.sub(soft), drawW.add(soft), dist)).mul(min(float(1), hw.mul(1.5).div(drawW)));
+    const line = lineAt(d);
     const dash = step(0.45, fract(positionWorld.x.add(positionWorld.z).mul(3).sub(time.mul(0.8))));
     const dots = mix(dash, float(0.55), smoothstep(0.04, 0.12, px));
     const detail = float(1).sub(smoothstep(0.06, 0.2, px));
-    const turf = mix(color(0x3e7a3a), color(0x5c9a48), mx_noise_float(positionWorld.mul(5)).mul(detail).mul(0.5).add(0.5));
-    const rut = smoothstep(0.12, 0.2, d).mul(0.12);
-    // Unfunded highways are reclaimed: wild meadow creeps in and the guideline goes dark.
-    const og = attribute('aOvergrowth', 'float');
-    const wild = mix(color(0x6f9a3c), color(0x9cbf5a), mx_noise_float(positionWorld.mul(9)).mul(detail).mul(0.5).add(0.5));
     // Highway levels (D-096): 0 raw track, 1 Living Highway, 2 Bloom Boulevard.
-    const lvl = attribute('aLevel', 'float');
+    const og = info.y;
+    const lvl = info.z;
     const raw = float(1).sub(step(0.5, lvl));
     const blvd = step(1.5, lvl);
+    // Distance into the carriageway from the nearest pavement (negative on it): pavements line open sides only,
+    // as wide as RoadRenderer's PAVE_W for the level.
+    const W = mix(float(0.13), float(0.17), blvd).mul(float(1).sub(raw));
+    const half = float(0.5).sub(W);
+    const e = min(
+      min(mix(c.y.add(half), far, bN), mix(half.sub(c.y), far, bS)),
+      min(mix(half.sub(c.x), far, bE), mix(c.x.add(half), far, bW)),
+    );
+    const aa = max(px.mul(0.6), float(0.003));
+    const pave = float(1).sub(smoothstep(aa.negate(), aa, e)).mul(float(1).sub(raw));
+    // Kerb stones: the near-vertical face (0..0.012 into the carriageway) and a pale cap along the pavement's edge.
+    const kerbFace = smoothstep(aa.negate(), aa, e).mul(float(1).sub(smoothstep(float(0.012).sub(aa), float(0.012).add(aa), e)));
+    const kerbCap = pave.mul(smoothstep(float(-0.028).sub(aa), float(-0.028).add(aa), e));
+    // Carriageway: dark permeable eco-paving, its block joints filled with moss (faded to their mean far away).
+    const wx = positionWorld.x;
+    const wz = positionWorld.z;
+    const joint = max(stripes(wx.mul(7), 0.9), stripes(wz.mul(7).add(fract(floor(wx.mul(7)).mul(0.5))), 0.9));
+    const grain = mx_noise_float(positionWorld.mul(23)).mul(detail).mul(0.5).add(0.5);
+    const asphalt = mix(color(0x5b5c55), color(0x6c6c63), grain).mul(float(1).sub(joint.mul(0.1)));
+    const mossJoint = mix(asphalt, color(0x5f7d45), joint.mul(0.25).mul(detail));
+    // A living gutter: a moss band along each kerb.
+    const gutter = float(1).sub(smoothstep(0.02, 0.06, e)).mul(step(0.0, e));
+    const carriage = mix(mossJoint, color(0x5b8a46), gutter.mul(0.55));
+    // Lane edge lines just inside each kerb, and (boulevards) a second guideline beside the first.
+    const edgeLine = lineAt(abs(e.sub(0.075))).mul(0.85).mul(float(1).sub(raw));
+    const line2 = lineAt(abs(d.sub(0.1))).mul(blvd);
+    const lines = max(line, line2);
+    // Zebra crossings on the approaches to a junction (mask bits 4–7), across the carriageway only.
+    const zone = (jbit: number, along: Node<'float'>) => bit(jbit).mul(smoothstep(0.2, 0.18, along)).mul(smoothstep(0.03, 0.05, along));
+    const zebraX = stripes(c.x.mul(9).add(0.25), 0.5);
+    const zebraZ = stripes(c.y.mul(9).add(0.25), 0.5);
+    const zebra = max(
+      max(zone(4, c.y.add(0.5)).mul(zebraX), zone(6, float(0.5).sub(c.y)).mul(zebraX)),
+      max(zone(5, float(0.5).sub(c.x)).mul(zebraZ), zone(7, c.x.add(0.5)).mul(zebraZ)),
+    )
+      .mul(smoothstep(0.03, 0.05, e))
+      .mul(float(1).sub(raw));
+    // Pavements: pale stone flags with fine joints; boulevards plant a flower strip behind the kerb.
+    const flag = max(stripes(wx.mul(5), 0.94), stripes(wz.mul(5), 0.94));
+    const stone = mix(color(0xd8d1c1), color(0xc9c1af), mx_noise_float(positionWorld.mul(9)).mul(detail).mul(0.5).add(0.5)).mul(
+      float(1).sub(flag.mul(0.16)),
+    );
+    const blooms = step(0.6, mx_noise_float(positionWorld.mul(14))).mul(detail);
+    const strip = blvd.mul(smoothstep(-0.03, -0.035, e)).mul(smoothstep(-0.09, -0.085, e));
+    const walk = mix(stone, mix(color(0x5c9a48), color(0xffb7d5), blooms), strip);
+    const kerbCol = mix(color(0xeeeae0), color(0xa7a08f), kerbFace);
     // Raw track: packed earth with two darker wheel ruts and a grass crown, fading into the verge; no light.
     const earth = mix(color(0x8a6e4e), color(0xa88a62), mx_noise_float(positionWorld.mul(7)).mul(detail).mul(0.5).add(0.5));
     const ruts = float(1).sub(smoothstep(0.03, max(px, float(0.04)).add(0.03), abs(d.sub(0.19)))).mul(0.22).mul(detail.mul(0.7).add(0.3));
     const crown = float(1).sub(smoothstep(0.05, 0.1, d)).mul(0.6);
     const verge = smoothstep(0.32, 0.46, d);
     const track = mix(mix(earth.mul(float(1).sub(ruts)), color(0x6f9a4a), crown), color(0x6f9a4a), verge);
-    // Boulevard: pale paving bands at the kerbs with a flower strip, and a second guideline beside the first.
-    const kerb = smoothstep(0.34, 0.38, d);
-    const blooms = step(0.6, mx_noise_float(positionWorld.mul(14))).mul(detail);
-    const kerbCol = mix(color(0xe9e2d2), mix(color(0x5c9a48), color(0xffb7d5), blooms), smoothstep(0.42, 0.45, d));
-    const line2 = float(1).sub(smoothstep(drawW.sub(soft), drawW.add(soft), abs(d.sub(0.1)))).mul(min(float(1), hw.mul(1.5).div(drawW))).mul(blvd);
-    const lines = max(line, line2);
-    const lit = lines.mul(float(1).sub(smoothstep(0.3, 0.9, og))).mul(float(1).sub(raw));
-    const paved = mix(mix(turf.add(rut), kerbCol, kerb.mul(blvd)), color(0xd9fff4), lit.mul(0.6));
+    // Unfunded highways are reclaimed: wild meadow creeps in and the guideline goes dark.
+    const wild = mix(color(0x6f9a3c), color(0x9cbf5a), mx_noise_float(positionWorld.mul(9)).mul(detail).mul(0.5).add(0.5));
+    const onRoad = float(1).sub(pave).mul(float(1).sub(kerbFace));
+    const lit = lines.mul(float(1).sub(smoothstep(0.3, 0.9, og))).mul(float(1).sub(raw)).mul(onRoad).mul(float(1).sub(zebra));
+    let paved = mix(carriage, color(0xe9e6dc), max(edgeLine.mul(onRoad), zebra));
+    paved = mix(paved, color(0xd9fff4), lit.mul(0.75));
+    paved = mix(paved, walk, pave);
+    paved = mix(paved, kerbCol, max(kerbFace, kerbCap));
+    // The skirt under an open edge (vertical faces) is the kerb's stone side.
+    const side = float(1).sub(smoothstep(0.3, 0.6, abs(normalGeometry.y)));
+    paved = mix(paved, color(0x9d9686), side);
     m.colorNode = mix(mix(paved, track, raw), wild, smoothstep(0.2, 1, og));
+    m.roughnessNode = mix(float(0.92), float(0.75), pave.add(kerbCap).min(1));
     // Roadworks (D-128): a newly laid tile waits under the ground until its time (`aBorn`, clock seconds; 0 = old),
     // rises out of it in a third of a second and flashes as it lands, the flash fading behind the paving wave.
-    const born = attribute('aBorn', 'float');
+    const born = info.w;
     const isNew = step(0.001, born);
     const since = U.clock.sub(born);
     const up = mix(float(1), smoothstep(0, 0.35, since), isNew);

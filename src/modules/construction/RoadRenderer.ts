@@ -149,11 +149,12 @@ export class RoadRenderer {
     const hs: InstanceHandle[] = [];
     for (let k = 0; k < 3; k++) {
       const along = (hash2(x, z, 31 + k) - 0.5) * 0.8;
-      const px = x + 0.5 + nx * 0.42 + (nz ? along : 0);
-      const pz = z + 0.5 + nz * 0.42 + (nx ? along : 0);
+      // On the pavement's outer edge, clear of the walkers (D-134).
+      const px = x + 0.5 + nx * 0.475 + (nz ? along : 0);
+      const pz = z + 0.5 + nz * 0.475 + (nx ? along : 0);
       const s = 0.07 + hash2(x, z, 57 + k) * 0.06;
       _fungusParams[1] = hash2(x, z, 91 + k);
-      hs.push(instancer.addMatrix('fungus', _m.compose(_v.set(px, g.heightAt(px, pz) + LIFT, pz), _q.identity(), _s.set(s, s, s)), _fungusTint, _fungusParams));
+      hs.push(instancer.addMatrix('fungus', _m.compose(_v.set(px, g.heightAt(px, pz) + LIFT + KERB_H, pz), _q.identity(), _s.set(s, s, s)), _fungusTint, _fungusParams));
     }
     this.fungi.set(t, hs);
   }
@@ -171,9 +172,10 @@ export class RoadRenderer {
     for (const [nx, nz] of sides) {
       // Only kerbs facing open ground (not a road, a building or the map edge); trees and lamps alternate.
       if (!open(x + nx, z + nz)) continue;
-      const px = x + 0.5 + nx * 0.43;
-      const pz = z + 0.5 + nz * 0.43;
-      const y = g.heightAt(px, pz) + LIFT;
+      // In the planting strip just behind the kerb; walkers keep to the pavement beyond it (D-134).
+      const px = x + 0.5 + nx * 0.385;
+      const pz = z + 0.5 + nz * 0.385;
+      const y = g.heightAt(px, pz) + LIFT + KERB_H;
       const tree = (x + z + (nx ? 1 : 0)) % 2 === 0;
       _plain[1] = hash2(x, z, 77 + nx + nz * 3);
       if (tree) {
@@ -208,40 +210,52 @@ export class RoadRenderer {
     const g: Grid = this.ctx.city.grid;
     const cx = (key % 1024) * this.chunk;
     const cz = Math.floor(key / 1024) * this.chunk;
-    const pos: number[] = [];
-    const uv: number[] = [];
-    const mask: number[] = [];
-    const cond: number[] = [];
-    const lvl: number[] = [];
-    const born: number[] = [];
+    const b = new TileBuilder();
     const now = U.clock.value;
     const lv = roadLevels(this.ctx.city);
-    const idx: number[] = [];
     const og = g.layer<Uint8Array>('overgrowth');
     const road = (x: number, z: number) => (g.inBounds(x, z) && g.road[g.index(x, z)] ? 1 : 0);
+    const links = (x: number, z: number) => road(x, z - 1) + road(x + 1, z) + road(x, z + 1) + road(x - 1, z);
+    const junction = (x: number, z: number) => (road(x, z) && links(x, z) >= 3 ? 1 : 0);
+    const levelAt = (t: number) => (g.road[t] === BRIDGE ? (lv[t]! >= 2 ? 2 : 1) : lv[t]!);
     for (let z = cz; z < Math.min(cz + this.chunk, g.h); z++)
       for (let x = cx; x < Math.min(cx + this.chunk, g.w); x++) {
-        if (!g.road[g.index(x, z)]) continue;
-        const m = road(x, z - 1) | (road(x + 1, z) << 1) | (road(x, z + 1) << 2) | (road(x - 1, z) << 3);
-        const v = pos.length / 3;
-        const h = (i: number, j: number) => this.cornerHeight(g, i, j) + LIFT;
-        pos.push(x, h(x, z), z, x + 1, h(x + 1, z), z, x, h(x, z + 1), z + 1, x + 1, h(x + 1, z + 1), z + 1);
-        uv.push(0, 0, 1, 0, 0, 1, 1, 1);
-        mask.push(m, m, m, m);
-        const o = og ? og[g.index(x, z)]! / 255 : 0;
-        cond.push(o, o, o, o);
         const t = g.index(x, z);
+        if (!g.road[t]) continue;
+        // Bits 0–3: road neighbours N/E/S/W (guidelines join them); 4–7: that neighbour is a junction (zebra crossing).
+        const m =
+          road(x, z - 1) |
+          (road(x + 1, z) << 1) |
+          (road(x, z + 1) << 2) |
+          (road(x - 1, z) << 3) |
+          (junction(x, z - 1) << 4) |
+          (junction(x + 1, z) << 5) |
+          (junction(x, z + 1) << 6) |
+          (junction(x - 1, z) << 7);
         // A bridge deck is always paved: Standard and Lantern decks read as a Living Highway, Grand as a boulevard.
-        const l = g.road[t] === BRIDGE ? (lv[t]! >= 2 ? 2 : 1) : lv[t]!;
-        lvl.push(l, l, l, l);
+        const l = levelAt(t);
         // Build-in time (D-128): the road material raises the tile out of the ground with a flash after it.
-        let b = this.born.get(t) ?? 0;
-        if (b && b < now - 10) {
+        let born = this.born.get(t) ?? 0;
+        if (born && born < now - 10) {
           this.born.delete(t);
-          b = 0;
+          born = 0;
         }
-        born.push(b, b, b, b);
-        idx.push(v, v + 2, v + 1, v + 1, v + 2, v + 3);
+        const h = (i: number, j: number) => this.cornerHeight(g, i, j) + LIFT;
+        b.attr = [m, og ? og[t]! / 255 : 0, l, born];
+        const corners: Corners = [h(x, z), h(x + 1, z), h(x, z + 1), h(x + 1, z + 1)];
+        const w = PAVE_W[l] ?? 0;
+        const open = [!road(x, z - 1), !road(x + 1, z), !road(x, z + 1), !road(x - 1, z)] as const;
+        if (!w || !(open[0] || open[1] || open[2] || open[3])) {
+          b.flat(x, z, corners);
+          continue;
+        }
+        // A neighbour's pavement carries straight on only if it is a paved tile of the same width with the same side
+        // open and not a junction (whose crossing drops the kerb).
+        const carries = (nx: number, nz: number, sx: number, sz: number) => {
+          if (!road(nx, nz) || junction(nx, nz) || road(nx + sx, nz + sz)) return false;
+          return (PAVE_W[levelAt(g.index(nx, nz))] ?? 0) === w;
+        };
+        b.paved(x, z, corners, w, open, carries);
       }
     const old = this.chunks.get(key);
     if (old) {
@@ -249,20 +263,166 @@ export class RoadRenderer {
       old.geometry.dispose();
       this.chunks.delete(key);
     }
-    if (!idx.length) return;
-    const geo = new BufferGeometry();
-    geo.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
-    geo.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
-    geo.setAttribute('aMask', new BufferAttribute(new Float32Array(mask), 1));
-    geo.setAttribute('aOvergrowth', new BufferAttribute(new Float32Array(cond), 1));
-    geo.setAttribute('aLevel', new BufferAttribute(new Float32Array(lvl), 1));
-    geo.setAttribute('aBorn', new BufferAttribute(new Float32Array(born), 1));
-    geo.setIndex(idx);
-    geo.computeVertexNormals();
+    if (!b.idx.length) return;
+    const geo = b.geometry();
     const mesh = new Mesh(geo, getMaterial('road'));
     mesh.receiveShadow = true;
     mesh.name = `roads@${cx},${cz}`;
     this.group.add(mesh);
     this.chunks.set(key, mesh);
+  }
+}
+
+/** Road surface heights at a tile's corners: (x, z), (x + 1, z), (x, z + 1), (x + 1, z + 1). */
+type Corners = [number, number, number, number];
+/** Open (non-road) sides N, E, S, W. */
+type Sides = readonly [boolean, boolean, boolean, boolean];
+
+/** Pavement width per highway level (a raw track has none) and its kerb's height over the carriageway (D-134). */
+export const PAVE_W = [0, 0.13, 0.17];
+export const KERB_H = 0.028;
+/** Horizontal run of the kerb face, the dropped kerb's ramp where a pavement meets a crossing, the skirt's depth. */
+const KERB_RUN = 0.012;
+const DROP = 0.14;
+const SKIRT = 0.1;
+
+/** Height of the road surface at (u, v) in a tile, on the same two triangles a plain tile draws. */
+function plane(c: Corners, u: number, v: number): number {
+  return u + v <= 1 ? c[0] + u * (c[1] - c[0]) + v * (c[2] - c[0]) : c[3] + (1 - u) * (c[2] - c[3]) + (1 - v) * (c[1] - c[3]);
+}
+
+/** Whether a point lies on a raised pavement (walkers and verge dressing stand on its top, D-134). */
+export function paveRise(city: { grid: Grid }, x: number, z: number, levels: ArrayLike<number>): number {
+  const g = city.grid;
+  const tx = Math.floor(x);
+  const tz = Math.floor(z);
+  if (!g.inBounds(tx, tz)) return 0;
+  const t = g.index(tx, tz);
+  if (!g.road[t]) return 0;
+  const l = g.road[t] === BRIDGE ? (levels[t]! >= 2 ? 2 : 1) : levels[t]!;
+  const w = PAVE_W[l] ?? 0;
+  if (!w) return 0;
+  const open = (i: number, j: number) => !g.inBounds(i, j) || !g.road[g.index(i, j)];
+  const u = x - tx;
+  const v = z - tz;
+  const on = (v < w && open(tx, tz - 1)) || (u > 1 - w && open(tx + 1, tz)) || (v > 1 - w && open(tx, tz + 1)) || (u < w && open(tx - 1, tz));
+  return on ? KERB_H : 0;
+}
+
+/**
+ * Highway tile geometry for one chunk (D-134). A paved tile is a 6×6 vertex grid: the carriageway in the middle,
+ * a pavement band raised by `KERB_H` along each side that faces open ground (a near-vertical kerb face between
+ * them), the kerb dropping to the carriageway where the pavement meets a crossing road, and a skirt down into the
+ * ground under each open edge. Raw tracks and junction interiors stay a single quad. `aRoad` packs the material's
+ * per-tile data: neighbour mask, overgrowth, level and build-in time.
+ */
+class TileBuilder {
+  readonly pos: number[] = [];
+  readonly nrm: number[] = [];
+  readonly uv: number[] = [];
+  readonly info: number[] = [];
+  readonly idx: number[] = [];
+  attr: number[] = [0, 0, 0, 0];
+  private readonly rise = new Float32Array(36);
+  private readonly xs = new Float32Array(6);
+  private readonly zs = new Float32Array(6);
+
+  private vert(x: number, y: number, z: number, u: number, v: number, nx: number, ny: number, nz: number): number {
+    const i = this.pos.length / 3;
+    this.pos.push(x, y, z);
+    this.nrm.push(nx, ny, nz);
+    this.uv.push(u, v);
+    this.info.push(this.attr[0]!, this.attr[1]!, this.attr[2]!, this.attr[3]!);
+    return i;
+  }
+
+  /** Surface vertex with the tile's (bilinear) slope as its normal. */
+  private top(x: number, z: number, c: Corners, u: number, v: number, lift: number): number {
+    const du = (1 - v) * (c[1] - c[0]) + v * (c[3] - c[2]);
+    const dv = (1 - u) * (c[2] - c[0]) + u * (c[3] - c[1]);
+    const l = Math.hypot(du, 1, dv);
+    return this.vert(x + u, plane(c, u, v) + lift, z + v, u, v, -du / l, 1 / l, -dv / l);
+  }
+
+  flat(x: number, z: number, c: Corners): void {
+    const v = this.top(x, z, c, 0, 0, 0);
+    this.top(x, z, c, 1, 0, 0);
+    this.top(x, z, c, 0, 1, 0);
+    this.top(x, z, c, 1, 1, 0);
+    this.idx.push(v, v + 2, v + 1, v + 1, v + 2, v + 3);
+  }
+
+  /**
+   * `carries(nx, nz, sx, sz)`: the pavement on side (sx, sz) of the road neighbour at (nx, nz) continues this
+   * tile's (otherwise the kerb drops at the shared edge, as at a crossing).
+   */
+  paved(x: number, z: number, c: Corners, w: number, open: Sides, carries: (nx: number, nz: number, sx: number, sz: number) => boolean): void {
+    const [oN, oE, oS, oW] = open;
+    const { xs, zs, rise } = this;
+    xs.set([0, oW ? w : DROP / 2, oW ? w + KERB_RUN : DROP, oE ? 1 - w - KERB_RUN : 1 - DROP, oE ? 1 - w : 1 - DROP / 2, 1]);
+    zs.set([0, oN ? w : DROP / 2, oN ? w + KERB_RUN : DROP, oS ? 1 - w - KERB_RUN : 1 - DROP, oS ? 1 - w : 1 - DROP / 2, 1]);
+    const base = this.pos.length / 3;
+    for (let j = 0; j < 6; j++)
+      for (let i = 0; i < 6; i++) {
+        const inW = i <= 1 && oW;
+        const inE = i >= 4 && oE;
+        const inN = j <= 1 && oN;
+        const inS = j >= 4 && oS;
+        let up = inW || inE || inN || inS;
+        // On an edge shared with a road, keep the kerb up only where the neighbour's pavement carries on.
+        if (up && j === 0 && !oN) up = (inW && carries(x, z - 1, -1, 0)) || (inE && carries(x, z - 1, 1, 0));
+        if (up && j === 5 && !oS) up = (inW && carries(x, z + 1, -1, 0)) || (inE && carries(x, z + 1, 1, 0));
+        if (up && i === 0 && !oW) up = (inN && carries(x - 1, z, 0, -1)) || (inS && carries(x - 1, z, 0, 1));
+        if (up && i === 5 && !oE) up = (inN && carries(x + 1, z, 0, -1)) || (inS && carries(x + 1, z, 0, 1));
+        rise[j * 6 + i] = up ? KERB_H : 0;
+        this.top(x, z, c, xs[i]!, zs[j]!, rise[j * 6 + i]!);
+      }
+    for (let j = 0; j < 5; j++)
+      for (let i = 0; i < 5; i++) {
+        const a = base + j * 6 + i;
+        this.idx.push(a, a + 6, a + 1, a + 1, a + 6, a + 7);
+      }
+    if (oN) this.skirt(base, [0, 1, 2, 3, 4, 5], 0, -1, c, x, z);
+    if (oE) this.skirt(base, [5, 11, 17, 23, 29, 35], 1, 0, c, x, z);
+    if (oS) this.skirt(base, [30, 31, 32, 33, 34, 35], 0, 1, c, x, z);
+    if (oW) this.skirt(base, [0, 6, 12, 18, 24, 30], -1, 0, c, x, z);
+  }
+
+  /** A vertical strip under the grid vertices `ks` (an open edge), facing (nx, nz). */
+  private skirt(base: number, ks: number[], nx: number, nz: number, c: Corners, x: number, z: number): void {
+    const p = this.pos;
+    const first = this.pos.length / 3;
+    for (const k of ks) {
+      const i = k % 6;
+      const j = (k / 6) | 0;
+      const u = this.xs[i]!;
+      const v = this.zs[j]!;
+      const o = (base + k) * 3;
+      this.vert(p[o]!, p[o + 1]!, p[o + 2]!, u, v, nx, 0, nz);
+      this.vert(x + u, plane(c, u, v) - SKIRT, z + v, u, v, nx, 0, nz);
+    }
+    // Wind each quad so it faces outward.
+    const ax = p[(first + 2) * 3]! - p[first * 3]!;
+    const az = p[(first + 2) * 3 + 2]! - p[first * 3 + 2]!;
+    // (top_k → top_k+1) × (top_k → bottom_k): y-down component makes the normal (az, ·, -ax) for a downward edge.
+    const out = az * nx - ax * nz > 0;
+    for (let k = 0; k < ks.length - 1; k++) {
+      const t0 = first + k * 2;
+      const b0 = t0 + 1;
+      const t1 = t0 + 2;
+      const b1 = t0 + 3;
+      if (out) this.idx.push(t0, t1, b0, t1, b1, b0);
+      else this.idx.push(t0, b0, t1, t1, b0, b1);
+    }
+  }
+
+  geometry(): BufferGeometry {
+    const geo = new BufferGeometry();
+    geo.setAttribute('position', new BufferAttribute(new Float32Array(this.pos), 3));
+    geo.setAttribute('normal', new BufferAttribute(new Float32Array(this.nrm), 3));
+    geo.setAttribute('uv', new BufferAttribute(new Float32Array(this.uv), 2));
+    geo.setAttribute('aRoad', new BufferAttribute(new Float32Array(this.info), 4));
+    geo.setIndex(this.idx);
+    return geo;
   }
 }

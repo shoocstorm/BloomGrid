@@ -25,7 +25,8 @@ import { U } from '@/render/uniforms';
 import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
 import { activityLayer } from '@/sim/nightlife';
 import { hash2 } from '@/sim/random';
-import { ROAD_LIFT } from '@/modules/construction/RoadRenderer';
+import { roadLevels } from '@/sim/roads';
+import { ROAD_LIFT, paveRise } from '@/modules/construction/RoadRenderer';
 import { doorwayOf, placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { Building } from '@/ecs/components';
 import { Critters } from './critters';
@@ -142,8 +143,9 @@ export const walkersModule: GameModule = {
 
     const g = city.grid;
     let visited = new Uint8Array(0);
+    // Walkers keep to the raised pavements (D-134).
     const roadY = (x: number, z: number, t: number) =>
-      (g.road[t] === BRIDGE ? BRIDGE_DECK : g.heightAt(x, z)) + ROAD_LIFT;
+      (g.road[t] === BRIDGE ? BRIDGE_DECK : g.heightAt(x, z)) + ROAD_LIFT + paveRise(city, x, z, roadLevels(city));
 
     /**
      * Each building's way in for door trips (D-133): its door (`doorwayOf`), the pavement point before it on the
