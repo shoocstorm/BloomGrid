@@ -85,10 +85,10 @@ export const bloomModule: GameModule = {
       burst = 1;
     });
 
-    // Season chip in the clock panel.
+    // Season chip in the clock panel; the statinfo module turns it into the weather's guide (hover card, click panel).
     const chip = h('span', { class: 'season-chip' });
     const bar = h('i');
-    const wrap = h('span', { class: 'season', title: '' }, chip, h('span', { class: 'season-bar' }, bar));
+    const wrap = h('span', { class: 'season' }, chip, h('span', { class: 'season-bar' }, bar));
     document.querySelector('.topbar .clock')?.append(wrap);
     ctx.bus.on('season:changed', ({ index }) => {
       const s = SEASONS[index]!;
@@ -133,7 +133,6 @@ export const bloomModule: GameModule = {
             chip.replaceChildren(icon(season.icon), ` ${season.name}`);
           }
           bar.style.transform = `scaleX(${progress})`;
-          wrap.title = `${season.name}: ${season.description}`;
         }
       },
     });

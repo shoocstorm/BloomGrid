@@ -3,7 +3,7 @@ id: systems-ecology
 title: Ecology, soil and the Bloom
 category: systems
 summary: Greenery, pollution, the Flora-Net soil, pollinators and the bloom index, and why nature is infrastructure here.
-tags: [ecology, greenery, pollution, bloom, soil, flora-net, mist, drone hive, parks, pollinators, season]
+tags: [ecology, greenery, pollution, bloom, soil, flora-net, mist, drone hive, parks, pollinators, season, weather, forecast]
 related: [systems-harmony, runbook-blight, reference-lenses]
 order: 15
 ---
@@ -33,4 +33,5 @@ up to +6 harmony. A **Bloom Retrofit** (Build → Retrofit) refreshes a district
 ## Seasons
 
 Monsoon showers, golden harvests and dusty Haze turn through the year. Haze holds smoke (fireworks smoke annoys
-residents more then) and dries soil.
+residents more then) and dries soil. Click the season chip beside the speed control for the weather now, what this
+season does to bloom, food, water and the soil, which crises it makes likelier, and how to prepare for the next.

@@ -1890,3 +1890,15 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   cosmetic spawning into the hash and the balance tests); offline "welcome back" earnings (they would fight the
   steward role, where neglect is meant to matter).
 
+
+## D-119 — The season chip is the weather's guide (2026-11-07)
+
+- **Why**: the clock's season chip only had a native tooltip, while every top-bar indicator explains itself (D-092).
+  The season decides crisis odds, food and water output and soil drying, and the player had no place to read that.
+- **How**: `sim/seasonGuide.ts` (pure) gives the season's effects against the rest of the year, its crisis
+  multipliers (`Season.crisis`), the weather now (an active or forecast crisis, a Monsoon shower, Haze), the season
+  ahead with its preparation, and ranked levers in the stat guides' `GuideLever` shape. A threat leads with the Flood
+  or Risk lens; past 60% of a season the next one's levers join in. The statinfo module wires the chip as one more
+  `InfoId` (hover card, click panel, Flora's proposals for the season's focus), so levers run through the same code.
+- **Card and panel are solid** over City Pulse (`.si-season`), like `.xp-menu`: the panel opens over the console.
+- **Rejected**: a separate weather module with its own panel (it would duplicate lever and proposal handling).

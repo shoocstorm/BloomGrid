@@ -2,6 +2,8 @@ import type { GameContext, GameModule } from '@/game/context';
 import { buildings } from '@/content';
 import type { BuildingCategory } from '@/content/types';
 import { STAT_IDS, statGuide, type GuideLever, type GuidePart, type StatGuide, type StatId } from '@/sim/statGuide';
+import { seasonGuide, type SeasonGuide } from '@/sim/seasonGuide';
+import { SEASONS } from '@/sim/seasons';
 import { proposeBuilds, type BuildProposal } from '@/sim/proposals';
 import { findSites } from '@/sim/actionTools';
 import { buildingId } from '@/sim/inventory';
@@ -51,7 +53,11 @@ function leverIcon(l: GuideLever): string {
   }
 }
 
-const tierChip = (g: StatGuide) => h('span', { class: 'si-tier', 'data-t': String(g.tier) }, h('i'), g.tierName);
+const chip = (t: number, name: string) => h('span', { class: 'si-tier', 'data-t': String(t) }, h('i'), name);
+const tierChip = (g: StatGuide) => chip(g.tier, g.tierName);
+
+/** The top-bar indicators plus the clock's season chip, which gets the same card and panel. */
+type InfoId = StatId | 'season';
 
 function gauge(g: StatGuide): HTMLElement | null {
   const v = g.gauge;
@@ -66,9 +72,8 @@ function gauge(g: StatGuide): HTMLElement | null {
 }
 
 /** Signed contributions as bars either side of zero; 0..1 factors as fill bars with the limiting one marked. */
-function parts(g: StatGuide): HTMLElement {
-  const rows = g.parts;
-  if (g.partsKind === 'factors') {
+function parts(rows: GuidePart[], kind: StatGuide['partsKind']): HTMLElement {
+  if (kind === 'factors') {
     const low = rows.reduce((a, r) => (r.value < a.value ? r : a), rows[0]!);
     return h(
       'div',
@@ -135,6 +140,22 @@ function spark(ctx: GameContext, g: StatGuide): HTMLElement | null {
   );
 }
 
+/** The island's year as four segments, the current one filled to where the season stands. */
+function year(g: SeasonGuide): HTMLElement {
+  return h(
+    'div',
+    { class: 'si-year' },
+    ...SEASONS.map((s) =>
+      h(
+        'span',
+        { class: s.id === g.id ? 'on' : '', title: `${s.name}: ${s.description}` },
+        h('i', { style: s.id === g.id ? `transform:scaleX(${g.progress.toFixed(3)})` : '' }),
+        h('small', {}, s.name),
+      ),
+    ),
+  );
+}
+
 /**
  * Top-bar indicator guides (D-092). Hovering a stat shows a quick card: status, one gauge and the best move.
  * Clicking pins a panel with what it means, the breakdown, the trend, ranked one-click levers (build, lens, tax,
@@ -144,16 +165,18 @@ function spark(ctx: GameContext, g: StatGuide): HTMLElement | null {
 class StatInfo {
   private card = h('div', { class: 'si-card panel hidden', role: 'tooltip' });
   private panel = h('div', { class: 'si-panel panel hidden', role: 'dialog', 'aria-label': 'Indicator guide' });
-  private hoverId: StatId | null = null;
-  private openId: StatId | null = null;
+  private hoverId: InfoId | null = null;
+  private openId: InfoId | null = null;
   private hoverTimer = 0;
   private last = 0;
   private planned = 0;
-  private stats = new Map<StatId, HTMLElement>();
+  private stats = new Map<InfoId, HTMLElement>();
   /** The panel's sections: the static ones re-render each refresh, levers and proposals only when they change. */
   private sec = { head: h('div'), body: h('div'), levers: h('div', { class: 'si-levers' }), props: h('div', { class: 'si-props' }), foot: h('div', { class: 'si-foot' }) };
   private leverKey = '';
   private propKey = '';
+  /** The body re-renders each refresh: the "what this measures" fold keeps its state across them. */
+  private aboutOpen = false;
 
   constructor(private ctx: GameContext) {
     ctx.hud.append(this.card, this.panel);
@@ -162,29 +185,35 @@ class StatInfo {
     const root = ctx.services.get('hud').stats;
     for (const id of STAT_IDS) {
       const el = root.querySelector<HTMLElement>(`.stat-${id}`);
-      if (!el) continue;
-      this.stats.set(id, el);
-      // The card replaces the native tooltip.
-      el.removeAttribute('title');
-      el.setAttribute('role', 'button');
-      el.setAttribute('tabindex', '0');
-      el.setAttribute('aria-label', `${statGuide(ctx.city, id).title}: details`);
-      el.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && this.hover(id));
-      el.addEventListener('pointerleave', () => this.hover(null));
-      el.addEventListener('click', () => this.toggle(id));
-      el.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), this.toggle(id)));
+      if (el) this.wire(id, el, statGuide(ctx.city, id).title);
     }
+    // The season chip (bloom module) in the clock panel: the weather's guide.
+    const season = document.querySelector<HTMLElement>('.topbar .clock .season');
+    if (season) this.wire('season', season, 'Season and weather');
     ctx.bus.on('stats:updated', () => this.refresh());
     // A press anywhere else closes the panel (the stats toggle it themselves).
     document.addEventListener('pointerdown', (e) => {
       const t = e.target as Node;
-      if (this.openId && !this.panel.contains(t) && !root.contains(t)) this.close();
+      if (this.openId && !this.panel.contains(t) && ![...this.stats.values()].some((el) => el.contains(t))) this.close();
     });
     ctx.input.onKey((e) => (e.code === 'Escape' && this.openId ? (this.close(), true) : false));
     for (const ev of ['city:reset', 'load:done'] as const) ctx.bus.on(ev, () => this.close());
   }
 
-  private hover(id: StatId | null): void {
+  private wire(id: InfoId, el: HTMLElement, label: string): void {
+    this.stats.set(id, el);
+    // The card replaces the native tooltip.
+    el.removeAttribute('title');
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('aria-label', `${label}: details`);
+    el.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && this.hover(id));
+    el.addEventListener('pointerleave', () => this.hover(null));
+    el.addEventListener('click', () => this.toggle(id));
+    el.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), this.toggle(id)));
+  }
+
+  private hover(id: InfoId | null): void {
     clearTimeout(this.hoverTimer);
     if (!id || id === this.openId) {
       this.hoverId = null;
@@ -194,6 +223,7 @@ class StatInfo {
     // A short delay so sweeping across the bar doesn't flash cards; moving between stats swaps at once.
     const show = () => {
       this.hoverId = id;
+      this.card.classList.toggle('si-season', id === 'season');
       this.renderCard();
       this.card.classList.remove('hidden');
       this.place(this.card, id);
@@ -202,12 +232,14 @@ class StatInfo {
     else this.hoverTimer = window.setTimeout(show, 160);
   }
 
-  private toggle(id: StatId): void {
+  private toggle(id: InfoId): void {
     if (this.openId === id) return this.close();
     this.hover(null);
+    this.panel.classList.toggle('si-season', id === 'season');
     for (const [k, el] of this.stats) el.classList.toggle('si-on', k === id);
     this.openId = id;
     this.leverKey = this.propKey = '';
+    this.aboutOpen = false;
     this.planned = 0;
     this.renderPanel();
     this.panel.classList.remove('hidden');
@@ -225,7 +257,7 @@ class StatInfo {
   }
 
   /** Under the stat, centred and kept on screen (phones: a bottom sheet from CSS). */
-  private place(el: HTMLElement, id: StatId): void {
+  private place(el: HTMLElement, id: InfoId): void {
     if (isCompact()) return void (el.style.transform = '');
     const r = this.stats.get(id)!.getBoundingClientRect();
     const w = el.offsetWidth;
@@ -244,6 +276,7 @@ class StatInfo {
   }
 
   private renderCard(): void {
+    if (this.hoverId === 'season') return this.renderSeasonCard();
     const g = statGuide(this.ctx.city, this.hoverId!);
     const best = g.levers[0];
     this.card.replaceChildren(
@@ -257,6 +290,7 @@ class StatInfo {
   }
 
   private renderPanel(): void {
+    if (this.openId === 'season') return this.renderSeasonPanel();
     const { ctx } = this;
     const g = statGuide(ctx.city, this.openId!);
     const s = this.sec;
@@ -273,19 +307,26 @@ class StatInfo {
       h('p', { class: 'si-status big' }, g.status),
       gauge(g) ?? '',
       h('div', { class: 'si-sec' }, g.partsTitle),
-      parts(g),
+      parts(g.parts, g.partsKind),
       spark(ctx, g) ?? '',
-      h('details', { class: 'si-about' }, h('summary', {}, icon('book'), 'What this measures'), h('p', {}, g.meaning), h('ul', {}, ...g.tips.map((t) => h('li', {}, t)))),
+      this.about('What this measures', g.meaning, g.tips),
     );
-    const key = g.levers.map((l) => `${l.label}|${l.detail}`).join(';');
+    this.renderActions(g.levers, 'How to improve', g.focus, `How can I improve ${g.title.toLowerCase()}? It is ${g.value} (${g.tierName}).`);
+  }
+
+  /** Levers, Flora's sited proposals for `focus` and the footer links: shared by the indicators and the season. */
+  private renderActions(levers: GuideLever[], title: string, focus: StatGuide['focus'], question: string): void {
+    const { ctx } = this;
+    const s = this.sec;
+    const key = levers.map((l) => `${l.label}|${l.detail}`).join(';');
     if (key !== this.leverKey) {
       this.leverKey = key;
-      s.levers.replaceChildren(h('div', { class: 'si-sec' }, 'How to improve'), ...g.levers.slice(0, 5).map((l, i) => this.lever(l, i === 0)));
+      s.levers.replaceChildren(h('div', { class: 'si-sec' }, title), ...levers.slice(0, 5).map((l, i) => this.lever(l, i === 0)));
     }
     const now = performance.now();
     if (now - this.planned > PLAN_MS) {
       this.planned = now;
-      const list = g.focus ? proposeBuilds(ctx.city, { focus: g.focus, limit: 2 }) : [];
+      const list = focus ? proposeBuilds(ctx.city, { focus, limit: 2 }) : [];
       const pk = list.map((p) => `${p.type}×${p.count}@${p.site.x},${p.site.z}`).join(';');
       if (pk !== this.propKey) {
         this.propKey = pk;
@@ -302,7 +343,7 @@ class StatInfo {
               class: 'si-link ask',
               onClick: () => {
                 flora.toggle(true);
-                void flora.ask(`How can I improve ${g.title.toLowerCase()}? It is ${g.value} (${g.tierName}).`);
+                void flora.ask(question);
                 this.close();
               },
             },
@@ -311,6 +352,64 @@ class StatInfo {
           )
         : '',
     );
+  }
+
+  private renderSeasonCard(): void {
+    const g = seasonGuide(this.ctx.city);
+    const best = g.levers[0];
+    this.card.replaceChildren(
+      h('div', { class: 'si-h' }, h('span', { class: 'si-ic' }, icon(g.icon)), h('b', {}, g.title), chip(g.outlook, g.outlookName)),
+      h('div', { class: 'si-val' }, h('b', {}, g.value), h('span', {}, g.sub)),
+      year(g),
+      h('p', { class: 'si-status' }, g.status),
+      best ? h('div', { class: 'si-best' }, h('span', { class: 'si-sec' }, 'Best move'), h('div', {}, icon(leverIcon(best)), h('b', {}, best.label), h('small', {}, best.detail))) : '',
+      h('div', { class: 'si-hint' }, 'Click for the forecast and how to prepare'),
+    );
+  }
+
+  private renderSeasonPanel(): void {
+    const g = seasonGuide(this.ctx.city);
+    const s = this.sec;
+    s.head.replaceChildren(
+      h(
+        'div',
+        { class: 'si-head' },
+        h('span', { class: 'si-ic big' }, icon(g.icon)),
+        h('div', { class: 'si-titles' }, h('div', { class: 'si-eyebrow' }, 'Season & weather', chip(g.outlook, g.outlookName)), h('div', { class: 'si-title' }, g.title, h('span', { class: 'si-v' }, g.value), h('small', {}, g.sub))),
+        h('button', { class: 'icon-btn si-x', 'aria-label': 'Close', title: 'Close (Esc)', onClick: () => this.close() }, icon('close')),
+      ),
+    );
+    const n = g.next;
+    s.body.replaceChildren(
+      h('p', { class: 'si-status big' }, g.status),
+      year(g),
+      h('div', { class: 'si-sec' }, 'This season, against the rest of the year'),
+      parts(g.effects, 'sum'),
+      g.risks.length
+        ? h(
+            'div',
+            { class: 'si-risks' },
+            h('div', { class: 'si-sec' }, 'Crisis odds this season'),
+            ...g.risks.map((r) => h('div', { class: `si-risk ${r.tone}` }, icon(r.icon), h('span', {}, r.name), h('b', {}, r.text))),
+          )
+        : '',
+      h(
+        'div',
+        { class: 'si-next' },
+        h('div', { class: 'si-sec' }, 'Next season', h('b', {}, `in ${n.seconds >= 90 ? `${Math.round(n.seconds / 60)} min` : `${Math.round(n.seconds)} s`}`)),
+        h('div', { class: 'si-next-h' }, icon(n.icon), h('b', {}, n.name), h('span', {}, n.description)),
+        h('p', {}, n.prep),
+      ),
+      this.about('How seasons work', g.meaning, g.tips),
+    );
+    this.renderActions(g.levers, 'How to prepare', g.focus, `It is ${g.title} (${g.value}). What should I prepare for, and what comes next?`);
+  }
+
+  private about(title: string, meaning: string, tips: string[]): HTMLElement {
+    const el = h('details', { class: 'si-about' }, h('summary', {}, icon('book'), title), h('p', {}, meaning), h('ul', {}, ...tips.map((t) => h('li', {}, t)))) as HTMLDetailsElement;
+    el.open = this.aboutOpen;
+    el.addEventListener('toggle', () => (this.aboutOpen = el.open));
+    return el;
   }
 
   private lever(l: GuideLever, best: boolean): HTMLElement {
@@ -399,7 +498,7 @@ class StatInfo {
 
 export const statInfoModule: GameModule = {
   id: 'statinfo',
-  deps: ['hud', 'build', 'overlays', 'dashboard', 'inventory', 'construction'],
+  deps: ['hud', 'build', 'overlays', 'dashboard', 'inventory', 'construction', 'bloom'],
   init(ctx) {
     new StatInfo(ctx);
   },
