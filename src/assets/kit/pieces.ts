@@ -248,6 +248,10 @@ export function initPieces(): void {
   registerPiece({ id: 'algaeTank', geometry: cyl(16), material: 'algae' });
   registerPiece({ id: 'pool', geometry: box(), material: 'pool', castShadow: false });
   registerPiece({ id: 'dome', geometry: new SphereGeometry(0.5, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), material: 'dome', castShadow: false });
+  // Clear glazing for a ribbed dome (one building's skin, not the frosted shared `dome`).
+  registerPiece({ id: 'glassDome', geometry: new SphereGeometry(0.5, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), material: 'domeClear', castShadow: false });
+  // A lit device screen (laptops, kiosks): glows in its tint.
+  registerPiece({ id: 'screen', geometry: box(), material: 'screen', castShadow: false, lod: 160 });
   registerPiece({ id: 'solarLeaf', geometry: petalGeometry(), material: 'solar' });
   // Living sunflower petal (Bloom Retrofit crowns): flower material, opens and glows with bloom.
   registerPiece({ id: 'sunPetal', geometry: petalGeometry(), material: 'flower' });

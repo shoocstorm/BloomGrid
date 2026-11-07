@@ -166,6 +166,7 @@ export class BuildPanel {
       touch ? null : h('kbd', {}, 'B'),
     );
     ctx.hud.append(this.el, this.float);
+    this.el.addEventListener('pointerleave', () => this.releaseHeight());
     // Phones: the sheet sits in the bottom dock (the tool hint above it) and the launcher beside Flora's orb.
     const hud = ctx.services.get('hud');
     const place = (compact: boolean) => {
@@ -191,6 +192,7 @@ export class BuildPanel {
     this.peeking = null;
     this.pinned = null;
     this.briefKey = '';
+    this.releaseHeight();
     if (open) this.renderList();
     this.renderBrief();
   }
@@ -324,8 +326,17 @@ export class BuildPanel {
   }
 
   private peek(what: { tool: string } | { def: string } | null): void {
+    // Sweeping across cards swaps the explanation card's content: hold the tallest height seen in this sweep so a
+    // shorter card doesn't shrink the column (which clamped the scroll and made the list jump under the pointer).
+    // The hold lasts until the pointer leaves the panel (`releaseHeight`).
+    const before = this.brief.offsetHeight;
     this.peeking = what;
     this.renderBrief();
+    this.brief.style.minHeight = `${Math.max(before, this.brief.offsetHeight)}px`;
+  }
+
+  private releaseHeight(): void {
+    this.brief.style.minHeight = '';
   }
 
   /** Fills the explanation card: an action's what / how / cost, or a building's preview, numbers and abilities. */
@@ -388,7 +399,9 @@ export class BuildPanel {
 
   /** Shows the floating preview beside the panel while the card describes a building (desktop only). */
   placeFloat(): void {
-    const on = this.open && !this.stageTaken && this.brief.classList.contains('building') && !isCompact();
+    // A building in hand: the map is where the steward looks, so the preview steps aside (hovering a card brings it back).
+    const holding = this.ctx.tools.active?.id === 'build' && !this.peeking;
+    const on = this.open && !this.stageTaken && !holding && this.brief.classList.contains('building') && !isCompact();
     this.float.classList.toggle('hidden', !on);
     if (!on) return;
     const r = this.el.getBoundingClientRect();

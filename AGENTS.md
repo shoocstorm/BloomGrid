@@ -333,6 +333,30 @@ The knowledge base is never finished: treat it as part of every feature. Flora's
   Measure with `bun run flicker` (per piece: `--pieces all`; module meshes: `--pieces names`; `--diff` shows where):
   patterns with hard `step()`/per-cell `hash()` edges and noise contours need a pixel-wide soft edge or a fade to their mean (D-070).
 
+## 8½. Security (don't introduce risks)
+
+The game ships to the public web (Firebase) and as a signed desktop app whose webview can call Rust commands that
+write to disk. Treat every change as security-relevant, and stop and ask before weakening any rule below.
+
+- **CSP is on in both shells** (D-131): `firebase.json` (web, also served by `vite preview`) and
+  `security.csp` / `devCsp` in `src-tauri/tauri.conf.json`. A new external origin (CDN, API, model host) goes into
+  `connect-src` / `font-src` etc. in **both**, never as `*` or `'unsafe-eval'`. Check with `bun run build`, then
+  `bunx vite preview` and `bun run snap -- --base http://localhost:4173`: CSP violations print as console errors.
+- **No HTML from data.** Build DOM with `h()` / `textContent`; `innerHTML` only for static SVG markup we wrote.
+  Anything from saves, knowledge notes, the LLM, city names or URL params is text. Links from data stay `http(s)`
+  with `rel="noopener noreferrer"` (see `modules/knowledge/markdown.ts`). No `eval`, `new Function` or string timers.
+- **Tauri commands are an attack surface.** Validate every argument in Rust: ids/keys against an allowlist charset
+  (`key_path`, `kb_path`), files only from a fixed catalog (`llm/catalog.rs`), sizes capped. Never take a path from
+  JS. Keep `capabilities/default.json` minimal; add a plugin permission only for a feature that needs it.
+- **Downloads are pinned and verified**: model URLs name a commit (never `main`) and carry a sha256 checked before
+  loading (`ai/llm/integrity.ts`, `models/store.rs`). Keep it that way for any new downloaded asset.
+- **Flora's tools**: a tool that changes the city is `effect: 'mutate'` and runs an undoable command; treat text she
+  reads (notes, logs, names) as untrusted. Never give her a tool that touches files, the network or settings.
+- **No secrets in the repo** or in client code (everything in `src/` ships to the browser). CI secrets stay in GitHub
+  secrets; new workflow steps get the least `permissions`, and prefer actions pinned to a commit SHA.
+- **Dependencies**: add only what a feature needs, pin exact versions, and run `bun audit` (and `cargo audit` in
+  `src-tauri/`) after adding or bumping one; mention any advisory you leave open.
+
 ## 9. Picking up work
 
 1. Read `docs/progress.md` (snapshot and next up), then `docs/roadmap.md`, and find the first ⏳ or 🚧 phase.

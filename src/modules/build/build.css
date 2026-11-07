@@ -125,6 +125,9 @@ body:not(.compact) .build {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* The gutter is always reserved: hovering cards changes the explanation card's height, and a scrollbar that came
+     and went with it made the whole column jump sideways. */
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
   padding-right: 2px;

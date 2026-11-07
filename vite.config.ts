@@ -13,12 +13,19 @@ const isolation = {
   'Cross-Origin-Resource-Policy': 'cross-origin',
 };
 
+// `vite preview` serves the build with Firebase's full header set (CSP included), so a CSP break shows up
+// locally before a deploy. The dev server keeps isolation only: HMR needs inline styles and a websocket.
+const hosting = JSON.parse(readFileSync(new URL('./firebase.json', import.meta.url), 'utf8')) as {
+  hosting: { headers: { headers: { key: string; value: string }[] }[] };
+};
+const production = Object.fromEntries(hosting.hosting.headers[0]!.headers.map((h) => [h.key, h.value]));
+
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(version) },
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   build: { target: 'es2022', sourcemap: true, chunkSizeWarningLimit: 2000 },
   server: { port: 3000, headers: isolation },
-  preview: { headers: isolation },
+  preview: { headers: production },
   optimizeDeps: { exclude: ['@wllama/wllama'] },
   // Sim-heavy tests (founding city, crisis collapse) take 2-4 s locally and ~2.5x that on CI runners.
   test: { environment: 'node', include: ['tests/**/*.test.ts'], testTimeout: 30_000 },

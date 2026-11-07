@@ -1,5 +1,5 @@
 import { defineBuilding } from '../types';
-import { PALETTE, TRIM, beam, flowers, grassTufts, lamp, planter, tree } from '../kit';
+import { PALETTE, TRIM, beam, flowers, lamp, planter } from '../kit';
 
 export default defineBuilding({
   id: 'greenhouse-hub',
@@ -11,26 +11,63 @@ export default defineBuilding({
   growthTime: 120,
   pollinators: 0.4,
   recipe(b) {
-    // (D-095) A timber-ribbed geodesic dome on a stone ring with a deck round it, a sunflower crown lantern,
-    // a timber entrance vestibule, and a forest of mycelium desks inside.
+    // (D-095) A timber-ribbed geodesic dome on a stone ring with a deck round it, a sunflower crown lantern and a
+    // timber entrance vestibule. The skin is clear glass (`glassDome`), so the workplace inside reads from outside:
+    // a ring of desks facing the view, each with a chair, a laptop and a mycelium desk lamp, a shared round table
+    // in the middle, and glowing fungus floor lamps between the desks.
     b.add({ piece: 'slab', p: [0, 0, 0], s: [2.9, 0.05, 2.9], tint: 0xd8cfbf });
-    b.add({ piece: 'concreteCyl', p: [0, 0.05, 0], s: [2.62, 0.12, 2.62], tint: 0xc9bca6 });
-    b.add({ piece: 'mossBox', p: [0, 0.16, 0], s: [1.8, 0.02, 1.8] });
-    grassTufts(b, 0, 0.17, 0, 1.7, 1.7, 22);
-    tree(b, -0.3, 0.17, -0.2, 0.7, 0);
-    tree(b, 0.45, 0.17, -0.35, 0.5, 0.2);
+    b.add({ piece: 'concreteCyl', p: [0, 0.05, 0], s: [2.62, 0.12, 2.62], tint: 0xc4ae8e });
+    const F = 0.17;
+    // Workstation at (cx, cz) turned by yaw `r`: the worker sits at local -z and faces +z.
+    const station = (cx: number, cz: number, r: number, chairTint: number, lampAt: number) => {
+      const [c, s] = [Math.cos(r), Math.sin(r)];
+      const at = (x: number, y: number, z: number): [number, number, number] => [cx + x * c + z * s, F + y, cz - x * s + z * c];
+      b.add({ piece: 'timberBox', p: at(0, 0.09, 0), s: [0.24, 0.014, 0.12], r, tint: 0xd2ad7a });
+      for (const sx of [-1, 1]) b.add({ piece: 'timberBox', p: at(sx * 0.11, 0, 0), s: [0.014, 0.09, 0.11], r, tint: 0x9c7650 });
+      // Laptop: a silver base and a lit screen hinged open away from the worker.
+      b.add({ piece: 'slab', p: at(0, 0.104, -0.01), s: [0.066, 0.005, 0.046], r, tint: 0xc9ced2 });
+      b.add({ piece: 'screen', p: at(0, 0.106, 0.013), s: [0.066, 0.046, 0.004], r, rx: 0.28, tint: 0x9fe8ff, glow: 0.8 });
+      // Mycelium desk lamp on one corner.
+      b.add({ piece: 'fungus', p: at(lampAt * 0.085, 0.104, 0.03), s: 0.07, r, tint: 0xf3e3ff, glow: 0.8 });
+      // Chair: pedestal, seat and backrest.
+      b.add({ piece: 'slab', p: at(0, 0, -0.1), s: [0.014, 0.055, 0.014], r, tint: TRIM.charcoal });
+      b.add({ piece: 'slab', p: at(0, 0.055, -0.1), s: [0.066, 0.012, 0.06], r, tint: chairTint });
+      b.add({ piece: 'slab', p: at(0, 0.067, -0.132), s: [0.066, 0.06, 0.012], r, tint: chairTint });
+    };
+    const CHAIRS = [0x6f9a82, 0xd9a35f, 0x5f87a8, 0xc8714f];
+    let n = 0;
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      b.add({ piece: 'fungus', p: [Math.cos(a) * 0.85, 0.17, Math.sin(a) * 0.85], s: b.range(0.14, 0.22), tint: 0xf3e3ff, glow: 0.9, growAt: 0.1 + i * 0.05 });
-      // Desks under each fungus lamp.
-      b.add({ piece: 'timberBox', p: [Math.cos(a) * 0.62, 0.17, Math.sin(a) * 0.62], s: [0.22, 0.08, 0.12], r: -a, tint: 0xc9a06a });
+      // The front (+z) bay is the entrance aisle.
+      if (Math.abs(a - Math.PI / 2) < 0.1) continue;
+      // Yaw that turns local +z to point outward along `a`.
+      station(Math.cos(a) * 0.86, Math.sin(a) * 0.86, Math.PI / 2 - a, CHAIRS[n % CHAIRS.length], n % 2 ? 1 : -1);
+      n++;
+      // Fungus floor lamps between the desks, near the glass.
+      const m = a + Math.PI / 8;
+      b.add({ piece: 'fungus', p: [Math.cos(m) * 1.04, F, Math.sin(m) * 1.04], s: b.range(0.12, 0.16), tint: 0xf3e3ff, glow: 0.9, growAt: 0.1 + i * 0.05 });
     }
-    flowers(b, 0, 0.17, 0, 1.1, 18, 0.05, 0.7);
+    // Shared round table with four chairs and two open laptops.
+    b.add({ piece: 'concreteCyl', p: [0, F, 0], s: [0.1, 0.09, 0.1], tint: TRIM.charcoal });
+    b.add({ piece: 'concreteCyl', p: [0, F + 0.09, 0], s: [0.46, 0.016, 0.46], tint: 0xd2ad7a });
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
+      const r = -Math.PI / 2 - a;
+      const [c, s] = [Math.cos(r), Math.sin(r)];
+      const at = (z: number, y: number): [number, number, number] => [Math.cos(a) * 0.32 + z * s, F + y, Math.sin(a) * 0.32 + z * c];
+      b.add({ piece: 'slab', p: at(0, 0), s: [0.014, 0.055, 0.014], r, tint: TRIM.charcoal });
+      b.add({ piece: 'slab', p: at(0, 0.055), s: [0.066, 0.012, 0.06], r, tint: CHAIRS[k] });
+      b.add({ piece: 'slab', p: at(-0.032, 0.067), s: [0.066, 0.06, 0.012], r, tint: CHAIRS[k] });
+      if (k % 2) continue;
+      const lp = (z: number): [number, number, number] => [Math.cos(a) * 0.15 + z * s, F + 0.106, Math.sin(a) * 0.15 + z * c];
+      b.add({ piece: 'slab', p: lp(0), s: [0.066, 0.005, 0.046], r, tint: 0xc9ced2 });
+      b.add({ piece: 'screen', p: lp(0.023), s: [0.066, 0.046, 0.004], r, rx: 0.28, tint: 0x9fe8ff, glow: 0.8 });
+    }
     // Glass skin and its timber ribs: 10 meridians of 5 straight segments, two rings of chords.
     const R = 1.3;
     const H = 1.05;
-    const at = (a: number, t: number): [number, number, number] => [Math.cos(a) * R * Math.cos(t), 0.17 + H * Math.sin(t), Math.sin(a) * R * Math.cos(t)];
-    b.add({ piece: 'dome', p: [0, 0.17, 0], s: [R * 2, H * 2, R * 2], tint: PALETTE.glass });
+    const at = (a: number, t: number): [number, number, number] => [Math.cos(a) * R * Math.cos(t), F + H * Math.sin(t), Math.sin(a) * R * Math.cos(t)];
+    b.add({ piece: 'glassDome', p: [0, F, 0], s: [R * 2, H * 2, R * 2], tint: 0xffffff });
     const M = 10;
     for (let i = 0; i < M; i++) {
       const a = (i / M) * Math.PI * 2;

@@ -2119,3 +2119,27 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   right column (`hud.right`): the inspector and the advisor stack under it, and while something is inspected it
   shrinks to its pill (clicking the pill closes the inspector and unfolds it). Phones hide the strip while the
   inspector sheet or build mode is open.
+- **Build panel steadiness** (same day): hovering across cards swapped the explanation card's height, so the column's
+  scrollbar came and went (the panel jumped sideways) and a shorter card clamped the scroll (the list jumped under
+  the pointer). `.bd-scroll` reserves its gutter (`scrollbar-gutter: stable`) and the card holds the tallest height
+  of a hover sweep until the pointer leaves the panel. The floating 3D preview hides while a building is in hand
+  (hovering a card brings it back), leaving the map clear for placing.
+
+## D-131 — Content Security Policy and hardening headers on web and desktop (2026-11-07)
+
+- **Why**: a security scan found the desktop webview ran with `csp: null` (any injected script could call every Rust
+  command) and the web build sent only the isolation headers (no CSP, framing allowed, no `nosniff`).
+- **Web** (`firebase.json`): CSP `default-src 'self'`, `script-src 'self' 'wasm-unsafe-eval'` (wllama compiles wasm),
+  `worker-src 'self' blob:` (wllama starts its workers from blobs), `style-src 'self' 'unsafe-inline'` + Google
+  Fonts (SVG markup carries `style` attributes), `connect-src` Hugging Face (`huggingface.co`, `*.huggingface.co`,
+  `*.hf.co`: downloads redirect to `us.aws.cdn.hf.co`), `object-src 'none'`, `frame-ancestors 'none'`,
+  `upgrade-insecure-requests`; plus `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns off camera, mic,
+  geolocation, payment and USB. `vite preview` reads the same header list from `firebase.json`, so a break shows
+  locally; the dev server keeps isolation only (HMR).
+- **Desktop** (`tauri.conf.json`): the same policy as a `csp` object, with `ipc: http://ipc.localhost` in
+  `connect-src` (`devCsp` adds the HMR websocket). `dangerousDisableAssetCspModification: ["style-src"]`: Tauri
+  otherwise adds nonces to `style-src`, which makes browsers ignore `'unsafe-inline'`.
+- **Verified**: production build under the CSP boots on WebGPU and WebGL, fonts load, a blob worker compiles
+  wllama's wasm, and a ranged fetch of a pinned model follows the CDN redirect, with no violations.
+- **Rejected**: `'unsafe-eval'` (nothing needs it), `connect-src https:` (too broad).

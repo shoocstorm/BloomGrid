@@ -27,9 +27,11 @@ import {
   mod,
   mx_noise_float,
   mx_worley_noise_float,
+  normalView,
   normalWorld,
   positionGeometry,
   positionLocal,
+  positionViewDirection,
   positionWorld,
   sin,
   smoothstep,
@@ -481,6 +483,28 @@ export function initMaterials(): void {
     m.colorNode = mix(color(0xffffff), color(0xf2efe2), ribs);
     m.opacityNode = mix(float(0.22), float(0.95), ribs);
     m.emissiveNode = color(0xbff7ff).mul(ribs).mul(U.night).mul(0.35);
+    return m;
+  });
+
+  // Clear glazing for a dome whose structure is drawn as separate ribs (the Mycelium Work Dome): almost no body
+  // colour, faint panel seams, and a brighter rim where the glass turns edge-on, so it reads as glass and the
+  // interior shows through.
+  define('domeClear', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.02, metalness: 0.5, transparent: true, side: DoubleSide, depthWrite: false });
+    const g = uv();
+    const seams = max(stripes(g.x.mul(20), 0.97), stripes(g.y.mul(5), 0.96));
+    const edge = float(1).sub(abs(dot(normalView, positionViewDirection))).pow(3);
+    m.colorNode = mix(color(0xeefcff), color(0xf4ecdc), seams);
+    m.opacityNode = float(0.07).add(edge.mul(0.35)).add(seams.mul(0.25)).min(0.6);
+    m.emissiveNode = color(0xbff7ff).mul(seams).mul(U.night).mul(0.05);
+    return m;
+  });
+
+  // Device screens (laptops, kiosks): dark glass by day with a soft lit face, glowing in the instance tint at night.
+  define('screen', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.15, metalness: 0.3 });
+    m.colorNode = mix(color(0x20262b), instanceColor, 0.25);
+    m.emissiveNode = instanceColor.mul(iGlow).mul(U.night.mul(0.7).add(0.15)).mul(pieceCover(6));
     return m;
   });
 
