@@ -66,8 +66,9 @@ const QUARTERS: { name: string; zone: ZoneKind; blocks: [number, number, number,
   { name: 'Civic Ring', zone: 'civic', blocks: [-1, -1, 1, 1], heroes: ['helix-spire', 'hanging-gardens', 'sky-ark', 'cloud-domes', 'quartz-spire', 'nautilus-library', 'harmony-gate', 'skylane-nexus'] },
   // Skyline hill (north-east): towers, homes and the skyport.
   { name: 'Skyline Hill', zone: 'living', blocks: [1, -4, 4, 0], heroes: ['dragonfly-port', ['glass-pine', 'vertical-forest'], 'moss-monolith', 'coral-arcology', 'lotus-pagoda', 'rain-vortex', 'bloom-eye', 'fog-harp'] },
-  // The exchange (south-east), toward downtown: trade, science and the algae works.
-  { name: 'The Exchange', zone: 'work', blocks: [1, 1, 4, 3], heroes: ['zephyr-airport', 'seedpod-labs', 'bloom-clock', 'starlight-observatory', 'algae-lantern', 'wavecrest-gallery', 'sunset-amphitheatre', 'corkscrew-orchard'] },
+  // The exchange (south-east), toward downtown: trade, science and the algae works; the Aegis Watch Precinct, the
+  // police HQ, looks out toward the bay its drones patrol (D-138).
+  { name: 'The Exchange', zone: 'work', blocks: [1, 1, 4, 3], heroes: ['zephyr-airport', 'seedpod-labs', 'bloom-clock', 'starlight-observatory', 'algae-lantern', 'wavecrest-gallery', 'sunset-amphitheatre', 'corkscrew-orchard', 'aegis-precinct'] },
   // Garden quarter (south-west): timber halls, gardens and markets.
   { name: 'Garden Quarter', zone: 'parks', blocks: [-4, 1, -1, 3], heroes: ['elder-banyan', 'levitating-gardens', 'bamboo-cathedral', 'canopy-skywalk', 'moonflower-hall', 'habitat-cascade', 'mycelium-towers', 'solar-sail-bazaar', 'aeolian-reeds'] },
   // Working hills (north-west), by the lake: food, water, energy and baths; the (smaller) Wellspring Spire takes

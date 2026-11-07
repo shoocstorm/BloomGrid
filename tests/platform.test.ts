@@ -90,8 +90,10 @@ describe('central landmark', () => {
     // The hero district around it: every hero placed, each with highway access, and empty graded lots left
     // on the grid for future heroes.
     // The Wellspring Spire is one of them now, smaller, out in the Working Hills (D-135).
-    expect(HERO_IDS.length).toBe(41);
+    expect(HERO_IDS.length).toBe(42);
     expect(HERO_IDS).toContain('wellspring-spire');
+    // The Aegis Watch Precinct, the police HQ, in The Exchange (D-138).
+    expect(HERO_IDS).toContain('aegis-precinct');
     for (const id of HERO_IDS) {
       const e = s.city.buildingEntities().find((b) => buildings.at(Building.def[b]!).id === id);
       expect(e, id).toBeDefined();
@@ -108,8 +110,8 @@ describe('central landmark', () => {
         }
         if (free && g.rangeOver(bx, bz, GRID - 1, GRID - 1).max - g.rangeOver(bx, bz, GRID - 1, GRID - 1).min < 0.01) lots++;
       }
-    // Nine left since the Wellspring Spire moved out of the centre onto a spare block of the Working Hills (D-135).
-    expect(lots).toBeGreaterThanOrEqual(9);
+    // Spare blocks went to the Wellspring Spire (Working Hills, D-135) and the Aegis Watch Precinct (The Exchange, D-138).
+    expect(lots).toBeGreaterThanOrEqual(8);
     expect(openingView(s.city).x).toBeLessThan(h);
     s.step(10);
     const c2 = new City(new EventBus(), 1);

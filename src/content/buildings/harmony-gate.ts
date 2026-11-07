@@ -2,12 +2,15 @@ import { defineBuilding } from '../types';
 import { PALETTE, beam, bench, entrance, flowers, gableRoof, grassTufts, ivyEdge, lamp, lilies, tree } from '../kit';
 
 const H = 18;
+/** The police drone pad on the keystone garden (D-137): its centre, in recipe space; the police module parks the
+ * city's heavy patrol drone here. */
+export const DRONE_PAD: readonly [number, number, number] = [0, H + 1.2, 0];
 
 export default defineBuilding({
   id: 'harmony-gate',
   name: 'Harmony Gate',
   description:
-    'Two office towers lean toward each other until they meet in a sky-garden keystone eighteen storeys up, framing the avenue like a gate. The island’s co-ops and studios share its floors.',
+    'Two office towers lean toward each other until they meet in a sky-garden keystone eighteen storeys up, framing the avenue like a gate. The island’s co-ops and studios share its floors, and the city’s heavy patrol drone stands on the pad in its roof garden.',
   category: 'commercial',
   footprint: [12, 8],
   stats: {
@@ -41,7 +44,18 @@ export default defineBuilding({
     b.add({ piece: 'mossBox', p: [0, H + 1.0, 0], s: [6.4, 0.08, 3.4] });
     grassTufts(b, 0, H + 1.08, 0, 6, 3, 30, 0.1);
     flowers(b, 0, H + 1.08, 0, 1.5, 24, 0.1, 0.7);
-    for (const x of [-2.2, 0, 2.2]) tree(b, x, H + 1.08, 0, 0.7, 0.2);
+    for (const x of [-2.55, 2.55]) tree(b, x, H + 1.08, 0, 0.55, 0.2);
+    // The police drone pad (D-137): a raised deck with a blue light ring, a white inner ring and corner beacons.
+    b.add({ piece: 'concreteCyl', p: [0, H + 1.08, 0], s: [3.0, 0.12, 3.0], tint: 0x2c3a4c });
+    b.add({ piece: 'haloRing', p: [0, H + 1.21, 0], s: [2.9, 2, 2.9], tint: 0x4f8dff, glow: 1 });
+    b.add({ piece: 'haloRing', p: [0, H + 1.21, 0], s: [1.6, 2, 1.6], tint: 0xf4f6f8, glow: 0.6 });
+    for (const [sx, sz] of [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ] as const)
+      b.add({ piece: 'lumenRib', p: [sx * 1.05, H + 1.2, sz * 1.05], s: [0.08, 0.16, 0.08], tint: sz > 0 ? 0xff4b5c : 0x4f8dff, glow: 1 });
     for (const nz of [-1, 1]) ivyEdge(b, 0, H + 0.8, nz * 1.9, 6, 0, nz, 6);
     b.add({ piece: 'haloRing', p: [0, H + 1.1, 0], s: [4.2, 4, 4.2], glow: 1 });
     // Street level (D-097): stepping stones through the gate across the pool, lilies, a lit lobby at each tower's
@@ -79,9 +93,10 @@ export default defineBuilding({
     // Level 3: a glass pavilion and lit spire crown the roof garden, a second halo rings it, and a waterfall falls
     // from the sky-bridge into the pool.
     b.level(3, () => {
-      b.add({ piece: 'dome', p: [1.6, H + 1.08, 0], s: [2.0, 2.4, 2.0], tint: PALETTE.glass });
-      b.add({ piece: 'spireCone', p: [-1.6, H + 1.08, 0], s: [0.5, 5.0, 0.5], tint: PALETTE.glassWarm, glow: 0.5 });
-      b.add({ piece: 'haloRing', p: [-1.6, H + 4.2, 0], s: [1.4, 3, 1.4], glow: 1 });
+      // Clear of the drone pad in the middle (D-137).
+      b.add({ piece: 'dome', p: [2.35, H + 1.08, 0], s: [1.4, 1.8, 1.4], tint: PALETTE.glass });
+      b.add({ piece: 'spireCone', p: [-2.35, H + 1.08, 0], s: [0.5, 5.0, 0.5], tint: PALETTE.glassWarm, glow: 0.5 });
+      b.add({ piece: 'haloRing', p: [-2.35, H + 4.2, 0], s: [1.4, 3, 1.4], glow: 1 });
       b.add({ piece: 'haloRing', p: [0, H + 2.0, 0], s: [6.0, 4, 6.0], tint: 0xffd9a0, glow: 0.8 });
       b.add({ piece: 'waterfall', p: [0, 0.25, -1.12], s: [1.2, H * 0.5 - 0.05, 1], r: Math.PI, glow: 0.8 });
     });

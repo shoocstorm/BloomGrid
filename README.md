@@ -172,7 +172,10 @@ shows the zone of whatever you select. Factories (Industry ⚙) and venues like 
 last two build categories. Pod Interchanges in the living towns fly commuters to the work and industry zones. At
 the island's heart rise the **Aurora Gemini** twin towers: identical round glass towers ringed by spiralling light ribs
 and sky-garden lawns, joined by a garden bridge and a sky-pool bridge with a waterfall, with the Sun Gate, a golden
-ring of rays, hung between their spires. Select them for a **Light show** (searchlights and an aurora over the
+ring of rays, hung between their spires. The **Aegis Watch Precinct**, the island's police headquarters in The Exchange, keeps two patrol drones on its
+roof (**Dispatch drones** sends them up on a sortie). The city's heavy police drone stands on a pad in the Harmony Gate's roof
+garden, and a wing of small patrol drones circles the bay, banking into their turns, light bars flashing and
+searchlights sweeping the water after dark. Select them for a **Light show** (searchlights and an aurora over the
 city); like every hero, they also have a **Sky deck** and a **Postcard** view. Around them lies the **hero district**: a civic ring of wind helix, hanging-gardens
 ziggurat, sky-ark, cloud-forest domes, a crystal data spire, a nautilus library and the Harmony Gate; a skyline hill of
 towers; an exchange of airship port, labs, observatory and amphitheatre; a garden quarter of banyan treehouse hotel,

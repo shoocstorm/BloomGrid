@@ -2273,3 +2273,35 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   the full distance of a W/D/S/A key run, except the Fog Harp (about a third: its strings stand close).
 - **Postcard** frames any landmark whole: distance from its height and footprint, orbit point (`aim`) at half its
   height, current heading, photo mode; it clears the selection first.
+
+## D-137 — Police drones: a heavy drone on the Harmony Gate, a patrol wing over the bay (2026-11-07)
+
+- **Model** (`modules/police/droneModel.ts`): one quadcopter about a tile across: a white-over-navy teardrop shell
+  with a police-blue stripe, a cyan sensor eye under the nose, a headlamp strip, a red/blue light bar, a tail fin,
+  four ducted rotors on swept arms, landing skids. Parts in `aPart`; rotor blades carry their hub (`aHub`).
+- **Heavy drone**: the same model at 3.6×, parked on a new pad in the Harmony Gate's keystone garden (`DRONE_PAD`:
+  a navy deck with blue and white light rings and red/blue corner beacons; the centre tree gave way, and the level-3
+  dome and spire moved aside). It turns with the building and idles its rotors.
+- **Patrol wing**: seven drones on four loops over the bay (the Bayfront waterfront, round Bloomtopia, the east bay
+  and river mouth, the west bay) at 19–24, above the bridge towers (≤ 18), banking into their turns, bobbing, light
+  bars double-flashing red then blue on their own beat, and at night a soft searchlight swinging over the water.
+  They fly while a Harmony Gate stands (their station); loops are fixed bay coordinates.
+- **Cost**: render-only, posed in the shader from static per-instance data and `U.clock` (no per-frame uploads), two
+  draw calls (drones; beams only at night), capacity 1040 per batch (AGENTS.md §8).
+- **Gotcha found**: the searchlights darkened the bay under them. With multiple render targets, a transparent mesh
+  that writes the bloom input (`emissive`) with alpha 1 replaces the water's night glow there, so the bloom drops.
+  The fix: write `vec4(rgb, opacity)` so the bloom input blends like the colour. (Additive beams showed it too.)
+
+## D-138 — The Aegis Watch Precinct: a police headquarters hero with dispatchable drones (2026-11-07)
+
+- **Building** (`content/buildings/aegis-precinct.ts`, 10×8, utility, `response: { radius: 36 }` so it fights fires
+  like a large Ember Watch): a white-frame, navy-glass hall with lit floor bands, red/blue light strips on the
+  roofline and blue corner fins; a glass command drum with blue rings and a red/blue light-bar crown; a comms mast
+  with a dish and red beacon; a star badge over a deep entrance canopy with sliding glass doors; flagpoles, planters,
+  benches and lamps on the plaza; a railed rooftop drone deck with two pads (`POLICE_PADS`). Levels: an east-wing
+  storey with solar panels and a garden on the lookout (2); a taller mast, a third ring and a glass command crown (3).
+- **Showcase**: last hero of The Exchange (toward the bay the patrols cover); one spare hero lot fewer (8).
+- **Drones**: the police module parks two drones per precinct on its pads. **Dispatch drones** (inspector) sets their
+  take-off and landing times (`aSortie`, one ranged upload); the shader grows their loop radius and height from
+  the pad over a 5 s ramp, circles the precinct for ~45 s and sets them down again. Pressing it while they fly
+  pushes the landing back without a second take-off. Patrol loops now fly while a Harmony Gate or a precinct stands.

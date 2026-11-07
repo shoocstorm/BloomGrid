@@ -3,7 +3,7 @@ id: basics-aurora-gemini
 title: The Aurora Gemini twin towers
 category: basics
 summary: The twin landmark at the island's centre, and how to put on its light show, stand on its sky deck or frame a postcard of it.
-tags: [aurora gemini, twin towers, twins, landmark, hero, light show, searchlights, aurora, sky deck, rooftop, stand on top, postcard, photo, sun gate, sol, luna, centre]
+tags: [police, precinct, police drone, dispatch, aurora gemini, twin towers, twins, landmark, hero, light show, searchlights, aurora, sky deck, rooftop, stand on top, postcard, photo, sun gate, sol, luna, centre]
 related: [basics-on-foot, basics-welcome]
 order: 65
 ---
@@ -41,3 +41,11 @@ frames the building whole, in photo mode: **P** saves a PNG, dragging adjusts th
 
 It stands in the Working Hills by the lake, north-west of the centre. It is smaller now, so it doesn't compete with
 the twins, and has the same sky-park, waterfalls and solar halo as before.
+
+## What do the police drones and the precinct do?
+
+The **Aegis Watch Precinct** in The Exchange is the island's police headquarters. Its crews and drones answer fires
+within reach on their own while it has power and staff, like an Ember Watch Station. Two patrol drones stand on its
+roof: press **Dispatch drones** in its inspector and they lift off, circle the precinct for about forty seconds and
+land again. A heavy drone stands on the Harmony Gate's roof, and a wing of small drones patrols the bay. The drones
+are for the look of the city only.
