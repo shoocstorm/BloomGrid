@@ -12,7 +12,7 @@
  *
  * Prints page console warnings/errors; exits 1 on uncaught page errors.
  */
-import puppeteer from 'puppeteer-core';
+import { launchChrome } from './lib/chrome.mjs';
 import { mkdirSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
@@ -35,8 +35,9 @@ const chrome =
   ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium'].find((p) => existsSync(p));
 
 mkdirSync(dirname(out), { recursive: true });
-const browser = await puppeteer.launch({
+const browser = await launchChrome({
   executablePath: chrome,
+  maxSeconds: 5 * 60,
   headless: 'new',
   args: ['--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', `--window-size=${w},${h}`],
 });

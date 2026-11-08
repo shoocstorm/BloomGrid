@@ -14,7 +14,7 @@
  * Options: --base, --path (default "/?nodynres"), --dists 70,140,260, --frames 10, --step (tiles per frame; default ≈0.15 px of motion),
  * --threshold 48, --cx/--cz (focus tile, default downtown), --yaw, --pitch. Needs the dev server and a local Chrome.
  */
-import puppeteer from 'puppeteer-core';
+import { launchChrome } from './lib/chrome.mjs';
 import sharp from 'sharp';
 import { existsSync } from 'node:fs';
 
@@ -53,8 +53,9 @@ const chrome =
     '/usr/bin/chromium',
   ].find((p) => existsSync(p));
 
-const browser = await puppeteer.launch({
+const browser = await launchChrome({
   executablePath: chrome,
+  maxSeconds: 20 * 60,
   headless: 'new',
   args: ['--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', `--window-size=${W},${H}`],
 });

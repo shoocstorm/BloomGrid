@@ -8,7 +8,7 @@
 // JSPI, so wllama runs the compat build Safari gets; it prints the renderer and GPU processes' memory after
 // the load (iOS closes a tab past its limit, and that is what the city and the model share).
 // `--auto` lets the assistant act without approval (otherwise every action is approved by the probe).
-import puppeteer from 'puppeteer-core';
+import { launchChrome } from './lib/chrome.mjs';
 import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -34,7 +34,9 @@ if (!asks.length) asks.push('What are the most urgent problems, and where?');
 const profile = opt.profile ?? join(tmpdir(), 'bloomgrid-ai-probe-profile');
 mkdirSync(profile, { recursive: true });
 
-const browser = await puppeteer.launch({
+const browser = await launchChrome({
+  // Model downloads and long agent turns: an hour before a hung run is ended.
+  maxSeconds: 60 * 60,
   executablePath: opt.chrome ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   headless: true,
   userDataDir: profile,

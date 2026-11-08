@@ -49,7 +49,7 @@
  *   bun run dev                # keep it running
  *   bun run trailer            # or: node scripts/trailer.mjs [--duration 82] [--fps 30] [--no-ai]
  */
-import puppeteer from 'puppeteer-core';
+import { launchChrome } from './lib/chrome.mjs';
 import { mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
@@ -418,8 +418,10 @@ const total = seconds - xfs.reduce((a, b) => a + b, 0);
 mkdirSync(framesDir, { recursive: true });
 for (const f of readdirSync(framesDir)) if (f !== '.gitignore') rmSync(join(framesDir, f), { recursive: true, force: true });
 
-const browser = await puppeteer.launch({
+const browser = await launchChrome({
   executablePath: chrome,
+  // A full render takes as long as it takes: no watchdog, but every exit path still closes Chrome.
+  maxSeconds: 0,
   headless: 'new',
   // Persistent profile: the model core downloads once (OPFS cache) and every later run starts in ~2s.
   userDataDir: profile,

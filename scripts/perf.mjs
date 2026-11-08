@@ -6,7 +6,7 @@
  *
  *   bun run perf -- --path "/?gputime" --seconds 10 [--idle] [--sound]   (--sound starts the audio engine first)
  */
-import puppeteer from 'puppeteer-core';
+import { launchChrome } from './lib/chrome.mjs';
 import { existsSync } from 'node:fs';
 
 /** Scripts measure the showcase city unless a path names a scenario (a plain boot is a fresh island + wizard, D-072). */
@@ -18,7 +18,7 @@ const args = Object.fromEntries(
 const base = args.base ?? 'http://localhost:3000';
 const seconds = Number(args.seconds ?? 10);
 const chrome = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome'].find((p) => existsSync(p));
-const browser = await puppeteer.launch({ executablePath: chrome, headless: 'new', args: ['--autoplay-policy=no-user-gesture-required', '--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', '--window-size=1440,900'] });
+const browser = await launchChrome({ executablePath: chrome, maxSeconds: 20 * 60, headless: 'new', args: ['--autoplay-policy=no-user-gesture-required', '--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', '--window-size=1440,900'] });
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: Number(args.dpr ?? 2) });
 await page.goto(base + showcase(args.path ?? '/'), { waitUntil: 'domcontentloaded' });
