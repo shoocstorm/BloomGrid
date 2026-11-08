@@ -57,6 +57,19 @@ export class GeoBuilder {
     const n = g.attributes.position!.count;
     const c = new Color(col);
     g.setAttribute('color', fill(n, [c.r, c.g, c.b]));
+    // A source shape may carry a per-vertex `tint`: > 0 mixes toward white by that much, < 0 darkens by it
+    // (a petal's pale base, a pillar's wet foot), so one part can hold a gradient.
+    const tint = g.attributes.tint;
+    if (tint) {
+      const a = g.attributes.color!;
+      for (let i = 0; i < n; i++) {
+        const t = tint.getX(i);
+        const k = t < 0 ? 1 + t : 1 - t;
+        const w = t > 0 ? t : 0;
+        a.setXYZ(i, c.r * k + w, c.g * k + w, c.b * k + w);
+      }
+      g.deleteAttribute('tint');
+    }
     g.setAttribute('aGlow', fill(n, [glow]));
     for (const [k, size] of Object.entries(this.extras))
       g.setAttribute(k, fill(n, extra[k] ?? new Array<number>(size).fill(0)));

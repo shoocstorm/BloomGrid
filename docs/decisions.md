@@ -2455,3 +2455,34 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
 - Rejected: a fixed hand-authored path (the trailer's approach) — it can't follow what the player built, and a
   fresh island has none of the showcase's landmarks.
 
+## D-146 — Detailed sea wonders, a `wonder` material and tinted shapes (2026-11-08)
+
+- **Problem**: the five sea wonders were a handful of primitives each in one matte finish (a striped tube on a grey
+  blob, bare white hoops, flat pads, a saucer, sandy cylinders with ball trees): weak as the City tour's and the
+  cruise ferry's destinations.
+- **Decision**: rebuilt in `modules/scenery/wonderModels.ts`, still one merged mesh (one draw call) each and inside
+  the ferry's loop radii:
+  - *Tidewatch Lighthouse*: octagonal stone plinth with door and steps, banded tower with trim rings and a spiral of
+    lit windows, corbelled gallery and railing, lantern room with a lens, verdigris dome, ventilator and vane; a
+    gabled keeper's cottage (solar roof, chimney, lit windows, flower boxes), palms, flowers, a jetty with a lamp
+    and a lifebuoy, a moored sailboat. The beam turns at `LANTERN_Y`.
+  - *Tide Gates*: pearl rings with bronze inlay, a lumen inner ring, glowing runes, a crown jewel in a brass
+    setting, pearl shell fins, stepped stone plinths, branching and brain coral, sea fans, red/green channel buoys.
+  - *Lotus Atoll*: four whorls of cupped petals pale at the base, seed pods with glowing stamens, pads with rims,
+    veins and water beads, closed buds, raised leaves on stalks, floating lanterns, a tea pavilion.
+  - *Abyssal Dome*: raking legs, pearl hull and timber deck with railing and lamps, ribbed and banded glass dome,
+    observatory cupola with telescope, dish and beacon spire, brass-framed solar petals, a pier with a yellow
+    submarine, a kelp farm.
+  - *Verdant Pillars*: karst stacks (`pillar`: tapering, ribbed, wave-cut notch, wet foot), fallen blocks, jungle
+    crowns (palms, broad-leaf trees, ferns, flowers), flowering vines, a waterfall with mist, plank rope bridges with
+    lanterns, a treehouse and a sea arch.
+- **Material**: `wonder` (`render/materials/wonder.ts`) reads `aSurf` = (roughness, metalness, kind): stone mottling,
+  strata and a darker wet band at the water; pearl iridescence at grazing angles; glass with a sky rim; leaf, sand and
+  wood variation; falling water bands. Every pattern fades to its mean by `fwidth` (flicker probe: 0.02% on the
+  gates at night). `scenery` is unchanged (eight other modules use it).
+- **Tinted shapes**: `GeoBuilder.add` folds a source shape's per-vertex `tint` (> 0 toward white, < 0 darker) into the
+  colour, so a petal is pale at its base and a pillar dark at its foot within one part.
+- **Cost**: ≈260k vertices for all five (≈14.5 MB; a first pass was 581k: surf flecks became flat hexagons, beads
+  octahedra, thin rods capless five-sided tubes, thin rings fewer segments, canopy lobes detail 1). Scenery module
+  init ≈47 ms (was ≈31). Draw calls unchanged; 60 fps with no frame over 16.7 ms framing each wonder.
+

@@ -55,9 +55,9 @@ const DISTRICT_GAP = 45;
 const WONDER_NOTES: Record<string, string> = {
   lighthouse: 'Keeps watch over the northern approaches',
   tideGates: 'Holds back the storm surges in the south-west',
-  lotus: 'A coral atoll of giant lotus pads, aglow at night',
-  dome: 'A research dome rising from the deep',
-  stacks: 'Sea stacks grown over with rainforest',
+  lotus: 'Giant lotus flowers, floating lanterns and a tea pavilion, aglow at night',
+  dome: 'A glass observatory on stilts, with its own yellow submarine',
+  stacks: 'Jungle-crowned sea stacks, a waterfall and rope bridges',
 };
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');

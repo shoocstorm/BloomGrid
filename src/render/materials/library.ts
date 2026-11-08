@@ -49,6 +49,7 @@ import { cloudShade } from '@/render/grade';
 import { activityGlow, bloomAt, overlayDim, withOverlay } from './overlay';
 import { is, styleData } from './styles';
 import { CODE_LINES, DISPLAY_FRAMES, DISPLAY_RECTS, displayAtlas } from './display';
+import { wonderMaterial } from './wonder';
 
 /**
  * Shared material library. Every instanced piece references one of these, so the whole city
@@ -778,6 +779,7 @@ export function initMaterials(): void {
     return m;
   };
   define('scenery', scenery(false), { overlay: 'plain' });
+  define('wonder', wonderMaterial, { overlay: 'plain' });
   define('glowline', scenery(true), { overlay: 'plain' });
 
   // Selection highlight (D-090): unlit, so it reads in daylight as well as at night (glow adds bloom after dark).

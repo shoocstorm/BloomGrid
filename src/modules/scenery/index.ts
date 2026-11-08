@@ -7,11 +7,11 @@ import { registerInventoryKind, type CityObject } from '@/sim/inventory';
 import { wonderVisible } from '@/sim/wonders';
 
 const WONDERS: [keyof typeof WONDER_SITES, string, string, string][] = [
-  ['lighthouse', 'LMK-LIGHTHOUSE', 'Tidewatch Lighthouse', 'A lighthouse whose beam sweeps the night sea.'],
-  ['tideGates', 'LMK-TIDE-GATES', 'Tide Gates', 'Three giant pearl rings rising out of the sea.'],
-  ['lotus', 'LMK-LOTUS-ATOLL', 'Lotus Atoll', 'An atoll of giant floating flowers.'],
-  ['dome', 'LMK-ABYSSAL-DOME', 'Abyssal Dome', 'A deep-sea observatory dome.'],
-  ['stacks', 'LMK-VERDANT-PILLARS', 'Verdant Pillars', 'Forested sea stacks.'],
+  ['lighthouse', 'LMK-LIGHTHOUSE', 'Tidewatch Lighthouse', 'A banded lighthouse on a palm-crowned islet, with the keeper’s cottage, a jetty and a sailboat; its beam sweeps the night sea.'],
+  ['tideGates', 'LMK-TIDE-GATES', 'Tide Gates', 'Three giant pearl rings inlaid with bronze and glowing runes, crowned with jewels, on stone plinths among coral and channel buoys.'],
+  ['lotus', 'LMK-LOTUS-ATOLL', 'Lotus Atoll', 'Giant glowing lotus flowers on lily pads, raised leaves, floating lanterns and a tea pavilion.'],
+  ['dome', 'LMK-ABYSSAL-DOME', 'Abyssal Dome', 'A ribbed glass observatory dome on raking legs, ringed by solar petals, with a telescope, a pier, a yellow submarine and a kelp farm.'],
+  ['stacks', 'LMK-VERDANT-PILLARS', 'Verdant Pillars', 'Karst sea stacks crowned with jungle, hung with flowering vines, joined by rope bridges, with a waterfall, a treehouse and a sea arch.'],
 ];
 
 /** The sea wonders in the city inventory (decoration: always OK, no metrics). */
