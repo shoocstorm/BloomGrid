@@ -349,10 +349,13 @@ export const exploreModule: GameModule = {
         next = 'city';
       }
       if (next === 'ferry' && !ctx.services.tryGet('ferry')?.active) {
-        ctx.bus.emit('toast', { text: 'No cruise ferry yet: it sails once a sea wonder has risen', tone: 'bad' });
+        ctx.bus.emit('toast', { text: 'No cruise ferry yet: complete the Tidesong cruise line project (Goals)', tone: 'bad' });
         next = 'city';
       }
-      if (next === 'jet' && !ctx.services.tryGet('skyguard')) next = 'city';
+      if (next === 'jet' && !ctx.services.tryGet('skyguard')?.active) {
+        ctx.bus.emit('toast', { text: 'No Sky Guard yet: complete the Sky Guard air wing project (Goals)', tone: 'bad' });
+        next = 'city';
+      }
       if (next === mode) return;
       if (next === 'roof') {
         // Landmarks nearest the view first; Tab walks on through the list.

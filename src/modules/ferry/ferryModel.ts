@@ -107,6 +107,8 @@ function hull(): BufferGeometry {
   // Transom (flat stern), as a fan from its centre.
   const mid = new Vector3(-HALF, (sheer(-HALF) - 0.7) / 2, 0);
   for (let j = 0; j < SEC; j++) tri(mid, prev[j]!, prev[j + 1]!);
+  // …and the strip under the deck plate between the two deck edges, or the stern gapes open.
+  tri(mid, prev[SEC]!, prev[0]!);
   for (let i = 1; i <= ST; i++) {
     const x = -HALF + (FERRY.length * i) / ST;
     const cur = ring(Math.min(x, HALF - 0.01));
@@ -119,10 +121,45 @@ function hull(): BufferGeometry {
     tri(cur[0]!, prev[SEC]!, cur[SEC]!);
     prev = cur;
   }
+  // The bow's last station still has a little beam: close it with a stem plate.
+  const stem = new Vector3(HALF, (sheer(HALF) - 0.7) / 2, 0);
+  for (let j = 0; j < SEC; j++) tri(stem, prev[j + 1]!, prev[j]!);
+  tri(stem, prev[0]!, prev[SEC]!);
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
   g.computeVertexNormals();
   return g;
+}
+
+/** Deck houses as [aft x, front x, width], bottom to top (the model and its collision boxes share them). */
+const HOUSES: readonly (readonly [number, number, number])[] = [
+  [-8.4, 5.8, 3.7],
+  [-8.0, 5.2, 3.4],
+  [-6.0, 4.6, 3.2],
+  [-4.4, 3.8, 3.0],
+];
+
+type Box6 = readonly [number, number, number, number, number, number];
+/**
+ * The ship as solid boxes in its own frame (explore collision, D-141): the hull in one-tile slices that follow the bow's
+ * taper and the sheer, each deck house with its rounded front, the wheelhouse, dome, sky wheel and helideck. Walkers,
+ * boards, drones and chase cameras stop at its sides instead of slipping inside, and can stand on its decks.
+ */
+export function ferrySolids(): Box6[] {
+  const { main, storey: S, sun } = FERRY;
+  const out: Box6[] = [];
+  for (let x = -HALF; x < HALF; x += 1) {
+    const w = Math.max(halfBeam(x), halfBeam(Math.min(HALF - 0.01, x + 1)));
+    out.push([x, -0.7, -w, x + 1, Math.max(sheer(x), sheer(x + 1)), w]);
+  }
+  HOUSES.forEach(([x0, x1, w], i) => out.push([x0, main + i * S, -w / 2, x1 + 0.55 * (w / 2) * 0.8, main + (i + 1) * S, w / 2]));
+  out.push([3.2, sun, -1.9, 4.23, sun + 0.4, 1.9]); // wheelhouse
+  out.push([FERRY.dome - 0.8, sun, -0.8, FERRY.dome + 0.8, sun + 0.85, 0.8]); // observation dome
+  const [wx, wy] = FERRY.wheel;
+  out.push([wx - 1.15, main, -0.3, wx + 1.15, wy + 1.15, 0.3]); // sky wheel
+  const [px, py] = FERRY.pad;
+  out.push([px - 1.1, main, -1.1, px + 1.1, py + 0.08, 1.1]); // helideck
+  return out;
 }
 
 /** A deck house: a box with a rounded, raked front (half a cylinder squashed along x). */
@@ -180,12 +217,7 @@ export function ferryGeometry(): BufferGeometry {
   const { main, storey: S } = FERRY;
   const parts: BufferGeometry[] = [part(hull(), FERRY_PART.hull)];
   // ── Deck houses, stepping back toward the top ──
-  const houses: [number, number, number][] = [
-    [-8.4, 5.8, 3.7],
-    [-8.0, 5.2, 3.4],
-    [-6.0, 4.6, 3.2],
-    [-4.4, 3.8, 3.0],
-  ];
+  const houses = HOUSES;
   houses.forEach(([x0, x1, w], i) => parts.push(...deckHouse(x0, x1, w, main + i * S, S)));
   // A white canopy edge over each deck (the balconies' roofs), a little proud of the house below.
   houses.forEach(([x0, x1, w], i) =>

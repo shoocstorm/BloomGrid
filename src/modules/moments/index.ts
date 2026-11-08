@@ -163,6 +163,45 @@ export const momentsModule: GameModule = {
           at: firstOf(ctx, 'aeroline-station') ?? { x: city().size / 2, z: city().size / 2 },
           sound: 'triumph',
         });
+      else if (id === 'police')
+        play({
+          id: 'police',
+          scale: 'grand',
+          tone: 'sky',
+          emblem: 'drone',
+          eyebrow: 'Unlock · charter granted',
+          title: 'The Aegis Watch',
+          lines: ['Island police founded', 'First drone crews certified', 'Aegis Watch Precinct unlocked'],
+          sub: p.unlocks,
+          at: firstOf(ctx, 'ember-watch') ?? heart(ctx),
+          sound: 'triumph',
+        });
+      else if (id === 'cruise')
+        play({
+          id: 'cruise',
+          scale: 'grand',
+          tone: 'sea',
+          emblem: 'ferry',
+          eyebrow: 'Unlock · maiden voyage',
+          title: 'The Tidesong',
+          lines: ['Cruise ferry commissioned', 'Tidesong Pier open', 'Voyages to the sea wonders'],
+          sub: p.unlocks,
+          at: ctx.services.tryGet('ferry')?.position ?? heart(ctx),
+          sound: 'triumph',
+        });
+      else if (id === 'skyguard')
+        play({
+          id: 'skyguard',
+          scale: 'grand',
+          tone: 'sky',
+          emblem: 'jet',
+          eyebrow: 'Unlock · wings up',
+          title: 'Sky Guard',
+          lines: ['Air wing stood up', 'Bloom One cleared for patrol', 'Chase cam, rolls and display smoke'],
+          sub: p.unlocks,
+          at: firstOf(ctx, 'zephyr-airport') ?? heart(ctx),
+          sound: 'triumph',
+        });
     });
 
     ctx.bus.on('wonder:discovered', ({ id, name }) => {

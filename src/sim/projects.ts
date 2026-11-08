@@ -3,6 +3,7 @@ import { buildings } from '@/content';
 import type { City } from './City';
 import type { SimCtx } from './systems';
 import { DAY_LENGTH, PULSE_TICKS } from './pulseConst';
+import { startWonders } from './wonders';
 import { UNLOCK_NAMES, isOpen, type ProjectRun, type UnlockId } from './growthState';
 
 /**
@@ -42,6 +43,13 @@ export const cheapestPower = (city: City) =>
     .filter((d) => d.category === 'energy' && d.stats.energy > 0 && !d.landmark && !lockReason(city, d.id))
     .sort((a, b) => a.stats.cost - b.stats.cost || a.id.localeCompare(b.id))[0]?.id;
 const toward = (have: number, need: number) => Math.max(0, Math.min(1, have / need));
+const residents = (city: City, n: number): Criterion => ({
+  label: `${fmt(n)} residents (${fmt(city.stats.population)})`,
+  ok: city.stats.population >= n,
+  progress: toward(city.stats.population, n),
+  build: 'garden-residence',
+});
+const building = (city: City, id: string, label: string): Criterion => ({ label, ok: has(city, id), build: id });
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
 export const PROJECTS: Record<UnlockId, ProjectDef> = {
@@ -101,6 +109,59 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
         progress: toward(city.credits, 1500),
         credits: true,
       },
+    ],
+  },
+  // The late-game spectacle (D-144): drones, the cruise ferry and the jet are earned like the Aeroline.
+  police: {
+    id: 'police',
+    name: 'Aegis Watch charter',
+    icon: 'drone',
+    description: 'Found the island police and train the first drone crews, with the fire watch as their backbone.',
+    unlocks:
+      'The Aegis Watch Precinct and the patrol drones: drone sorties, bay patrols and a command that answers fires.',
+    cost: 5000,
+    days: 1,
+    criteria: (city) => [
+      residents(city, 3000),
+      building(city, 'ember-watch', 'An Ember Watch Station (the crews start as fire watch)'),
+      {
+        label: `Harmony 60 or more (${Math.round(city.stats.happiness)})`,
+        ok: city.stats.happiness >= 60,
+        progress: toward(city.stats.happiness, 60),
+        build: 'pocket-park',
+      },
+    ],
+  },
+  cruise: {
+    id: 'cruise',
+    name: 'Tidesong cruise line',
+    icon: 'ferry',
+    description: 'Commission the Tidesong and lay out her pier: a cruise ferry that sails the sea wonders.',
+    unlocks: 'The cruise ferry Tidesong and her pier: voyages to the sea wonders, charters, deck shows and rides aboard.',
+    cost: 8000,
+    days: 1.5,
+    criteria: (city) => {
+      const risen = city.growth.wonders.length - startWonders().length;
+      return [
+        residents(city, 4000),
+        { label: `A sea wonder risen beyond the lighthouse and the whales (${Math.max(0, risen)})`, ok: risen >= 1 },
+        building(city, 'weather-radar', 'A Weather Radar to forecast the crossings'),
+      ];
+    },
+  },
+  skyguard: {
+    id: 'skyguard',
+    name: 'Sky Guard air wing',
+    icon: 'jet',
+    description: 'Stand up the island’s air guard: an airfield crew, a radar picture and the Aegis Watch behind it.',
+    unlocks: 'The Sky Guard jet: patrol passes over the city, a chase cam, victory rolls, afterburners and display smoke.',
+    cost: 18000,
+    days: 2,
+    criteria: (city) => [
+      residents(city, 8000),
+      { label: 'The Aegis Watch charter', ok: isOpen(city.growth, 'police') },
+      building(city, 'zephyr-airport', 'A Zephyr Airship Port (the airfield)'),
+      building(city, 'weather-radar', 'A Weather Radar (the radar picture)'),
     ],
   },
 };

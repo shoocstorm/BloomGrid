@@ -2392,3 +2392,34 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   Frame times go into a preallocated buffer (no per-frame allocation). Tested in `tests/dynamicResolution.test.ts`.
 - **Rejected**: turning dynamic resolution off on Ultra (a slower GPU still needs it to hold its frame rate);
   a lower recovery threshold (it would oscillate between scales on a GPU that is really borderline).
+
+## D-143 — Moving solids in the explore collider; the ferry's closed stern (2026-11-08)
+
+- **Problem**: the Tidesong's transom fan stopped at the hull's U and left the strip under the deck edge open, so the
+  stern gaped; and the collider only knew buildings, trees and terrain, so a swimmer, board, drone or chase camera
+  slipped straight into the hull and deck houses.
+- **Decision**: the transom gets its closing triangle and the bow a stem plate. `collider.addMover({ world, boxes,
+  radius })` adds a solid posed live by a matrix (null while hidden): `hits` tests its boxes in its own frame, and
+  `groundAt` stands walkers on its box tops. The ferry registers `ferrySolids()` (`ferryModel.ts`: hull slices along
+  the taper and sheer, deck houses, wheelhouse, dome, sky wheel, helideck) posed by `vessel.matrix` (updated in
+  `sail`). A new moving thing that people can reach in explore modes should register boxes the same way.
+- **Rejected**: per-triangle collision against the merged mesh (thousands of triangles tested per query, many queries
+  per frame); a single box round the ship (walls off the open decks and the bow's taper).
+
+## D-144 — Police drones, the cruise ferry and the Sky Guard jet are unlock projects (2026-11-08)
+
+- **Problem**: on a fresh island the Tidesong sailed from the first minute (the lighthouse is a start wonder), the
+  Sky Guard jet always flew, and the Aegis Watch Precinct could be built at once: the late-game spectacle needed no
+  progress.
+- **Decision**: three projects in `PROJECTS` (`sim/projects.ts`), shown on the Goals tab, in Flora's goal tools and in
+  the build gate like the others:
+  - `police` (Aegis Watch charter, ◈5,000, 1 day): 3,000 residents, an Ember Watch Station, harmony 60. The precinct
+    `requires` it; the police module draws no gate drone or bay patrols before it.
+  - `cruise` (Tidesong cruise line, ◈8,000, 1.5 days): 4,000 residents, a sea wonder beyond the start ones, a Weather
+    Radar. The ferry module shows ship and pier only once it is open.
+  - `skyguard` (Sky Guard air wing, ◈18,000, 2 days): 8,000 residents, the Aegis Watch charter, a Zephyr Airship
+    Port, a Weather Radar. The jet and its trails are hidden and the chase cam refused before it.
+  Each gets a grand ceremony on `project:done`. Without progression (showcase, tests) all three are open.
+- Each project needs a building the pacing test's scripted steward never builds, so the early timeline it guards is
+  unchanged. Saves are unaffected (unlocks are string ids); a fresh island saved before this keeps a built precinct
+  but must earn the patrols, the ferry and the jet.

@@ -56,6 +56,7 @@ export default defineBuilding({
     'The island’s police headquarters and emergency command: a white-and-navy hall around a glass command atrium, a comms mast with a beacon, and a rooftop deck where the patrol drones land. Its crews and drones answer fires within reach while it is powered and staffed. Select it to dispatch its drones.',
   category: 'utility',
   footprint: [10, 8],
+  requires: 'police',
   stats: {
     cost: 4200,
     energy: -24,

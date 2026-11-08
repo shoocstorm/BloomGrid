@@ -3,7 +3,8 @@ import { EventBus } from '@/core/EventBus';
 import { buildings } from '@/content';
 import { City } from '@/sim/City';
 import { applyScenario } from '@/sim/scenario';
-import { PROJECTS, projectStatus } from '@/sim/projects';
+import { PROJECTS, lockReason, projectStatus } from '@/sim/projects';
+import { isOpen } from '@/sim/growthState';
 import { floraBlocker, floraCost } from '@/sim/flora';
 import { wonderVisible } from '@/sim/wonders';
 import { SAVE_VERSION, deserializeCity, migrateSave, serializeCity, type SaveData } from '@/sim/save';
@@ -105,6 +106,34 @@ describe('fresh island start (Phase 16, D-072)', () => {
     expect(c.growth.unlocked).toContain('skylanes');
   });
 
+  it('police drones, the cruise ferry and the Sky Guard are earned: criteria, the precinct lock, the air wing after the charter (D-144)', () => {
+    const s = fresh();
+    const c = s.city;
+    c.credits += 1e5;
+    for (const id of ['police', 'cruise', 'skyguard'] as const) {
+      expect(isOpen(c.growth, id)).toBe(false);
+      expect(projectStatus(c, id)).toBe('blocked');
+    }
+    expect(lockReason(c, 'aegis-precinct')).toMatch(/Aegis Watch/);
+    // The start wonders don't count toward the cruise line, and the jet needs the police charter first.
+    c.stats.population = 9000;
+    const unmet = (id: 'police' | 'cruise' | 'skyguard') =>
+      PROJECTS[id].criteria(c).filter((k) => !k.ok).map((k) => k.label);
+    expect(unmet('cruise').some((l) => /sea wonder/.test(l))).toBe(true);
+    expect(unmet('skyguard').some((l) => /Aegis Watch/.test(l))).toBe(true);
+    // Every unmet building criterion names a building to build (the Goals tab turns it into a Build button).
+    for (const id of ['police', 'cruise', 'skyguard'] as const)
+      for (const k of PROJECTS[id].criteria(c))
+        if (!k.ok && /Station|Radar|Port/.test(k.label)) expect(k.build).toBeTruthy();
+    c.growth.unlocked.push('police');
+    expect(lockReason(c, 'aegis-precinct')).toBeNull();
+    expect(unmet('skyguard').some((l) => /Aegis Watch/.test(l))).toBe(false);
+    // The showcase city has them all.
+    const show = makeSim(1);
+    applyScenario(show.city, 'founding-city');
+    for (const id of ['police', 'cruise', 'skyguard'] as const) expect(projectStatus(show.city, id)).toBe('open');
+  });
+
   it('Flora sleeps until woken, then each request is billed; the showcase city is free and open', () => {
     const s = fresh();
     expect(floraBlocker(s.city)).toMatch(/asleep/);
@@ -158,7 +187,7 @@ describe('Flora knows the goals (Phase 22)', () => {
       fishing: { stock: string };
       wonders: { hidden: string[] };
     };
-    expect(out.projects.map((p) => p.id)).toEqual(['skylanes', 'aeroline', 'flora']);
+    expect(out.projects.map((p) => p.id)).toEqual(['skylanes', 'aeroline', 'flora', 'police', 'cruise', 'skyguard']);
     expect(out.projects.find((p) => p.id === 'skylanes')!.criteria!.some((c) => c.startsWith('✗'))).toBe(
       true,
     );

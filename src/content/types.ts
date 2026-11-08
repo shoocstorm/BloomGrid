@@ -182,7 +182,7 @@ export interface BuildingDef {
    */
   motion?: { off: string; on: string; help: string };
   /** On a fresh island, can only be built once this unlock project is done (D-072). */
-  requires?: 'skylanes' | 'aeroline' | 'flora';
+  requires?: 'skylanes' | 'aeroline' | 'flora' | 'police' | 'cruise' | 'skyguard';
   /** Fireworks factory (D-068): makes `rate` shells per sim minute when fully staffed, keeps up to `storage`. */
   fireworks?: { rate: number; storage: number };
   /** Number of procedural variants (recipe runs cached per variant). Default 3. */

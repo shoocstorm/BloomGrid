@@ -43,7 +43,7 @@ export const goalsModule: GameModule = {
           h(
             'p',
             { class: 'gl-note' },
-            'Everything is open in this city: the sky-lanes, the Aeroline, Flora and every sea wonder. Found a fresh island (Settings → Found a new city) to earn them.',
+            'Everything is open in this city: the sky-lanes, the Aeroline, Flora, the Aegis Watch, the Tidesong, the Sky Guard and every sea wonder. Found a fresh island (Settings → Found a new city) to earn them.',
           ),
         );
         return;

@@ -48,6 +48,9 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BLOOMGRID_7AE90 }}
           projectId: bloomgrid-7ae90
+          # The site in firebase.json (not the project's default bloomgrid-7ae90 site): deploys with
+          # `--only hosting:bloomgrid` and reports https://bloomgrid.web.app.
+          target: bloomgrid
           channelId: live
       - name: GitHub Release
         env:
@@ -55,7 +58,7 @@ jobs:
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --generate-notes \
             --title "BloomGrid $TAG" --notes "$(cat <<'EOF'
-          **Play in the browser:** https://bloomgrid-7ae90.web.app
+          **Play in the browser:** https://bloomgrid.web.app
 
           **macOS app:** download `BloomGrid_*_aarch64.dmg` (Apple Silicon, M1 or later; includes the native city assistant)
           or `BloomGrid_*_x64.dmg` (Intel), open it and drag BloomGrid to Applications. If macOS says the app

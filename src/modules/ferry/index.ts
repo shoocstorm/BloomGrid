@@ -45,9 +45,10 @@ import { U } from '@/render/uniforms';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { wonderVisible } from '@/sim/wonders';
+import { isOpen } from '@/sim/growthState';
 import { registerPickable } from '@/modules/construction/pick';
 import { WONDER_SITES } from '@/modules/scenery/sites';
-import { FERRY, FERRY_PART, ferryGeometry, pierGeometry } from './ferryModel';
+import { FERRY, FERRY_PART, ferryGeometry, ferrySolids, pierGeometry } from './ferryModel';
 import './ferry.css';
 import {
   BERTH_ALONG,
@@ -486,7 +487,8 @@ export const ferryModule: GameModule = {
       }
     };
     const refresh = () => {
-      const on = !!pier && open().length > 0;
+      // A fresh island earns her: the Tidesong cruise line project (D-144).
+      const on = !!pier && isOpen(city.growth, 'cruise') && open().length > 0;
       if (on && !dest) dest = pickNext();
       shown = on && !!dest;
       vessel.visible = shown;
@@ -503,6 +505,7 @@ export const ferryModule: GameModule = {
       courses.clear();
       refresh();
     });
+    bus.on('project:done', ({ id }) => id === 'cruise' && refresh());
     // A new coast or bridge changes the courses: re-plan from the next departure (the pier stays put).
     for (const ev of ['terrain:changed', 'road:changed'] as const)
       bus.on(ev, () => (sea ? (dirty = true) : undefined));
@@ -590,10 +593,17 @@ export const ferryModule: GameModule = {
       const t = U.clock.value;
       vessel.position.set(pos.x, U.waterLevel.value + 0.02 + Math.sin(t * 0.9) * 0.025, pos.z);
       vessel.rotation.set(Math.sin(t * 0.7) * 0.012, -heading, Math.sin(t * 0.55 + 1) * 0.008, 'YXZ');
+      vessel.updateMatrix();
       wake.value += (Math.min(1.4, Math.abs(v) / CRUISE) - wake.value) * Math.min(1, dt * 2);
       wakeMesh.visible = wake.value > 0.01;
       show.value += ((t < showUntil ? 1 : 0) - show.value) * Math.min(1, dt * 1.5);
     };
+    // Solid in explore modes: nobody walks, boards, flies or looks through its hull and deck houses.
+    ctx.services.tryGet('explore')?.collider.addMover({
+      world: () => (shown ? vessel.matrix : null),
+      boxes: ferrySolids(),
+      radius: FERRY.length / 2 + 1.5,
+    });
     ctx.systems.add({ id: 'ferry.sail', phase: 'sync', update: (_c, f) => sail(Math.min(0.1, f.dt)) });
 
     // ── The steward's requests ───────────────────────────────────────────────────────────────────────────────

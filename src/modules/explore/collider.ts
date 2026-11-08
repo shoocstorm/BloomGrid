@@ -74,6 +74,16 @@ const PASSAGE_RISE = 1.3;
 /** How far round a point to look for buildings whose pieces overhang their lots (tiles). */
 const REACH = 5;
 
+/**
+ * Something solid that moves (the cruise ferry, D-141): boxes in its own frame, `x0, y0, z0, x1, y1, z1` each, posed
+ * by `world` (null while it is hidden), within `radius` of its origin. Queries test it live, so it never goes stale.
+ */
+export interface Mover {
+  world(): Readonly<Matrix4> | null;
+  boxes: readonly (readonly [number, number, number, number, number, number])[];
+  radius: number;
+}
+
 /** Wild trees per tile, flat: [x, z, ground, trunk height, trunk radius, canopy y, canopy radius] per tree. */
 export type TreeLookup = (tile: number) => readonly number[] | undefined;
 export const TREE_STRIDE = 7;
@@ -83,6 +93,22 @@ const _c = new Vector3();
 
 export function createCollider(city: City, trees?: TreeLookup, doorOpen?: (eid: number) => boolean) {
   const solids = new Map<number, Solid>();
+  const movers: Mover[] = [];
+  const _inv = new Matrix4();
+  const _l = new Vector3();
+  /** Movers within `r` of (x, z): `fn` gets each one (and its pose) with the point in its frame (in `_l`) until it returns true. */
+  const moversNear = (x: number, y: number, z: number, r: number, fn: (m: Mover, world: Readonly<Matrix4>) => boolean) => {
+    for (const m of movers) {
+      const w = m.world();
+      if (!w) continue;
+      const e = w.elements;
+      if ((x - e[12]!) ** 2 + (z - e[14]!) ** 2 > (m.radius + r) ** 2) continue;
+      _inv.copy(w).invert();
+      _l.set(x, y, z).applyMatrix4(_inv);
+      if (fn(m, w)) return true;
+    }
+    return false;
+  };
   const partOf = (piece: string, world: Matrix4): Part => {
     const geo = getPiece(piece).geometry;
     if (!geo.boundingBox) geo.computeBoundingBox();
@@ -230,6 +256,10 @@ export function createCollider(city: City, trees?: TreeLookup, doorOpen?: (eid: 
 
   /** True if a ball of radius `r` at (x, y, z) touches a building piece or a wild tree; `plinths` = false skips lots. */
   const hits = (x: number, y: number, z: number, r: number, plinths = true): boolean => {
+    const moving = moversNear(x, y, z, r, (m) =>
+      m.boxes.some(([x0, y0, z0, x1, y1, z1]) => _l.x >= x0 - r && _l.x <= x1 + r && _l.y >= y0 - r && _l.y <= y1 + r && _l.z >= z0 - r && _l.z <= z1 + r),
+    );
+    if (moving) return true;
     for (const eid of buildingsNear(x, z, r)) {
       const s = solids.get(eid)!;
       const open = s.passages.length > 0 && !!doorOpen?.(eid);
@@ -260,6 +290,15 @@ export function createCollider(city: City, trees?: TreeLookup, doorOpen?: (eid: 
         const top = topOf(p, x, z);
         if (top <= feet + step && top > y) y = top;
       }
+    // A mover's deck tops (its frame's up is close to world up: the ferry only rolls a little).
+    moversNear(x, feet, z, 0, (m, world) => {
+      for (const [x0, , z0, x1, y1, z1] of m.boxes) {
+        if (_l.x < x0 || _l.x > x1 || _l.z < z0 || _l.z > z1) continue;
+        const top = _c.set(_l.x, y1, _l.z).applyMatrix4(world).y;
+        if (top <= feet + STEP && top > y) y = top;
+      }
+      return false;
+    });
     return y;
   };
 
@@ -296,5 +335,10 @@ export function createCollider(city: City, trees?: TreeLookup, doorOpen?: (eid: 
     return 1;
   };
 
-  return { groundAt, blocked, hits, reach, clear: () => solids.clear() };
+  /** Adds a moving solid; returns its removal. */
+  const addMover = (m: Mover) => {
+    movers.push(m);
+    return () => void movers.splice(movers.indexOf(m) >>> 0, 1);
+  };
+  return { groundAt, blocked, hits, reach, addMover, clear: () => solids.clear() };
 }

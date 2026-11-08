@@ -39,6 +39,7 @@ import {
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { Building } from '@/ecs/components';
+import { isOpen } from '@/sim/growthState';
 import { DRONE_PAD } from '@/content/buildings/harmony-gate';
 import { POLICE_PADS } from '@/content/buildings/aegis-precinct';
 import { h } from '@/ui/dom';
@@ -238,7 +239,9 @@ export const policeModule: GameModule = {
     /** Instance ranges of each precinct's two drones, by entity. */
     const precinctDrones = new Map<number, number>();
     const rebuild = () => {
-      const gate = city.buildingEntities().find((e) => city.buildingDef(e).id === GATE);
+      // A fresh island earns the drones with the Aegis Watch charter (D-144): no gate drone or bay patrols before.
+      const chartered = isOpen(city.growth, 'police');
+      const gate = chartered ? city.buildingEntities().find((e) => city.buildingDef(e).id === GATE) : undefined;
       const precincts = city.buildingEntities().filter((e) => city.buildingDef(e).id === PRECINCT);
       const P = aPath.array as Float32Array;
       const F = aFly.array as Float32Array;
@@ -291,6 +294,8 @@ export const policeModule: GameModule = {
     bus.on('building:added', ({ eid }) => isStation(eid) && rebuild());
     bus.on('building:removed', () => rebuild());
     bus.on('city:reset', rebuild);
+    bus.on('load:done', rebuild);
+    bus.on('project:done', ({ id }) => id === 'police' && rebuild());
     bus.on('terrain:changed', rebuild);
     ctx.systems.add({
       id: 'police.visible',

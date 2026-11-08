@@ -41,6 +41,7 @@ import { U } from '@/render/uniforms';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { registerPickable } from '@/modules/construction/pick';
+import { isOpen } from '@/sim/growthState';
 import { JET, JET_PART, jetGeometry, liveryTexture } from './jetModel';
 import { lapLength, patrolAt, patrolNode } from './flight';
 
@@ -76,6 +77,8 @@ const EAR = 110;
 export interface SkyGuardService {
   /** The chase camera: eye behind and above, a point ahead (explore mode `jet`). */
   ride(eye: Vector3, ahead: Vector3): boolean;
+  /** Whether the jet flies (a fresh island earns it with the Sky Guard air wing, D-144). */
+  readonly active: boolean;
   readonly position: Readonly<Vector3>;
   inspect(): void;
   roll(): void;
@@ -252,6 +255,10 @@ export const skyguardModule: GameModule = {
       id: 'skyguard.fly',
       phase: 'sync',
       update(c, f) {
+        // A fresh island earns the jet with the Sky Guard air wing project (D-144).
+        const on = isOpen(ctx.city.growth, 'skyguard');
+        jet.visible = trails.visible = on;
+        if (!on) return;
         const dt = Math.min(0.1, f.dt);
         const t = U.clock.value;
         burner.value += ((t < burnUntil ? 1 : 0) - burner.value) * Math.min(1, dt * 2.5);
@@ -369,6 +376,7 @@ export const skyguardModule: GameModule = {
     });
 
     const ride = (eye: Vector3, ahead: Vector3) => {
+      if (!jet.visible) return false;
       // Behind and a little above, along the flight path (not the roll), the jet low in the frame.
       eye.copy(pos).addScaledVector(fwd, -15).addScaledVector(WORLD_UP, 3.4);
       ahead.copy(pos).addScaledVector(fwd, 8);
@@ -376,6 +384,9 @@ export const skyguardModule: GameModule = {
     };
     ctx.services.provide('skyguard', {
       ride,
+      get active() {
+        return isOpen(ctx.city.growth, 'skyguard');
+      },
       position: pos,
       inspect: () => bus.emit('selection:changed', { eid: null, object: 'skyguard' }),
       roll: rollNow,
