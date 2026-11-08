@@ -282,7 +282,14 @@ export const tutorialModule: GameModule = {
       });
     };
 
-    ctx.services.provide('wizard', { open: () => void open(), guide: () => tut.begin() });
+    ctx.services.provide('wizard', {
+      open: () => void open(),
+      guide: () => tut.begin(),
+      island: (name, difficulty) => {
+        const seed = Math.floor(Math.random() * 1e6) + 1;
+        return found('fresh-island', seed, difficulty, name).then(() => founded(name, difficulty, false));
+      },
+    });
     // A city chosen on the welcome screen (D-148) is greeted once it is in view.
     const s = ctx.start;
     if (s?.kind === 'scenario' && s.chosen) {
@@ -303,6 +310,8 @@ declare module '@/core/Services' {
       open(): void;
       /** Starts the how-to-play guide from the first step. */
       guide(): void;
+      /** Founds a fresh island at once (new seed, no guide): the steward's "try again" after game over. */
+      island(name: string, difficulty: DifficultyId): Promise<void>;
     };
   }
 }

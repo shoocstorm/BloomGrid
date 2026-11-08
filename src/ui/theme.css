@@ -2225,13 +2225,125 @@ body:not(.compact) .dock {
   color: var(--ink-soft);
 }
 
-/* Game over: record tiles under a red council notice. */
+/* Game over: the steward's chronicle under a red council notice (rank, record, moments, tips). */
 .over.holo {
   text-align: left;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  /* Never a sideways scroll (stamping stars and rising rows overshoot while they animate); the vertical one is thin. */
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 150, 140, 0.35) transparent;
+}
+.over.holo::-webkit-scrollbar {
+  width: 6px;
+  height: 0;
+}
+.over.holo::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: rgba(255, 150, 140, 0.35);
+}
+.over.holo::-webkit-scrollbar-track {
+  background: transparent;
+}
+.over .over-stats div,
+.over .ov-title,
+.over .ov-block li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.over .ov-eyebrow {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.over .ov-rank {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'stars score' 'title score';
+  gap: 4px 14px;
+  align-items: center;
+  margin: 2px 0 10px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(255, 210, 120, 0.32);
+  background: linear-gradient(120deg, rgba(255, 200, 110, 0.1), rgba(255, 90, 110, 0.05));
+}
+.over .ov-stars {
+  grid-area: stars;
+  display: flex;
+  gap: 3px;
+}
+.over .ov-stars i {
+  display: grid;
+  color: rgba(255, 255, 255, 0.16);
+}
+.over .ov-stars i .ico {
+  width: 18px;
+  height: 18px;
+}
+.over .ov-stars i.on .ico {
+  fill: currentColor;
+}
+.over .ov-stars i.on {
+  color: #ffd27a;
+  animation: ov-stamp 0.5s calc(0.6s + var(--s) * 0.16s) cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes ov-stamp {
+  from {
+    opacity: 0;
+    transform: scale(2.2) rotate(-25deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.over .ov-title {
+  grid-area: title;
+  display: grid;
+  gap: 1px;
+}
+.over .ov-title b {
+  font-size: 19px;
+  color: #ffe2a8;
+  animation: ov-glow 2.4s 1.6s ease-in-out infinite alternate;
+}
+@keyframes ov-glow {
+  to {
+    opacity: 0.78;
+  }
+}
+.over .ov-line {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.over .ov-score {
+  grid-area: score;
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+}
+.over .ov-score-n {
+  font: 600 28px var(--mono);
+  color: var(--ink);
+}
+.over .ov-best {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+.over .ov-best.new {
+  color: #ffd27a;
+  animation: ov-stamp 0.5s 2.3s cubic-bezier(0.3, 1.6, 0.5, 1) both;
 }
 .over .over-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin: 0;
 }
@@ -2248,7 +2360,7 @@ body:not(.compact) .dock {
   color: #ff9aa6;
 }
 .over .over-stats b {
-  font: 600 24px var(--mono);
+  font: 600 22px var(--mono);
   color: var(--ink);
 }
 .over .over-stats span {
@@ -2257,9 +2369,54 @@ body:not(.compact) .dock {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-faint);
+  text-align: center;
+}
+.over .ov-block {
+  margin-top: 10px;
+}
+.over .ov-block ul {
+  list-style: none;
+  margin: 5px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.over .ov-block li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+.over .ov-block li .ico {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+}
+.over .ov-high li .ico {
+  color: #ffd27a;
+}
+.over .ov-tips li .ico {
+  color: var(--accent);
 }
 .over .modal-actions {
   justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.over .modal-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.over .ov-again {
+  animation: ov-pulse 1.8s 2.6s ease-in-out infinite;
+}
+@keyframes ov-pulse {
+  50% {
+    transform: scale(1.04);
+  }
 }
 
 /* Settings: header, lit choices. */

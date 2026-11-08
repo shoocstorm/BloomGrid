@@ -2549,3 +2549,19 @@ the dialog); keeping the boot city and replacing it (the waste this removes).
 
 **Result.** Welcome dialog visible ≈ 0.08 s after navigation on a warm dev load (was ≈ 3–5 s); `core` lap ≈ 15 ms
 after the choice (the prefetch made the device).
+
+## D-149: Game over is a chronicle, and "try again" founds a fresh island
+
+**Context.** The game-over screen showed two numbers and its "Found a new city" button founded the `founding-city`
+scenario (the showcase), not a new starting island.
+
+**Decision.**
+- `sim/legacy.ts` (`stewardLegacy`, pure, tested in `tests/legacy.test.ts`) scores the tenure (peak residents, days,
+  hand-built buildings, crises, milestones, risen wonders, unlocks) into one of five steward ranks, names the cause
+  (Harmony, debt or both) and picks lessons for it; numbers like `FAIL_SECONDS` come from code.
+- `modules/crises/GameOver.ts` draws it: stars stamp in, the record counts up, proud moments and tips, a personal
+  best kept in `localStorage` (`bloomgrid:legacy-best`, a per-device convenience, not saved state).
+- The primary button founds a fresh island at once through `wizard.island(name, difficulty)` (new seed, no guide),
+  named after the fallen city ("Coralhaven" → "Coralhaven II", `nextName`); **More choices** opens the New Chapter
+  dialog. The screen closes on `city:reset` / `load:done`, so every path out of it (load, chapter dialog) clears it.
+  The plain fallback dialog founds `fresh-island` too.

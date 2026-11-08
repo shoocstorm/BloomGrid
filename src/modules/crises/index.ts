@@ -3,6 +3,7 @@ import type { GameContext, GameModule } from '@/game/context';
 import { forecastCrisis, getCrisis } from '@/sim/crises';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
 import { FAIL_SECONDS } from '@/sim/steward';
+import { gameOver } from './GameOver';
 import { foundCityStaged } from '@/game/newCity';
 import { openingView } from '@/game/opening';
 import { h, setText } from '@/ui/dom';
@@ -58,7 +59,7 @@ function newCityDialog(ctx: GameContext, onDone?: () => void): void {
                 .run(
                   'Founding a new city',
                   async (stage) => {
-                    await foundCityStaged(ctx, Number(seedInput.value) || 1, choice, 'founding-city', stage);
+                    await foundCityStaged(ctx, Number(seedInput.value) || 1, choice, 'fresh-island', stage);
                     ctx.engine.speed = 1;
                   },
                   fly,
@@ -201,72 +202,18 @@ export const crisesModule: GameModule = {
       cards = new Map();
     });
 
-    // Game over.
-    ctx.bus.on('steward:replaced', ({ day, peakPopulation }) => {
+    // Game over: the steward's chronicle (rank, record, highlights, lessons) and a one-click fresh island.
+    let over: HTMLElement | null = null;
+    const dismiss = () => {
+      over?.remove();
+      over = null;
+    };
+    for (const ev of ['city:reset', 'load:done'] as const) ctx.bus.on(ev, dismiss);
+    ctx.bus.on('steward:replaced', () => {
       ctx.engine.speed = 0;
-      const save = ctx.services.get('save');
-      const scrim = h('div', { class: 'modal-scrim' });
-      const close = () => scrim.remove();
-      scrim.append(
-        h(
-          'section',
-          { class: 'modal panel holo crit over', role: 'alertdialog', 'aria-label': 'Steward replaced' },
-          holoHead(
-            icon('leaf'),
-            'Council notice · steward link lost',
-            'The council has replaced you',
-            `After ${day} day${day === 1 ? '' : 's'} of stewardship the city fell into collapse for too long.`,
-            'crit',
-          ),
-          h(
-            'div',
-            { class: 'over-stats' },
-            h('div', {}, icon('people'), h('b', {}, peakPopulation.toLocaleString()), h('span', {}, 'peak residents')),
-            h('div', {}, icon('pause'), h('b', {}, String(day)), h('span', {}, day === 1 ? 'day' : 'days')),
-          ),
-          h(
-            'div',
-            { class: 'modal-actions' },
-            h(
-              'button',
-              {
-                class: 'btn ghost',
-                onClick: async () => {
-                  const ok = await ctx.services.get('loader').run('Restoring your last save', async (stage) => {
-                    const done = (await save.load('slot1', stage)) || (await save.load('autosave', stage));
-                    if (done) {
-                      close();
-                      ctx.engine.speed = 1;
-                    }
-                    return done;
-                  });
-                  if (!ok) ctx.bus.emit('toast', { text: 'No save found', tone: 'bad' });
-                },
-              },
-              'Load last save',
-            ),
-            h(
-              'button',
-              {
-                class: 'btn ghost',
-                onClick: () => {
-                  const st = ctx.city.steward;
-                  st.difficulty = 'sandbox';
-                  st.failed = false;
-                  st.failClock = 0;
-                  ctx.engine.speed = 1;
-                  close();
-                  ctx.bus.emit('toast', { text: 'Continuing in Sandbox: no more fail state', tone: 'info' });
-                },
-              },
-              'Continue in sandbox',
-            ),
-            h('button', { class: 'btn primary', onClick: () => (close(), newCityDialog(ctx)) }, 'Found a new city'),
-          ),
-        ),
-      );
-      rise(scrim.querySelectorAll('.over-stats > div, .modal-actions'));
-      ctx.hud.append(scrim);
+      dismiss();
+      over = gameOver(ctx, dismiss);
+      ctx.hud.append(over);
     });
   },
 };

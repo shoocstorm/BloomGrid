@@ -196,4 +196,5 @@ body:not(.booted) .boot-screen .holo,
 body:not(.booted) .boot-screen .holo *,
 body:not(.booted) .boot-screen .holo::after {
   animation-play-state: running;
+  box-shadow: none;
 }

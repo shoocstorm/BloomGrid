@@ -662,3 +662,17 @@ body.compact.flora-open #hud > :not(.ai) {
   bottom: calc(3.5vh - 17px);
   opacity: 0.9;
 }
+/* Game over on a phone: the legacy score drops under the rank, the record tiles stay three across. */
+.compact .over .ov-rank {
+  grid-template-columns: 1fr;
+  grid-template-areas: 'stars' 'title' 'score';
+}
+.compact .over .ov-score {
+  justify-items: start;
+}
+.compact .over .modal-actions .btn {
+  flex: 1 1 auto;
+}
+.compact .over.holo {
+  overflow: hidden auto;
+}
