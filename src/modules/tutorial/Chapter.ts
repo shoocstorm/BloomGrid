@@ -1,14 +1,14 @@
-import type { GameContext } from '@/game/context';
-import { SHOWCASE_SEED } from '@/game/newCity';
+import { SHOWCASE_SEED } from '@/game/start';
 import type { SaveInfo } from '@/game/SaveManager';
 import type { SaveData } from '@/sim/save';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
 import { ago, h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { holoHead, rise } from '@/ui/holo';
-import { MAP_COLORS, MAP_LINE, MAP_ROAD, drawIsland, mapOfCity, mapOfSave } from './islandMap';
+import { MAP_COLORS, MAP_LINE, MAP_ROAD, drawIsland } from './islandMap';
 
-type Path = 'resume' | 'new' | 'showcase';
+export type ChapterPath = 'resume' | 'new' | 'showcase';
+type Path = ChapterPath;
 
 const PREFIX = ['Coral', 'Tide', 'Fern', 'Lumen', 'Moss', 'Saffron', 'Willow', 'Amber', 'Kelp', 'Lotus', 'Cedar', 'Opal', 'Heron', 'Mango'];
 const SUFFIX = ['Haven', 'Reach', 'Hollow', 'Point', 'Cove', 'Isle', 'Bloom', 'Harbour', 'Vale', 'Strand', 'Landing', 'Bay'];
@@ -16,15 +16,53 @@ const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)]!;
 /** A city name to start from ("Kelp Harbour"); the player can type their own or roll again. */
 const cityName = () => `${pick(PREFIX)} ${pick(SUFFIX)}`;
 
+/** Where the guide's progress is kept ('done', 'skipped' or the step reached). */
+export const TUTORIAL_KEY = 'bloomgrid.tutorial';
+
+/** Tick "Show me how to play" unless the guide was finished or skipped. */
+export function guideWanted(): boolean {
+  try {
+    return !['done', 'skipped'].includes(localStorage.getItem(TUTORIAL_KEY) ?? '');
+  } catch {
+    return true;
+  }
+}
+
 const DIFF_ICONS: Record<DifficultyId, string> = { sandbox: 'leaf', relaxed: 'sun', steward: 'eco', hard: 'storm' };
 
 export interface ChapterOptions {
-  /** The boot's dialog (no Cancel; the island on screen is the default new one). */
+  /** Where the dialog goes. */
+  host: HTMLElement;
+  /** The welcome screen's dialog (D-148): no Cancel, nothing on screen to replace yet. */
   first: boolean;
+  /** The saved city's summary (null: nothing saved). */
+  info: SaveInfo | null;
+  /** The saved city itself (its map). */
+  readSave(): Promise<SaveData | null | undefined>;
+  /** Map edge in tiles. */
+  size: number;
+  /** Difficulty offered first. */
+  difficulty: DifficultyId;
+  /** Island seed offered for a new city. */
+  seed: number;
   /** Tick "Show me how to play" (the guide was never finished or skipped). */
   guide: boolean;
+  /** Loads the saved city; resolves false when it could not (the dialog stays, with a note). `close` drops the dialog. */
+  resume(close: () => void): Promise<boolean>;
   found(name: string, seed: number, difficulty: DifficultyId, guide: boolean): void;
   showcase(): void;
+  /** The dialog closed (any way). */
+  onClose?(): void;
+  /** The path or island on show changed (the welcome screen's island follows it). */
+  onView?(path: Path, seed: number): void;
+}
+
+/** A saved city drawn as a map; loads the building registry lazily (the welcome chunk stays light, D-148). */
+export async function drawSave(canvas: HTMLCanvasElement, data: SaveData | null | undefined, seed: number, size: number): Promise<void> {
+  drawIsland(canvas, data?.seed ?? seed, size);
+  if (!data) return;
+  const { mapOfSave } = await import('./cityMap');
+  drawIsland(canvas, data.seed ?? seed, size, mapOfSave(data));
 }
 
 /**
@@ -33,24 +71,19 @@ export interface ChapterOptions {
  * dice, difficulty as four tiles, the guide; the island seed sits under Advanced with a live map), or **browse the
  * showcase city**. One primary button acts on the chosen path; Enter presses it, Esc cancels when it can.
  */
-export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<void> {
-  const save = ctx.services.get('save');
-  const info: SaveInfo | null = await save.info().catch(() => null);
+export function openChapter(o: ChapterOptions): { close(): void } {
+  const info = o.info;
   let path: Path = info ? 'resume' : 'new';
-  let difficulty: DifficultyId = ctx.city.steward.difficulty;
-  let seed = o.first ? ctx.city.seed : Math.floor(Math.random() * 1e6) + 1;
-  const size = ctx.city.grid.w;
-
-  // The city holds still while the steward chooses (no alerts piling up behind the dialog).
-  const speed = ctx.engine.speed;
-  ctx.engine.speed = 0;
-  // City Pulse waits until a chapter is chosen (it would show a city about to be replaced).
-  document.body.classList.add('chapter-open');
+  let difficulty: DifficultyId = o.difficulty;
+  let seed = o.seed;
+  const size = o.size;
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
     window.removeEventListener('keydown', onKey, true);
     scrim.remove();
-    document.body.classList.remove('chapter-open');
-    ctx.engine.speed = speed;
+    o.onClose?.();
   };
 
   // ── Path cards ──
@@ -73,6 +106,7 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   if (!info) resumeCard.disabled = true;
 
   // ── Resume ──
+  const resumeErr = h('p', { class: 'ch-note ch-err', role: 'alert' });
   const savedMap = h('canvas', { class: 'ch-map' }) as HTMLCanvasElement;
   const resume = h(
     'div',
@@ -92,6 +126,7 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
         info?.at ? fact('save', 'Saved', ago(info.at)) : null,
       ),
       h('p', { class: 'ch-note' }, o.first ? 'Pick up where you left off.' : 'Replaces the city on screen with your saved one.'),
+      resumeErr,
     ),
   );
 
@@ -116,10 +151,9 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   const seedInput = h('input', { type: 'number', class: 'ch-seed', value: String(seed), min: '1', 'aria-label': 'Island seed' }) as HTMLInputElement;
   const seedLabel = h('span', { class: 'ch-map-cap' });
   const paintNew = () => {
-    // The island on screen at boot already holds the hamlet you would found: show it.
-    const here = o.first && seed === ctx.city.seed && ctx.city.growth.progression;
-    setText(seedLabel, here ? `Island #${seed} · your hamlet` : `Island #${seed} · unclaimed`);
-    drawIsland(newMap, seed, size, here ? mapOfCity(ctx.city) : undefined);
+    setText(seedLabel, `Island #${seed} · unclaimed`);
+    drawIsland(newMap, seed, size);
+    if (path === 'new') o.onView?.('new', seed);
   };
   seedInput.addEventListener('change', () => {
     seed = Math.max(1, Math.floor(Number(seedInput.value)) || 1);
@@ -207,7 +241,7 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   const panes: Record<Path, HTMLElement> = { resume, new: fresh, showcase };
   const scrim = h(
     'div',
-    { class: 'modal-scrim ch-scrim' },
+    { class: o.first ? 'modal-scrim ch-scrim ch-welcome' : 'modal-scrim ch-scrim' },
     h(
       'section',
       { class: 'modal ch panel holo', role: 'dialog', 'aria-label': 'New chapter' },
@@ -246,22 +280,19 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
       p === 'resume' ? `Resume ${info?.name || 'my city'}` : p === 'new' ? 'Found the city' : 'Open the showcase',
     );
     if (p === 'new' && !o.first) setTimeout(() => nameInput.focus(), 30);
+    o.onView?.(p, p === 'resume' ? (info?.seed ?? SHOWCASE_SEED) : p === 'new' ? seed : SHOWCASE_SEED);
   }
 
   function act(): void {
     if (path === 'resume') {
       go.disabled = true;
-      void ctx.services
-        .get('loader')
-        .run(`Restoring ${info?.name || 'your city'}`, async (stage) => {
-          const ok = await save.load('slot1', stage);
-          // Under the cover, so the city appears without the dialog over it.
-          if (ok) close();
-          return ok;
-        })
+      setText(resumeErr, '');
+      void o
+        .resume(close)
+        .catch(() => false)
         .then((ok) => {
           go.disabled = false;
-          if (!ok) ctx.bus.emit('toast', { text: 'The saved city could not be loaded', tone: 'bad' });
+          if (!ok) setText(resumeErr, 'The saved city could not be loaded.');
         });
     } else if (path === 'new') {
       close();
@@ -288,16 +319,19 @@ export async function openChapter(ctx: GameContext, o: ChapterOptions): Promise<
   setDifficulty(difficulty);
   choose(path);
   rise(paths.children);
-  ctx.hud.append(scrim);
+  o.host.append(scrim);
   // Maps after the dialog is up (≈15k height samples each).
   setTimeout(() => {
+    if (closed) return;
     paintNew();
     // The saved city itself, read from its save (it is not loaded).
-    void ctx.platform.storage
-      .get<SaveData>('save:slot1')
-      .then((data) => drawIsland(savedMap, data?.seed ?? info?.seed ?? SHOWCASE_SEED, size, data ? mapOfSave(data) : undefined))
-      .catch(() => drawIsland(savedMap, info?.seed ?? SHOWCASE_SEED, size));
+    if (info)
+      void o
+        .readSave()
+        .then((data) => drawSave(savedMap, data, info.seed ?? SHOWCASE_SEED, size))
+        .catch(() => drawIsland(savedMap, info.seed ?? SHOWCASE_SEED, size));
   }, 60);
+  return { close };
 }
 
 /** What the colours on a city map mean. */

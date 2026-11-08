@@ -1,27 +1,32 @@
 #!/usr/bin/env node
 /**
- * Records the ~75s trailer (shots/trailer.mp4) from the running dev server, against the showcase city
- * (`scenario=founding-city`; a plain boot is a fresh island, D-072). Fourteen shots on a full-day arc —
+ * Records the ~87s trailer (shots/trailer.mp4) from the running dev server, against the showcase city
+ * (`scenario=founding-city`; a plain boot is a fresh island, D-072). Sixteen shots on a full-day arc —
  * sunrise to night to dawn — camera driven per captured frame (lookAt always centers the subject):
  *   1. sunrise reveal: tight on the Wellspring Spire, exponential pull to the whole island (title)
  *   2. downtown skyline dive, morning   3. Windward Isle wind farm, midday
  *   4. Bloomtopia park + bridge, golden hour
- *   5. drone flight up the hero avenue toward the spire, golden hour (explore, caption card)
- *   6. Aeroline train ride into dusk (explore, caption card)
- *   7. night fireworks: heart then butterfly (caption card; tick-paced shows)
- *   8. rings, then "BLOOM ♥" written in the sky
- *   9. night sea: the Lotus Atoll, glowing flowers on dark water (caption card)
- *   10. fires ignite, Flora console opens, a live question is sent
- *   11. Flora AI answers: real Qwen3 1.7B tool calls and text streaming in the console (caption card)
- *   12. Bloom Retrofit wave at dawn     13. Flora-Net hive + drone mist
- *   14. pull back to overview (end card)
+ *   5. Sky Guard jet on afterburners, a banked chase pass with a victory roll, golden hour
+ *   6. drone flight up the hero avenue toward the spire, golden hour (explore, caption card)
+ *   7. Aeroline train ride into dusk (explore, caption card)
+ *   8. night fireworks: heart then butterfly (caption card; tick-paced shows)
+ *   9. rings, then "BLOOM ♥" written in the sky
+ *   10. night sea: the Lotus Atoll, glowing flowers on dark water (caption card)
+ *   11. the cruise ferry Tidesong under way at night, deck show along every rail
+ *   12. fires ignite, Flora console opens, a live question is sent
+ *   13. Flora AI answers: real Qwen3 1.7B tool calls and text streaming in the console (caption card)
+ *   14. Bloom Retrofit wave at dawn     15. Flora-Net hive + drone mist
+ *   16. pull back to overview (end card)
  *
  * Pacing: shots are short where the trailer runs fast (0.35s dissolves in the daytime run), long where
- * it breathes (0.7–0.8s into night, dawn and the end), and the reveal/end pair mirror each other —
- * tight to wide. City Pulse stays folded the whole way (`pulse.fold(true)` at boot): the trailer frames
+ * it breathes (0.7–0.8s into night and dawn), and the reveal/end pair mirror each other — tight to
+ * wide, with the end holding longest: a 1.1s melt into the bookend pull-back, a slow 1.5s fade to
+ * black under the end card, and the fire alerts (panel, pins, beacons) cleared as it begins so the
+ * last frame is nothing but the island. A gentle filmic pass (vignette + light grain) closes the
+ * encode. City Pulse stays folded the whole way (`pulse.fold(true)` at boot): the trailer frames
  * the city, not the console. Flora's model core (Qwen3 1.7B, wllama/WebGPU) is loaded at boot — the
- * first run downloads it once into a persistent Chrome profile (`--no-ai` skips) — and shot 10 asks it
- * a real question about the fires; the answer streams into the console across shots 10–11.
+ * first run downloads it once into a persistent Chrome profile (`--no-ai` skips) — and shot 12 asks it
+ * a real question about the fires; the answer streams into the console across shots 12–13.
  *
  * Time discipline: the capture loop is far slower than real time (a frame takes 0.3–1s wall), so the
  * engine is stopped for the whole capture and every frame is advanced by hand — `window.__bgFrame`
@@ -29,8 +34,9 @@
  * Everything integrated from dt (wind rotors, the drone, chase cameras, the train ride) and everything
  * accumulated onto `U.clock` (waves, beam, sparks, pods) then advances at exact video speed; a timed
  * engine step always left per-frame variance that read as turbines stuttering and cameras trembling.
- * The camera's target height is additionally pinned to the terrain: `lookAt` resets it to 0 and the
- * smoother would otherwise only partway re-climb it, unevenly, on raised ground.
+ * The camera's target height follows the terrain low-passed (graded terraces step between tiles), and
+ * every posed shot sets `cameraCtl.cinematic` so `CityCamera.update` stands down entirely: the frame
+ * is the exact orbit formula, with nothing left to smooth, chase or clamp between pin and render.
  *
  * Each shot's frames are captured into its own segment directory and the encode chains ffmpeg `xfade`
  * dissolves between them, so the whole trailer reads as one continuous move. Caption cards are
@@ -62,7 +68,7 @@ const base = arg('base', 'http://localhost:3000');
 // JPEG capture noise, so the 1080p output stays knife-sharp.
 const path = showcase(arg('path', '/?quality=ultra&nodynres'));
 const fps = Number(arg('fps', 30));
-const PLAN = 82;
+const PLAN = 93.6;
 const seconds = Number(arg('duration', PLAN));
 const framesDir = arg('frames', 'shots/trailer');
 const out = arg('out', 'shots/trailer.mp4');
@@ -222,6 +228,32 @@ const shots = [
     tod: (t) => lerp(0.6, 0.66, t),
     view: (t) => ({ x: 252, z: lerp(416, 441, t), yaw: lerp(2.6, 3.14, t), pitch: lerp(0.56, 0.46, t), dist: lerp(82, 46, t) }),
   },
+  // The Sky Guard on afterburners: a banked pass at golden hour, contrails streaming over the
+  // islets, a victory roll two seconds in (the roll and the burner both key off U.clock, so they
+  // land exactly on video time). The camera chases from behind and beside it. Enter/roll toasts are
+  // swept: the shot is the jet, not a notice.
+  {
+    dur: 4.8,
+    track: 'jet',
+    tod: () => 0.68,
+    enter: () => `(() => {
+       const g = window.bloomgrid;
+       const j = g.services.get('skyguard');
+       j.afterburner();
+       delete window.__jp;
+       delete window.__jy;
+       document.querySelectorAll('.toasts .toast').forEach((t) => t.remove());
+     })()`,
+    at: [
+      [
+        2.0,
+        `(() => {
+           window.bloomgrid.services.get('skyguard').roll();
+           document.querySelectorAll('.toasts .toast').forEach((t) => t.remove());
+         })()`,
+      ],
+    ],
+  },
   // Drone flight: the quadcopter lifts off the hero avenue, climbs over the boulevard trees and runs
   // the street at full tilt, the city streaming past — held centre frame so the cut into the Aeroline
   // ride reads as a wipe through the propeller disc.
@@ -286,6 +318,20 @@ const shots = [
     tod: () => 0.95,
     view: (t) => ({ x: 230, z: 31, yaw: lerp(Math.PI - 0.22, Math.PI + 0.16, t), pitch: lerp(0.16, 0.11, t), dist: lerp(36, 24, t) }),
   },
+  // The Tidesong under way at night: the deck show running along every rail, windows and waterline
+  // glow on the black water, the island burning softly astern. She is already out on her loop by now
+  // (the ferry sails on the engine clock, which the capture advances at exact video speed); the shot
+  // just nudges her along, lights the show, and orbits her.
+  {
+    dur: 5.0,
+    track: 'ferry',
+    tod: () => 0.95,
+    enter: () => `(() => {
+       const f = window.bloomgrid.services.get('ferry');
+       if (f.active) { f.departNow(); f.advance(10); f.deckShow(); }
+       document.querySelectorAll('.toasts .toast').forEach((t) => t.remove());
+     })()`,
+  },
   {
     dur: 4.6,
     tod: () => 0.94,
@@ -320,21 +366,32 @@ const shots = [
     view: (t) => ({ x: hive.x + 2, z: hive.z + 2, yaw: lerp(1.1, 1.9, t), pitch: lerp(0.48, 0.42, t), dist: lerp(34, 26, t) }),
   },
   // Bookend of the reveal: pull out from the waking city to the whole island, easing into the end card.
+  // The night's fires leave with it: clearing the live fire list hides the alert panel, the screen pins
+  // and the beacons in one move (they all key off `steward.fires`), and the toasts go with them — the
+  // last frame is nothing but the island and the card.
   {
-    dur: 5.6,
+    dur: 7.4,
     card: 'end',
     easeOut: true,
+    enter: () => `(() => {
+       const g = window.bloomgrid;
+       g.city.steward.fires.length = 0;
+       document.querySelectorAll('.toasts .toast').forEach((t) => t.remove());
+       document.querySelector('.hz-panel')?.classList.add('hidden');
+       console.warn('[trailer] fire alerts cleared for the ending');
+     })()`,
     tod: (t) => lerp(0.36, 0.46, t),
     view: (t, od) => ({ x: lerp(270, 256, t), z: lerp(250, 258, t), yaw: lerp(3.15, 3.55, t), pitch: lerp(0.56, 1.0, t), dist: zoom(150, od, t) }),
   },
 ];
-// Dissolve per boundary (after shots 1..13): quick cuts through the daytime run, longer breaths into
-// the night acts, dawn and the end. Pacing device — the trailer sprints, then lands. The drone→Aeroline
-// cut (boundary 4) is longer and an expanding-circle wipe: the drone sits dead centre from its chase
-// cam, so the circle opens out of the propeller disc into the ride — the "propeller becomes the ring".
-const XF = [0.35, 0.35, 0.35, 0.5, 0.7, 0.7, 0.45, 0.35, 0.35, 0.5, 0.7, 0.5, 0.8];
+// Dissolve per boundary (after shots 1..15): quick cuts through the daytime run, longer breaths into
+// the night acts, dawn and the end. Pacing device — the trailer sprints, then lands, and the last
+// boundary melts slowly into the bookend pull-back. The drone→Aeroline cut (boundary 6) is longer and
+// an expanding-circle wipe: the drone sits dead centre from its chase cam, so the circle opens out of
+// the propeller disc into the ride — the "propeller becomes the ring".
+const XF = [0.35, 0.35, 0.35, 0.5, 0.45, 0.7, 0.7, 0.45, 0.35, 0.35, 0.5, 0.7, 0.5, 0.5, 1.1];
 const XT = XF.map(() => 'fade');
-XT[4] = 'circleopen';
+XT[5] = 'circleopen';
 const scale = seconds / PLAN;
 shots.forEach((s) => {
   s.dur *= scale;
@@ -342,6 +399,8 @@ shots.forEach((s) => {
 });
 // Crossfade lengths between shots, shrinking if the trailer is squeezed.
 const xfs = XF.map((d) => Math.max(0.2, d * Math.min(1, scale)));
+if (XF.length !== shots.length - 1)
+  throw new Error(`XF has ${XF.length} dissolves for ${shots.length - 1} shot boundaries`);
 const enterCode = (s) => (typeof s.enter === 'function' ? s.enter() : s.enter);
 
 // Per-shot frame segments: each shot's frames land in its own dir (renumbered), so the encode can
@@ -556,6 +615,13 @@ for (let f = 0; f < totalFrames; f++) {
     shotIdx = i;
     segFrame = 0;
     mkdirSync(segDir(i), { recursive: true });
+    // Posed shots take the camera over completely (`cinematic`: CityCamera.update stands down, the
+    // tour's pattern, D-145) — nothing smoothes, re-derives or clamps between the pin and the render.
+    // Free shots give it back to the explore mode driving it.
+    await page.evaluate((free) => {
+      window.bloomgrid.cameraCtl.cinematic = !free;
+      delete window.__bgTy;
+    }, !!shot.free);
     if (shot.enter) await page.evaluate(enterCode(shot));
     fired.clear();
     console.log(`[trailer] shot ${i + 1} @ ${time.toFixed(1)}s`);
@@ -588,19 +654,117 @@ for (let f = 0; f < totalFrames; f++) {
       tick,
       time,
     );
+  } else if (shot.track === 'jet') {
+    // Chase the Sky Guard: target its live position plus one frame of look-ahead (it flies 50 tiles/s,
+    // so a pose from the last position would trail it), yaw easing from three-quarter rear toward dead
+    // astern as the victory roll lands. Nothing is predicted in Node — the camera reads the jet each
+    // frame, so wherever boot left its patrol lap, the shot tracks it.
+    const e = ease(local);
+    await page.evaluate(
+      (e, tod, tick, clock) => {
+        const g = window.bloomgrid;
+        const j = g.services.get('skyguard');
+        const p = j.position;
+        const pr = window.__jp;
+        window.__jp = { x: p.x, y: p.y, z: p.z };
+        const lx = 2 * p.x - (pr ? pr.x : p.x);
+        const ly = 2 * p.y - (pr ? pr.y : p.y);
+        const lz = 2 * p.z - (pr ? pr.z : p.z);
+        let y = Math.atan2(-(p.x - (pr ? pr.x : p.x)), -(p.z - (pr ? pr.z : p.z))) + (0.5 - 0.38 * e);
+        const py = window.__jy;
+        if (py !== undefined) {
+          let d = y - py;
+          d = Math.atan2(Math.sin(d), Math.cos(d));
+          y = py + d * 0.5;
+        }
+        window.__jy = y;
+        const dist = 34 - 7 * e;
+        const pitch = 0.16 - 0.06 * e;
+        const cam = g.cameraCtl;
+        cam.target.set(lx, ly, lz);
+        cam.goalTarget.copy(cam.target);
+        cam.yaw = cam.goalYaw = y;
+        cam.pitch = cam.goalPitch = pitch;
+        cam.distance = cam.goalDistance = dist;
+        const cp = Math.cos(pitch);
+        const c = g.camera;
+        c.position.set(
+          lx + Math.sin(y) * cp * dist,
+          ly + Math.sin(pitch) * dist,
+          lz + Math.cos(y) * cp * dist,
+        );
+        c.lookAt(cam.target);
+        if (g.input) g.input.lastActivity = performance.now();
+        g.city.tick = tick;
+        if (tod !== undefined && tod !== null) g.city.timeOfDay = tod;
+        if (window.__bgU) window.__bgU.clock.value = clock;
+      },
+      e,
+      tod,
+      tick,
+      time,
+    );
+  } else if (shot.track === 'ferry') {
+    // The Tidesong under way: orbit her as she cruises her loop, the deck show running along every
+    // rail. She sails slowly, so the live position (no look-ahead) is the anchor.
+    const e = ease(local);
+    await page.evaluate(
+      (e, tod, tick, clock) => {
+        const g = window.bloomgrid;
+        const f = g.services.get('ferry');
+        const p = f.position;
+        const y = Math.PI * 0.8 + 0.55 * e;
+        const dist = 46 - 8 * e;
+        const pitch = 0.36 - 0.08 * e;
+        const cam = g.cameraCtl;
+        cam.target.set(p.x, 2.5, p.z);
+        cam.goalTarget.copy(cam.target);
+        cam.yaw = cam.goalYaw = y;
+        cam.pitch = cam.goalPitch = pitch;
+        cam.distance = cam.goalDistance = dist;
+        const cp = Math.cos(pitch);
+        const c = g.camera;
+        c.position.set(
+          p.x + Math.sin(y) * cp * dist,
+          2.5 + Math.sin(pitch) * dist,
+          p.z + Math.cos(y) * cp * dist,
+        );
+        c.lookAt(cam.target);
+        if (g.input) g.input.lastActivity = performance.now();
+        g.city.tick = tick;
+        if (tod !== undefined && tod !== null) g.city.timeOfDay = tod;
+        if (window.__bgU) window.__bgU.clock.value = clock;
+      },
+      e,
+      tod,
+      tick,
+      time,
+    );
   } else {
     const v = shot.view(shot.easeOut ? easeOut(local) : ease(local), od);
     await page.evaluate((v, tod, tick, clock) => {
       const g = window.bloomgrid;
       const cam = g.cameraCtl;
-      cam.lookAt(v.x, v.z, v.dist, true);
-      // lookAt resets target.y to 0 and the smoother only partway re-climbs it during the short
-      // engine steps — by an amount that varies with how many frames fit — which read as the camera
-      // bobbing. Pin it to the terrain so every engine frame agrees with the pin.
-      cam.target.y = Math.max(0, g.city.grid.heightAt(v.x, v.z));
+      // Orbit height: the terrain under the target, low-passed. Graded pads, terraces and lot banks
+      // step between tiles — following the raw height made the orbit point (and so the picture) drop
+      // at every step. Everything else about the pose is the exact formula.
+      const h = Math.max(0, g.city.grid.heightAt(v.x, v.z));
+      const s = window.__bgTy === undefined ? h : window.__bgTy + (h - window.__bgTy) * 0.15;
+      window.__bgTy = s;
+      cam.target.set(v.x, s, v.z);
+      cam.goalTarget.copy(cam.target);
       cam.yaw = cam.goalYaw = v.yaw;
       cam.pitch = cam.goalPitch = v.pitch;
       cam.distance = cam.goalDistance = v.dist;
+      // Pose the camera by hand exactly as CityCamera.update would, keeping only its never-under-the-
+      // ground clamp — with `cinematic` set, no smoother can pull the frame off the formula.
+      const cp = Math.cos(v.pitch);
+      const px = v.x + Math.sin(v.yaw) * cp * v.dist;
+      const py = s + Math.sin(v.pitch) * v.dist;
+      const pz = v.z + Math.cos(v.yaw) * cp * v.dist;
+      const c = g.camera;
+      c.position.set(px, Math.max(py, Math.max(0, g.city.grid.heightAt(px, pz)) + 1.5), pz);
+      c.lookAt(cam.target);
       if (g.input) g.input.lastActivity = performance.now();
       g.city.tick = tick;
       if (tod !== undefined && tod !== null) g.city.timeOfDay = tod;
@@ -656,26 +820,26 @@ const cardWin = (i, a, b) => {
 };
 if (seconds >= 6) cards.push({ png: titlePng, a: 1.5, b: Math.min(5.7, seconds * 0.1 + 2.8) });
 {
-  const [a, b] = cardWin(4, 1.0, 5.2);
+  const [a, b] = cardWin(5, 1.0, 5.2);
   if (b - a >= 1.2) cards.push({ png: dronePng, a, b });
 }
 {
-  const [a, b] = cardWin(5, 1.2, 5.4);
+  const [a, b] = cardWin(6, 1.2, 5.4);
   if (b - a >= 1.2) cards.push({ png: trainPng, a, b });
 }
 {
-  const [a, b] = cardWin(6, 1.5, 6.5);
+  const [a, b] = cardWin(7, 1.5, 6.5);
   if (b - a >= 1.2) cards.push({ png: fireworksPng, a, b });
 }
 {
-  const [a, b] = cardWin(8, 0.8, 3.9);
+  const [a, b] = cardWin(9, 0.8, 3.9);
   if (b - a >= 1.2) cards.push({ png: seaPng, a, b });
 }
 {
-  const [a, b] = cardWin(10, 0.8, 5.9);
+  const [a, b] = cardWin(12, 0.8, 5.9);
   if (b - a >= 1.2) cards.push({ png: floraPng, a, b });
 }
-cards.push({ png: endPng, a: total - 3.3, b: total - 0.35 });
+cards.push({ png: endPng, a: total - 3.6, b: total - 0.35 });
 const fades = (s, e) =>
   `fade=t=in:st=${s.toFixed(2)}:d=0.7:alpha=1,fade=t=out:st=${Math.max(0, e - 0.7).toFixed(2)}:d=0.7:alpha=1`;
 let n = shots.length;
@@ -686,7 +850,11 @@ for (const c of cards) {
   n++;
 }
 const last = n === shots.length ? prev.slice(1, -1) : `o${n - 1}`;
-graph.push(`[${last}]fade=t=in:st=0:d=0.7,fade=t=out:st=${Math.max(0, total - 0.9).toFixed(2)}:d=0.9,format=yuv420p[v]`);
+// Filmic pass: slow open from black, slow close into it, a gentle vignette to focus the frame, and a
+// whisper of grain that also dithers the night skies' gradient banding before YouTube's own encode.
+graph.push(
+  `[${last}]fade=t=in:st=0:d=1.1,fade=t=out:st=${Math.max(0, total - 1.5).toFixed(2)}:d=1.5,vignette=angle=PI/6,noise=alls=3:allf=t+u,format=yuv420p[v]`,
+);
 const xfLast = xfs[xfs.length - 1] ?? 0;
 console.log(`[trailer] encoding ${out} (${shots.length} segments, ${cards.length} cards, ${xfs.length} dissolves ${(xfs[0] ?? 0).toFixed(2)}–${xfLast.toFixed(2)}s)`);
 execFileSync('ffmpeg', [

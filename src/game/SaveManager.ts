@@ -47,11 +47,26 @@ export class SaveManager {
     ctx.loading = true;
     try {
       deserializeCity(ctx.city, data);
-      for (const h of this.hooks) if (h.id in data.modules) h.load(ctx, data.modules[h.id]);
+      this.restoreModules(data);
     } finally {
       ctx.loading = false;
     }
     ctx.commands.clearHistory();
+  }
+
+  /**
+   * Module state from a save. A city resumed from the welcome screen (D-148) is deserialized before modules load
+   * (renderers sync it at init, like a scenario); its module state follows once their hooks exist.
+   */
+  restoreModules(data: SaveData): void {
+    const ctx = this.ctx;
+    const was = ctx.loading;
+    ctx.loading = true;
+    try {
+      for (const h of this.hooks) if (h.id in data.modules) h.load(ctx, data.modules[h.id]);
+    } finally {
+      ctx.loading = was;
+    }
   }
 
   async save(slot = 'slot1'): Promise<void> {

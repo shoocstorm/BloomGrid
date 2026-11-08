@@ -193,7 +193,7 @@ raises a beam of light and pulsing rings you can see from across the island, and
 edge (pointing at it) when the fire is out of view; click a pin, an alert toast or a fire on the city map (**M**) to
 fly there, or press **.** to step through the fires, hottest first.
 
-**A new chapter:** the game opens on the New Chapter dialog: **Resume** your saved city (the default when you have
+**A new chapter:** the game opens straight onto the New Chapter dialog over a holographic island that changes with your choice (nothing loads until you pick): **Resume** your saved city (the default when you have
 one), found a **New island** (name it, roll another name, choose how hard the world pushes back) or browse the
 **Showcase** city, already built. The city waits while you choose; Enter takes the highlighted choice. Founding or
 loading a city plays behind a full-screen loading screen with its real stages and a tip, then opens onto the city. A new island

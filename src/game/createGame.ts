@@ -10,9 +10,11 @@ import { SystemRegistry } from '@/core/Systems';
 import { City } from '@/sim/City';
 import { registerSimCommands } from '@/sim/commands';
 import { simSystems } from '@/sim/systems';
-import { SHOWCASE_SEED, foundCity, preferredDifficulty } from './newCity';
+import { foundCity } from './newCity';
+import { startFromParams, type GameStart } from './start';
+import { deserializeCity } from '@/sim/save';
 import { chunkSizeFor } from '@/sim/City';
-import { createRenderer } from '@/render/Renderer';
+import { createRenderer, type RendererInfo } from '@/render/Renderer';
 import { ChunkedInstancer } from '@/render/Instancer';
 import { isTouchDevice } from '@/platform/device';
 import { DynamicResolution, QUALITY_TIERS, type QualitySettings, type QualityTier } from '@/render/Quality';
@@ -62,29 +64,46 @@ function withOverrides(base: QualitySettings, params: URLSearchParams): QualityS
 
 export type ProgressFn = (label: string, progress: number) => Promise<void> | void;
 
+let core: Promise<RendererInfo & { ms: number }> | null = null;
+
+/**
+ * The part of a boot that does not depend on the city: the GPU device and the kit (materials, pieces). The welcome
+ * screen starts it while the player chooses (D-148); `createGame` awaits the same promise.
+ */
+export function prepareCore(canvas: HTMLCanvasElement, params: URLSearchParams): Promise<RendererInfo & { ms: number }> {
+  core ??= (async () => {
+    const t = performance.now();
+    const r = await createRenderer(canvas, params.get('renderer') === 'webgl', params.has('gputime'));
+    initMaterials();
+    initPieces();
+    return { ...r, ms: Math.round(performance.now() - t) };
+  })();
+  return core;
+}
+
 export async function createGame(
   canvas: HTMLCanvasElement,
   hud: HTMLElement,
   modules: GameModule[],
+  start?: GameStart,
   onProgress: ProgressFn = () => {},
 ): Promise<GameContext> {
   const params = new URLSearchParams(location.search);
+  start ??= startFromParams(params);
   const t0 = performance.now();
   const timings: Record<string, number> = {};
   const lap = (k: string, since: number) => (timings[k] = Math.round(performance.now() - since));
   await onProgress('Negotiating GPU link', 0.05);
   const gpuTiming = params.has('gputime');
-  const { renderer, isWebGPU } = await createRenderer(canvas, params.get('renderer') === 'webgl', gpuTiming);
+  const { renderer, isWebGPU, ms: coreMs } = await prepareCore(canvas, params);
+  timings.core = coreMs;
   // Phones and tablets start on Medium (pixel ratio 1, no MSAA) to stay cool; Settings can raise it.
   const tier = (params.get('quality') as QualityTier) || (isWebGPU && !isTouchDevice() ? 'high' : 'medium');
   await onProgress(`${isWebGPU ? 'WebGPU' : 'WebGL2'} core · calibrating bio-shaders`, 0.15);
 
-  initMaterials();
-  initPieces();
-
   await onProgress('Raising the island from the sea', 0.25);
   const bus = new EventBus();
-  const seed = Number(params.get('seed')) || SHOWCASE_SEED;
+  const seed = start.kind === 'save' ? start.data.seed : start.seed;
   const city = new City(bus, seed);
   const scene = new Scene();
   const camera = new PerspectiveCamera(45, 1, 0.5, 4000);
@@ -109,6 +128,7 @@ export async function createGame(
     params,
     hud,
     loading: false,
+    start,
   } as GameContext;
   ctx.commands = new CommandStack<GameContext>(ctx);
   ctx.engine = new Engine(ctx, systems, 10);
@@ -117,14 +137,34 @@ export async function createGame(
   simSystems.forEach((s) => systems.add(s));
   U.mapSize.value = city.grid.w;
 
-  // Founding content is generated in bulk before any renderer exists; renderers sync on init.
-  // A plain boot is a fresh island behind the New Game wizard (D-072); scripts and demos ask for a scenario.
-  const scenarioId = params.get('scenario') ?? 'fresh-island';
-  await onProgress('Founding the city: districts, highways & bridges', 0.3);
+  // Founding content is generated in bulk before any renderer exists; renderers sync on init. Only the city the
+  // welcome screen (or the URL) asked for is built (D-148): a scenario, or a save read straight into the sim.
   const ts = performance.now();
-  const r = foundCity(ctx, seed, preferredDifficulty(params), scenarioId);
+  let resumed = start.kind === 'save' ? start.data : null;
+  let restoreFailed = false;
+  if (resumed) {
+    await onProgress(`Restoring ${resumed.growth?.name || 'your city'}: streets, towers & residents`, 0.3);
+    try {
+      ctx.loading = true;
+      deserializeCity(city, resumed);
+      console.info(`[scenario] save ${start.kind === 'save' ? start.slot : ''}: ${city.buildingEntities().length} buildings`);
+    } catch (e) {
+      // A save that will not load must not stop the game: a fresh island instead, and say so once in view.
+      console.error('[boot] save could not be restored', e);
+      resumed = null;
+      restoreFailed = true;
+      start = ctx.start = startFromParams(new URLSearchParams());
+    } finally {
+      ctx.loading = false;
+    }
+  }
+  if (start.kind === 'scenario') {
+    await onProgress('Founding the city: districts, highways & bridges', 0.3);
+    const r = foundCity(ctx, start.seed, start.difficulty, start.scenario);
+    if (start.name) ctx.commands.execute('nameCity', { name: start.name }, false);
+    console.info(`[scenario] ${start.scenario}: ${r.buildings} buildings, ${r.roads} highway tiles (${city.steward.difficulty})`);
+  }
   lap('scenario', ts);
-  console.info(`[scenario] ${scenarioId}: ${r.buildings} buildings, ${r.roads} highway tiles (${city.steward.difficulty})`);
 
   // Rendering services.
   const postfx = new PostFX(renderer, scene, camera);
@@ -208,6 +248,13 @@ export async function createGame(
   const moduleMs = await loadModules(ctx, modules, () => performance.now());
   lap('modules', tm);
   console.info('[boot] modules', JSON.stringify(moduleMs));
+  if (resumed && start.kind === 'save') {
+    // Module state (stopped rides, open doors, Flora's notes…) now that their save hooks exist.
+    ctx.services.get('save').restoreModules(resumed);
+    ctx.commands.clearHistory();
+    bus.emit('load:done', { slot: start.slot });
+  }
+  if (restoreFailed) bus.emit('toast', { text: 'The saved city could not be loaded: a fresh island instead', tone: 'bad' });
   ctx.tools.attach();
   ctx.tools.setActive('select');
   setQuality(ctx.quality.tier); // may have been changed by the settings module (saved preference)

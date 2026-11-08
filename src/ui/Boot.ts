@@ -1,4 +1,3 @@
-import './boot.css';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const COLORS = ['#5ff2da', '#8ef07a', '#ff9fc4', '#ffcf6a', '#c9b6ff'];
@@ -83,6 +82,11 @@ export interface BootScreenOptions {
   minShow?: number;
   /** A line of advice under the log (the city loader shows a tip). */
   tip?: string;
+  /**
+   * The welcome screen (D-148): the screen opens idle (no emblem, bar or log) over `backdrop`, and turns into the boot
+   * sequence on the first `stage`, so choosing a city flows straight into loading it on the same backdrop.
+   */
+  welcome?: { backdrop: HTMLElement };
 }
 
 /**
@@ -136,10 +140,13 @@ export function createBootScreen(el: HTMLElement, subtitle: string, opts: BootSc
   grid.className = 'bt-grid';
   const scan = document.createElement('div');
   scan.className = 'bt-scan';
-  el.append(grid, pollen, core, scan);
+  if (opts.welcome) {
+    el.classList.add('bt-welcome');
+    el.append(grid, opts.welcome.backdrop, pollen, core, scan);
+  } else el.append(grid, pollen, core, scan);
 
   let last: HTMLLIElement | null = null;
-  const t0 = performance.now();
+  let t0 = performance.now();
   const frame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
   const line = (label: string, status: string, cls = '') => {
     const li = document.createElement('li');
@@ -159,6 +166,11 @@ export function createBootScreen(el: HTMLElement, subtitle: string, opts: BootSc
 
   return {
     async stage(label, progress) {
+      if (el.classList.contains('bt-welcome') && !el.classList.contains('bt-loading')) {
+        // The welcome's choice is made: the boot sequence starts now (and its shortest showing with it).
+        el.classList.add('bt-loading');
+        t0 = performance.now();
+      }
       if (last) last.querySelector('.ok')!.textContent = 'ONLINE';
       last = line(label, '···');
       stageEl.textContent = label;

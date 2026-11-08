@@ -4,6 +4,7 @@ import { Building, Flow, Greenery, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { BuildingDef, ZoneKind } from '@/content/types';
 import { Grid, NO_ENTITY, SEA_LEVEL } from './Grid';
+import { MAP_SIZE } from './mapSize';
 import { roadLevelHash, roadLevels, roadWear } from './roads';
 import { generateTerrain } from './terrain';
 import { Rng, fnv1a } from './random';
@@ -98,7 +99,7 @@ export interface CityStats {
 
 export type PlacementResult = { ok: true; warning?: string } | { ok: false; reason: string };
 
-export const MAP_SIZE = 512;
+export { MAP_SIZE };
 /** Render chunk edge in tiles: 4×4 chunks per map keeps draw calls flat as the map grows. */
 export const chunkSizeFor = (size: number) => Math.ceil(size / 4);
 export const START_CREDITS = 2500;

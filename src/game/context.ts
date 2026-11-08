@@ -13,6 +13,7 @@ import type { Input } from '@/input/Input';
 import type { CityCamera } from '@/input/CityCamera';
 import type { Platform } from '@/platform';
 import type { ToolManager } from './Tools';
+import type { GameStart } from './start';
 
 /** Everything a module or system can reach. Feature-specific APIs live in `services`. */
 export interface GameContext extends SimCtx {
@@ -37,6 +38,8 @@ export interface GameContext extends SimCtx {
   hud: HTMLElement;
   /** True while a save is being loaded (renderers skip growth animations). */
   loading: boolean;
+  /** How this session began (welcome screen choice or URL, D-148). */
+  start?: GameStart;
 }
 
 export type GameModule = import('@/core/Modules').GameModule<GameContext>;

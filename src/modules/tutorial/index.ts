@@ -1,14 +1,14 @@
 import type { GameContext, GameModule } from '@/game/context';
 import { SHOWCASE_SEED, foundCityStaged } from '@/game/newCity';
+import type { SaveData } from '@/sim/save';
 import { openingView } from '@/game/opening';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
-import { openChapter } from './Chapter';
+import { TUTORIAL_KEY, guideWanted, openChapter } from './Chapter';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { rise } from '@/ui/holo';
 import './tutorial.css';
 
-const TUTORIAL_KEY = 'bloomgrid.tutorial';
 
 const store = {
   get(k: string): string | null {
@@ -187,10 +187,10 @@ class Tutorial {
 }
 
 /**
- * The New Chapter dialog and how-to-play guide (Phase 16, D-072, D-085). On a plain boot (no `?scenario`), the game
- * opens on a fresh island behind the dialog (`Chapter.ts`): resume the saved city (the default when there is one),
- * found a new island, or browse the showcase city. A new island starts the six-step guide (skippable; reopen from Settings). URL scenarios (scripts,
- * demos) skip the wizard unless `?wizard` asks for it.
+ * The New Chapter dialog and how-to-play guide (Phase 16, D-072, D-085). A plain boot shows the dialog on the welcome
+ * screen before the engine starts (`ui/welcome`, D-148), so only the chosen city is built; this module greets that
+ * city and offers the same dialog in game (`wizard.open`), where it replaces the running city behind the loader. A
+ * new island starts the six-step guide (skippable; reopen from Settings).
  */
 export const tutorialModule: GameModule = {
   id: 'tutorial',
@@ -221,37 +221,77 @@ export const tutorialModule: GameModule = {
         },
       );
 
-    const open = (first: boolean) =>
-      void openChapter(ctx, {
-        first,
-        guide: !['done', 'skipped'].includes(store.get(TUTORIAL_KEY) ?? ''),
+    const founded = (name: string, difficulty: DifficultyId, guide: boolean) => {
+      ctx.bus.emit('toast', { text: `${name} is founded: a fishing hamlet on a quiet island (${DIFFICULTIES[difficulty].label})`, tone: 'ok' });
+      if (guide) afterFlyIn(() => tut.begin());
+    };
+    /** Runs `fn` once the opening fly-in has settled, so "Look around" is not completed by the camera itself. */
+    const afterFlyIn = (fn: () => void) => {
+      const cam = ctx.cameraCtl;
+      let last = { x: cam.target.x, z: cam.target.z, d: cam.distance };
+      let still = 0;
+      let waited = 0;
+      const poll = () => {
+        const moved = Math.hypot(cam.target.x - last.x, cam.target.z - last.z) + Math.abs(cam.distance - last.d);
+        last = { x: cam.target.x, z: cam.target.z, d: cam.distance };
+        still = moved < 0.3 ? still + 1 : 0;
+        waited += 250;
+        if ((still >= 2 && waited >= 1500) || waited > 15_000) fn();
+        else setTimeout(poll, 250);
+      };
+      setTimeout(poll, 250);
+    };
+    const showcaseToast = () =>
+      ctx.bus.emit('toast', { text: 'The showcase city: everything built and unlocked. Explore, or manage it.', tone: 'ok' });
+
+    /** The in-game New Chapter dialog (Settings, the steward's "new city"): it replaces the running city. */
+    const open = async () => {
+      const save = ctx.services.get('save');
+      const info = await save.info().catch(() => null);
+      // The city holds still while the steward chooses (no alerts piling up behind the dialog).
+      const speed = ctx.engine.speed;
+      ctx.engine.speed = 0;
+      // City Pulse waits until a chapter is chosen (it would show a city about to be replaced).
+      document.body.classList.add('chapter-open');
+      openChapter({
+        host: ctx.hud,
+        first: false,
+        info,
+        readSave: () => ctx.platform.storage.get<SaveData>('save:slot1'),
+        size: ctx.city.grid.w,
+        difficulty: ctx.city.steward.difficulty,
+        seed: Math.floor(Math.random() * 1e6) + 1,
+        guide: guideWanted(),
+        onClose() {
+          document.body.classList.remove('chapter-open');
+          ctx.engine.speed = speed;
+        },
+        resume: (close) =>
+          ctx.services.get('loader').run(`Restoring ${info?.name || 'your city'}`, async (stage) => {
+            const ok = await save.load('slot1', stage);
+            // Under the cover, so the city appears without the dialog over it.
+            if (ok) close();
+            return ok;
+          }),
         found(name, seed, difficulty, guide) {
-          // The boot already founded this island: keep it unless the steward changed seed or difficulty.
-          if (first && seed === ctx.city.seed && difficulty === ctx.city.steward.difficulty && ctx.city.growth.progression) {
-            ctx.commands.execute('nameCity', { name }, false);
-            ctx.commands.clearHistory();
-            done();
-          } else void found('fresh-island', seed, difficulty, name).then(done);
-          function done() {
-            ctx.bus.emit('toast', {
-              text: `${name} is founded: a fishing hamlet on a quiet island (${DIFFICULTIES[difficulty].label})`,
-              tone: 'ok',
-            });
-            if (guide) setTimeout(() => tut.begin(), 1500);
-          }
+          void found('fresh-island', seed, difficulty, name).then(() => founded(name, difficulty, guide));
         },
         showcase() {
-          void found('founding-city', SHOWCASE_SEED, ctx.city.steward.difficulty).then(() =>
-            ctx.bus.emit('toast', { text: 'The showcase city: everything built and unlocked. Explore, or manage it.', tone: 'ok' }),
-          );
+          void found('founding-city', SHOWCASE_SEED, ctx.city.steward.difficulty).then(showcaseToast);
         },
       });
+    };
 
-    ctx.services.provide('wizard', { open: () => open(false), guide: () => tut.begin() });
-    // A plain boot (the player's, not a script's) opens the wizard once the boot screen lifts.
-    if ((!ctx.params.has('scenario') || ctx.params.has('wizard')) && !ctx.params.has('nowizard')) {
-      const show = () => (document.body.classList.contains('booted') ? open(true) : setTimeout(show, 200));
-      setTimeout(show, 200);
+    ctx.services.provide('wizard', { open: () => void open(), guide: () => tut.begin() });
+    // A city chosen on the welcome screen (D-148) is greeted once it is in view.
+    const s = ctx.start;
+    if (s?.kind === 'scenario' && s.chosen) {
+      const greet = () => {
+        if (!document.body.classList.contains('booted')) return void setTimeout(greet, 200);
+        if (s.scenario === 'founding-city') showcaseToast();
+        else founded(ctx.city.growth.name || s.name || 'Your city', s.difficulty, !!s.guide);
+      };
+      setTimeout(greet, 200);
     }
   },
 };

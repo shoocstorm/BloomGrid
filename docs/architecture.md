@@ -3,8 +3,9 @@
 ## Runtime layers
 
 ```
-main.ts ── createGame()  core runtime: renderer, sim, input, tools, save, systems
-   └── MODULES (dependency-ordered GameModules)
+main.ts (light entry) ── ui/welcome (New Chapter dialog + Hologram; prefetches the game chunk + prepareCore)
+   └── game/boot.ts (dynamic chunk) ── createGame(start)  core runtime: renderer, sim, input, tools, save, systems
+        └── MODULES (dependency-ordered GameModules)
         world ─ construction ─ hud ─ debug ─ (future: pulse, overlays, crises, bloom, mobility, …)
 ```
 
@@ -15,9 +16,15 @@ main.ts ── createGame()  core runtime: renderer, sim, input, tools, save, sy
 | Content   | `src/content`                          | Pure data plus recipe functions; `KitBuilder` is renderer-agnostic.                                                                                                |
 | Render    | `src/render`, `src/assets`             | Renderer factory, TSL material library, `ChunkedInstancer`, PostFX (selective bloom over the emissive MRT channel, then tone mapping and the display-space grade `render/grade.ts`; FXAA without MSAA, D-120; no AO, D-124), quality tiers, kit pieces, GLB `AssetManager`. |
 | World     | `src/world`                            | Terrain chunks, scenic ring and skirt, water, atmosphere, flora, picking.                                                                                          |
-| Game glue | `src/game`                             | `GameContext`, `ToolManager`, `SaveManager`, `createGame`.                                                                                                         |
+| Game glue | `src/game`                             | `GameContext`, `ToolManager`, `SaveManager`, `createGame`, `boot.ts` (game chunk, `MODULES`), `start.ts` (`GameStart`: scenario or save, D-148).                   |
 | Modules   | `src/modules/*`, `src/ui`, `src/debug` | Features. Each registers systems, commands, tools, services and events.                                                                                            |
 | Platform  | `src/platform`                         | Storage and file export; web (IndexedDB) now, Tauri later.                                                                                                         |
+
+**Boot (D-148).** A plain boot shows the welcome screen first: `main.ts` imports only the CSS, the boot screen and
+`ui/welcome` (≈ 50 kB), and the dialog's choice becomes a `GameStart`. Meanwhile the game chunk loads and
+`prepareCore` creates the GPU device and kit. `createGame` then founds the chosen scenario, or deserializes the save
+before modules load (renderers sync it at init) and runs the modules' save hooks after, emitting `load:done`. URL
+scenarios (scripts) skip the welcome.
 
 **Inventory and agent tools (D-042).** `sim/inventory.ts` turns the city into JSON-ready `CityObject` records (readable
 `id`, kind, type, district, status, issues, metrics) from registered kinds; `queryInventory` / `summarize` /

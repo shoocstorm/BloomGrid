@@ -1,68 +1,18 @@
-import { createGame } from '@/game/createGame';
-import { openingView } from '@/game/opening';
-import { worldModule } from '@/modules/world';
-import { constructionModule } from '@/modules/construction';
-import { hudModule } from '@/ui/Hud';
-import { previewModule } from '@/modules/preview';
-import { loaderModule } from '@/modules/loader';
-import { pauseModule } from '@/modules/pause';
-import { debugModule } from '@/debug';
-import { pulseModule } from '@/modules/pulse';
-import { buildModule } from '@/modules/build';
-import { overlaysModule } from '@/modules/overlays';
-import { advisorModule } from '@/modules/advisor';
-import { viewsModule } from '@/modules/views';
-import { inventoryModule } from '@/modules/inventory';
-import { dashboardModule } from '@/modules/dashboard';
-import { aboutModule } from '@/modules/about';
-import { cityMapModule } from '@/modules/citymap';
-import { assistantModule } from '@/modules/assistant';
-import { knowledgeModule } from '@/modules/knowledge';
-import { statInfoModule } from '@/modules/statinfo';
-import { selectionModule } from '@/modules/selection';
-import { momentsModule } from '@/modules/moments';
-import { risingModule } from '@/modules/rising';
-import { roadworksModule } from '@/modules/roadworks';
-import { juiceModule } from '@/modules/juice';
-import { settingsModule } from '@/modules/settings';
-import { crisesModule } from '@/modules/crises';
-import { bloomModule } from '@/modules/bloom';
-import { mobilityModule } from '@/modules/mobility';
-import { walkersModule } from '@/modules/walkers';
-import { happeningsModule } from '@/modules/happenings';
-import { floranetModule } from '@/modules/floranet';
-import { weaverModule } from '@/modules/weaver';
-import { sceneryModule } from '@/modules/scenery';
-import { aerolineModule } from '@/modules/aeroline';
-import { windModule } from '@/modules/wind';
-import { hazardsModule } from '@/modules/hazards';
-import { fireworksModule } from '@/modules/fireworks';
-import { fishingModule } from '@/modules/fishing';
-import { goalsModule } from '@/modules/goals';
-import { tutorialModule } from '@/modules/tutorial';
-import { disastersModule } from '@/modules/disasters';
-import { audioModule } from '@/modules/audio';
-import { exploreModule } from '@/modules/explore';
-import { interactModule } from '@/modules/interact';
-import { signsModule } from '@/modules/signs';
-import { auroraModule } from '@/modules/aurora';
-import { ferryModule } from '@/modules/ferry';
-import { skyguardModule } from '@/modules/skyguard';
-import { policeModule } from '@/modules/police';
-import { createBootScreen } from '@/ui/Boot';
+// The whole HUD cascade first (base, boot screen, every module, then the theme and the phone layout, D-148).
+import '@/ui/cssOrder';
+import { createBootScreen, type BootScreen } from '@/ui/Boot';
+import { runWelcome } from '@/ui/welcome';
+import { wantsWelcome } from '@/game/start';
 import { watchDevice } from '@/platform/device';
 import { watchFocusRing } from '@/ui/focusRing';
 import { installCursors } from '@/ui/cursor';
-// The HUD theme loads after every module stylesheet so it can restyle them from one place; the
-// phone layout loads after it.
-import '@/ui/theme.css';
-import '@/ui/mobile.css';
 
 /**
- * Feature modules. New gameplay layers (city pulse, overlays, crises, bloom engine, mobility,
- * Flora-Net, Green Weaver, explore modes…) are added here as self-contained modules.
+ * The entry stays light (D-148): the welcome screen (the New Chapter dialog over a holographic island) is up before
+ * three.js, the feature modules and the content load. The game is its own chunk (`game/boot.ts`, where `MODULES`
+ * lives), fetched behind the welcome and booted once for the city the player chose. Scripts' URL scenarios skip the
+ * welcome and boot straight in.
  */
-const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, roadworksModule, juiceModule, happeningsModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, walkersModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, interactModule, signsModule, auroraModule, policeModule, ferryModule, skyguardModule, debugModule];
 
 /**
  * No browser or webview context menu anywhere in the game (right-click is a game gesture: leave build mode, slow the
@@ -76,34 +26,41 @@ function blockContextMenu(): void {
   });
 }
 
+const SUBTITLE = 'SOLARPUNK ISLAND CITY SYSTEMS';
+type GameChunk = typeof import('@/game/boot');
+let chunk: Promise<GameChunk> | null = null;
+const loadGame = () => (chunk ??= import('@/game/boot'));
+
 async function boot() {
   blockContextMenu();
-  const canvas = document.getElementById('game') as HTMLCanvasElement;
-  const hud = document.getElementById('hud')!;
   watchDevice();
   watchFocusRing();
-installCursors();
-  const screen = createBootScreen(document.getElementById('boot')!, 'SOLARPUNK ISLAND CITY SYSTEMS');
-  hud.style.opacity = '0';
+  installCursors();
+  const el = document.getElementById('boot')!;
+  const params = new URLSearchParams(location.search);
+  let screen: BootScreen | null = null;
   try {
-    const ctx = await createGame(canvas, hud, MODULES, screen.stage);
-    // Park high over the island, then fly down to the landmark when the boot screen lifts.
-    const v = openingView(ctx.city);
-    ctx.cameraCtl.intro(v.x, v.z, v.distance, 0, v);
-    // Boot's first frames (uploads, the fly-in, buildings growing in) are slow by nature: don't let them set the
-    // render scale for the rest of the session.
-    const res = ctx.services.get('render').dynamicResolution;
-    res.hold(4);
-    ctx.engine.start();
-    (window as unknown as { bloomgrid: unknown }).bloomgrid = ctx;
-    await screen.finish(() => (ctx.cameraCtl.intro(v.x, v.z, v.distance, 6, v), res.hold(8)));
-    hud.style.transition = 'opacity 1s';
-    hud.style.opacity = '1';
-    // HUD entrance animations (the welcome card) wait for this so they play in view.
-    document.body.classList.add('booted');
+    if (!wantsWelcome(params)) {
+      screen = createBootScreen(el, SUBTITLE);
+      await (await loadGame()).bootGame(undefined, screen);
+      return;
+    }
+    const canvas = document.getElementById('game') as HTMLCanvasElement;
+    // Behind the choice: the game chunk once the welcome has painted, then the GPU device and the kit.
+    const prefetch = () =>
+      new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 50)))
+        .then(loadGame)
+        .then((g) => g.prepareCore(canvas, params));
+    const w = await runWelcome(el, SUBTITLE, params, prefetch);
+    screen = w.screen;
+    await screen.stage('Loading city systems', 0.02);
+    // The island glides to the centre on an idle main thread (≈ 0.8 s; the GPU core is usually ready by now).
+    const [game] = await Promise.all([loadGame(), w.settled]);
+    await game.bootGame(w.start, screen);
+    w.done();
   } catch (e) {
     console.error(e);
-    screen.fail((e as Error).message);
+    (screen ?? createBootScreen(el, SUBTITLE)).fail((e as Error).message);
   }
 }
 

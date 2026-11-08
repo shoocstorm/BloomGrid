@@ -2,23 +2,9 @@ import { applyScenario } from '@/sim/scenario';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
 import { PULSE_TICKS } from '@/sim/pulseConst';
 import type { GameContext } from './context';
+import { rememberDifficulty } from './start';
 
-const DIFFICULTY_KEY = 'bloomgrid.difficulty';
-/** The default island: the showcase city's, which the founding-city balance is tuned on (D-072). */
-export const SHOWCASE_SEED = 20261024;
-
-/** Difficulty for a new city: `?difficulty=` wins, then the viewer's last choice, then Steward. */
-export function preferredDifficulty(params: URLSearchParams): DifficultyId {
-  const p = params.get('difficulty');
-  if (p && p in DIFFICULTIES) return p as DifficultyId;
-  try {
-    const saved = localStorage.getItem(DIFFICULTY_KEY);
-    if (saved && saved in DIFFICULTIES) return saved as DifficultyId;
-  } catch {
-    /* storage unavailable */
-  }
-  return 'steward';
-}
+export { SHOWCASE_SEED, preferredDifficulty } from './start';
 
 /** One stage of founding a city, for a loading screen (`foundCityStaged`). */
 export interface FoundStage {
@@ -82,11 +68,7 @@ function* foundSteps(ctx: FoundCtx, seed: number, difficulty: DifficultyId, scen
       }
     } else city.credits *= DIFFICULTIES[difficulty].creditMul;
     ctx.commands.clearHistory();
-    try {
-      localStorage.setItem(DIFFICULTY_KEY, difficulty);
-    } catch {
-      /* ignore */
-    }
+    rememberDifficulty(difficulty);
     return r;
   } finally {
     (ctx as GameContext).loading = false;

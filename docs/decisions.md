@@ -2511,3 +2511,41 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   against a worktree at the previous commit, three runs each: main thread 24.7–25.8% both, 60 fps both, GPU time
   inside the usual headless noise (4.2–8.5 ms both).
 
+
+## D-148 — Welcome screen before the engine; boot only the chosen city (2026-11-08)
+
+**Context.** A plain boot created the renderer, founded a fresh island, loaded every module and compiled shaders
+(≈ 1.4–3.5 s plus the boot screen) before the New Chapter dialog appeared; choosing Resume or the showcase then
+threw that city away and built another behind the loader.
+
+**Decision.**
+- `main.ts` is a light entry (≈ 48 kB JS): CSS, boot screen and `ui/welcome`. The game (three.js, content, modules,
+  `MODULES`) is the dynamic chunk `game/boot.ts`. URL scenarios (`?scenario=` without `?wizard`, or `?nowizard`)
+  boot straight in as before.
+- The welcome dialog (`openChapter`, now independent of `GameContext`) reads only the save summary from platform
+  storage and resolves a `GameStart` (`game/start.ts`): scenario + seed + difficulty (+ name, guide) or a save.
+  `createGame(…, start)` builds only that city. A save is deserialized before modules load (like a scenario) and
+  `SaveManager.restoreModules` runs the hooks after, then `load:done`; a save that fails to load falls back to a
+  fresh island with a toast.
+- While the player chooses, the chunk is fetched and `prepareCore` creates the GPU device and kit (memoized; the
+  boot reuses it), so the boot after the choice starts at the scenario.
+- Backdrop: `ui/welcome/Hologram.ts`, a 2D-canvas light-point island from `terrainHeight` (≈ 5k points, batched by
+  colour into ≈ 10 fills, 30 fps cap, DPR ≤ 1.5, still under reduced motion). It morphs to the island each choice
+  would open (sinks and rises on a seed change) and grows a city of light lines: the saved city's lots (registry
+  loaded lazily via `tutorial/cityMap.ts`) or a procedural skyline for the showcase. The welcome is the boot screen
+  held idle (`welcome` option of `createBootScreen`), so choosing flows into the boot readout on the same backdrop,
+  and the usual iris opens onto the city. It stops once the game is in view.
+- CSS cascade: module stylesheets would load after `theme.css` once modules became a dynamic chunk. `ui/cssOrder.ts`
+  imports base → boot → every module CSS (eager glob, `ui/moduleStyles.ts`) → theme → mobile, so the entry CSS keeps
+  the old order and the game chunk adds none.
+- After the choice the island glides to the centre as a CSS transform on the canvas (`Hologram.glide`, own compositor
+  layer, drawing snaps to the new place the frame the transform drops), and the heavy boot work waits the glide's
+  0.8 s (`settled`): a canvas-drawn ease only got the odd frame once `createGame` held the main thread. The spin-up
+  is eased too. Measured: 48 frames in the 0.8 s glide, longest gap 17 ms.
+- The guide on a new island waits for the opening fly-in to settle, so "Look around" is not completed by the camera.
+
+**Rejected.** A pre-rendered video or WebGL scene as the backdrop (needs the GPU device or a large download before
+the dialog); keeping the boot city and replacing it (the waste this removes).
+
+**Result.** Welcome dialog visible ≈ 0.08 s after navigation on a warm dev load (was ≈ 3–5 s); `core` lap ≈ 15 ms
+after the choice (the prefetch made the device).

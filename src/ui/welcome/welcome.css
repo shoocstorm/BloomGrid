@@ -1,0 +1,199 @@
+/*
+ * The welcome screen (D-148): the boot screen held idle over a holographic island, with the New Chapter dialog on top.
+ * Choosing a city adds `.wl-chosen` (the dialog is gone, the island moves to the centre); the boot sequence then runs
+ * under it (`.bt-loading`). Only opacity and transform animate (§7½).
+ */
+.wl-holo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* Its own compositor layer: the move to the centre (Hologram.glide) plays there while the boot holds the main thread. */
+  will-change: transform;
+  animation: wl-in 1.2s ease-out both;
+}
+@keyframes wl-in {
+  from {
+    opacity: 0;
+  }
+}
+.boot-screen.bt-welcome .bt-grid {
+  opacity: 0.16;
+}
+
+/* Idle: no emblem, bar or log until a city is chosen. */
+.boot-screen.bt-welcome:not(.bt-loading) .bt-core {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Loading: the boot readout sits under the island instead of over it (the brand already names the game). */
+.boot-screen.bt-welcome .bt-core {
+  top: auto;
+  bottom: max(4vh, 20px);
+  transform: translateX(-50%);
+  transition: opacity 0.5s;
+}
+.boot-screen.bt-welcome .bt-emblem,
+.boot-screen.bt-welcome .bt-title {
+  display: none;
+}
+.boot-screen.bt-welcome .bt-sub {
+  margin-top: 0;
+}
+.boot-screen.bt-welcome .bt-log {
+  min-height: 0;
+}
+
+/* ── Brand, caption, status, version ── */
+.wl-brand {
+  position: absolute;
+  left: max(28px, env(safe-area-inset-left, 0px));
+  top: max(24px, env(safe-area-inset-top, 0px));
+  pointer-events: none;
+}
+.wl-title {
+  margin: 0;
+  font-weight: 300;
+  font-size: clamp(24px, 3.2vw, 38px);
+  letter-spacing: 0.32em;
+  white-space: nowrap;
+}
+.wl-title span {
+  display: inline-block;
+  color: color-mix(in oklab, var(--c1), var(--c3) calc(var(--i) * 11%));
+  text-shadow:
+    0 0 14px currentColor,
+    0 0 2px #fff;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: wl-letter 0.7s ease-out calc(var(--i) * 60ms + 150ms) forwards;
+}
+@keyframes wl-letter {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.wl-tag {
+  margin-top: 4px;
+  font: 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(217, 255, 246, 0.5);
+}
+.wl-caption,
+.wl-status,
+.wl-ver {
+  position: absolute;
+  font: 10.5px/1.4 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.wl-caption {
+  left: max(28px, env(safe-area-inset-left, 0px));
+  bottom: 52px;
+  color: var(--c1);
+  opacity: 0.85;
+}
+.wl-caption::before {
+  content: '◇ ';
+}
+.wl-status {
+  left: max(28px, env(safe-area-inset-left, 0px));
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(217, 255, 246, 0.5);
+}
+.wl-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffcf6a;
+  animation: bt-blink 1.2s steps(1) infinite;
+}
+.wl-ready .wl-status i {
+  background: var(--c2);
+  animation: none;
+}
+.wl-ver {
+  right: max(28px, env(safe-area-inset-right, 0px));
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  color: rgba(217, 255, 246, 0.35);
+}
+.boot-screen.wl-chosen .wl-status,
+.boot-screen.wl-chosen .wl-ver,
+.boot-screen.bt-reveal .wl-brand,
+.boot-screen.bt-reveal .wl-caption {
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.boot-screen.wl-chosen .wl-caption {
+  left: 50%;
+  bottom: auto;
+  top: max(24px, env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+}
+.boot-screen.wl-chosen .wl-brand {
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+/* ── The dialog: no dim (the island is the backdrop), glass a touch clearer, on the right on wide screens ── */
+.modal-scrim.ch-welcome {
+  background: transparent;
+  z-index: 2;
+}
+.ch-welcome .ch {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 120px),
+    rgba(6, 19, 21, 0.84);
+}
+@media (min-width: 1180px) {
+  .modal-scrim.ch-welcome {
+    justify-items: end;
+    padding-right: max(40px, 5vw);
+  }
+}
+
+/* Phones: the island above, the dialog as a sheet below it. */
+.compact .modal-scrim.ch-welcome {
+  align-items: end;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+}
+.compact .ch-welcome .ch {
+  max-height: 72dvh;
+}
+.compact .wl-brand {
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.compact .wl-title {
+  font-size: 22px;
+}
+.compact .wl-caption,
+.compact .wl-status,
+.compact .wl-ver {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wl-holo,
+  .wl-title span {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Holo entrances wait for `body.booted` in game (theme.css); the welcome's dialog is the one in view before it. */
+body:not(.booted) .boot-screen .holo,
+body:not(.booted) .boot-screen .holo *,
+body:not(.booted) .boot-screen .holo::after {
+  animation-play-state: running;
+}
