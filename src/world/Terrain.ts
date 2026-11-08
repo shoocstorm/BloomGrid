@@ -1,5 +1,6 @@
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, Group, Mesh, MeshStandardNodeMaterial } from 'three/webgpu';
-import { color, fract, max, mix, mx_noise_float, positionWorld, smoothstep, vertexColor, abs, float } from 'three/tsl';
+import { color, cross, dFdx, dFdy, floor, fract, max, mix, mx_noise_float, normalFlat, normalGeometry, normalView, positionWorld, smoothstep, step, vertexColor, abs, float } from 'three/tsl';
+import { stripes } from '@/render/materials/library';
 import type { Grid } from '@/sim/Grid';
 import { terrainHeight } from '@/sim/terrain';
 import { fbm } from '@/sim/noise';
@@ -32,17 +33,41 @@ function shade(out: Color, h: number, slope: number, x: number, z: number, seed:
   return out;
 }
 
+/** Embankment courses (world units): stone block height and length on steep faces. */
+const COURSE = 0.17;
+const BLOCK = 0.42;
+
 function material(): MeshStandardNodeMaterial {
   const m = new MeshStandardNodeMaterial({ roughness: 0.95, metalness: 0 });
   const detail = mx_noise_float(positionWorld.mul(0.9)).mul(0.035).add(mx_noise_float(positionWorld.mul(7)).mul(0.02));
   // Wet sand (D-120): a darker band just above the sea that the shore wash keeps damp; it follows floods.
   const wet = smoothstep(0.32, 0.04, positionWorld.y.sub(U.waterLevel)).mul(smoothstep(-0.3, 0.0, positionWorld.y.sub(U.waterLevel)));
   const base = vertexColor().xyz.add(detail).mul(float(1).sub(wet.mul(0.22)));
-  // Build-mode tile grid overlay.
+  // Steep faces (D-140): where a terrace meets a reservoir, river or the sea the ground drops a storey or more inside
+  // one tile. Vertex normals are smoothed with the flat ground round them, so such a face was lit like level grass
+  // and its colour blended sand into grass: from the water it read as a pale, see-through sheet with trees floating
+  // on top. The true face normal (screen derivatives, exact on a planar triangle) finds those faces; they are drawn
+  // as a stone embankment, lit by that face normal, with a mossy coping and a waterline stain.
+  const face = cross(dFdx(positionWorld), dFdy(positionWorld)).normalize();
+  const steep = smoothstep(0.6, 0.4, abs(face.y));
+  const row = positionWorld.y.div(COURSE);
+  // Along the wall, so joints stand plumb: terraces follow the tile grid, so a wall runs along x or z. The smoothed
+  // vertex normal says which (per-pixel derivatives are too noisy for it, and its lean wanders across a wall).
+  const facesX = step(abs(normalGeometry.z), abs(normalGeometry.x));
+  const along = mix(positionWorld.x, positionWorld.z, facesX).div(BLOCK).add(floor(row).mul(0.5));
+  const mortar = max(stripes(row, 0.9), stripes(along, 0.94));
+  const block = mx_noise_float(floor(along).add(floor(row).mul(17.3)).mul(0.71)).mul(0.06);
+  const stone = mix(color(0x8a8172).add(block).add(mx_noise_float(positionWorld.mul(0.9)).mul(0.04)), color(0x5c574d), mortar.mul(0.7));
+  const moss = smoothstep(0.55, 0.15, fract(positionWorld.y.mul(0.37)).mul(0.3).add(mx_noise_float(positionWorld.mul(1.7)).mul(0.25)).add(0.35));
+  const stain = smoothstep(0.6, 0.0, positionWorld.y.sub(U.waterLevel));
+  const wall = mix(mix(stone, color(0x5f7d45), moss.mul(0.35)), color(0x4b5a4c), stain.mul(0.45));
+  const ground = mix(base, wall, steep);
+  // Build-mode tile grid overlay (not on walls).
   const gx = abs(fract(positionWorld.x).sub(0.5));
   const gz = abs(fract(positionWorld.z).sub(0.5));
-  const line = smoothstep(0.46, 0.5, max(gx, gz)).mul(U.grid);
-  m.colorNode = withOverlay(mix(base, color(0xeafff6), line.mul(0.5)), false).mul(cloudShade());
+  const line = smoothstep(0.46, 0.5, max(gx, gz)).mul(U.grid).mul(float(1).sub(steep));
+  m.colorNode = withOverlay(mix(ground, color(0xeafff6), line.mul(0.5)), false).mul(cloudShade());
+  m.normalNode = mix(normalView, normalFlat, steep).normalize();
   m.emissiveNode = color(0x7ff7e6).mul(line).mul(U.night).mul(0.25).add(float(0));
   return m;
 }

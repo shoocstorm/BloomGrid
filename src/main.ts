@@ -46,6 +46,8 @@ import { exploreModule } from '@/modules/explore';
 import { interactModule } from '@/modules/interact';
 import { signsModule } from '@/modules/signs';
 import { auroraModule } from '@/modules/aurora';
+import { ferryModule } from '@/modules/ferry';
+import { skyguardModule } from '@/modules/skyguard';
 import { policeModule } from '@/modules/police';
 import { createBootScreen } from '@/ui/Boot';
 import { watchDevice } from '@/platform/device';
@@ -60,7 +62,7 @@ import '@/ui/mobile.css';
  * Feature modules. New gameplay layers (city pulse, overlays, crises, bloom engine, mobility,
  * Flora-Net, Green Weaver, explore modes…) are added here as self-contained modules.
  */
-const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, roadworksModule, juiceModule, happeningsModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, walkersModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, interactModule, signsModule, auroraModule, policeModule, debugModule];
+const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, roadworksModule, juiceModule, happeningsModule, pulseModule, buildModule, overlaysModule, advisorModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, walkersModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, interactModule, signsModule, auroraModule, policeModule, ferryModule, skyguardModule, debugModule];
 
 /**
  * No browser or webview context menu anywhere in the game (right-click is a game gesture: leave build mode, slow the
@@ -88,9 +90,13 @@ installCursors();
     // Park high over the island, then fly down to the landmark when the boot screen lifts.
     const v = openingView(ctx.city);
     ctx.cameraCtl.intro(v.x, v.z, v.distance, 0, v);
+    // Boot's first frames (uploads, the fly-in, buildings growing in) are slow by nature: don't let them set the
+    // render scale for the rest of the session.
+    const res = ctx.services.get('render').dynamicResolution;
+    res.hold(4);
     ctx.engine.start();
     (window as unknown as { bloomgrid: unknown }).bloomgrid = ctx;
-    await screen.finish(() => ctx.cameraCtl.intro(v.x, v.z, v.distance, 6, v));
+    await screen.finish(() => (ctx.cameraCtl.intro(v.x, v.z, v.distance, 6, v), res.hold(8)));
     hud.style.transition = 'opacity 1s';
     hud.style.opacity = '1';
     // HUD entrance animations (the welcome card) wait for this so they play in view.

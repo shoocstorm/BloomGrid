@@ -75,6 +75,8 @@ class Loader implements LoaderService {
       await screen.stage('Lighting the skyline', 0.95);
       for (let i = 0; i < SETTLE_FRAMES; i++) await frame();
       engine.speed = next;
+      // The new city's first seconds rebuild and grow in: judge the render scale after them.
+      this.ctx.services.tryGet('render')?.dynamicResolution.hold(5);
       await screen.finish(reveal);
       return result;
     } catch (e) {

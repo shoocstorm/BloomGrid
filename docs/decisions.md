@@ -2322,3 +2322,73 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
 - **Action**: `motion` on a def labels a Stop / Start button in the inspector (interact module), with a motor sound;
   stopped buildings are saved by uid in the interact save hook. Everything runs by default.
 - **Not done**: the Comet Loop's train along its track (needs a path, not a pivot); colliders use the rest pose.
+
+## D-140 — Solid ground in explore modes: camera clearance, stone embankments, seated flora (2026-11-08)
+
+- **Problem**: walking on a slope with a low camera, the third-person camera sank into the hill behind the steward
+  (its floor was sampled at last frame's camera spot, and the smoothing trailed into the slope) or sat 0–2 cm above
+  it, so the near plane (0.02) cut through the ground: the single-sided terrain turned see-through and buildings
+  showed their undersides. A probe over six steep spots measured the camera up to 5 cm under the ground.
+- **Fix** (`chase` in `modules/explore/index.ts`): the floor is `floorAt` at the camera's destination and again where
+  it lands after smoothing: the walkable ground there (`groundAt` near the target's height), the terrain over a ring
+  `CAM_RING` wide (the near plane's reach) and the sea, plus `CAM_CLEAR` (0.1). A hill between camera and target
+  pulls the camera in like a wall (`terrainReach`). Walk, roof, board, drone and balloon all use it.
+- **Embankments** (`world/Terrain.ts`): terraces are levelled up to the edge of water that stays (reservoirs, river,
+  sea), so the ground drops 3–4 units inside one tile there. Smoothed vertex normals lit those faces like level grass
+  and their colour blended sand into grass: from the water they read as a pale, see-through sheet with trees floating
+  on top. Faces steeper than ≈65° (true face normal from screen derivatives) are now drawn as a stone embankment:
+  courses along the grid axis the wall faces (`normalGeometry`), lit by `normalFlat`, mossy and stained at the
+  waterline. Guard every normalisation in that branch: a NaN there blackens all terrain even at zero weight.
+- **Flora** (`world/Flora.ts`): plants stand on the lowest ground under their foot (`FOOT`), skip spots where it falls
+  more than `MAX_DROP` (no bush stuck to a wall, no trunk hanging over an edge), and crowns hang from their trunk's
+  base instead of the ground under each crown blob (a crown over a drop used to sink with it).
+- **Rejected**: double-sided terrain (hides the symptom with the hill's back faces; still wrong framing); softening
+  the terraces' banks in the sim (changes the founding city's lots, roads and balance; worth doing separately).
+
+## D-141 — Cruise ferry *Tidesong* and the BloomGrid Sky Guard jet; free-standing objects in the inspector (2026-11-08)
+
+- **Ferry** (`src/modules/ferry/`): a 22-tile solar-sail cruise ferry (`ferryModel.ts`: lofted hull, four deck houses,
+  sun deck with pool, slide and dome, sky garden, spinning sky wheel, helideck, wing-sails, lifeboats, tourists, name
+  boards from a canvas texture) on a timetable: board 30 s → astern off the berth → turn in the basin → sail to one
+  risen sea wonder, a sightseeing loop round it, home. One wonder per voyage in `SITES` order; a charter replaces the
+  next. Render-only like the police drones (D-137): no sim state, nothing saved, not in the hash; a reload restarts the
+  timetable. Posed by its object matrix each frame (no buffer uploads); wheel spin and tourists in the shader.
+- **Routing** (`ferry/route.ts`, tested in `tests/ferryRoute.test.ts`): A* on 4-tile cells that are deeper than the
+  draught everywhere, keeping 2 cells of clearance (narrow water costs more), string-pulled, then Chaikin-smoothed
+  after splitting legs into 6-tile pieces (a cut on a long leg swung the course over the headland it was pulled round).
+  Bridge tiles and the Aeroline's pylons (`aeroline.pylons`) close cells: the pylons, 11 tiles apart, fence the bay,
+  so courses never thread the viaduct. The pier (`findPier`) is the shore point nearest `PREFER` (the Bloomtopia
+  islet's east shore, outside the Aeroline's loop) with a clear deep strip straight out; it is placed again if the
+  Aeroline rises or falls later.
+- **Requests**: Depart now, Full ahead (×2 to the end of the voyage), Charter, Deck show (`show` uniform: lamps,
+  waterline and wheel run a rainbow), Horn (`ferry:horn` sound), Ride aboard (explore mode `ferry`), Locate.
+- **Jet** (`src/modules/skyguard/`): a delta lifting body with a raised spine, gold canopy, canted twin fins and three
+  engines; the wing top, belly (mirrored mapping, so it reads from below) and fins read one 1024² livery atlas drawn
+  on a canvas (`liveryTexture`: emblem, BLOOMGRID / SKY GUARD). The patrol is a pure function of a phase
+  (`flight.ts`, CPU and TSL): a figure-eight with harmonics for sharp ends and height changes; the CPU integrates the
+  phase (afterburner speeds it), banks from the curve's lateral acceleration and rolls at each centre crossing; the
+  contrails evaluate the same curve at earlier phases in the shader (no uploads). Requests: Chase cam (explore mode
+  `jet`), Victory roll, Afterburner, Display smoke. `skyguard:pass` sounds a roar when it passes the camera.
+- **Inspector for free-standing objects**: `hud.objectInspector(key, read)` registers a sheet (`ObjectSheet`: title,
+  vitals, body, rows, actions) that `selection:changed` with `object: key` opens and the HUD re-reads twice a second.
+  Clicks reach it through `registerPickable` in `construction/pick.ts` (the ray tested in the object's own frame against
+  a local box, padded for the fast jet).
+- **Cost**: ferry 2–3 draws (ship incl. name boards, wake under way, pier), jet 2; all frustum-culled (the trail's
+  bounds follow the jet), so views without them add none; ≈+5 at the full-island overview. `ferry.sail` and
+  `skyguard.fly` ≈0.006 ms a frame each.
+- **Rejected**: sim-side ferry state (tourist income, saved voyages): scenery has no gameplay stake and the cruise
+  happening (D-123) already covers visitors; instanced shader-posed ferry (one ship gains nothing and the ride camera
+  needs the CPU pose anyway); a pier in the bay inside the Aeroline loop (the viaduct crosses the berth).
+
+## D-142 — Dynamic resolution judges the median frame, after a boot hold (2026-11-08)
+
+- **Problem**: on Ultra the picture went soft. `DynamicResolution` judged each 1.5 s window by its mean fps, so boot
+  (uploads, the 6 s fly-in, buildings growing in) and one-off hitches cut the scale by 0.1 a window, down to 0.6;
+  it climbs back only 0.05 a window and only while fps ≥ 97% of the cap, which a real display that jitters round
+  57–59 fps may never reach. Measured headless on Ultra at DPR 2: scale 0.6 at boot, 0.85 still after 12 s.
+- **Choice**: judge by the window's **median** frame time (a GPU that can't keep up is slow on every frame, a hitch is
+  one frame), and `hold(seconds)` skips judging after boot (4 s at engine start, 8 s from the fly-in) and after a
+  loader city change (5 s), resetting to full scale. After: 1.00 (pixel ratio 2) from the first sample.
+  Frame times go into a preallocated buffer (no per-frame allocation). Tested in `tests/dynamicResolution.test.ts`.
+- **Rejected**: turning dynamic resolution off on Ultra (a slower GPU still needs it to hold its frame rate);
+  a lower recovery threshold (it would oscillate between scales on a GPU that is really borderline).

@@ -221,6 +221,8 @@ const _z = new Vector3();
  */
 export class Guideway {
   readonly group = new Group();
+  /** Where every pylon stands (x, z): obstacles for the cruise ferry's courses (D-141). */
+  readonly pylons: [number, number][] = [];
   readonly towers: HelixTower[] = [];
 
   constructor(
@@ -333,6 +335,7 @@ export class Guideway {
     wide = 1,
   ): void {
     const p = this.path.at(s + t, _p);
+    this.pylons.push([p.x, p.z]);
     const g = ground(p.x, p.z);
     const F = _pf.multiplyMatrices(this.frame(s + t, this.deck), SCALE);
     const y = (w: number) => (w - this.deck) / K;

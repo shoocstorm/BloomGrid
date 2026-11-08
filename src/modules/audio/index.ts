@@ -521,6 +521,21 @@ export const audioModule: GameModule = {
         s.tone(on ? 660 : 990, 0.14, 0.05 * h.vol, 'triangle', on ? 990 : 660, h.delay + 0.02);
       }
     });
+    // The cruise ferry's horn (D-141): two low reeds a fifth apart, swelling and dying away over the water.
+    bus.on('ferry:horn', ({ x, z }) => {
+      const h = s.heard(x, z);
+      const v = Math.max(0.35, h.vol);
+      s.tone(98, 2.4, 0.11 * v, 'sawtooth', 96, h.delay);
+      s.tone(147, 2.4, 0.07 * v, 'sawtooth', 145, h.delay + 0.05);
+      s.burst(2.2, 0.03 * v, 'lowpass', 300, 200, h.delay);
+    });
+    // The Sky Guard jet roaring past (D-141): a swept noise roar, deeper and longer with the afterburner.
+    bus.on('skyguard:pass', ({ x, z, burner }) => {
+      const h = s.heard(x, z);
+      const v = Math.max(0.3, h.vol);
+      s.burst(burner ? 3.2 : 2.4, (burner ? 0.16 : 0.11) * v, 'lowpass', burner ? 1400 : 2200, burner ? 180 : 320, h.delay);
+      s.burst(1.6, 0.05 * v, 'bandpass', 3200, 900, h.delay + 0.1);
+    });
     bus.on('crisis:forecast', () => {
       s.tone(440, 0.35, 0.08, 'square', undefined, 0);
       s.tone(440, 0.35, 0.08, 'square', undefined, 0.5);

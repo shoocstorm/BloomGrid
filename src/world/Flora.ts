@@ -11,6 +11,11 @@ const _e = new Euler();
 const _s = new Vector3();
 const _c = new Color();
 const params = new Float32Array(4);
+/** Foot radius per piece as a share of its widest scale (the trunk piece is 0.5 wide at its foot). */
+const FOOT: Record<string, number> = { trunk: 0.25, palm: 0.05, bush: 0.4, grass: 0.4, flower: 0.4, fungus: 0.4 };
+/** Steepest fall under a plant's foot it still stands on (world units); more is a wall or a cut bank (D-140). */
+const MAX_DROP = 0.15;
+const FOOT_RING = Array.from({ length: 6 }, (_, k) => [Math.cos((k * Math.PI) / 3), Math.sin((k * Math.PI) / 3)] as const);
 
 /** What a free tile borders, which decides how it is planted (D-127). */
 const enum Setting {
@@ -126,8 +131,21 @@ export class Flora {
     else this.setting.delete(idx);
     const delay = (k: number) => (animate ? k * 0.08 + rng.next() * 0.4 : -1);
     const at = (ox: number, oz: number) => _p.set(x + ox, g.heightAt(x + ox, z + oz), z + oz);
-    const add = (piece: string, ox: number, oz: number, scale: Vector3, tint: number, glow: number, d: number, yOff = 0, tilt = 0) => {
-      at(ox, oz).y += yOff;
+    /** Lowest ground under a foot of radius `r` at (ox, oz): a plant stands on that, so no side of its foot floats. */
+    const low = (ox: number, oz: number, r: number) => {
+      let y = g.heightAt(x + ox, z + oz);
+      for (const [dx, dz] of FOOT_RING) y = Math.min(y, g.heightAt(x + ox + dx * r, z + oz + dz * r));
+      return y;
+    };
+    /**
+     * Room to stand (D-140): no plant on or over a drop (a terrace's embankment, a cut bank). From below, a foot
+     * hanging over the edge shows its underside, and a bush on the wall looks stuck to it.
+     */
+    const firm = (ox: number, oz: number, r: number) => g.heightAt(x + ox, z + oz) - low(ox, oz, r) < MAX_DROP;
+    /** Adds a piece standing on the ground at (ox, oz), or `yOff` above `baseY` when given (crowns hang from a trunk). */
+    const add = (piece: string, ox: number, oz: number, scale: Vector3, tint: number, glow: number, d: number, yOff = 0, tilt = 0, baseY?: number) => {
+      at(ox, oz);
+      _p.y = (baseY ?? low(ox, oz, Math.max(scale.x, scale.z) * (FOOT[piece] ?? 0))) + yOff;
       _q.setFromEuler(_e.set(tilt, rng.next() * Math.PI * 2, 0, 'YXZ'));
       params[0] = 1;
       params[1] = rng.next();
@@ -145,10 +163,12 @@ export class Flora {
     // Species. Sized against the buildings (a floor is 0.32): a grown tree stands about 4–7 floors and spreads
     // under a tile, so a street tree doesn't dwarf a home.
     const palm = (ox: number, oz: number, height: number, span: number, tint: number, d = 0) => {
+      if (!firm(ox, oz, span * 0.3)) return;
       add('palm', ox, oz, _s.set(span, height, span), tint, rng.next() < 0.08 ? 0.5 : 0, d);
       collide(ox, oz, _p.y, height * 0.86, span * 0.03, _p.y + height * 0.9, span * 0.25);
     };
     const fern = (ox: number, oz: number, size: number) => {
+      if (!firm(ox, oz, size * 0.4)) return;
       add('palm', ox, oz, _s.set(size * 1.5, size * 0.75, size * 1.5), rng.pick(TROPIC.forest), rng.next() < 0.15 ? 0.6 : 0, 0);
       collide(ox, oz, _p.y, size * 0.6, size * 0.04, _p.y + size * 0.7, size * 0.3);
     };
@@ -156,6 +176,7 @@ export class Flora {
       const tall = shape === 'emergent' ? rng.range(2.2, 2.8) : shape === 'umbrella' ? rng.range(1.0, 1.3) : rng.range(1.1, 1.8);
       const h = size * tall;
       const girth = size * (shape === 'emergent' ? 0.22 : shape === 'umbrella' ? 0.16 : 0.12);
+      if (!firm(ox, oz, size * 0.5)) return;
       add('trunk', ox, oz, _s.set(girth, h, girth), PALETTE.bark, 0, 0);
       const ty = _p.y;
       let crown = 0;
@@ -173,25 +194,38 @@ export class Flora {
         const capped = shape === 'bloom' && i > 0;
         const lift = flat ? h * 0.92 + i * r * 0.08 : capped ? h * 0.55 + size * 0.5 : h * 0.55 + i * r * 0.25;
         const off = capped ? size * 0.3 : flat ? spread : 0;
-        add('canopy', ox + Math.cos(a) * off + (flat || capped ? 0 : spread), oz + Math.sin(a) * off, s, tint, glow, 1 + i, lift);
+        add('canopy', ox + Math.cos(a) * off + (flat || capped ? 0 : spread), oz + Math.sin(a) * off, s, tint, glow, 1 + i, lift, 0, ty);
         crown = Math.max(crown, flat ? r * 1.3 : r);
       }
       collide(ox, oz, ty, h, size * 0.06, ty + h * 0.8, crown * 0.42);
     };
     const bamboo = (ox: number, oz: number, size: number) => {
+      if (!firm(ox, oz, 0.2)) return;
       const n = 4 + rng.int(0, 3);
+      const base = low(ox, oz, 0.2);
       for (let i = 0; i < n; i++) {
         const h = size * rng.range(1.6, 2.4);
-        add('trunk', ox + rng.range(-0.12, 0.12), oz + rng.range(-0.12, 0.12), _s.set(0.025, h, 0.025), TROPIC.stem, 0, 0, 0, rng.range(-0.12, 0.12));
-        add('canopy', ox + rng.range(-0.1, 0.1), oz + rng.range(-0.1, 0.1), _s.set(size * 0.35, size * 0.6, size * 0.35), rng.pick(TROPIC.fronds), 0, 1, h * 0.8);
+        add('trunk', ox + rng.range(-0.12, 0.12), oz + rng.range(-0.12, 0.12), _s.set(0.025, h, 0.025), TROPIC.stem, 0, 0, 0, rng.range(-0.12, 0.12), base);
+        add('canopy', ox + rng.range(-0.1, 0.1), oz + rng.range(-0.1, 0.1), _s.set(size * 0.35, size * 0.6, size * 0.35), rng.pick(TROPIC.fronds), 0, 1, h * 0.8, 0, base);
       }
-      collide(ox, oz, _p.y, size * 1.6, 0.1, _p.y + size * 1.8, size * 0.2);
+      collide(ox, oz, base, size * 1.6, 0.1, base + size * 1.8, size * 0.2);
     };
-    const leafy = (ox: number, oz: number, size: number, tint = rng.pick(TROPIC.fronds)) => add('bush', ox, oz, _s.set(size, size * rng.range(0.8, 1.2), size), tint, 0, 0);
+    const leafy = (ox: number, oz: number, size: number, tint = rng.pick(TROPIC.fronds)) => {
+      if (firm(ox, oz, size * 0.45)) add('bush', ox, oz, _s.set(size, size * rng.range(0.8, 1.2), size), tint, 0, 0);
+    };
     const banana = (ox: number, oz: number, size: number) => {
+      if (!firm(ox, oz, size * 0.45)) return;
       const h = size * rng.range(0.6, 0.9);
-      add('trunk', ox, oz, _s.set(size * 0.1, h, size * 0.1), TROPIC.stem, 0, 0);
-      add('bush', ox, oz, _s.set(size, size, size), rng.pick(TROPIC.fronds), 0, 1, h * 0.65);
+      const base = low(ox, oz, size * 0.05);
+      add('trunk', ox, oz, _s.set(size * 0.1, h, size * 0.1), TROPIC.stem, 0, 0, 0, 0, base);
+      add('bush', ox, oz, _s.set(size, size, size), rng.pick(TROPIC.fronds), 0, 1, h * 0.65, 0, base);
+    };
+    /** Small ground cover (grass, flowers, fungi): skipped on a wall. */
+    const cover = (piece: string, size: number, tint: number, glow: number) => {
+      const ox = rng.next();
+      const oz = rng.next();
+      _s.setScalar(size);
+      if (firm(ox, oz, size * 0.4)) add(piece, ox, oz, _s, tint, glow, 0);
     };
 
     const high = min > 7;
@@ -253,18 +287,18 @@ export class Flora {
 
     if (!high) {
       const tufts = rng.next() < 0.35 ? 1 : 0;
-      for (let i = 0; i < tufts; i++) add('grass', rng.next(), rng.next(), _s.setScalar(rng.range(0.15, 0.3)), rng.pick(PALETTE.leaves), 0, 0);
+      for (let i = 0; i < tufts; i++) cover('grass', rng.range(0.15, 0.3), rng.pick(PALETTE.leaves), 0);
       const flowerChance = setting === Setting.Garden ? 0.6 : 0.3 + meadow;
       if ((meadow > 0.1 || setting === Setting.Garden) && rng.next() < flowerChance) {
         const n = 2 + rng.int(0, 2);
         const tint = rng.pick(PALETTE.blossoms);
         for (let i = 0; i < n; i++) {
           const glow = rng.next() < 0.35 ? rng.range(0.5, 1) : 0;
-          add('flower', rng.next(), rng.next(), _s.setScalar(rng.range(0.08, 0.14)), rng.next() < 0.7 ? tint : rng.pick(PALETTE.blossoms), glow, 0);
+          cover('flower', rng.range(0.08, 0.14), rng.next() < 0.7 ? tint : rng.pick(PALETTE.blossoms), glow);
         }
       }
       if (forest > 0.25 && setting === Setting.Wild && rng.next() < 0.08) {
-        for (let i = 0; i < 3; i++) add('fungus', rng.next(), rng.next(), _s.setScalar(rng.range(0.08, 0.16)), 0xd7f7ff, 1, 0);
+        for (let i = 0; i < 3; i++) cover('fungus', rng.range(0.08, 0.16), 0xd7f7ff, 1);
       }
     }
     if (handles.length) this.tiles.set(idx, handles);

@@ -59,6 +59,11 @@ class Hud {
   readonly lead = h('div', { class: 'act-lead' });
   /** Modules' own buttons for a selected building (the Aurora Gemini's light show, D-135), after its switch. */
   readonly extraActions: ((eid: number) => HTMLElement[])[] = [];
+  /** Inspectors for free-standing objects by key (the ferry, the Sky Guard jet, D-141): `read` builds the sheet. */
+  readonly objects = new Map<string, () => ObjectSheet | null>();
+  /** Key of the free-standing object in the inspector, if one is. */
+  private objectKey: string | null = null;
+  private objectTimer = 0;
   /** The central stats panel; modules may prepend a control (the city map button). */
   stats!: HTMLElement;
   private statEls = new Map<string, { el: HTMLElement; v: HTMLElement; sub: HTMLElement }>();
@@ -120,9 +125,11 @@ class Hud {
       }
     });
     bus.on('toast', ({ text, tone, at }) => this.toast(text, tone, at));
-    bus.on('selection:changed', ({ eid, road, eids, bridge }) => {
+    bus.on('selection:changed', ({ eid, road, eids, bridge, object }) => {
       this.bridgeKey = null;
-      if (eids?.length) this.selectGroup(eids);
+      this.objectKey = null;
+      if (object !== undefined) this.selectObject(object);
+      else if (eids?.length) this.selectGroup(eids);
       else if (bridge !== undefined) this.selectBridge(bridge);
       else if (road !== undefined) this.selectNetwork(road);
       else this.select(eid);
@@ -842,6 +849,41 @@ class Hud {
     this.info.querySelector('[data-led]')?.classList.toggle('bad', r.peak > 0.9);
   }
 
+  /**
+   * A free-standing object's inspector (D-141): the sheet its module's `read` builds (title, vitals, rows, its own
+   * body and actions), re-read twice a second while it stays open (`live` keeps the scroll, skips the entrance).
+   */
+  private selectObject(key: string, live = false): void {
+    const sheet = this.objects.get(key)?.();
+    if (!sheet) {
+      this.objectKey = null;
+      return this.hideInfo();
+    }
+    if (live && (this.info.classList.contains('hidden') || this.info.classList.contains('closing'))) return void (this.objectKey = null);
+    this.objectKey = key;
+    this.selected = null;
+    this.group = [];
+    if (!live) {
+      this.stageFor(null);
+      this.showInfo();
+    }
+    const row = (k: string, v: string) => h('div', { class: 'row' }, h('span', {}, k), h('b', {}, v));
+    const scroll = this.infoBody.querySelector('.ix-scroll')?.scrollTop ?? 0;
+    this.info.classList.toggle('ix-quiet', live);
+    this.fillInfo(
+      ...this.infoHead(icon(sheet.glyph), h('div', { class: 'info-id' }, h('span', { class: 'info-id-btn' }, sheet.code), h('span', {}, sheet.place)), sheet.title, sheet.desc),
+      h('div', { class: 'ix-vitals' }, ...sheet.vitals.map(([ico, label, value, tone]) => this.vital(ico, label, value, tone))),
+      ...(sheet.body ?? []),
+      ...sheet.rows.map(([k, v]) => row(k, v)),
+      ...(sheet.note ? [h('p', { class: 'ix-note' }, sheet.note)] : []),
+      this.infoActions(null, ...sheet.actions),
+    );
+    if (live) {
+      const sc = this.infoBody.querySelector('.ix-scroll');
+      if (sc) sc.scrollTop = scroll;
+    }
+  }
+
   /** Highway network ("district") inspector. */
   private selectNetwork(road: number): void {
     const { city } = this.ctx;
@@ -1134,6 +1176,10 @@ class Hud {
     // transform (not left/top) so moving the tooltip never triggers layout.
     if (!this.tooltip.classList.contains('hidden') && !document.body.classList.contains('compact')) this.tooltip.style.transform = `translate(${p.x + 16}px, ${p.y + 16}px)`;
     this.timer += dt;
+    if (this.objectKey !== null && (this.objectTimer += dt) >= 0.5) {
+      this.objectTimer = 0;
+      this.selectObject(this.objectKey, true);
+    }
     if (this.timer < 0.2) return;
     this.timer = 0;
     // Values change width as they grow (10,000 residents): refit every couple of seconds.
@@ -1172,6 +1218,22 @@ class Hud {
   }
 }
 
+/** A free-standing object's inspector sheet (D-141), built by its module on every (live) read. */
+export interface ObjectSheet {
+  glyph: string;
+  /** Short code in the id slot (`FERRY`, `SKY GUARD`) and where it is now. */
+  code: string;
+  place: string;
+  title: string;
+  desc: string;
+  vitals: [ico: string, label: string, value: string, tone?: '' | 'good' | 'bad'][];
+  /** The object's own body after the vitals (chips, a timetable…). */
+  body?: HTMLElement[];
+  rows: [string, string][];
+  note?: string;
+  actions: HTMLElement[];
+}
+
 export interface HudService {
   right: HTMLElement;
   /** Top-bar action buttons (undo … settings); Save and Load live in Settings. */
@@ -1190,6 +1252,8 @@ export interface HudService {
   sheet(el: HTMLElement): void;
   /** Adds buttons to the building inspector's action row: `fn` returns them for the selected building (or none). */
   buildingActions(fn: (eid: number) => HTMLElement[]): void;
+  /** Registers a free-standing object's inspector (D-141); `selection:changed` with `object: key` opens it. */
+  objectInspector(key: string, read: () => ObjectSheet | null): void;
 }
 
 declare module '@/core/Services' {
@@ -1203,7 +1267,7 @@ export const hudModule: GameModule = {
   deps: ['construction', 'world'],
   init(ctx) {
     const hud = new Hud(ctx);
-    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, lead: hud.lead, dock: hud.dock, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, sheet: (el) => hud.sheet(el), buildingActions: (fn) => void hud.extraActions.push(fn) });
+    ctx.services.provide('hud', { right: hud.right, actions: hud.actions, lead: hud.lead, dock: hud.dock, dockRow: hud.dockRow, stats: hud.stats, readout: hud.readoutEl, sheet: (el) => hud.sheet(el), buildingActions: (fn) => void hud.extraActions.push(fn), objectInspector: (key, read) => void hud.objects.set(key, read) });
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };

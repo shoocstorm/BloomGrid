@@ -1,0 +1,9 @@
+/* Cruise ferry inspector (D-141): the chartered voyage's chip lit, the facilities as plain tags. */
+.fy-charter .ix-chip.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.fy-aboard .ix-chip {
+  cursor: default;
+  opacity: 0.85;
+}

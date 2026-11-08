@@ -34,8 +34,11 @@
  *
  * Each shot's frames are captured into its own segment directory and the encode chains ffmpeg `xfade`
  * dissolves between them, so the whole trailer reads as one continuous move. Caption cards are
- * transparent full-frame PNGs overlaid with alpha fades. Encodes at crf 25 / preset slow so the mp4 is
- * small enough to commit under public/assets/ (GitHub's hard limit is 100 MB; keep it under ~60 MB).
+ * transparent full-frame PNGs overlaid with alpha fades. Frames are captured at 2× (`--dpr`, quality
+ * ultra so the renderer fills the capture size exactly) and lanczos-downscaled to the output frame,
+ * which buys the antialiasing and keeps the result sharp; `--width/--height` set the output size and
+ * `--crf` (default 20, visually transparent) the encode size trade-off — crf 25 fits a committed
+ * public/assets/ copy under GitHub's ~100 MB limit.
  *
  *   bun run dev                # keep it running
  *   bun run trailer            # or: node scripts/trailer.mjs [--duration 82] [--fps 30] [--no-ai]
@@ -53,7 +56,11 @@ const arg = (k, d) => {
 /** Scripts record the showcase city unless a path names a scenario (a plain boot is a fresh island, D-072). */
 const showcase = (p) => (/[?&]scenario=/.test(p) ? p : `${p}${p.includes('?') ? '&' : '?'}scenario=founding-city`);
 const base = arg('base', 'http://localhost:3000');
-const path = showcase(arg('path', '/?quality=high&nodynres'));
+// ultra + 2x device scale: the renderer runs at exactly the 2× capture size (ultra's maxPixelRatio 2;
+// high would cap it at 1.25 and Chrome would upscale a soft frame into the screenshot). ffmpeg then
+// lanczos-downscales to the output frame: the supersample pays for antialiasing and swallows the
+// JPEG capture noise, so the 1080p output stays knife-sharp.
+const path = showcase(arg('path', '/?quality=ultra&nodynres'));
 const fps = Number(arg('fps', 30));
 const PLAN = 82;
 const seconds = Number(arg('duration', PLAN));
@@ -65,8 +72,12 @@ const AI_MODEL = 'qwen3-1.7b';
 /** Persistent profile: caches the model download (OPFS) so only the first run pays for it. */
 const profile = join(tmpdir(), 'bloomgrid-trailer-profile');
 mkdirSync(profile, { recursive: true });
-const W = 1920;
-const H = 1080;
+const W = Number(arg('width', 1920));
+const H = Number(arg('height', 1080));
+/** Capture supersampling: screenshots come off the page at W×dpr × H×dpr. */
+const dpr = Number(arg('dpr', 2));
+/** Encode quality: 20 is visually transparent for this content; raise it if the file must shrink. */
+const crf = arg('crf', '20');
 const chrome = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/usr/bin/google-chrome',
@@ -357,7 +368,7 @@ const browser = await puppeteer.launch({
   args: ['--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist', `--window-size=${W},${H}`],
 });
 const page = await browser.newPage();
-await page.setViewport({ width: W, height: H });
+await page.setViewport({ width: W, height: H, deviceScaleFactor: dpr });
 let errors = 0;
 page.on('console', (m) => ['warn', 'error'].includes(m.type()) && console.log(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => (errors++, console.log(`[pageerror] ${e.message}`)));
@@ -599,7 +610,8 @@ for (let f = 0; f < totalFrames; f++) {
   // Advance the world by exactly one video frame: input + one sim tick + sync + render at dt = 1/fps,
   // then one rAF for the compositor, then grab the presented frame.
   await page.evaluate((dt) => window.__bgFrame(dt), 1 / fps);
-  await page.screenshot({ path: join(segDir(i), `f${String(segFrame++).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 94 });
+  // JPEG is safe at the supersampled size: the 2× downscale that follows averages the artefacts away.
+  await page.screenshot({ path: join(segDir(i), `f${String(segFrame++).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 96 });
   if (f % 150 === 0) console.log(`[trailer] frame ${f}/${totalFrames} (${((Date.now() - t0) / 1000).toFixed(0)}s elapsed)`);
 }
 if (shots[shotIdx].exit) await page.evaluate(shots[shotIdx].exit);
@@ -619,16 +631,20 @@ const segFrames = shots.map((_, i) => readdirSync(segDir(i)).length);
 const segDur = segFrames.map((n) => n / fps);
 const inputs = ['-framerate', String(fps), '-i', join(segDir(0), 'f%04d.jpg')];
 const graph = [];
-let prev = '[0:v]';
+// Supersampled segments come down to the output frame first (lanczos), so every dissolve and card
+// overlay works at output resolution; at dpr 1 the scale is an identity pass-through.
+graph.push(`[0:v]scale=${W}:${H}:flags=lanczos,setsar=1[s0]`);
+let prev = '[s0]';
 {
   let len = segDur[0];
   shots.slice(1).forEach((_, k) => {
     const idx = k + 1;
     inputs.push('-framerate', String(fps), '-i', join(segDir(idx), 'f%04d.jpg'));
+    graph.push(`[${idx}:v]scale=${W}:${H}:flags=lanczos,setsar=1[s${idx}]`);
     const d = xfs[k];
     const off = Math.max(0, len - d);
     const label = `[x${idx}]`;
-    graph.push(`${prev}[${idx}:v]xfade=transition=${XT[k]}:duration=${d.toFixed(2)}:offset=${off.toFixed(2)}${label}`);
+    graph.push(`${prev}[s${idx}]xfade=transition=${XT[k]}:duration=${d.toFixed(2)}:offset=${off.toFixed(2)}${label}`);
     prev = label;
     len = off + segDur[idx];
   });
@@ -677,6 +693,6 @@ execFileSync('ffmpeg', [
   '-y',
   ...inputs,
   '-filter_complex', graph.join(';'),
-  '-map', '[v]', '-c:v', 'libx264', '-crf', '25', '-preset', 'slow', '-movflags', '+faststart', out,
+  '-map', '[v]', '-c:v', 'libx264', '-crf', String(crf), '-preset', 'slow', '-movflags', '+faststart', out,
 ], { stdio: 'inherit' });
 console.log(`[trailer] done: ${out} (${errors} page errors)`);

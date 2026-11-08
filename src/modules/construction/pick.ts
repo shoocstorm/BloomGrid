@@ -1,4 +1,4 @@
-import { Raycaster, Vector2, Vector3 } from 'three/webgpu';
+import { Matrix4, Raycaster, Vector2, Vector3, type Box3, type Object3D } from 'three/webgpu';
 import type { GameContext } from '@/game/context';
 import { Building } from '@/ecs/components';
 import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
@@ -12,11 +12,32 @@ import type { BuildingRenderer } from './BuildingRenderer';
 export type ObjectHit =
   | { kind: 'building'; eid: number }
   | { kind: 'bridge'; bridge: BridgeRecord; tile: number }
-  | { kind: 'road'; tile: number };
+  | { kind: 'road'; tile: number }
+  | { kind: 'object'; object: string };
+
+/**
+ * A moving or free-standing thing a click can land on besides buildings and bridges (the cruise ferry and its pier,
+ * the Sky Guard jet, D-141): a box in `node`'s local frame (unscaled), tested against the ray in that frame, and
+ * the object key the inspector opens (`selection:changed` with `object`). `pad` widens the box (a fast jet).
+ */
+export interface PickableObject {
+  object: string;
+  node: Object3D;
+  box: Box3;
+  pad?: number;
+}
+const pickables: PickableObject[] = [];
+/** Adds a free-standing object to the forgiving picks (D-141). */
+export function registerPickable(p: PickableObject): void {
+  pickables.push(p);
+}
 
 const ray = new Raycaster();
 const ndc = new Vector2();
 const inv = new Vector3();
+const _m = new Matrix4();
+const _o = new Vector3();
+const _d = new Vector3();
 /** Tallest thing in the city (tiles): the march starts where the ray drops below it. */
 const CEILING = 70;
 
@@ -130,6 +151,19 @@ export function pickObject(
       }
     }
   };
+
+  // Free-standing objects (D-141): the ray in each one's own frame against its box.
+  for (const p of pickables) {
+    if (!p.node.visible || !p.node.parent) continue;
+    _m.copy(p.node.matrixWorld).invert();
+    _o.copy(o).applyMatrix4(_m);
+    _d.copy(d).transformDirection(_m);
+    const q = pad + (p.pad ?? 0);
+    const b = p.box;
+    const s = slab(_o, inv.set(1 / _d.x, 1 / _d.y, 1 / _d.z), b.min.x - q, b.min.y - q, b.min.z - q, b.max.x + q, b.max.y + q, b.max.z + q);
+    if (s < best) [best, hit] = [s, { kind: 'object', object: p.object }];
+  }
+  inv.set(1 / d.x, 1 / d.y, 1 / d.z);
 
   // March the ray's ground track tile by tile, from below the ceiling to the ground (or the map's far side).
   const tStart = d.y < 0 ? Math.max(0, (o.y - CEILING) / -d.y) : 0;

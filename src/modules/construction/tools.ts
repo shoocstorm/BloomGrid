@@ -27,7 +27,8 @@ declare module '@/core/EventBus' {
      * of one type (Ctrl/⌘-drag in Inspect, D-070).
      */
     /** `bridge`: a named bridge's key (D-128), sent with `road` (its deck tile) so road listeners still react. */
-    'selection:changed': { eid: number | null; road?: number; eids?: number[]; bridge?: string };
+    /** `object`: a free-standing thing's inspector key (the ferry, the Sky Guard jet; `hud.objectInspector`, D-141). */
+    'selection:changed': { eid: number | null; road?: number; eids?: number[]; bridge?: string; object?: string };
     /** With `at` (tile coordinates), the toast is a button that flies the camera there. */
     toast: { text: string; tone?: 'ok' | 'bad' | 'info'; at?: { x: number; z: number } };
   }
@@ -289,6 +290,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
       const over = pick(ctx, hit);
       selected = over?.kind === 'building' ? over.eid : null;
       if (over?.kind === 'bridge') ctx.bus.emit('selection:changed', { eid: null, road: over.tile, bridge: over.bridge.key });
+      else if (over?.kind === 'object') ctx.bus.emit('selection:changed', { eid: null, object: over.object });
       else if (over?.kind === 'road') ctx.bus.emit('selection:changed', { eid: null, road: over.tile });
       else ctx.bus.emit('selection:changed', { eid: selected });
     },

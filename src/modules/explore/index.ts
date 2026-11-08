@@ -16,8 +16,8 @@ const LEDGE = 0.45;
 /** Eight directions for the room-to-stand test round a spawn. */
 const RING = Array.from({ length: 8 }, (_, k) => [Math.cos((k * Math.PI) / 4), Math.sin((k * Math.PI) / 4)] as const);
 
-export type ExploreMode = 'city' | 'walk' | 'board' | 'drone' | 'balloon' | 'roof' | 'follow' | 'train';
-const CYCLE: ExploreMode[] = ['city', 'walk', 'board', 'drone', 'balloon', 'roof', 'follow', 'train'];
+export type ExploreMode = 'city' | 'walk' | 'board' | 'drone' | 'balloon' | 'roof' | 'follow' | 'train' | 'ferry' | 'jet';
+const CYCLE: ExploreMode[] = ['city', 'walk', 'board', 'drone', 'balloon', 'roof', 'follow', 'train', 'ferry', 'jet'];
 const LABELS: Record<ExploreMode, string> = {
   city: 'City view',
   walk: 'Walk',
@@ -27,6 +27,8 @@ const LABELS: Record<ExploreMode, string> = {
   roof: 'Rooftop',
   follow: 'Ride a pod',
   train: 'Aeroline',
+  ferry: 'Cruise ferry',
+  jet: 'Sky Guard jet',
 };
 /** Icon (`ui/icons.ts`) and menu note per mode. */
 const MENU: Record<ExploreMode, [icon: string, note: string]> = {
@@ -38,6 +40,8 @@ const MENU: Record<ExploreMode, [icon: string, note: string]> = {
   roof: ['roof', 'Stand on top of a landmark'],
   follow: ['pod', 'Ride a pod along the sky-lanes'],
   train: ['train', 'Ride the Aeroline maglev loop'],
+  ferry: ['ferry', 'Sail the Tidesong to the sea wonders'],
+  jet: ['jet', 'Chase the Sky Guard jet over the island'],
 };
 const HINTS: Record<ExploreMode, string> = {
   city: '',
@@ -48,10 +52,18 @@ const HINTS: Record<ExploreMode, string> = {
   roof: 'WASD stroll the roof · drag to look · V first person · Tab next landmark · Esc city view',
   follow: 'Riding a commuter pod along its sky-lane · Tab next pod · drag to look · Esc city view',
   train: 'Riding the Aeroline maglev round the island · Tab next train · drag to look · Esc city view',
+  ferry: 'On the Tidesong’s bridge, sailing the timetable to the sea wonders · drag to look · Esc city view',
+  jet: 'Chasing the Sky Guard jet on its patrol · drag to look · Esc city view',
 };
 
 /** Player scale in world units (1 tile ≈ 11 m; a storey is 0.32). */
 const EYE = 0.17;
+/**
+ * Chase cameras keep this far above the ground (world units), measured over a ring as wide as the near plane
+ * reaches at street level: closer, a slope slices the near plane and the ground looks like glass.
+ */
+const CAM_CLEAR = 0.1;
+const CAM_RING = 0.12;
 const GRAVITY = 6;
 
 
@@ -336,6 +348,11 @@ export const exploreModule: GameModule = {
         ctx.bus.emit('toast', { text: 'No Aeroline here: it runs above the founding city', tone: 'bad' });
         next = 'city';
       }
+      if (next === 'ferry' && !ctx.services.tryGet('ferry')?.active) {
+        ctx.bus.emit('toast', { text: 'No cruise ferry yet: it sails once a sea wonder has risen', tone: 'bad' });
+        next = 'city';
+      }
+      if (next === 'jet' && !ctx.services.tryGet('skyguard')) next = 'city';
       if (next === mode) return;
       if (next === 'roof') {
         // Landmarks nearest the view first; Tab walks on through the list.
@@ -463,6 +480,16 @@ export const exploreModule: GameModule = {
     const fwd = new Vector3();
     const look = new Vector3();
     const tmp = new Vector3();
+    /** A ride camera (Aeroline, cruise ferry, Sky Guard jet): at `from`, facing `at`; dragging pitches it. */
+    const ride = (from: Vector3, at: Vector3) => {
+      pos.copy(from);
+      at.sub(from).normalize();
+      yaw = Math.atan2(-at.x, -at.z);
+      camera.position.copy(from);
+      const p0 = pitch + Math.asin(Math.max(-1, Math.min(1, at.y)));
+      look.set(-Math.sin(yaw) * Math.cos(p0), Math.sin(p0), -Math.cos(yaw) * Math.cos(p0));
+      camera.lookAt(tmp.copy(camera.position).add(look));
+    };
     const lerpAngle = (a: number, b: number, t: number) => a + (Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t);
     /** Poses the steward at `pos`, turning toward where they walk and swinging their limbs with the stride. */
     const stroll = (dt: number, speed: number, fast: boolean) => {
@@ -474,32 +501,58 @@ export const exploreModule: GameModule = {
       person.root.visible = !firstPerson;
       person.pose(speed > 0.01 ? stride : U.clock.value * 2, speed > 0.01 ? 1 : 0);
     };
-    /** Camera for the steward: eyes in first person, else a chase view behind and above, never under `floor`. */
-    const view = (dt: number, dist: number, floor: number) => {
+    /** Camera for the steward: eyes in first person, else a chase view behind and above, never under `minY`. */
+    const view = (dt: number, dist: number, minY = -Infinity) => {
       if (firstPerson) {
         camera.position.set(pos.x, pos.y + EYE, pos.z);
         look.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
         camera.lookAt(tmp.copy(camera.position).add(look));
         return;
       }
-      chase(dt, tmp.copy(pos).setY(pos.y + 0.13), dist, 0.25, floor + 0.04);
+      chase(dt, tmp.copy(pos).setY(pos.y + 0.13), dist, 0.25, CAM_CLEAR, 0.12, minY);
+    };
+    /**
+     * The ground the chase camera must stay above at (x, z): the walkable surface under it (terrain, road, deck or a
+     * piece top near `feet`), the terrain round it as wide as the near plane (or a slope cuts through the near
+     * plane and the ground turns see-through, showing building undersides), and the sea.
+     */
+    const floorAt = (x: number, z: number, feet: number) => {
+      let y = Math.max(U.waterLevel.value, groundAt(x, z, feet));
+      for (const [ox, oz] of RING) y = Math.max(y, g().heightAt(x + ox * CAM_RING, z + oz * CAM_RING));
+      return y;
+    };
+    /** How far along from → to (0..1) the line stays clear of the terrain by `clear`: a hill between camera and target. */
+    const terrainReach = (from: Vector3, to: Vector3, clear: number) => {
+      const steps = Math.min(32, Math.max(2, Math.ceil(from.distanceTo(to) / 0.08)));
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const x = from.x + (to.x - from.x) * t;
+        const z = from.z + (to.z - from.z) * t;
+        if (from.y + (to.y - from.y) * t < g().heightAt(x, z) + clear) return (i - 1) / steps;
+      }
+      return 1;
     };
     const _chase = new Vector3();
     const _from = new Vector3();
     /**
-     * Orbits the camera `dist` behind `target` (drag pitches it), smoothing toward the spot, above `floor`. The
-     * camera never enters a building or tree: it pulls in along the line to the target, starting `skip` out
-     * (past the avatar itself), and snaps in at once when a wall cuts in (it only eases back out).
+     * Orbits the camera `dist` behind `target` (drag pitches it), smoothing toward the spot, `clear` above the ground
+     * there (and never under `minY`). The camera never enters a building, tree or hillside: it pulls in along the line
+     * to the target, starting `skip` out (past the avatar itself), and snaps in at once when something cuts in (it
+     * only eases back out). The ground is checked where the camera is going and again where it lands, so on a slope
+     * the trailing camera never sinks into the hill behind the steward.
      */
-    const chase = (dt: number, target: Vector3, dist: number, tilt: number, floor: number, skip = 0.12) => {
+    const chase = (dt: number, target: Vector3, dist: number, tilt: number, clear: number, skip = 0.12, minY = -Infinity) => {
       const p = MathUtils.clamp(tilt - pitch, -0.35, 1.3);
+      const feet = target.y;
       _chase.set(Math.sin(yaw) * Math.cos(p), Math.sin(p), Math.cos(yaw) * Math.cos(p)).multiplyScalar(dist).add(target);
-      _chase.y = Math.max(_chase.y, floor);
+      _chase.y = Math.max(_chase.y, floorAt(_chase.x, _chase.z, feet) + clear, minY);
       _from.copy(_chase).sub(target).setLength(Math.min(skip, dist * 0.5)).add(target);
-      const k = collider.reach(_from, _chase, 0.035);
+      const k = Math.min(collider.reach(_from, _chase, 0.035), terrainReach(_from, _chase, CAM_CLEAR * 0.5));
       if (k < 1) _chase.lerpVectors(_from, _chase, Math.max(0, k - 0.02));
       const nearer = _chase.distanceToSquared(target) < camera.position.distanceToSquared(target);
       camera.position.lerp(_chase, k < 1 && nearer ? 1 : 1 - Math.exp(-dt * 10));
+      // The smoothing lags behind: lift it out of any ground it trails into (walking uphill, turning on a slope).
+      camera.position.y = Math.max(camera.position.y, floorAt(camera.position.x, camera.position.z, feet) + Math.min(clear, CAM_CLEAR), minY);
       camera.lookAt(target);
     };
 
@@ -551,8 +604,7 @@ export const exploreModule: GameModule = {
             grounded = true;
           } else if (pos.y - gy < 0.02) grounded = true;
           stroll(dt, speed, fast);
-          const floor = groundAt(camera.position.x, camera.position.z, 99);
-          view(dt, 0.95, floor);
+          view(dt, 0.95);
         } else if (mode === 'roof') {
           // A free stroll on top (D-135): walls, rails, trees and crowns stop the steward like on the street (the
           // collider), up a step like a kerb, and the roof's edge holds like a parapet: no move that would drop more
@@ -611,7 +663,7 @@ export const exploreModule: GameModule = {
           boardRig.position.set(pos.x, pos.y + Math.sin(U.clock.value * 3) * 0.004, pos.z);
           board.thrust(Math.min(1, (ix || iz ? 0.35 : 0) + sp / 7 + (fast && (ix || iz) ? 0.4 : 0)));
           person.pose(U.clock.value * 1.5, 0.05, 1);
-          chase(dt, tmp.copy(pos).setY(pos.y + 0.15), 1.15, 0.38, groundAt(camera.position.x, camera.position.z, 99) + 0.08, 0.2);
+          chase(dt, tmp.copy(pos).setY(pos.y + 0.15), 1.15, 0.38, CAM_CLEAR, 0.2);
         } else if (mode === 'drone') {
           const speed = fast ? 9 : 3.5;
           const up = (k.has('KeyE') || k.has('Space') ? 1 : 0) - (k.has('KeyQ') ? 1 : 0);
@@ -628,7 +680,7 @@ export const exploreModule: GameModule = {
           drone.root.rotation.x = MathUtils.lerp(drone.root.rotation.x, sideSpeed * 0.05, 1 - Math.exp(-dt * 6));
           drone.root.position.set(pos.x, pos.y + Math.sin(U.clock.value * 2.1) * 0.01, pos.z);
           drone.spin(dt, Math.min(1, Math.hypot(vel.x, vel.z) / 6 + Math.abs(vel.y) / 4));
-          chase(dt, drone.root.position, 1.4, 0.05, groundAt(camera.position.x, camera.position.z, 99) + 0.1, DRONE_R + 0.05);
+          chase(dt, drone.root.position, 1.4, 0.05, CAM_CLEAR, DRONE_R + 0.05);
         } else if (mode === 'balloon') {
           // Slow drift where you steer plus a light prevailing wind; the burner lifts, venting sinks.
           const burn = k.has('KeyE') || k.has('Space');
@@ -653,7 +705,7 @@ export const exploreModule: GameModule = {
             camera.position.set(pos.x, pos.y + 0.3, pos.z);
             look.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
             camera.lookAt(tmp.copy(camera.position).add(look));
-          } else chase(dt, tmp.copy(pos).setY(pos.y + 1.6), 7.5, 0.15, floor + 0.5, 1.3);
+          } else chase(dt, tmp.copy(pos).setY(pos.y + 1.6), 7.5, 0.15, 0.5, 1.3);
         } else if (mode === 'follow') {
           const lanes = ctx.services.tryGet('skylanes');
           if (!lanes?.pods) return setMode('city');
@@ -678,17 +730,16 @@ export const exploreModule: GameModule = {
           const line = ctx.services.tryGet('aeroline');
           if (!line?.trains) return setMode('city');
           line.ride(followIdx, eye, ahead);
-          pos.copy(eye);
-          ahead.sub(eye).normalize();
-          yaw = Math.atan2(-ahead.x, -ahead.z);
-          camera.position.copy(eye);
-          const p0 = pitch + Math.asin(Math.max(-1, Math.min(1, ahead.y)));
-          look.set(-Math.sin(yaw) * Math.cos(p0), Math.sin(p0), -Math.cos(yaw) * Math.cos(p0));
-          camera.lookAt(tmp.copy(camera.position).add(look));
+          ride(eye, ahead);
+        } else if (mode === 'ferry' || mode === 'jet') {
+          // The cruise ferry's sun deck, or behind the Sky Guard jet (D-141).
+          const by = mode === 'ferry' ? ctx.services.tryGet('ferry') : ctx.services.tryGet('skyguard');
+          if (!by?.ride(eye, ahead)) return setMode('city');
+          ride(eye, ahead);
         }
         // Everything that focuses on the camera target (shadows, fog, pollen, agents) follows the player.
         cameraCtl.target.set(pos.x, Math.max(0, g().heightAt(pos.x, pos.z)), pos.z);
-        cameraCtl.distance = ['drone', 'balloon', 'roof', 'follow', 'train'].includes(mode) ? Math.max(8, pos.y - cameraCtl.target.y + 6) : 6;
+        cameraCtl.distance = ['drone', 'balloon', 'roof', 'follow', 'train', 'ferry', 'jet'].includes(mode) ? Math.max(8, pos.y - cameraCtl.target.y + 6) : 6;
         cameraCtl.yaw = yaw + Math.PI;
       },
     });
@@ -728,7 +779,7 @@ export const exploreModule: GameModule = {
       // setMode changes `mode` (TS can't see that through the call).
       return (mode as ExploreMode) === 'roof';
     };
-    ctx.services.provide('explore', { setMode, standOn, get mode() { return mode; }, setPhoto, position: pos, get firstPerson() { return firstPerson; }, collider });
+    ctx.services.provide('explore', { setMode, standOn, get mode() { return mode; }, setPhoto, position: pos, get firstPerson() { return firstPerson; }, collider, get pitch() { return pitch; }, set pitch(v: number) { pitch = v; }, get yaw() { return yaw; }, set yaw(v: number) { yaw = v; } });
 
     // ── Landmark actions in the inspector (D-135): every hero and landmark gets Sky deck and Postcard ──────
     ctx.services.get('hud').buildingActions((eid) => {
@@ -767,6 +818,9 @@ declare module '@/core/Services' {
       readonly firstPerson: boolean;
       /** Explore-mode collision (collider.ts), for scripts and probes. */
       readonly collider: ReturnType<typeof createCollider>;
+      /** Look angles (radians), for scripts: positive pitch looks up and lowers the chase camera. */
+      pitch: number;
+      yaw: number;
     };
   }
 }

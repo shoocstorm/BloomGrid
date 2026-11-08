@@ -24,6 +24,9 @@ const ICONS: Record<string, string> = {
   down: '<path d="m5.5 8.5 6.5 7 6.5-7"/>',
   next: '<path d="M3 12h13M11 6l6 6-6 6M21 5v14"/>',
   caret: '<path d="m7 10 5 5 5-5"/>',
+  ferry: '<path d="M2.5 15.5h19l-2.5 4.5h-14z"/><path d="M5.5 15.5v-3.5h12v3.5M8 12V9h7v3M10.5 9V6h2"/><path d="M8.5 13.75h.01M11.5 13.75h.01M14.5 13.75h.01"/>',
+  jet: '<path d="M12 2.5 21 19l-9-3-9 3z"/><path d="M12 2.5V16M9 20.5v1.5M12 18v3.5M15 20.5v1.5"/>',
+  horn: '<path d="M3.5 10v4h3l7 4.5v-13L6.5 10z"/><path d="M17 9a4.5 4.5 0 0 1 0 6M19.5 6.5a8 8 0 0 1 0 11"/>',
   door: '<path d="M4 21h16M6 21V3.5h12V21"/><path d="M14.5 12.5h.01"/>',
   bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
   // ── Top bar ──

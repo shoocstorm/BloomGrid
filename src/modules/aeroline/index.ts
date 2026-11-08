@@ -180,6 +180,9 @@ export const aerolineModule: GameModule = {
       get building() {
         return site ? site.shown : -1;
       },
+      get pylons() {
+        return guide?.pylons ?? [];
+      },
       nearest(p: Vector3): { d: number; v: number } {
         let best = { d: Infinity, v: 0 };
         if (!trains) return best;
@@ -211,6 +214,8 @@ declare module '@/core/Services' {
       readonly deck: number;
       /** Construction progress 0..1 while the Aeroline project runs, else -1. */
       readonly building: number;
+      /** Where the viaduct's pylons stand (x, z), once it is raised: the cruise ferry steers clear (D-141). */
+      readonly pylons: readonly [number, number][];
       /** Distance from `p` to the nearest train and its speed (world units per second); Infinity with none. */
       nearest(p: Vector3): { d: number; v: number };
       /** Camera eye and look-at for riding train `i`'s cab. */
