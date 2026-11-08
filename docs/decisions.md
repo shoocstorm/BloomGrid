@@ -2486,3 +2486,28 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   octahedra, thin rods capless five-sided tubes, thin rings fewer segments, canopy lobes detail 1). Scenery module
   init ≈47 ms (was ≈31). Draw calls unchanged; 60 fps with no frame over 16.7 ms framing each wonder.
 
+## D-147 — Detailed sky pods, sky gates, Aeroline trains and viaduct (2026-11-08)
+
+- **Problem**: pods were plain white teardrops whose dark oval windows read as holes; lanes were faint ribbons; the
+  Aeroline's cars were plain white capsules on a plain grey girder with plain white columns.
+- **Pods** (`mobility/podModel.ts`): a livery sweep over the lower flanks, a panoramic canopy with frames, a window
+  band with mullions, stub wings carrying glowing ducted fans with red / green navigation lights, livery fin tips, a
+  headlight bar. The pod is at WebGPU's eight vertex buffers, so no attribute was added: `aGlow` −2 marks the livery
+  and the shader picks its colour from the pod's seed (`fract(aRouteInfo.z)`: teal, rose, blue, violet), gold for
+  express trunk pods (speed 1.5). 4,104 vertices, fewer than before (4,392; its comment said ≈1.3k), guarded by
+  `tests/transitModels.test.ts`.
+- **Sky gates** (`mobility.laneGates`): one new instanced draw sharing the lanes' route attributes: three hoops per
+  lane on the lane's arc (place in `uv.x`, oriented along the arc's tangent), sized to let a pod through (grand on
+  express trunks), coloured like their lane, a pulse running gate to gate, faded by on-screen size; none on lanes
+  under `GATE_MIN` (a dock's hop to its hub), which crowded the centre at night. Softer by day.
+- **Trains** (`aeroline/Trains.ts`): built with the sea wonders' `Kit` in the `wonder` material: glossy body, glass
+  window band with mullions, teal and coral livery lines, doors with lit lintels, solar roof in a frame with aero
+  domes, maglev skirts with a levitation glow, gangway bellows between cars, LED light bars, red marker lights and a
+  bloom emblem on the nose.
+- **Viaduct** (`aeroline/Guideway.ts`): a planted strip along each fairing in the swept section, precast segment
+  ribs down the girder every 3.6 units, deck lamps every 8 on alternate parapets, fluted pylons with a collar of
+  glowing petals under the capital.
+- **Cost**: +1 draw call (gates). Flicker probe at night: gates ≤ 0.022%, pods ≤ 0.054%, viaduct ≤ 0.069%. Perf
+  against a worktree at the previous commit, three runs each: main thread 24.7–25.8% both, 60 fps both, GPU time
+  inside the usual headless noise (4.2–8.5 ms both).
+

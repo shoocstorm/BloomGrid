@@ -20,6 +20,7 @@ import {
   cos,
   dot,
   float,
+  floor,
   fract,
   fwidth,
   length,
@@ -31,6 +32,7 @@ import {
   normalize,
   positionGeometry,
   positionView,
+  positionWorld,
   reflect,
   sin,
   smoothstep,
@@ -43,6 +45,7 @@ import {
   vec3,
 } from 'three/tsl';
 import type { Node } from 'three/webgpu';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { skyShade } from '@/render/bake';
@@ -74,6 +77,10 @@ declare module '@/core/Services' {
 const AGENTS = 8192;
 const PODS = 1040;
 const LANES = 1040;
+/** Sky gates per lane (D-147). */
+const GATES = 3;
+/** Lanes shorter than this (a dock's hop to its hub) carry no gates (D-147). */
+const GATE_MIN = 24;
 /** Hub ring instances (rings per hub: 3, or 6 for a central hub) and light shafts. */
 const RINGS = 1040;
 /** Pod and lane heights over the ground: docks launch from their top deck, pods set down at street level. */
@@ -229,9 +236,20 @@ export const mobilityModule: GameModule = {
       );
       const world = pos.add(orientNode(positionGeometry, fwd));
       pm.positionNode = world;
-      const col = attribute('color', 'vec3');
       const lum = attribute('aGlow', 'float');
-      const glass = step(lum, -0.5);
+      // aGlow −1 marks glazing, −2 the livery (D-147): a colour per pod from its seed, gold for express pods.
+      const livery = step(lum, -1.5);
+      const glass = step(lum, -0.5).mul(float(1).sub(livery));
+      const info = attribute('aRouteInfo', 'vec4');
+      const seed = fract(info.z);
+      const express = step(1.25, info.w.sub(floor(info.w.div(4)).mul(4)));
+      const pick = floor(seed.mul(4));
+      const palette = mix(
+        mix(color(0x13a89a), color(0xe2587a), step(0.5, pick)),
+        mix(color(0x3f7fe0), color(0x8a5cf0), step(2.5, pick)),
+        step(1.5, pick),
+      );
+      const col = mix(attribute('color', 'vec3'), mix(palette, color(0xe8a530), express), livery);
       const n = orientNode(normalGeometry, fwd);
       const lit = skyShade(col, n);
       // Glazing: dark smoked glass mirroring the sky at grazing angles, a sun glint, a warm cabin at night.
@@ -313,6 +331,62 @@ export const mobilityModule: GameModule = {
     lanes.renderOrder = 6;
     lanes.name = 'mobility.lanes';
 
+    // ── Sky gates (D-147): glowing hoops spaced along every lane, which the pods fly through. One instance per
+    // lane (sharing the lanes' route data); each gate's place along its lane is its uv.x. Same arc as the lanes.
+    const gateGeo = (() => {
+      const parts = Array.from({ length: GATES }, (_, k) => {
+        const g = new TorusGeometry(1, 0.06, 3, 14).rotateY(Math.PI / 2);
+        const t = (k + 1) / (GATES + 1);
+        const u = g.attributes.uv!;
+        for (let i = 0; i < u.count; i++) u.setXY(i, t, u.getY(i));
+        return g;
+      });
+      const g = mergeGeometries(parts)!;
+      for (const p of parts) p.dispose();
+      return g;
+    })();
+    gateGeo.setAttribute('aRoute', laneRoute);
+    gateGeo.setAttribute('aRouteInfo', laneInfo);
+    const gm = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: NormalBlending, fog: false });
+    {
+      const route = attribute('aRoute', 'vec4');
+      const info = attribute('aRouteInfo', 'vec4');
+      const kind = info.w;
+      const isSpoke = step(0.5, kind).mul(step(kind, 1.5));
+      const isTrunk = step(1.5, kind).mul(step(kind, 2.5));
+      const isRail = step(3.5, kind);
+      const len = max(route.zw.sub(route.xy).length(), float(1));
+      const t = uv().x;
+      const arcAt = (tt: Node<'float'>) => {
+        const f = mix(route.xy, route.zw, tt);
+        const y = mix(info.x, info.y, tt).add(arcProfileNode(tt).mul(len.mul(0.06).add(1.5).add(info.z)));
+        return vec3(f.x, y, f.y);
+      };
+      const fwd = normalize(arcAt(t.add(0.01)).sub(arcAt(t.sub(0.01))));
+      // Wide enough for a pod (≈0.3 across) with room; express trunks get grand hoops.
+      const size = mix(mix(float(0.42), float(0.38), isSpoke), float(0.72), isTrunk).mul(zoom).mul(step(GATE_MIN, len));
+      gm.positionNode = arcAt(t).add(orientNode(positionGeometry.mul(size), fwd));
+      const n = U.night;
+      const tint = mix(
+        mix(mix(mix(color(0x0fa89a), color(0x3fd9c8), n), mix(color(0x0aa5bd), color(0x47e6d2), n), isSpoke), mix(color(0xff9414), color(0xffd27a), n), isTrunk),
+        mix(color(0xd93a7a), color(0xff7ab8), n),
+        isRail,
+      );
+      // A pulse runs gate to gate along the lane.
+      const pulse = sin(t.mul(18).sub(U.clock.mul(2.4))).mul(0.5).add(0.5);
+      // Thin hoops far away are sub-pixel: fade them by their on-screen size, and out at the lane's ends.
+      const cover = min(float(1), float(0.04).mul(size).div(max(length(fwidth(positionWorld)), float(1e-5))));
+      gm.colorNode = tint.mul(pulse.mul(0.5).add(0.85)).mul(n.mul(0.5).add(1));
+      gm.opacityNode = pulse.mul(0.25).add(0.6).mul(cover).mul(mix(float(0.75), float(1), isTrunk)).mul(n.mul(0.45).add(0.55));
+      gm.mrtNode = mrt({ emissive: tint.mul(pulse.mul(0.6).add(0.3)).mul(n.mul(0.9).add(0.1)).mul(cover) });
+    }
+    const gates = new InstancedMesh(gateGeo, gm, LANES);
+    gates.count = 0;
+    gates.frustumCulled = false;
+    gates.castShadow = gates.receiveShadow = false;
+    gates.renderOrder = 6;
+    gates.name = 'mobility.laneGates';
+
     // ── Hubs: holographic rings turning round the transfer ring, and a light shaft ──
     // aRing: centre (x, y, z) and radius; aSpin: tilt (rad), spin speed (rad/s), phase, tint (0 cyan, 1 gold, 2 rose).
     const ringA = new InstancedBufferAttribute(new Float32Array(RINGS * 4), 4);
@@ -378,7 +452,7 @@ export const mobilityModule: GameModule = {
     shafts.castShadow = shafts.receiveShadow = false;
     shafts.renderOrder = 7;
     shafts.name = 'mobility.hubShafts';
-    scene.add(agents, pods, lanes, rings, shafts);
+    scene.add(agents, pods, lanes, gates, rings, shafts);
 
     const g = city.grid;
     const roadY = (t: number) => (g.road[t] === BRIDGE ? BRIDGE_DECK : g.heightAt((t % g.w) + 0.5, ((t / g.w) | 0) + 0.5)) + 0.035;
@@ -717,7 +791,7 @@ export const mobilityModule: GameModule = {
         }
       });
       pods.count = np;
-      lanes.count = nl;
+      lanes.count = gates.count = nl;
       rings.count = nr;
       shafts.count = ns;
       podRoute.needsUpdate = podVia.needsUpdate = podInfo.needsUpdate = laneRoute.needsUpdate = laneInfo.needsUpdate = true;
@@ -733,7 +807,7 @@ export const mobilityModule: GameModule = {
     });
     ctx.bus.on('mobility:updated', rebuild);
     ctx.bus.on('city:reset', () => {
-      agents.count = pods.count = lanes.count = rings.count = shafts.count = 0;
+      agents.count = pods.count = lanes.count = gates.count = rings.count = shafts.count = 0;
     });
     // Saved / bulk-loaded cities already have a mobility pass once the first pulses run; render
     // whatever exists now (D-007).
@@ -753,7 +827,7 @@ export const mobilityModule: GameModule = {
         zoom.value = c.cameraCtl.enabled ? Math.max(1, Math.min(5, c.cameraCtl.distance / 55)) : 1;
         agents.visible = agents.count > 0 && c.cameraCtl.distance < 240;
         pods.visible = pods.count > 0;
-        lanes.visible = lanes.count > 0;
+        lanes.visible = gates.visible = lanes.count > 0;
         rings.visible = rings.count > 0;
         // The Aeroline builds after this module: re-land the transfer lanes once its deck height is known.
         if ((ctx.services.tryGet('aeroline')?.deck ?? 0) !== railDeck) buildSkylanes();

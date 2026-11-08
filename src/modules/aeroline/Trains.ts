@@ -1,6 +1,8 @@
 import {
   BoxGeometry,
   CapsuleGeometry,
+  CylinderGeometry,
+  TorusGeometry,
   Euler,
   InstancedMesh,
   Matrix4,
@@ -10,7 +12,8 @@ import {
   type BufferGeometry,
 } from 'three/webgpu';
 import { getMaterial } from '@/render/materials/library';
-import { GeoBuilder, tf } from '@/render/bake';
+import { tf } from '@/render/bake';
+import { BALL, Kit, SURF } from '@/modules/scenery/wonderKit';
 import { K, TRACK } from './Guideway';
 import type { LoopPath, PathPoint } from './path';
 
@@ -56,7 +59,7 @@ export class Trains {
       });
       return { dir, legs, cycle: legs.reduce((a, l) => a + l.time + DWELL, 0) };
     });
-    const mat = getMaterial('scenery');
+    const mat = getMaterial('wonder');
     this.noses = new InstancedMesh(noseCar(), mat, PER_TRACK * 2 * 2);
     this.mids = new InstancedMesh(midCar(), mat, PER_TRACK * 2 * (CARS - 2));
     for (const m of [this.noses, this.mids]) {
@@ -148,33 +151,78 @@ function along(d: number, T: number, k: number): [number, number] {
 }
 
 // ── Car geometry (local: +z forward, y up from the guide beam's top, origin at the car's centre) ─────────
+// Surfaces come from the sea wonders' kit (D-147): gloss paint, glass that mirrors the sky, brushed metal.
 const PEARL = 0xf4f7f5;
-const capsule = (len: number) => new CapsuleGeometry(0.5, len, 6, 18).rotateX(Math.PI / 2);
+const TEAL = 0x2fd3b0;
+const CORAL = 0xff7a6a;
+const GLASS = 0x2e5866;
+const SKIRT = 0xaab6bb;
+const GLOSS = [0.32, 0.08, SURF.paint[2]] as const;
+const capsule = (len: number, cap = 18) => new CapsuleGeometry(0.5, len, 6, cap).rotateX(Math.PI / 2);
 
-function shell(b: GeoBuilder, len: number, z: number): void {
-  b.add(capsule(len), tf(0, 0.64, z, 0, 0, 0, 0.98, 1, 1), PEARL);
-  // Wraparound window band, lit from inside at night, and a bloom-green stripe beneath it.
-  b.add(capsule(len - 0.25), tf(0, 0.8, z, 0, 0, 0, 1.0, 0.3, 1.005), 0x2e5866, 2.4);
-  b.add(capsule(len - 0.1), tf(0, 0.5, z, 0, 0, 0, 1.0, 0.05, 1.01), 0x2fd3b0, 1.8);
-  // Solar roof strip.
-  b.add(new BoxGeometry(0.46, 0.04, len), tf(0, 1.12, z), 0x2c4a7a, 0.1);
+/** Body, window band with mullions, livery stripes, doors, solar roof with aero domes, maglev skirts. */
+function shell(k: Kit, len: number, z: number, doors: number[]): void {
+  k.part(capsule(len), tf(0, 0.64, z, 0, 0, 0, 0.98, 1, 1), PEARL, GLOSS);
+  // Wraparound window band, lit from inside at night, with pearl mullions between the panes.
+  k.part(capsule(len - 0.25, 14), tf(0, 0.8, z, 0, 0, 0, 1.0, 0.3, 1.005), GLASS, SURF.glass, 2.4);
+  const panes = Math.round((len - 0.4) / 0.62);
+  for (let p = 0; p <= panes; p++) {
+    const pz = z - (len - 0.4) / 2 + (p * (len - 0.4)) / panes;
+    for (const s of [-1, 1]) k.part(BOX, tf(s * 0.488, 0.68, pz, 0, 0, 0, 0.03, 0.24, 0.05), PEARL, GLOSS);
+  }
+  // Livery: a teal stripe and a thin coral line under the windows.
+  k.part(capsule(len - 0.1, 14), tf(0, 0.53, z, 0, 0, 0, 1.0, 0.05, 1.01), TEAL, GLOSS, 1.8);
+  k.part(capsule(len - 0.2, 14), tf(0, 0.46, z, 0, 0, 0, 1.0, 0.018, 1.012), CORAL, GLOSS, 1.2);
+  // Doors: dark leaves on the body's flat-enough band (it curves away below the stripe), a lit lintel above.
+  for (const dz of doors)
+    for (const s of [-1, 1]) {
+      k.part(BOX, tf(s * 0.474, 0.47, z + dz, 0, 0, 0, 0.04, 0.4, 0.42), 0x2f4650, SURF.glass, 0.25);
+      k.part(BOX, tf(s * 0.47, 0.94, z + dz, 0, 0, 0, 0.03, 0.025, 0.42), 0x9ff6ff, GLOSS, 1.6);
+    }
+  // Solar roof in a frame, two aero domes.
+  k.part(BOX, tf(0, 1.11, z, 0, 0, 0, 0.5, 0.04, len), 0x2c4a7a, SURF.solar, 0.1);
+  for (const s of [-1, 1]) k.part(BOX, tf(s * 0.26, 1.1, z, 0, 0, 0, 0.03, 0.06, len), 0xc9d3d6, SURF.metal);
+  for (const dz of [-len * 0.3, len * 0.3]) k.part(BALL, tf(0, 1.15, z + dz, 0, 0, 0, 0.16, 0.08, 0.28), PEARL, GLOSS);
+  // Maglev skirts either side of the guide beam, with a levitation glow underneath.
+  for (const s of [-1, 1]) {
+    k.part(BOX, tf(s * 0.4, -0.45, z, 0, 0, 0, 0.12, 0.6, len + 0.6), SKIRT, SURF.metal);
+    k.part(BOX, tf(s * 0.4, -0.47, z, 0, 0, 0, 0.125, 0.03, len), 0x7ff7e6, GLOSS, 1.2);
+  }
+  k.part(BOX, tf(0, 0.0, z, 0, 0, 0, 0.92, 0.18, len + 0.5), SKIRT, SURF.metal);
+}
+
+/** A gangway bellows at the end `z` of a car. */
+function gangway(k: Kit, z: number): void {
+  k.part(new CylinderGeometry(0.36, 0.36, 0.22, 12).rotateX(Math.PI / 2), tf(0, 0.64, z), 0x3b464d, SURF.matte);
+  for (const d of [-0.06, 0.06]) k.part(new TorusGeometry(0.37, 0.025, 4, 14), tf(0, 0.64, z + d), 0x2b343a, SURF.matte);
 }
 
 function midCar(): BufferGeometry {
-  const b = new GeoBuilder();
-  shell(b, 3.4, 0);
-  b.add(new BoxGeometry(0.88, 0.5, 4.2), tf(0, -0.2, 0), 0x56616a);
-  return b.build().scale(K, K, K);
+  const k = new Kit();
+  shell(k, 3.4, 0, [-1.05, 1.05]);
+  for (const z of [-2.2, 2.2]) gangway(k, z);
+  return k.b.build().scale(K, K, K);
 }
 
 function noseCar(): BufferGeometry {
-  const b = new GeoBuilder();
-  shell(b, 2.2, -0.6);
-  // Long duck-bill nose, a dark wraparound windshield, headlights.
-  b.add(new SphereGeometry(0.5, 20, 12), tf(0, 0.56, 0.85, 0, 0, 0, 0.98, 0.86, 3.3), PEARL);
-  b.add(new SphereGeometry(0.5, 20, 10), tf(0, 0.86, 0.9, 0.12, 0, 0, 0.82, 0.36, 1.9), 0x1d3340, 0.5);
-  b.add(new SphereGeometry(0.5, 16, 6), tf(0, 0.5, 1.3, 0, 0, 0, 1.0, 0.05, 2.6), 0x2fd3b0, 1.8);
-  for (const k of [-1, 1]) b.add(new SphereGeometry(0.07, 8, 6), tf(k * 0.26, 0.42, 2.2), 0xeaffff, 4);
-  b.add(new BoxGeometry(0.88, 0.5, 4.2), tf(0, -0.2, -0.05), 0x56616a);
-  return b.build().scale(K, K, K);
+  const k = new Kit();
+  shell(k, 2.2, -0.6, [-0.9]);
+  gangway(k, -2.2);
+  // Long duck-bill nose with the livery sweeping onto it, a dark wraparound windshield, LED light bars.
+  k.part(new SphereGeometry(0.5, 20, 12), tf(0, 0.56, 0.85, 0, 0, 0, 0.98, 0.86, 3.3), PEARL, GLOSS);
+  k.part(new SphereGeometry(0.5, 20, 10), tf(0, 0.86, 0.9, 0.12, 0, 0, 0.82, 0.36, 1.9), 0x1d3340, SURF.glass, 0.5);
+  k.part(new SphereGeometry(0.5, 16, 6), tf(0, 0.5, 1.3, 0, 0, 0, 1.0, 0.05, 2.6), TEAL, GLOSS, 1.8);
+  k.part(new SphereGeometry(0.5, 16, 5), tf(0, 0.44, 1.25, 0, 0, 0, 1.006, 0.018, 2.5), CORAL, GLOSS, 1.2);
+  for (const s of [-1, 1]) {
+    k.part(new SphereGeometry(0.5, 10, 4), tf(s * 0.22, 0.38, 2.12, 0, s * 0.35, 0, 0.26, 0.05, 0.12), 0xeaffff, GLOSS, 4);
+    k.part(new SphereGeometry(0.5, 8, 4), tf(s * 0.36, 0.35, 1.85, 0, s * 0.6, 0, 0.1, 0.05, 0.08), 0xff4a4a, GLOSS, 2.5);
+  }
+  // The line's emblem: a small glowing bloom on the nose.
+  for (let p = 0; p < 5; p++) {
+    const a = (p / 5) * Math.PI * 2;
+    k.part(BALL, tf(Math.cos(a) * 0.07, 0.98, 1.55 + Math.sin(a) * 0.07, 0.35, 0, 0, 0.05, 0.015, 0.05), 0xffd36e, GLOSS, 1.6);
+  }
+  return k.b.build().scale(K, K, K);
 }
+
+const BOX = new BoxGeometry(1, 1, 1).translate(0, 0.5, 0);

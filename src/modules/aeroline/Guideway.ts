@@ -27,6 +27,9 @@ export const TRACK = T0 * K;
 /** Half-length of a station platform along the line (world units). */
 export const PLATFORM = 15 * K;
 const PYLON_EVERY = 11;
+/** Segment ribs and deck lamps along the line (world units apart, D-147). */
+const RIB_EVERY = 3.6;
+const LAMP_EVERY = 8;
 const SCALE = new Matrix4().makeScale(K, K, K);
 
 const PEARL = 0xeef2ef;
@@ -75,6 +78,17 @@ const SECTION: [number[][], number, number][] = [
       [k * 1.9, -0.12],
     ],
     0xf6f7f3,
+    0,
+  ]),
+  // A planted strip along the top of each fairing (D-147).
+  ...[-1, 1].map((k): [number[][], number, number] => [
+    [
+      [k * 1.9, -0.12],
+      [k * 1.76, -0.12],
+      [k * 1.78, -0.04],
+      [k * 1.88, -0.04],
+    ],
+    0x6fae5a,
     0,
   ]),
   // Lines of light along the girder's flanks and keel.
@@ -243,6 +257,7 @@ export class Guideway {
       const s = (i * L) / count;
       if (!nearStation(s)) this.pylon(b, s, 0, ground);
     }
+    this.details(b, L, nearStation);
     const glass: BufferGeometry[] = [];
     for (const st of stations) this.station(b, st, ground, glass);
 
@@ -326,6 +341,33 @@ export class Guideway {
     }
   }
 
+  /**
+   * Along the line (D-147): precast segment ribs down both flanks of the girder every `RIB_EVERY`, and a deck lamp on
+   * alternate parapets every `LAMP_EVERY` (none over the stations, which have their own canopies).
+   */
+  private details(b: GeoBuilder, L: number, nearStation: (s: number) => boolean): void {
+    const ribs = Math.round(L / RIB_EVERY);
+    for (let i = 0; i < ribs; i++) {
+      const s = (i * L) / ribs;
+      if (nearStation(s)) continue;
+      const F = _pf.multiplyMatrices(this.frame(s, this.deck), SCALE);
+      // The flank runs from the keel (±0.85, −1.45) up to the deck edge (±1.9, −0.38): a rib standing on it.
+      for (const k of [-1, 1]) b.add(box, _l.multiplyMatrices(F, tf(k * 0.86, -1.47, 0, 0, 0, -k * 0.776, 0.1, 1.52, 0.22)), 0xbfcacd, 0);
+      b.add(box, _l.multiplyMatrices(F, tf(0, -1.5, 0, 0, 0, 0, 1.76, 0.06, 0.22)), 0xbfcacd, 0);
+    }
+    const lamps = Math.round(L / LAMP_EVERY);
+    for (let i = 0; i < lamps; i++) {
+      const s = ((i + 0.5) * L) / lamps;
+      if (nearStation(s)) continue;
+      const k = i % 2 ? 1 : -1;
+      const F = _pf.multiplyMatrices(this.frame(s, this.deck), SCALE);
+      const put = (geo: BufferGeometry, m: Matrix4, col: number, glow = 0) => b.add(geo, _l.multiplyMatrices(F, m), col, glow);
+      put(cyl(0.05, 0.07, 6), tf(k * 1.83, -0.04, 0, 0, 0, 0, 1, 1.5, 1), 0xc9d3d6);
+      put(box, tf(k * 1.65, 1.42, 0, 0, 0, 0, 0.42, 0.06, 0.12), 0xc9d3d6);
+      put(box, tf(k * 1.55, 1.38, 0, 0, 0, 0, 0.18, 0.04, 0.1), 0xfff1c8, 2.2);
+    }
+  }
+
   /** A bloom pylon at arc length s, offset `t` (world) along the line: column, V capital, light collar, planter. */
   private pylon(
     b: GeoBuilder,
@@ -345,6 +387,16 @@ export class Guideway {
     const put = (geo: BufferGeometry, m: Matrix4, col: number, glow = 0) =>
       b.add(geo, _l.multiplyMatrices(F, m), col, glow);
     put(cyl(0.42, 0.62, 12), tf(0, base, 0, 0, 0, 0, 1, h, 1), PEARL);
+    // Flutes up the column, and a collar of glowing petals opening under the capital (D-147).
+    for (let f = 0; f < 6; f++) {
+      const a = (f / 6) * Math.PI * 2;
+      put(box, tf(Math.cos(a) * 0.5, base, Math.sin(a) * 0.5, 0, -a, 0, 0.08, h - 2.2, 0.14), 0xe2e8e4);
+    }
+    for (let f = 0; f < 6; f++) {
+      const a = (f / 6) * Math.PI * 2 + 0.5;
+      put(blob, tf(Math.cos(a) * 0.62, top - 2.75, Math.sin(a) * 0.62, -0.7, Math.PI / 2 - a, 0, 0.16, 0.04, 0.5), 0xf7f8f4);
+      put(blob, tf(Math.cos(a) * 0.66, top - 2.7, Math.sin(a) * 0.66, -0.7, Math.PI / 2 - a, 0, 0.05, 0.03, 0.42), GLOW, 1.2);
+    }
     // V capital: two arms leaning out to the girder's edges, joined by a cross-head.
     for (const k of [-1, 1])
       put(box, tf(k * 0.55, top - 1.5, 0, 0, 0, -k * 0.62, 0.36 * wide, 1.9, 0.5), PEARL);
