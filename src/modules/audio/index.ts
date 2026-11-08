@@ -512,6 +512,10 @@ export const audioModule: GameModule = {
       if (kind === 'door') {
         s.burst(0.45, 0.06 * h.vol, 'bandpass', on ? 1800 : 2600, on ? 2600 : 1400, h.delay);
         if (on) s.tone(880, 0.25, 0.03 * h.vol, 'sine', 1320, h.delay + 0.05);
+      } else if (kind === 'motion') {
+        // Rides and wheels (D-139): a motor winding up (start) or down (stop).
+        s.tone(on ? 110 : 220, 1.4, 0.05 * h.vol, 'sawtooth', on ? 220 : 90, h.delay);
+        s.burst(1.2, 0.03 * h.vol, 'bandpass', on ? 300 : 900, on ? 900 : 300, h.delay);
       } else {
         s.burst(0.03, 0.1 * h.vol, 'highpass', 3500, undefined, h.delay);
         s.tone(on ? 660 : 990, 0.14, 0.05 * h.vol, 'triangle', on ? 990 : 660, h.delay + 0.02);

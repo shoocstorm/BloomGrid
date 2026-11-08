@@ -56,8 +56,9 @@ export default defineBuilding({
           glow: 1,
         });
       }
-      beam(b, 'lumenRib', [0, FACE, z + side * 0.08], [0.9, FACE + 1.1, z + side * 0.08], 0.12, { glow: 1 });
-      beam(b, 'lumenRib', [0, FACE, z + side * 0.1], [-1.5, FACE - 0.4, z + side * 0.1], 0.08, { glow: 1 });
+      // The hands keep the city's time (D-139): drawn at twelve, turned clockwise as seen from each face.
+      beam(b, 'lumenRib', [0, FACE, z + side * 0.08], [0, FACE + 1.35, z + side * 0.08], 0.12, { glow: 1, spin: { at: [0, FACE, 0], axis: 'z', speed: -side, clock: 'hour' } });
+      beam(b, 'lumenRib', [0, FACE, z + side * 0.1], [0, FACE + 1.7, z + side * 0.1], 0.08, { glow: 1, spin: { at: [0, FACE, 0], axis: 'z', speed: -side, clock: 'minute' } });
     }
     ivyEdge(b, 0, H + 0.2, 1.0, 2, 0, 1, 3);
     // Lantern belfry and spire.

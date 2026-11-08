@@ -1,7 +1,7 @@
-import { Color, Euler, Matrix4, Quaternion, Vector3 } from 'three/webgpu';
+import { Color, Euler, Frustum, Matrix4, Quaternion, Sphere, Vector3 } from 'three/webgpu';
 import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
-import type { BuildingDef, KitBuilder, PieceSpec } from '@/content/types';
+import type { BuildingDef, KitBuilder, PieceSpec, Spin } from '@/content/types';
 import { Rng, hash2 } from '@/sim/random';
 import { DAY_LENGTH } from '@/sim/pulseConst';
 import { PALETTE } from '@/content/kit';
@@ -29,6 +29,8 @@ export interface TemplatePiece {
   door?: number;
   /** A sign surface (D-133). */
   sign?: 'name' | 'number';
+  /** A moving part (D-139). */
+  spin?: Spin;
 }
 
 export interface BuildingTemplate {
@@ -64,6 +66,31 @@ const _v = new Vector3();
 const _s = new Vector3();
 const _m = new Matrix4();
 const _m2 = new Matrix4();
+const _m3 = new Matrix4();
+const _mp = new Matrix4();
+const _ax = new Vector3();
+const _pv = new Vector3();
+const _mpos = new Vector3();
+const _mto = new Vector3();
+const _frustum = new Frustum();
+const _sphere = new Sphere();
+/** Moving parts are posed only within this distance of the camera (D-139); further out they wait where they are. */
+const MOTION_RANGE = 240;
+const AXES = { x: new Vector3(1, 0, 0), y: new Vector3(0, 1, 0), z: new Vector3(0, 0, 1) } as const;
+
+/** Lift-and-drop height (0 = bottom, 1 = top) at phase u of a cycle: a slow climb, a pause, a sudden drop, a rest. */
+function liftAt(u: number): number {
+  if (u < 0.62) {
+    const k = u / 0.62;
+    return k * k * (3 - 2 * k);
+  }
+  if (u < 0.74) return 1;
+  if (u < 0.8) {
+    const k = (u - 0.74) / 0.06;
+    return 1 - k * k;
+  }
+  return 0;
+}
 const _c = new Color();
 const _params = new Float32Array(4);
 const UP = new Vector3(0, 1, 0);
@@ -129,6 +156,7 @@ function runRecipe(
     const piece: TemplatePiece = { piece: spec.piece, local, tint: spec.tint ?? 0xffffff, glow: spec.glow ?? 0, growAt: spec.growAt ?? 0, seed: cur.next(), y: p[1] };
     if (spec.door) piece.door = spec.door;
     if (spec.sign) piece.sign = spec.sign;
+    if (spec.spin) piece.spin = spec.spin;
     if (from > 0 || to < 2) {
       if (from <= to) ranged.push(Object.assign(piece, { from, to, top: p[1] + (spec.piece === 'ivy' ? 0 : sv.y) }));
       return;
@@ -481,6 +509,7 @@ export function doorwayOf(grid: Grid, def: BuildingDef, place: Placement): { x: 
 }
 
 interface Entry {
+  eid: number;
   handles: InstanceHandle[];
   /** The terrain-meeting plinth it was placed with (re-seated when the ground under it changes). */
   plinth: Matrix4;
@@ -527,6 +556,11 @@ interface Entry {
   /** Lamps: pieces that glow (fungus lamps, screens, signs), with their glow, for the lights switch. */
   lamps: { h: InstanceHandle; glow: number }[];
   lightsOn: boolean;
+  /** Moving parts (D-139): handles and pieces; motion on, its eased rate (0..1) and the running time it has turned. */
+  spins: { h: InstanceHandle; p: TemplatePiece }[];
+  motionOn: boolean;
+  motionRate: number;
+  motionT: number;
   /** Seconds the build-in animation takes from `building:added` (0 = appeared at once). */
   rise: number;
 }
@@ -628,6 +662,91 @@ export class BuildingRenderer {
   /** Uids of buildings whose lights the steward switched off (kept across re-seats; saved by the interact module). */
   readonly dark = new Set<number>();
   private moving = new Set<Entry>();
+  /** Uids of buildings whose moving parts the steward stopped (D-139; saved by the interact module). */
+  readonly stopped = new Set<number>();
+  /** Entries with moving parts. */
+  private turning = new Set<Entry>();
+  private clockTimer = 0;
+
+  /** A moving part's local matrix (recipe space) at the entry's motion time and the city's time of day (D-139). */
+  private posed(p: TemplatePiece, entry: Entry, out: Matrix4): Matrix4 {
+    const s = p.spin!;
+    if (s.lift) {
+      const u = (((entry.motionT * Math.abs(s.speed)) / (Math.PI * 2)) % 1 + 1) % 1;
+      return out.makeTranslation(0, -s.lift * (1 - liftAt(u)), 0).multiply(p.local);
+    }
+    let angle = s.speed * entry.motionT;
+    if (s.clock) {
+      const hours = this.ctx.city.timeOfDay * 24;
+      const frac = s.clock === 'hour' ? (hours % 12) / 12 : hours % 1;
+      angle = Math.sign(s.speed) * frac * Math.PI * 2;
+    }
+    _pv.set(s.at[0], s.at[1], s.at[2]);
+    _mp.makeRotationAxis(_ax.copy(AXES[s.axis ?? 'y']), angle);
+    if (s.upright) {
+      // Travels round the pivot, but keeps its own orientation (a gondola).
+      _mpos.setFromMatrixPosition(p.local);
+      const to = _mto.copy(_mpos).sub(_pv).applyMatrix4(_mp).add(_pv);
+      return out.makeTranslation(to.x - _mpos.x, to.y - _mpos.y, to.z - _mpos.z).multiply(p.local);
+    }
+    return out.makeTranslation(_pv.x, _pv.y, _pv.z).multiply(_mp).multiply(_m2.makeTranslation(-_pv.x, -_pv.y, -_pv.z)).multiply(p.local);
+  }
+
+  /** Has the building parts the steward can stop and start (wheels, rides, rotors)? */
+  hasMotion(eid: number): boolean {
+    const entry = this.entries.get(eid);
+    return !!entry && !entry.collapsed && entry.spins.some((x) => !x.p.spin!.clock);
+  }
+
+  motionOn(eid: number): boolean {
+    return this.entries.get(eid)?.motionOn ?? true;
+  }
+
+  /** Starts or stops a building's moving parts; they spin up and wind down over a couple of seconds. */
+  setMotion(eid: number, on: boolean): void {
+    const uid = Building.uid[eid]!;
+    if (on) this.stopped.delete(uid);
+    else this.stopped.add(uid);
+    const entry = this.entries.get(eid);
+    if (!entry) return;
+    entry.motionOn = on;
+    if (entry.spins.length) this.turning.add(entry);
+  }
+
+  /** Per frame: poses the moving parts of buildings in view (only those; uploads are per written matrix). */
+  private updateMotion(dt: number): void {
+    if (!this.turning.size) return;
+    const cam = this.ctx.camera;
+    _frustum.setFromProjectionMatrix(_m3.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    this.clockTimer += dt;
+    const clockTick = this.clockTimer >= 0.25;
+    if (clockTick) this.clockTimer = 0;
+    for (const entry of this.turning) {
+      if (this.entries.get(entry.eid) !== entry || entry.collapsed) {
+        this.turning.delete(entry);
+        continue;
+      }
+      // Spin up and wind down over about two seconds.
+      const target = entry.motionOn ? 1 : 0;
+      const was = entry.motionRate;
+      entry.motionRate += Math.sign(target - was) * Math.min(Math.abs(target - was), dt * 0.5);
+      entry.motionT += dt * entry.motionRate * entry.motionRate;
+      const spinning = was > 0 || entry.motionRate > 0;
+      if (!spinning && !clockTick) continue;
+      const e = entry.base.elements;
+      _sphere.center.set(e[12]!, e[13]! + entry.height / 2, e[14]!);
+      _sphere.radius = entry.height + 4;
+      if (_sphere.center.distanceTo(cam.position) > MOTION_RANGE + _sphere.radius || !_frustum.intersectsSphere(_sphere)) continue;
+      let live = 0;
+      for (const x of entry.spins) {
+        if (!x.h.batch) continue;
+        entry.spins[live++] = x;
+        if (x.p.spin!.clock ? !clockTick : !spinning) continue;
+        this.ctx.instancer.setMatrix(x.h, _m.multiplyMatrices(entry.base, this.posed(x.p, entry, _m3)));
+      }
+      entry.spins.length = live;
+    }
+  }
 
   /** World centres of a building's door leaves, and whether its doors are open (or opening). */
   doorsOf(eid: number): { at: Vector3[]; open: boolean } | null {
@@ -800,6 +919,11 @@ export class BuildingRenderer {
       openTo: 0,
       lamps: [],
       lightsOn: !this.dark.has(Building.uid[eid]!),
+      eid,
+      spins: [],
+      motionOn: !this.stopped.has(Building.uid[eid]!),
+      motionRate: this.stopped.has(Building.uid[eid]!) ? 0 : 1,
+      motionT: hash2(rec.x, rec.z, 733) * 40,
     };
     this.entries.set(eid, entry);
     _params.set([rec.greenery, 0.5, 0, 1]);
@@ -960,10 +1084,15 @@ export class BuildingRenderer {
     if (skin) _params[0] = 1 - entry.weather;
     const world = _m.multiplyMatrices(entry.base, p.local);
     if (p.door && entry.open > 0) world.multiply(_m2.makeTranslation(p.door * entry.open, 0, 0));
+    if (p.spin) world.multiplyMatrices(entry.base, this.posed(p, entry, _m3));
     const tint = styled ? restyle(p.piece, p.tint, entry.style, entry.shade) : p.tint;
     const h = this.ctx.instancer.addMatrix(p.piece, world, _c.setHex(tint), _params, delay, PIECE_GROW);
     if (base) entry.handles.push(h);
     if (p.door) entry.doors.push({ h, p });
+    if (p.spin) {
+      entry.spins.push({ h, p });
+      this.turning.add(entry);
+    }
     if (lamp) entry.lamps.push({ h, glow: p.glow });
     if (p.piece === 'mossBox') entry.moss.push(h);
     if (p.piece === 'slab' || p.piece === 'concreteCyl') entry.walls.push(h);
@@ -1079,6 +1208,7 @@ export class BuildingRenderer {
 
   /** Per-frame: stage plant growth and feed live greenery to membrane shaders. */
   update(dt: number): void {
+    this.updateMotion(dt);
     // Doors slide every frame while they move (D-132); only the few moving leaves are re-written.
     for (const entry of this.moving) {
       const step = dt * 2.5;

@@ -1,4 +1,4 @@
-import { defineBuilding, type KitBuilder } from '../types';
+import { defineBuilding, type KitBuilder, type Spin } from '../types';
 import { PALETTE, TRIM, beam, bench, flowers, grassTufts, lamp, tree } from '../kit';
 
 type Vec3 = [number, number, number];
@@ -118,6 +118,7 @@ export default defineBuilding({
   stats: { cost: 8000, energy: -40, eco: 10, happiness: 60, population: 0, jobs: 40, pollution: 0, water: -15 },
   growthTime: 240,
   variants: 1,
+  motion: { off: 'Stop the rides', on: 'Start the rides', help: 'The Sky Orbit wheel, the carousel, the dandelion swings, the Bloom Cups, the Petal Drop and the balloon ride run' },
   recipe(b) {
     const G = 0.15;
     // Lawn, paths and the central plaza.
@@ -173,10 +174,12 @@ export default defineBuilding({
     b.add({ piece: 'concreteCyl', p: [tx, G, tz], s: [2.4, 0.5, 2.4], tint: 0xc6a8ff });
     b.add({ piece: 'concreteCyl', p: [tx, G, tz], s: [0.9, 22, 0.9], tint: 0xf6f2ea });
     for (let i = 0; i < 11; i++) b.add({ piece: 'haloRing', p: [tx, G + 1 + i * 2, tz], s: [1.2, 4, 1.2], glow: 0.6 });
-    b.add({ piece: 'concreteCyl', p: [tx, G + 15, tz], s: [2.8, 0.4, 2.8], tint: 0xff6fa8 });
+    // The seat ring climbs the tower, pauses at the top and drops (D-139).
+    const DROP: Spin = { at: [tx, 0, tz], speed: 0.4, lift: 12.5 };
+    b.add({ piece: 'concreteCyl', p: [tx, G + 15, tz], s: [2.8, 0.4, 2.8], tint: 0xff6fa8, spin: DROP });
     for (let k = 0; k < 8; k++) {
       const a = (k / 8) * TAU;
-      b.add({ piece: 'pod', p: [tx + Math.cos(a) * 1.5, G + 14.4, tz + Math.sin(a) * 1.5], s: [0.6, 0.9, 0.6], r: -a, tint: PASTEL[k % 6]!, glow: 0.5 });
+      b.add({ piece: 'pod', p: [tx + Math.cos(a) * 1.5, G + 14.4, tz + Math.sin(a) * 1.5], s: [0.6, 0.9, 0.6], r: -a, tint: PASTEL[k % 6]!, glow: 0.5, spin: DROP });
     }
     for (let k = 0; k < 7; k++)
       b.add({ piece: 'sunPetal', p: [tx, G + 22, tz], s: [1.8, 1, 0.9], r: (k / 7) * TAU, rz: -0.6, tint: PASTEL[k % 6]!, glow: 0.5 });
@@ -187,11 +190,12 @@ export default defineBuilding({
     b.add({ piece: 'concreteCyl', p: [cx, G, cz], s: [0.8, 3.4, 0.8], tint: 0xffd36e });
     b.add({ piece: 'spireCone', p: [cx, G + 3.4, cz], s: [6.0, 1.8, 6.0], tint: 0xffd6ec, glow: 0.3 });
     b.add({ piece: 'haloRing', p: [cx, G + 3.4, cz], s: [5.8, 4, 5.8], glow: 1 });
+    const ROUND: Spin = { at: [cx, 0, cz], speed: 0.55 };
     for (let k = 0; k < 10; k++) {
       const a = (k / 10) * TAU;
       const [hx, hz] = [cx + Math.cos(a) * 2.0, cz + Math.sin(a) * 2.0];
-      b.add({ piece: 'lumenRib', p: [hx, G + 0.35, hz], s: [0.05, 3.05, 0.05], glow: 0.6 });
-      b.add({ piece: 'pod', p: [hx, G + 0.9 + (k % 2) * 0.4, hz], s: [0.8, 0.7, 0.45], r: -a, tint: PASTEL[k % 6]!, glow: 0.4 });
+      b.add({ piece: 'lumenRib', p: [hx, G + 0.35, hz], s: [0.05, 3.05, 0.05], glow: 0.6, spin: ROUND });
+      b.add({ piece: 'pod', p: [hx, G + 0.9 + (k % 2) * 0.4, hz], s: [0.8, 0.7, 0.45], r: -a, tint: PASTEL[k % 6]!, glow: 0.4, spin: ROUND });
     }
 
     // East: the Sky Orbit wheel, its face to the bridge.
@@ -203,39 +207,43 @@ export default defineBuilding({
     }
     for (const z of [-0.35, 0.35]) b.add({ piece: 'haloRing', p: [wx, HUB, wz + z], s: [R * 2, R * 2, R * 2], rx: Math.PI / 2, glow: 1 });
     b.add({ piece: 'haloRing', p: [wx, HUB, wz], s: [2.2, 2.2, 2.2], rx: Math.PI / 2, glow: 1 });
+    const ORBIT: Spin = { at: [wx, HUB, wz], axis: 'z', speed: 0.13 };
+    const ORBIT_CARS: Spin = { ...ORBIT, upright: true };
     for (let k = 0; k < 16; k++) {
       const a = (k / 16) * TAU;
       const rim: Vec3 = [wx + Math.cos(a) * R, HUB + Math.sin(a) * R, wz];
-      beam(b, 'lumenRib', [wx, HUB, wz], rim, 0.05, { glow: 0.6 });
-      b.add({ piece: 'pod', p: [rim[0], rim[1] - 0.85, wz], s: [1.0, 1.3, 1.1], tint: PASTEL[k % 6]!, glow: 0.6 });
+      beam(b, 'lumenRib', [wx, HUB, wz], rim, 0.05, { glow: 0.6, spin: ORBIT });
+      b.add({ piece: 'pod', p: [rim[0], rim[1] - 0.85, wz], s: [1.0, 1.3, 1.1], tint: PASTEL[k % 6]!, glow: 0.6, spin: ORBIT_CARS });
     }
 
     // Dandelion swing ride: seats flung out on glowing chains from a seed-head crown.
     const [dx, dz] = [4.8, -4.4];
     b.add({ piece: 'concreteCyl', p: [dx, G, dz], s: [2.0, 0.4, 2.0], tint: 0x8ff0b0 });
     b.add({ piece: 'concreteCyl', p: [dx, G, dz], s: [0.55, 7.2, 0.55], tint: 0xf6f2ea });
+    const SWING: Spin = { at: [dx, 0, dz], speed: -0.95 };
     b.add({ piece: 'dome', p: [dx, G + 7.2, dz], s: [3.4, 1.4, 3.4] });
     b.add({ piece: 'haloRing', p: [dx, G + 7.1, dz], s: [3.6, 4, 3.6], glow: 0.9 });
     for (let k = 0; k < 12; k++) {
       const a = (k / 12) * TAU;
       const top: Vec3 = [dx + Math.cos(a) * 1.5, G + 7.1, dz + Math.sin(a) * 1.5];
       const seat: Vec3 = [dx + Math.cos(a) * 2.6, G + 3.6, dz + Math.sin(a) * 2.6];
-      beam(b, 'lumenRib', seat, top, 0.035, { glow: 0.5 });
-      b.add({ piece: 'pod', p: [seat[0], seat[1] - 0.35, seat[2]], s: [0.5, 0.7, 0.45], r: -a, tint: PASTEL[k % 6]!, glow: 0.4 });
+      beam(b, 'lumenRib', seat, top, 0.035, { glow: 0.5, spin: SWING });
+      b.add({ piece: 'pod', p: [seat[0], seat[1] - 0.35, seat[2]], s: [0.5, 0.7, 0.45], r: -a, tint: PASTEL[k % 6]!, glow: 0.4, spin: SWING });
     }
 
     // Bloom Cups: pastel teacups spinning on a flower turntable.
     const [ux, uz] = [13.8, 4.2];
     b.add({ piece: 'concreteCyl', p: [ux, G, uz], s: [6.0, 0.3, 6.0], tint: 0xffe2f0 });
+    const CUPS: Spin = { at: [ux, 0, uz], speed: 0.7 };
     for (let k = 0; k < 6; k++) {
       const a = (k / 6) * TAU + 0.3;
-      b.add({ piece: 'sunPetal', p: [ux, G + 0.3, uz], s: [3.0, 1, 1.2], r: a, tint: 0xffb7d5 });
+      b.add({ piece: 'sunPetal', p: [ux, G + 0.3, uz], s: [3.0, 1, 1.2], r: a, tint: 0xffb7d5, spin: CUPS });
     }
     for (let k = 0; k < 5; k++) {
       const a = (k / 5) * TAU;
       const [px, pz] = [ux + Math.cos(a) * 1.9, uz + Math.sin(a) * 1.9];
-      b.add({ piece: 'concreteCyl', p: [px, G + 0.3, pz], s: [1.3, 0.75, 1.3], tint: PASTEL[k]! });
-      b.add({ piece: 'haloRing', p: [px, G + 1.05, pz], s: [1.3, 4, 1.3], glow: 0.6 });
+      b.add({ piece: 'concreteCyl', p: [px, G + 0.3, pz], s: [1.3, 0.75, 1.3], tint: PASTEL[k]!, spin: CUPS });
+      b.add({ piece: 'haloRing', p: [px, G + 1.05, pz], s: [1.3, 4, 1.3], glow: 0.6, spin: CUPS });
     }
     b.add({ piece: 'concreteCyl', p: [ux, G + 0.3, uz], s: [0.5, 1.6, 0.5], tint: 0xffd36e });
     b.add({ piece: 'dome', p: [ux, G + 1.9, uz], s: [1.6, 0.8, 1.6] });
@@ -278,13 +286,14 @@ export default defineBuilding({
       b.add({ piece: 'concreteCyl', p: [bx, G, bz], s: [2.6, 0.3, 2.6], tint: 0xffe2f0 });
       b.add({ piece: 'concreteCyl', p: [bx, G, bz], s: [0.35, 4.2, 0.35], tint: 0xffd36e });
       b.add({ piece: 'dome', p: [bx, G + 4.2, bz], s: [1.0, 0.6, 1.0], tint: 0xff9ac8 });
+      const BALLOONS: Spin = { at: [bx, 0, bz], speed: 0.5 };
       for (let k = 0; k < 5; k++) {
         const a = (k / 5) * TAU;
         const [px, pz] = [bx + Math.cos(a) * 1.6, bz + Math.sin(a) * 1.6];
-        beam(b, 'timberBox', [bx, G + 3.9, bz], [px, G + 3.3, pz], 0.05, { tint: 0xf6f2ea });
-        b.add({ piece: 'dome', p: [px, G + 2.3, pz], s: [0.9, 2.2, 0.9], rx: Math.PI, tint: PASTEL[k]!, glow: 0.4 });
-        b.add({ piece: 'dome', p: [px, G + 2.3, pz], s: [0.9, 0.9, 0.9], tint: PASTEL[k]!, glow: 0.4 });
-        b.add({ piece: 'timberBox', p: [px, G + 1.0, pz], s: [0.36, 0.26, 0.36], tint: 0xc8a57c });
+        beam(b, 'timberBox', [bx, G + 3.9, bz], [px, G + 3.3, pz], 0.05, { tint: 0xf6f2ea, spin: BALLOONS });
+        b.add({ piece: 'dome', p: [px, G + 2.3, pz], s: [0.9, 2.2, 0.9], rx: Math.PI, tint: PASTEL[k]!, glow: 0.4, spin: BALLOONS });
+        b.add({ piece: 'dome', p: [px, G + 2.3, pz], s: [0.9, 0.9, 0.9], tint: PASTEL[k]!, glow: 0.4, spin: BALLOONS });
+        b.add({ piece: 'timberBox', p: [px, G + 1.0, pz], s: [0.36, 0.26, 0.36], tint: 0xc8a57c, spin: BALLOONS });
       }
       for (const x of [-12, -8, -4, 4, 8, 12]) beam(b, 'lumenRib', [x - 2, G + 0.75, 0.5], [x + 2, G + 0.75, 3.1], 0.03, { tint: 0xffd9a0, glow: 1 });
     });

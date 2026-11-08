@@ -1,4 +1,4 @@
-import { defineBuilding, type Vec3 } from '../types';
+import { defineBuilding, type Spin, type Vec3 } from '../types';
 import {
   PALETTE,
   TRIM,
@@ -28,7 +28,9 @@ export default defineBuilding({
   growthTime: 160,
   variants: 1,
   style: 'charred-timber',
+  motion: { off: 'Stop the wheel', on: 'Turn the wheel', help: 'The great wheel turns slowly, lifting water to the aqueduct (for the look of it: the water supply doesn’t change)' },
   recipe(b) {
+    const WHEEL: Spin = { at: [0, CY, 0], axis: 'z', speed: -0.32 };
     b.add({ piece: 'mossBox', p: [0, 0, 0], s: [9.8, 0.2, 9.8] });
     grassTufts(b, 0, 0.2, 0, 9.4, 9.4, 80);
     // Channel the wheel dips into.
@@ -39,11 +41,12 @@ export default defineBuilding({
       b.add({ piece: 'haloRing', p: [0, CY, z], s: [R * 2, R * 2, R * 2], rx: Math.PI / 2, glow: 0.5 });
       b.add({ piece: 'haloRing', p: [0, CY, z], s: [R * 1.3, R * 1.3, R * 1.3], rx: Math.PI / 2, glow: 0.3 });
     }
+    // The wheel turns (D-139): spokes and buckets go round the axle; the rims are round, so they need not.
     for (let k = 0; k < 16; k++) {
       const a = (k / 16) * TAU;
       const rim: Vec3 = [Math.cos(a) * R, CY + Math.sin(a) * R, 0];
-      if (k % 2 === 0) beam(b, 'slab', [0, CY, 0], rim, 0.22, { tint: 0xc8a57c });
-      b.add({ piece: 'slab', p: [rim[0], rim[1] - 0.25, 0], s: [0.6, 0.5, 1.2], r: 0, tint: 0x9a7552 });
+      if (k % 2 === 0) beam(b, 'slab', [0, CY, 0], rim, 0.22, { tint: 0xc8a57c, spin: WHEEL });
+      b.add({ piece: 'slab', p: [rim[0], rim[1] - 0.25, 0], s: [0.6, 0.5, 1.2], r: 0, tint: 0x9a7552, spin: WHEEL });
     }
     beam(b, 'concreteCyl', [0, CY, -1.6], [0, CY, 1.6], 0.5, { tint: 0xe9f4ef });
     for (const z of [-1.4, 1.4]) {
@@ -95,7 +98,7 @@ export default defineBuilding({
       b.add({ piece: 'spireCone', p: [-2.4, top + 0.12, -3.4], s: [1.2, 1.4, 1.2], tint: PALETTE.glassWarm, glow: 0.4 });
       for (let k = 0; k < 16; k++) {
         const a = ((k + 0.5) / 16) * TAU;
-        b.add({ piece: 'lumenRib', p: [Math.cos(a) * (R + 0.15), CY + Math.sin(a) * (R + 0.15), 0.6], s: [0.14, 0.14, 0.14], tint: 0xffd9a0, glow: 1 });
+        b.add({ piece: 'lumenRib', p: [Math.cos(a) * (R + 0.15), CY + Math.sin(a) * (R + 0.15), 0.6], s: [0.14, 0.14, 0.14], tint: 0xffd9a0, glow: 1, spin: WHEEL });
       }
     });
   },

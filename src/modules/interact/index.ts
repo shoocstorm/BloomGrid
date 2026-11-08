@@ -150,17 +150,48 @@ export const interactModule: GameModule = {
     });
 
     // Lights stay as the steward left them: saved by uid, re-applied after a load; a new city starts lit.
+    // Moving parts (D-139): the building's own Stop / Start button in the inspector (wheels, rides, rotors).
+    const motionButton = (eid: number): HTMLElement[] => {
+      const m = city.buildingDef(eid).motion;
+      if (!m || !renderer.hasMotion(eid)) return [];
+      const on = renderer.motionOn(eid);
+      return [
+        h(
+          'button',
+          {
+            class: `tool ${on ? '' : 'on'}`,
+            title: m.help,
+            onClick: () => {
+              const next = !renderer.motionOn(eid);
+              renderer.setMotion(eid, next);
+              const r = city.buildingRecord(eid);
+              bus.emit('building:interact', { eid, kind: 'motion', on: next, x: r.x, z: r.z });
+              bus.emit('selection:changed', { eid });
+            },
+          },
+          h('span', { class: 'g' }, icon(on ? 'pause' : 'play')),
+          on ? m.off : m.on,
+        ),
+      ];
+    };
+    ctx.services.get('hud').buildingActions(motionButton);
+
     bus.on('city:reset', () => {
       renderer.dark.clear();
+      renderer.stopped.clear();
       opened.clear();
       target = -1;
     });
     ctx.services.get('save').addHook({
       id: 'interact',
-      save: () => ({ dark: [...renderer.dark] }),
+      save: () => ({ dark: [...renderer.dark], stopped: [...renderer.stopped] }),
       load: (_c, data) => {
         const dark = new Set(Array.isArray((data as { dark?: unknown })?.dark) ? ((data as { dark: number[] }).dark) : []);
-        for (const eid of city.buildingEntities()) renderer.setLights(eid, !dark.has(Building.uid[eid]!));
+        const stopped = new Set(Array.isArray((data as { stopped?: unknown })?.stopped) ? ((data as { stopped: number[] }).stopped) : []);
+        for (const eid of city.buildingEntities()) {
+          renderer.setLights(eid, !dark.has(Building.uid[eid]!));
+          renderer.setMotion(eid, !stopped.has(Building.uid[eid]!));
+        }
       },
     });
   },
@@ -169,6 +200,6 @@ export const interactModule: GameModule = {
 declare module '@/core/EventBus' {
   interface GameEvents {
     /** The steward worked a building by hand (D-132): render-only, for sounds and juice. */
-    'building:interact': { eid: number; kind: 'door' | 'lights'; on: boolean; x: number; z: number };
+    'building:interact': { eid: number; kind: 'door' | 'lights' | 'motion'; on: boolean; x: number; z: number };
   }
 }

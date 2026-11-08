@@ -16,6 +16,7 @@ export default defineBuilding({
   growthTime: 160,
   cleanEnergy: true,
   variants: 1,
+  motion: { off: 'Stop the rotor', on: 'Start the rotor', help: 'The wind rotor in the crown turns (for the look of it: its energy doesn’t change)' },
   recipe(b) {
     b.add({ piece: 'concreteCyl', p: [0, 0, 0], s: [7.4, 0.35, 7.4], tint: PALETTE.concrete });
     b.add({ piece: 'mossBox', p: [0, 0.35, 0], s: [5.0, 0.08, 5.0], r: Math.PI / 4 });
@@ -60,6 +61,7 @@ export default defineBuilding({
         r: (k / 6) * TAU,
         rz: 0.9,
         growAt: 0.2,
+        spin: { at: [0, 0, 0], speed: 1.1 },
       });
     const tip = (y: number, k: number) => {
       b.add({ piece: 'haloRing', p: [0, y + 0.3, 0], s: [2.6, 4, 2.6], glow: 1 });

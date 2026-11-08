@@ -58,6 +58,23 @@ export interface PieceSpec {
    * and readable id (lit name strips), `number` = its id (a door's number plate). Residents use it as the door.
    */
   sign?: 'name' | 'number';
+  /** A moving part (D-139): turns round a pivot (wheels, rides, rotors) or shows the city's time (clock hands). */
+  spin?: Spin;
+}
+
+/**
+ * How a moving part moves (D-139), render-only. It turns at `speed` rad/s about `axis` through the pivot `at` (recipe
+ * space) while the building's motion is on; `upright` gondolas travel round the pivot but stay level; `lift` parts rise
+ * and drop by that much on a lift-and-drop cycle of 2π/|speed| s instead (authored at the top). `clock` hands show the
+ * city's time of day, always (`speed` ±1 sets the way round as seen by the viewer).
+ */
+export interface Spin {
+  at: Vec3;
+  axis?: 'x' | 'y' | 'z';
+  speed: number;
+  upright?: boolean;
+  lift?: number;
+  clock?: 'hour' | 'minute';
 }
 
 export interface KitBuilder {
@@ -159,6 +176,11 @@ export interface BuildingDef {
    * switching off does. Off, it neither produces nor consumes, and its staff go home.
    */
   interact?: { off: string; on: string; help: string };
+  /**
+   * Moving parts (`spin` on recipe pieces, D-139) the steward can stop and start from the inspector: `off` and `on`
+   * label the button, `help` says what moves. Render-only (no sim effect); they run by default.
+   */
+  motion?: { off: string; on: string; help: string };
   /** On a fresh island, can only be built once this unlock project is done (D-072). */
   requires?: 'skylanes' | 'aeroline' | 'flora';
   /** Fireworks factory (D-068): makes `rate` shells per sim minute when fully staffed, keeps up to `storage`. */

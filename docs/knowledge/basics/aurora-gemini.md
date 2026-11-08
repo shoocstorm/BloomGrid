@@ -3,7 +3,7 @@ id: basics-aurora-gemini
 title: The Aurora Gemini twin towers
 category: basics
 summary: The twin landmark at the island's centre, and how to put on its light show, stand on its sky deck or frame a postcard of it.
-tags: [police, precinct, police drone, dispatch, aurora gemini, twin towers, twins, landmark, hero, light show, searchlights, aurora, sky deck, rooftop, stand on top, postcard, photo, sun gate, sol, luna, centre]
+tags: [wheel, rides, spin, stop the rides, clock, police, precinct, police drone, dispatch, aurora gemini, twin towers, twins, landmark, hero, light show, searchlights, aurora, sky deck, rooftop, stand on top, postcard, photo, sun gate, sol, luna, centre]
 related: [basics-on-foot, basics-welcome]
 order: 65
 ---
@@ -49,3 +49,10 @@ within reach on their own while it has power and staff, like an Ember Watch Stat
 roof: press **Dispatch drones** in its inspector and they lift off, circle the precinct for about forty seconds and
 land again. A heavy drone stands on the Harmony Gate's roof, and a wing of small drones patrols the bay. The drones
 are for the look of the city only.
+
+## Can I stop the wheels and rides?
+
+Yes. The Great Noria's water wheel, the Bloom Eye, the Helix Spire's rotor and Bloomtopia's rides (the Sky Orbit
+wheel, the carousel, the dandelion swings, the Bloom Cups, the Petal Drop and the balloon ride) turn on their own.
+Click one and press **Stop** (or **Start**) in its inspector: they wind down or spin up over a couple of seconds.
+It is for the look of the city only. The Bloom Clock's hands always show the city's time.

@@ -1,4 +1,4 @@
-import { defineBuilding, type Vec3 } from '../types';
+import { defineBuilding, type Spin, type Vec3 } from '../types';
 import { PALETTE, TRIM, awning, beam, entrance, flowers, grassTufts, lamp } from '../kit';
 
 const TAU = Math.PI * 2;
@@ -16,7 +16,11 @@ export default defineBuilding({
   stats: { cost: 3200, energy: -14, eco: 2, happiness: 30, population: 0, jobs: 40, pollution: 0 },
   growthTime: 150,
   variants: 1,
+  motion: { off: 'Stop the wheel', on: 'Turn the wheel', help: 'The observation wheel turns, its gondolas hanging level' },
   recipe(b) {
+    // The wheel turns about its hub (D-139); a gondola travels round with the rim but hangs level.
+    const WHEEL: Spin = { at: [0, HUB, 0], axis: 'z', speed: 0.14 };
+    const CARS_SPIN: Spin = { at: [0, HUB, 0], axis: 'z', speed: 0.14, upright: true };
     b.add({ piece: 'slab', p: [0, 0, 0], s: [9.8, 0.25, 5.8], tint: PALETTE.concrete });
     grassTufts(b, 0, 0.25, 2.4, 9.4, 0.8, 24);
     flowers(b, -3.8, 0.25, 2.2, 0.8, 14, 0, 0.6);
@@ -36,9 +40,9 @@ export default defineBuilding({
     for (let k = 0; k < CARS; k++) {
       const a = (k / CARS) * TAU;
       const rim: Vec3 = [Math.cos(a) * R, HUB + Math.sin(a) * R, 0];
-      if (k % 2 === 0) beam(b, 'lumenRib', [0, HUB, 0], rim, 0.06, { glow: 0.7 });
-      // Gondolas hang below the rim.
-      b.add({ piece: 'pod', p: [rim[0], rim[1] - 0.9, 0], s: [1.2, 1.6, 1.4], glow: 0.9 });
+      if (k % 2 === 0) beam(b, 'lumenRib', [0, HUB, 0], rim, 0.06, { glow: 0.7, spin: WHEEL });
+      // Gondolas hang below the rim and stay level as the wheel turns (D-139).
+      b.add({ piece: 'pod', p: [rim[0], rim[1] - 0.9, 0], s: [1.2, 1.6, 1.4], glow: 0.9, spin: CARS_SPIN });
     }
     // Street level (D-097): a lit boarding entrance with a name sign on the hall roof, ticket and snack kiosks under
     // striped awnings, and lamps along the street.
@@ -75,7 +79,7 @@ export default defineBuilding({
       for (const z of [-0.5, 0.5]) b.add({ piece: 'haloRing', p: [0, HUB, z], s: [R * 2.25, R * 2.25, R * 2.25], rx: Math.PI / 2, tint: 0xffb7d5, glow: 1 });
       for (let k = 0; k < CARS; k++) {
         const a = ((k + 0.5) / CARS) * TAU;
-        b.add({ piece: 'flower', p: [Math.cos(a) * R * 1.125, HUB + Math.sin(a) * R * 1.125, 0.55], s: 0.3, tint: k % 2 ? 0xffe08a : 0xffb7d5, glow: 1 });
+        b.add({ piece: 'flower', p: [Math.cos(a) * R * 1.125, HUB + Math.sin(a) * R * 1.125, 0.55], s: 0.3, tint: k % 2 ? 0xffe08a : 0xffb7d5, glow: 1, spin: WHEEL });
       }
       for (const z of [-1.6, 1.0])
         for (const sx of [-1, 1]) beam(b, 'lumenRib', [sx * 3.4, 0.25, z + 0.25], [sx * 0.2, HUB, z * 0.4 + 0.25], 0.06, { glow: 0.8 });

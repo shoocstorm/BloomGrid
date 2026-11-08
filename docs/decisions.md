@@ -2305,3 +2305,20 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   take-off and landing times (`aSortie`, one ranged upload); the shader grows their loop radius and height from
   the pad over a 5 s ramp, circles the precinct for ~45 s and sets them down again. Pressing it while they fly
   pushes the landing back without a second take-off. Patrol loops now fly while a Harmony Gate or a precinct stands.
+
+## D-139 — Moving parts on heroes: wheels, rides, rotors and a working clock (2026-11-07)
+
+- **Recipe field** `spin` on a piece (`Spin`): turns at `speed` rad/s about `axis` through `at`; `upright` keeps a
+  gondola level while it travels round; `lift` runs a lift-and-drop cycle (slow climb, pause, sudden drop, rest);
+  `clock: 'hour' | 'minute'` sets the angle from `city.timeOfDay`. Recipes tag only parts whose turn shows (spokes,
+  buckets, gondolas, seats, chains); rings and round drums stay static.
+- **Animated** (render-only, like doors, D-132): the renderer keeps each building's moving parts and rewrites their
+  matrices per frame, generalising the door-leaf path. Only buildings in the view frustum within `MOTION_RANGE`
+  (240) are posed; motion eases up and down over ~2 s; clock hands write at 4 Hz. Removed handles (level changes)
+  are pruned. Perf at the default view is unchanged (≈24% active, 290 draws); near Bloomtopia ≈130 matrices a frame.
+- **Heroes**: Great Noria (wheel), Bloom Eye (wheel, level gondolas), Bloomtopia (Sky Orbit, Firefly Carousel,
+  Dandelion swings, Bloom Cups, Petal Drop, level-2 balloon ride), Helix Spire (crown rotor), Bloom Clock (hands show
+  the city's time). The Bloom Clock's hands were redrawn at twelve so the angle is the time.
+- **Action**: `motion` on a def labels a Stop / Start button in the inspector (interact module), with a motor sound;
+  stopped buildings are saved by uid in the interact save hook. Everything runs by default.
+- **Not done**: the Comet Loop's train along its track (needs a path, not a pivot); colliders use the rest pose.
