@@ -112,7 +112,7 @@ class PausePanel {
     this.root.classList.add('folded');
   }
 
-  /** A hold that isn't the player's: a dialog, the loader, photo mode, the boot. */
+  /** A hold that isn't the player's: a dialog, the loader, photo mode, the city tour, the boot. */
   private heldByOther(): boolean {
     const body = document.body;
     return (
@@ -120,6 +120,7 @@ class PausePanel {
       body.classList.contains('chapter-open') ||
       !!this.ctx.services.tryGet('loader')?.busy ||
       this.ctx.hud.classList.contains('photo') ||
+      this.ctx.hud.classList.contains('touring') ||
       !!document.querySelector('.modal-scrim')
     );
   }

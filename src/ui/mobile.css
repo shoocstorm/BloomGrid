@@ -632,3 +632,33 @@ body.compact.flora-open #hud > :not(.ai) {
   left: auto;
   right: var(--gut);
 }
+
+/* City tour on phones (D-145): slimmer bars, a smaller caption, the controls inside the bottom bar. */
+.compact .tour-bar {
+  height: 7vh;
+}
+.compact .tour-cap {
+  left: 16px;
+  bottom: calc(7vh + 16px);
+  max-width: calc(100vw - 32px);
+  padding-left: 12px;
+}
+.compact .tour-cap .t {
+  font-size: 24px;
+}
+.compact .tour-cap[data-kind='opening'] .t,
+.compact .tour-cap[data-kind='finale'] .t {
+  font-size: 30px;
+}
+.compact .tour-cap .f {
+  font-size: 12.5px;
+}
+.compact .tour-prog,
+.compact .tour-ui::before {
+  bottom: 7vh;
+}
+.compact .tour-ctl {
+  right: 12px;
+  bottom: calc(3.5vh - 17px);
+  opacity: 0.9;
+}

@@ -509,7 +509,7 @@ class Assistant {
 }
 
 const SPEEDS = { pause: 0, normal: 1, fast: 3, fastest: 8 } as const;
-const EXPLORE = ['city', 'walk', 'board', 'drone', 'follow', 'train'] as const;
+const EXPLORE = ['city', 'tour', 'walk', 'board', 'drone', 'follow', 'train'] as const;
 
 /** Tools over the game rather than the city: time, lenses, camera, panels, explore modes, saving. */
 function gameTools(): AgentTool<GameContext, never>[] {
@@ -584,9 +584,9 @@ function gameTools(): AgentTool<GameContext, never>[] {
     },
     {
       name: 'explore_mode',
-      option: 'Explore the city: walk, hoverboard, drone, ride a pod or the Aeroline',
+      option: 'Explore the city: a city tour, walk, hoverboard, drone, ride a pod or the Aeroline',
       description:
-        'Switches the camera to an explore mode: walk (first person), board (hoverboard), drone, follow (ride a pod), train (ride the Aeroline), or city (back to the normal view).',
+        'Switches the camera to an explore mode: tour (an automatic flight round the landmarks, districts and wonders), walk (first person), board (hoverboard), drone, follow (ride a pod), train (ride the Aeroline), or city (back to the normal view).',
       keywords: ['walk', 'explore', 'drone', 'hoverboard', 'ride', 'train', 'aeroline', 'tour', 'fly'],
       input: { type: 'object', properties: { mode: { type: 'string', enum: EXPLORE } }, required: ['mode'] },
       effect: 'view',

@@ -2423,3 +2423,35 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
 - Each project needs a building the pacing test's scripted steward never builds, so the early timeline it guards is
   unchanged. Saves are unaffected (unlocks are string ids); a fresh island saved before this keeps a built precinct
   but must earn the patrols, the ferry and the jet.
+
+## D-145 — City tour: an automatic flight round the island (2026-11-08)
+
+- **Problem**: the island holds dozens of landmarks, wonders and moving spectacles, but seeing them meant flying the
+  camera by hand or riding one mode at a time; there was no way to sit back and admire the whole achievement.
+- **Decision**: a **City tour** view mode (`'tour'` in `ExploreMode`, second in the view menu, also Flora's
+  `explore_mode`). `modules/explore/tour.ts`: `planTour` picks stops (opening overview, up to 7 landmarks spaced
+  26 tiles apart by height, up to 4 largest districts with buildings, visible sea wonders, and the Aeroline / Tidesong /
+  Sky Guard as moving stops, then a closing overview) and orders them downtown-first (nearest neighbour from the stop
+  nearest the centre), then outward by bearing with a 2-opt pass. `TourDirector` flies an orbit pose between stops
+  on high arcs (smootherstep, lift with distance, looking down mid-flight), arriving from the side it came from and
+  circling each stop with an eased-in spin; moving stops swing round behind their heading. `tourView.ts` draws the
+  letterbox, captions, progress and a pause / next / end strip (Space, Tab/→, Esc).
+- The tour drives the **city** camera through a new `CityCamera.cinematic` flag (input and locate ignored, pose written
+  by the explore system) instead of disabling it like the street-level modes: many modules read
+  `cameraCtl.enabled === false` as "explore" (walker LODs, critters, signs, weather), and a flyover wants the city
+  view's. Near/far and the sky dome stay as in the city view. The camera keeps 2.5 above the highest top round it
+  (`collider.groundAt`).
+- **Clear views are chosen before the flight, not fixed after it**: when a leg sets off, `TourDirector.frame` tries
+  arrival bearings (0, ±0.45 … ±2.1, π off the travel side) and extra tilts (0 … +0.55) until the whole circle (four
+  points along the hold) sees the stop (`collider.reach`) with room above the roofs. A first version tipped the
+  camera up reactively once a tower hid the stop; in the dense centre (Dragonfly Skyport, Bloom Eye) that kicked it
+  ≈20 units back up just after it had landed and left it hovering, which read as the camera sticking.
+- **The city holds still while the tour flies**: the tour saves `engine.speed`, sets 0 and restores it at the end
+  (like photo mode); the pause card treats `#hud.touring` as a hold that isn't the player's. `U.clock` runs on, so
+  trains, the ferry, the jet, rides and water keep moving.
+- Render-only: nothing saved or hashed. Measured (headless, founding city): 60 fps with no frame over 16.7 ms
+  through the tour. Wide frames reach 300–400 draw calls (the jet chase and district views at altitude), the same as
+  the city camera at the same pose (checked pose for pose): the cost of how much island is in view, not of the tour.
+- Rejected: a fixed hand-authored path (the trailer's approach) — it can't follow what the player built, and a
+  fresh island has none of the showcase's landmarks.
+

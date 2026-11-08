@@ -1,11 +1,14 @@
 import { Group, MathUtils, Vector3 } from 'three/webgpu';
 import type { GameModule } from '@/game/context';
+import type { CameraView } from '@/input/CityCamera';
 import { U } from '@/render/uniforms';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { BODY, STEP, createCollider } from './collider';
 import { createBalloon, createBoard, createDrone, createPerson, showOnly } from './avatars';
 import { findRoof, isLandmark, rooftopCandidates } from './roof';
+import { planTour, TourDirector, type TourMover } from './tour';
+import { createTourView } from './tourView';
 import { Building } from '@/ecs/components';
 import { placeBuilding } from '@/modules/construction/BuildingRenderer';
 import './explore.css';
@@ -16,10 +19,11 @@ const LEDGE = 0.45;
 /** Eight directions for the room-to-stand test round a spawn. */
 const RING = Array.from({ length: 8 }, (_, k) => [Math.cos((k * Math.PI) / 4), Math.sin((k * Math.PI) / 4)] as const);
 
-export type ExploreMode = 'city' | 'walk' | 'board' | 'drone' | 'balloon' | 'roof' | 'follow' | 'train' | 'ferry' | 'jet';
-const CYCLE: ExploreMode[] = ['city', 'walk', 'board', 'drone', 'balloon', 'roof', 'follow', 'train', 'ferry', 'jet'];
+export type ExploreMode = 'city' | 'tour' | 'walk' | 'board' | 'drone' | 'balloon' | 'roof' | 'follow' | 'train' | 'ferry' | 'jet';
+const CYCLE: ExploreMode[] = ['city', 'tour', 'walk', 'board', 'drone', 'balloon', 'roof', 'follow', 'train', 'ferry', 'jet'];
 const LABELS: Record<ExploreMode, string> = {
   city: 'City view',
+  tour: 'City tour',
   walk: 'Walk',
   board: 'Hoverboard',
   drone: 'Drone',
@@ -33,6 +37,7 @@ const LABELS: Record<ExploreMode, string> = {
 /** Icon (`ui/icons.ts`) and menu note per mode. */
 const MENU: Record<ExploreMode, [icon: string, note: string]> = {
   city: ['city', 'Steward’s overview: build and manage'],
+  tour: ['tour', 'Sit back: a flight round the island’s landmarks and wonders'],
   walk: ['walk', 'Stroll the streets as the steward'],
   board: ['board', 'Jet along the living highways'],
   drone: ['drone', 'Fly a quadcopter over the island'],
@@ -45,6 +50,7 @@ const MENU: Record<ExploreMode, [icon: string, note: string]> = {
 };
 const HINTS: Record<ExploreMode, string> = {
   city: '',
+  tour: 'Space pause · Tab or → next stop · Esc end the tour',
   walk: 'WASD walk · Shift run · Space jump · drag to look · V first person · E door · L lights · N next mode · Esc city view',
   board: 'WASD ride · Shift boost · Space hop · glides over water · N next mode · Esc city view',
   drone: 'WASD fly · E up · Q down · Shift fast · drag to look · N next mode · Esc city view',
@@ -268,7 +274,7 @@ export const exploreModule: GameModule = {
       pad.down.classList.toggle('hidden', m !== 'drone' && m !== 'balloon');
       pad.next.classList.toggle('hidden', !['roof', 'follow', 'train'].includes(m));
       pad.view.classList.toggle('hidden', !['walk', 'roof', 'balloon'].includes(m));
-      padEl.classList.toggle('hidden', m === 'city' || photo);
+      padEl.classList.toggle('hidden', m === 'city' || m === 'tour' || photo);
       if (m === 'city') release();
     };
     const hud = document.getElementById('hud');
@@ -340,6 +346,23 @@ export const exploreModule: GameModule = {
     let preferred = -1;
 
     function setMode(next: ExploreMode): void {
+      // The city tour drives the city camera (D-145); other modes are entered from the city view.
+      if (next === 'tour' || mode === 'tour') {
+        if (next === mode) return;
+        if (next === 'tour') {
+          if (mode !== 'city') setMode('city');
+          if (!startTour()) return;
+          mode = 'tour';
+          showMode('tour');
+          return;
+        }
+        // Back to the view the steward left; into another mode from where the tour is.
+        stopTour(next === 'city');
+        mode = 'city';
+        showMode('city');
+        if (next !== 'city') setMode(next);
+        return;
+      }
       if (next === 'follow' && !city.pulse.podRoutes.length) {
         ctx.bus.emit('toast', { text: 'No sky-lanes yet: build a Green Pod Dock first', tone: 'bad' });
         next = 'city';
@@ -411,7 +434,19 @@ export const exploreModule: GameModule = {
       const rig = { walk: person.root, roof: person.root, board: boardRig, drone: drone.root, balloon: balloon.root } as Partial<Record<ExploreMode, Group>>;
       showOnly(rigs, rig[next]);
       if (next === 'board') person.root.visible = true;
+      if (!exploring) {
+        if (document.pointerLockElement) document.exitPointerLock();
+        // Land the city camera over where the player was; it glides back out to the saved zoom.
+        cameraCtl.lookAt(pos.x, pos.z, savedView.distance, false);
+      }
+      showMode(next);
+    }
+
+    /** The HUD side of a mode change: classes, hint, pad, the dropdown's label, and the event. */
+    function showMode(next: ExploreMode): void {
+      const exploring = next !== 'city' && next !== 'tour';
       hud?.classList.toggle('exploring', exploring);
+      hud?.classList.toggle('touring', next === 'tour');
       hint.classList.toggle('hidden', !exploring);
       padFor(next);
       cross.classList.toggle('hidden', !crossOn());
@@ -419,13 +454,116 @@ export const exploreModule: GameModule = {
       for (const [m, b] of buttons) b.classList.toggle('on', m === next);
       dropGlyph.replaceChildren(icon(MENU[next][0]));
       setText(dropLabel, LABELS[next]);
-      drop.classList.toggle('active', exploring);
-      if (!exploring) {
-        if (document.pointerLockElement) document.exitPointerLock();
-        // Land the city camera over where the player was; it glides back out to the saved zoom.
-        cameraCtl.lookAt(pos.x, pos.z, savedView.distance, false);
-      }
+      drop.classList.toggle('active', next !== 'city');
       ctx.bus.emit('explore:mode', { mode: next });
+    }
+
+    // ── City tour (D-145): an automatic flight round the island's landmarks, districts and wonders ──────────
+    let tour: TourDirector | null = null;
+    let tourView: CameraView = cameraCtl.getView();
+    let tourLift = 0;
+    let tourUiAt = 0;
+    /** The sim speed before the tour: the city holds still while it flies and runs on at this speed after. */
+    let tourSpeed = 1;
+    const tourUi = createTourView({ pause: () => pauseTour(), next: () => nextStop(), end: () => setMode('city') });
+    const scratch = new Vector3();
+    /** Moving wonders other modules run: the Aeroline, the cruise ferry, the Sky Guard jet. */
+    const tourMovers = (): TourMover[] => {
+      const out: TourMover[] = [];
+      const line = ctx.services.tryGet('aeroline');
+      if (line?.trains)
+        out.push({ kicker: 'Transit', title: 'Aeroline', facts: 'Solar maglev trains on a raised loop round the island', track: (o) => (line.trains > 0 ? (line.ride(0, scratch, o), true) : false) });
+      const ferry = ctx.services.tryGet('ferry');
+      if (ferry?.active)
+        out.push({ kicker: 'Sea wonder', title: 'Tidesong', facts: 'The solar-sail cruise ferry on her timetable', track: (o) => ferry.active && !!o.copy(ferry.position).setY(Math.max(1.5, ferry.position.y)) });
+      const jet = ctx.services.tryGet('skyguard');
+      if (jet?.active) out.push({ kicker: 'Sky wonder', title: 'Sky Guard', facts: 'The city’s delta-wing jet on patrol', distance: 55, track: (o) => jet.active && !!o.copy(jet.position) });
+      return out;
+    };
+    function startTour(): boolean {
+      if (photo) setPhoto(false);
+      const stops = planTour(city, tourMovers());
+      tourView = cameraCtl.getView();
+      const start = { target: cameraCtl.target.clone(), yaw: cameraCtl.yaw, pitch: cameraCtl.pitch, distance: cameraCtl.distance };
+      const n = stops.length;
+      tour = new TourDirector(
+        stops,
+        start,
+        (x, z) => g().heightAt(x, z),
+        (i) => tourUi.caption(stops[i]!, i, n),
+        () => tourUi.leave(),
+        // Clear sight from a camera spot toward its stop, and room above the rooftops there.
+        (from, to) => {
+          let top = U.waterLevel.value;
+          for (const [ox, oz] of [[0, 0], ...RING.filter((_, k) => k % 2 === 0)] as (readonly [number, number])[])
+            top = Math.max(top, collider.groundAt(from.x + ox * 2.5, from.z + oz * 2.5, 999));
+          return from.y > top + 2.5 && collider.reach(from, to, 0.4) >= 1;
+        },
+      );
+      tourLift = 0;
+      tourSpeed = ctx.engine.speed;
+      ctx.engine.speed = 0;
+      ctx.bus.emit('selection:changed', { eid: null });
+      cameraCtl.cinematic = true;
+      cameraCtl.externalMotion = true;
+      ctx.tools.suspended = true;
+      tourUi.paused(false);
+      tourUi.progress(0);
+      tourUi.show(true);
+      return true;
+    }
+    /** Ends the tour; `back` glides to the view the steward left (else the camera stays over the tour's stop). */
+    function stopTour(back: boolean): void {
+      if (!tour) return;
+      const p = tour.pose;
+      tour = null;
+      tourUi.show(false);
+      cameraCtl.cinematic = false;
+      cameraCtl.externalMotion = false;
+      ctx.tools.suspended = photo;
+      ctx.engine.speed = tourSpeed;
+      cameraCtl.holdAt({ x: p.target.x, z: p.target.z, yaw: p.yaw, pitch: Math.min(1.48, p.pitch), distance: p.distance });
+      if (back) cameraCtl.setView(tourView);
+    }
+    function pauseTour(): void {
+      if (!tour) return;
+      tour.paused = !tour.paused;
+      tourUi.paused(tour.paused);
+    }
+    function nextStop(): void {
+      if (tour && !tour.next()) setMode('city');
+    }
+    /**
+     * Poses the camera from the tour, keeping it above rooftops (the director already picked each stop's angle with
+     * a clear view, so the camera never has to climb away from a tower after it has arrived).
+     */
+    function stepTour(dt: number): void {
+      if (!tour) return;
+      if (!tour.step(dt)) return setMode('city');
+      const p = tour.pose;
+      const pitch = p.pitch;
+      const cp = Math.cos(pitch);
+      const cam = camera.position.copy(p.target).add(tmp.set(Math.sin(p.yaw) * cp, Math.sin(pitch), Math.cos(p.yaw) * cp).multiplyScalar(p.distance));
+      // Rooftop clearance: the highest top under and round the camera (lift fast, settle slowly).
+      let top = Math.max(U.waterLevel.value, 0);
+      for (const [ox, oz] of [[0, 0], ...RING.filter((_, k) => k % 2 === 0)] as (readonly [number, number])[])
+        top = Math.max(top, collider.groundAt(cam.x + ox * 2.5, cam.z + oz * 2.5, 999));
+      const need = top + 2.5 - cam.y;
+      tourLift = MathUtils.lerp(tourLift, need, 1 - Math.exp(-dt * (need > tourLift ? 10 : 0.8)));
+      cam.y += Math.max(0, tourLift);
+      camera.lookAt(p.target);
+      // The city view's focus (shadows, fog, walkers, LODs) follows the tour.
+      cameraCtl.target.copy(p.target);
+      cameraCtl.yaw = p.yaw;
+      cameraCtl.pitch = pitch;
+      cameraCtl.distance = cam.distanceTo(p.target);
+      // Progress line at ≈5 Hz.
+      tourUiAt += dt;
+      if (tourUiAt > 0.2) {
+        tourUiAt = 0;
+        const n = tour.stops.length;
+        tourUi.progress((tour.index + (tour.phase === 'hold' ? 0.5 : 0)) / Math.max(1, n - 1));
+      }
     }
 
     /** The crosshair only makes sense looking through the steward's eyes. */
@@ -462,6 +600,14 @@ export const exploreModule: GameModule = {
 
     input.onKey((e) => {
       if (e.metaKey || e.ctrlKey) return false;
+      if (mode === 'tour') {
+        if (e.code === 'Escape') return setMode('city'), true;
+        if (e.code === 'Space') return pauseTour(), true;
+        if (e.code === 'Tab' || e.code === 'ArrowRight') return nextStop(), true;
+        if (e.code === 'KeyN') return setMode(CYCLE[(CYCLE.indexOf(mode) + 1) % CYCLE.length]!), true;
+        // Swallow the city view's hotkeys (tools, build, photo) and camera keys while the tour flies.
+        return e.code.startsWith('Key') || e.code.startsWith('Arrow') || e.code.startsWith('Digit') || ['Tab', 'Equal', 'Minus'].includes(e.code);
+      }
       if (e.code === 'KeyJ') return setPhoto(!photo), true;
       if (photo && e.code === 'KeyP') return (capture = true), true;
       if (photo && e.code === 'Escape') return setPhoto(false), true;
@@ -568,6 +714,7 @@ export const exploreModule: GameModule = {
         U.walker.value.set(pos.x, pos.y, pos.z, mode === 'walk' ? 0.16 : 0);
         if (mode === 'city') return;
         const dt = Math.min(0.05, f.dt);
+        if (mode === 'tour') return stepTour(dt);
         const k = input.keys;
         // Drag-to-look (any button) works without pointer lock.
         if (input.buttons.size && !document.pointerLockElement) {
@@ -782,7 +929,7 @@ export const exploreModule: GameModule = {
       // setMode changes `mode` (TS can't see that through the call).
       return (mode as ExploreMode) === 'roof';
     };
-    ctx.services.provide('explore', { setMode, standOn, get mode() { return mode; }, setPhoto, position: pos, get firstPerson() { return firstPerson; }, collider, get pitch() { return pitch; }, set pitch(v: number) { pitch = v; }, get yaw() { return yaw; }, set yaw(v: number) { yaw = v; } });
+    ctx.services.provide('explore', { setMode, standOn, get mode() { return mode; }, get tour() { return tour; }, setPhoto, position: pos, get firstPerson() { return firstPerson; }, collider, get pitch() { return pitch; }, set pitch(v: number) { pitch = v; }, get yaw() { return yaw; }, set yaw(v: number) { yaw = v; } });
 
     // ── Landmark actions in the inspector (D-135): every hero and landmark gets Sky deck and Postcard ──────
     ctx.services.get('hud').buildingActions((eid) => {
@@ -812,6 +959,8 @@ declare module '@/core/Services' {
   interface GameServices {
     explore: {
       setMode(m: ExploreMode): void;
+      /** The city tour while it flies (D-145): its stops and where it is; null otherwise. For scripts. */
+      readonly tour: TourDirector | null;
       /** Rooftop mode on landmark `eid` (D-135); false if it isn't a landmark or has nowhere to stand. */
       standOn(eid: number): boolean;
       readonly mode: ExploreMode;

@@ -138,3 +138,158 @@ body.compact .xp-pad:not(.hidden) {
   align-items: center;
   gap: 8px;
 }
+
+/* City tour (D-145): the HUD steps aside for letterbox bars, a caption per stop and a small control strip. */
+#hud.touring {
+  visibility: hidden;
+}
+.tour-ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  color: var(--ink, #dcf5ee);
+  font-family: var(--ui, system-ui, sans-serif);
+}
+.tour-ui.hidden {
+  display: none;
+}
+/* A soft shade rising from the bottom bar, so captions read over bright skies and sunlit plazas. */
+.tour-ui::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 9vh;
+  height: 34vh;
+  background: linear-gradient(to top, rgba(5, 12, 11, 0.72), rgba(5, 12, 11, 0.34) 45%, transparent);
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.tour-ui.on::before {
+  opacity: 1;
+}
+.tour-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 9vh;
+  background: #050c0b;
+  transform: scaleY(0);
+  transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.tour-bar.top {
+  top: 0;
+  transform-origin: top;
+}
+.tour-bar.bottom {
+  bottom: 0;
+  transform-origin: bottom;
+}
+.tour-ui.on .tour-bar {
+  transform: scaleY(1);
+}
+.tour-cap {
+  position: absolute;
+  left: max(28px, 5vw);
+  bottom: calc(9vh + 28px);
+  max-width: min(560px, calc(100vw - 56px));
+  padding-left: 16px;
+  border-left: 2px solid var(--accent, #5ff2da);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.65);
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.tour-cap.in {
+  opacity: 1;
+  transform: none;
+}
+.tour-cap .k {
+  font-family: var(--mono, monospace);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8ffbe9;
+}
+.tour-cap .t {
+  margin-top: 4px;
+  font-size: clamp(26px, 4.2vw, 46px);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: #f3fff8;
+}
+.tour-cap .f {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: rgba(243, 255, 248, 0.82);
+}
+.tour-cap .n {
+  margin-top: 8px;
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  color: rgba(243, 255, 248, 0.55);
+}
+.tour-cap[data-kind='opening'] .t,
+.tour-cap[data-kind='finale'] .t {
+  font-size: clamp(34px, 6vw, 68px);
+}
+.tour-prog {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 9vh;
+  height: 2px;
+  background: rgba(95, 242, 218, 0.12);
+}
+.tour-prog i {
+  display: block;
+  height: 100%;
+  background: var(--accent, #5ff2da);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s linear;
+}
+.tour-ctl {
+  position: absolute;
+  right: max(20px, 3vw);
+  bottom: calc(4.5vh - 17px);
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+  opacity: 0.55;
+  transition: opacity 0.3s ease;
+}
+.tour-ctl:hover,
+.tour-ui.paused .tour-ctl {
+  opacity: 1;
+}
+.tour-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  min-width: 34px;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: var(--pill, 999px);
+  border: 1px solid rgba(95, 242, 218, 0.35);
+  background: rgba(6, 19, 21, 0.7);
+  color: #f3fff8;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: var(--cur-pointer, pointer);
+}
+.tour-btn:hover {
+  border-color: var(--accent, #5ff2da);
+}
+.tour-btn .g {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+}

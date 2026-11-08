@@ -47,6 +47,11 @@ export class CityCamera {
   aim = 0;
   /** Set by explore modes so power pacing treats a moving first-person view as active. */
   externalMotion = false;
+  /**
+   * Set by the city tour (D-145): another system poses the camera (and keeps `target` / `yaw` / `pitch` / `distance`
+   * describing it) while the city view's LODs and focus stay as they are; input and locate glides are ignored.
+   */
+  cinematic = false;
 
   minDistance = 6;
   maxDistance = 320;
@@ -102,7 +107,7 @@ export class CityCamera {
    * height. Any pan, orbit, zoom or key cancels it and leaves the camera where it is.
    */
   locate(x: number, z: number, opts: { size?: number; height?: number } = {}): void {
-    if (!this.enabled) return;
+    if (!this.enabled || this.cinematic) return;
     this.aim = 0;
     const size = opts.size ?? 6;
     const height = opts.height ?? 8;
@@ -128,6 +133,18 @@ export class CityCamera {
   /** True while a locate glide runs. */
   get locating(): boolean {
     return this.glide !== null;
+  }
+
+  /** Takes over from wherever the camera is now (after a tour): current and goal pose both set from `v`. */
+  holdAt(v: CameraView): void {
+    this.glide = null;
+    this.vel.x = this.vel.z = 0;
+    this.aim = 0;
+    this.target.set(v.x, this.target.y, v.z);
+    this.goalTarget.copy(this.target);
+    this.yaw = this.goalYaw = v.yaw;
+    this.pitch = this.goalPitch = v.pitch;
+    this.distance = this.goalDistance = Math.min(this.maxDistance, v.distance);
   }
 
   /** Smooth, slower glide to a point (advisor "show me", bookmarks, overview). */
@@ -179,7 +196,7 @@ export class CityCamera {
   }
 
   update(dt: number): void {
-    if (!this.enabled) return;
+    if (!this.enabled || this.cinematic) return;
     const inp = this.input;
     const k = inp.keys;
     // The steward taking the controls ends a locate glide where it is.

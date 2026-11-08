@@ -28,6 +28,7 @@ const ICONS: Record<string, string> = {
   jet: '<path d="M12 2.5 21 19l-9-3-9 3z"/><path d="M12 2.5V16M9 20.5v1.5M12 18v3.5M15 20.5v1.5"/>',
   horn: '<path d="M3.5 10v4h3l7 4.5v-13L6.5 10z"/><path d="M17 9a4.5 4.5 0 0 1 0 6M19.5 6.5a8 8 0 0 1 0 11"/>',
   door: '<path d="M4 21h16M6 21V3.5h12V21"/><path d="M14.5 12.5h.01"/>',
+  tour: '<path d="M3 20c3.5-1 4-6 8-6s3.5 4 7 3.5 3-4 3-4"/><path d="M11 10.5V3l5 2-5 2"/><circle class="f" cx="3" cy="20" r="1.3"/>',
   bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
   // ── Top bar ──
   pause: '<path d="M9 5v14M15 5v14" stroke-width="2.6"/>',
