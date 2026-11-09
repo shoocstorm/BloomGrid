@@ -134,7 +134,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Sound              | **,** mute / unmute · volumes for music, ambience and effects in ⚙ Settings (sound starts on your first click); trains, pods and fires are heard close up |
 
 **On a phone:** drag to pan, pinch to zoom, twist to rotate, drag two fingers up or down to tilt. Tap a building to
-inspect it. To build, tap **Build** (bottom), pick a category and a building, tap the map to preview, then tap the preview again (⟳ rotates); **Done** leaves build mode. The top
+inspect it. To build, tap **Build** (bottom), pick a category and a building, tap a free lot on the map to build it (a preview waits on a free lot near the centre, and moves to the next one after each build; ⟳ rotates); **Done** leaves build mode. The top
 bar's Pulse button opens City Pulse, the same console as on desktops with Pulse, Lenses, Flora-Net and Goals
 (unlock projects, sea wonders, fishing) tabs; tap the button, ✕ or the city to close it. The logo at the top left
 opens About. The HUD shows less on a phone

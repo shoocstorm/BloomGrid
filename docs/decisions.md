@@ -2602,3 +2602,17 @@ usable GPU measure; headless `?gputime` stays too noisy to see these changes.
 
 **Rejected.** Lowering the active cap below 60 (camera motion should stay smooth); dropping more greenery
 (it is the island's look).
+
+## D-151: One tap builds on phones; the preview is pinned to a suggested lot
+
+**Context.** Touch has no hover, so the Build tool previewed on the first tap and built on a second tap on the
+preview. Players found placing every building with two taps slow.
+
+**Decision.** On touch devices (`isTouchDevice`), a tap on a free lot builds there at once. The preview doesn't follow a
+pointer; it is pinned to `spot` (`modules/construction/tools.ts`). When a building is picked up, `spot` is the free lot nearest the view's
+centre, so its size and service ring show before the first tap. After a build it moves to the next free lot
+beside it, and after a refused tap it shows the refused lot in red with the reason. A tap on the pinned preview
+builds exactly there. Remove, retrofit and mist keep tap-to-preview, tap-again-to-confirm (they destroy or
+spend on a spot the steward should see first). Undo stays the safety net for a mis-tap.
+
+**Rejected.** A floating confirm button (still two taps); dragging the ghost (conflicts with one-finger pan).

@@ -21,19 +21,10 @@
 .hp-act > .hp-locate {
   flex: 0 0 auto;
 }
+/* Side by side: not the milestone card's stacked-button gap. */
+.jc-m-act.hp-act > .jc-do + .jc-do {
+  margin-top: 0;
+}
 
-/* Phones: a slim strip under the top bar (the milestone card owns the corner there). */
-.compact .jc-m.hp {
-  top: auto;
-  bottom: 132px;
-  left: 8px;
-  right: 8px;
-  width: auto;
-}
-.compact .jc-m.hp .jc-m-hint,
-.compact .jc-m.hp .jc-m-foot {
-  display: none;
-}
-.compact .jc-m.hp .jc-m-main {
-  margin-top: 6px;
-}
+/* Phones: the milestone card's frame and sizes (ui/mobile.css); portrait stacks it above the milestone card (by
+   script), landscape sets it beside it. */

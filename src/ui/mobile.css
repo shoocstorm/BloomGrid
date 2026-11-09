@@ -588,49 +588,118 @@ body.compact.flora-open #hud > :not(.ai) {
   top: var(--chips, 104px);
 }
 
-/* Milestone tracker (D-118): a slim strip above the Build button (where the guide sits, so it steps aside while
-   the guide is open); the hint and the numbers are in the Goals tab. */
+/* Milestone tracker (D-118): a card above the Build button (where the guide sits, so it steps aside while the
+   guide is open). It keeps the desktop card's content (what to do, progress, reward) with touch-sized controls;
+   the hint holds two lines. Landscape (any width): a column on the left, with the happenings card beside it on
+   the right; short screens pack both tighter. The cards never scroll. */
 .compact .jc-m {
   top: auto;
   bottom: calc(var(--bot) + 70px);
   left: var(--gut);
   right: var(--gut);
   width: auto;
-  padding: 8px 10px;
+  padding: 10px 12px 12px;
 }
 .compact #hud:has(> .tt:not(.hidden)) > .jc-m,
 .compact #hud:has(.info:not(.hidden)) > .jc-m,
 .compact.building #hud > .jc-m {
   display: none;
 }
-.compact .jc-m-kicker,
-.compact .jc-m-hint,
-.compact .jc-m-foot {
-  display: none;
-}
 .compact .jc-m-head {
-  position: absolute;
+  min-height: 28px;
+}
+.compact .jc-m-count {
+  font-size: 11.5px;
+}
+.compact .jc-m-fold {
+  width: 32px;
+  height: 32px;
+  margin: -4px -6px -4px 0;
+}
+.compact .jc-m-main {
+  margin-top: 6px;
+  align-items: center;
+}
+.compact .jc-m-title {
+  font-size: 15px;
+}
+.compact .jc-m-hint {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: 12.5px;
+}
+.compact .jc-m-foot {
+  font-size: 12px;
+}
+.compact .jc-do,
+.compact .jc-claim {
+  min-height: 40px;
+  font-size: 13.5px;
+}
+/* The happenings card's close button: a finger-sized target, clear of the time left. */
+.compact .jc-m.hp > .pop-x.icon-btn {
+  width: 32px;
+  height: 32px;
   top: 6px;
   right: 6px;
 }
-.compact .jc-m-main {
-  margin-top: 0;
-  align-items: center;
-  padding-right: 70px;
-}
-.compact .jc-m-ico {
-  width: 28px;
-  height: 28px;
-}
-.compact .jc-m-bar {
-  margin-top: 7px;
-}
-.compact .jc-m-act {
-  margin-top: 7px;
+.compact .jc-m.hp .jc-m-head {
+  padding-right: 30px;
 }
 .compact .jc-m.folded {
   left: auto;
   right: var(--gut);
+}
+.compact .jc-m.folded .jc-m-pill {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+@media (orientation: landscape) {
+  .compact .jc-m:not(.folded) {
+    right: auto;
+    width: min(400px, calc(50vw - 1.5 * var(--gut)));
+  }
+  .compact .jc-m.hp {
+    left: auto;
+    right: var(--gut);
+  }
+}
+/* Short landscape screens: the same content, packed tighter so the city keeps its middle. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .compact .jc-m {
+    padding: 8px 12px 10px;
+  }
+  .compact .jc-m-head {
+    min-height: 24px;
+  }
+  .compact .jc-m-main {
+    margin-top: 4px;
+  }
+  .compact .jc-m-ico {
+    width: 30px;
+    height: 30px;
+  }
+  .compact .jc-m-hint {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+  .compact .jc-m-bar {
+    margin-top: 7px;
+  }
+  .compact .jc-m-foot {
+    margin-top: 4px;
+  }
+  .compact .jc-m-act {
+    margin-top: 7px;
+  }
+  .compact .jc-do,
+  .compact .jc-claim {
+    min-height: 36px;
+  }
 }
 
 /* City tour on phones (D-145): slimmer bars, a smaller caption, the controls inside the bottom bar. */

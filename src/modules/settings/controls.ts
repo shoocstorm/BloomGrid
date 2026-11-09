@@ -34,7 +34,7 @@ export function controlsPane(ctx: GameContext): HTMLElement[] {
       ]),
       group('build', 'Build', [
         ['Open build mode', '~Build button'],
-        ['Place a building', '~tap, tap again'],
+        ['Place a building', '~tap a lot'],
         ['Draw a highway or channel', '~drag'],
         ['Leave build mode', '~Done'],
       ]),

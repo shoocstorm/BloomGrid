@@ -19,6 +19,7 @@ import { moveFee, relocatePlan } from '@/sim/relocate';
 import { placeBuilding, placementMatrices } from './BuildingRenderer';
 import type { Ghost } from './Ghost';
 import { buildBlock } from '@/sim/buildGate';
+import { isTouchDevice } from '@/platform/device';
 
 declare module '@/core/EventBus' {
   interface GameEvents {
@@ -308,64 +309,119 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
     return { def, w, d, x: Math.floor(hit.point.x - w / 2 + 0.5), z: Math.floor(hit.point.z - d / 2 + 0.5) };
   };
 
+  /**
+   * Touch has no hover, so a building in hand is placed with one tap (no preview-then-confirm). The preview is
+   * pinned to `spot` instead of following a pointer: a free lot near the view's centre when the building is picked
+   * up (so its size and service ring show before the first tap), then wherever a tap was refused (red, with why).
+   * A tap on the pinned preview builds there; a tap on any other free lot builds there.
+   */
+  let spot: { x: number; z: number } | null = null;
+  const pinned = () => isTouchDevice();
+  /** The free lot nearest (cx, cz) within `r` tiles, in rings outwards; null when there is none. */
+  const suggestLot = (ctx: GameContext, cx: number, cz: number, r = 18) => {
+    const def = buildings.get(build.def);
+    for (let k = 0; k <= r; k++)
+      for (let dz = -k; dz <= k; dz++)
+        for (let dx = -k; dx <= k; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== k) continue;
+          const px = cx + dx + 0.5;
+          const pz = cz + dz + 0.5;
+          if (def.placement?.nearWater && !manualRot) build.rot = faceWater(ctx.city, def, px, pz).rot;
+          const [w, d] = ctx.city.footprint(def, build.rot);
+          const x = Math.floor(px - w / 2 + 0.5);
+          const z = Math.floor(pz - d / 2 + 0.5);
+          if (ctx.city.checkPlacement(def, x, z, build.rot).ok) return { x, z };
+        }
+    return null;
+  };
+
+  /** Ghost, footprint, service ring and tooltip for the building in hand at (x, z). */
+  const preview = (ctx: GameContext, x: number, z: number) => {
+    const def = buildings.get(build.def);
+    const [w, d] = ctx.city.footprint(def, build.rot);
+    const key = `${def.id}|${x}|${z}|${build.rot}|${ctx.city.credits >= def.stats.cost}`;
+    if (key === lastKey) return;
+    lastKey = key;
+    const res = ctx.city.checkPlacement(def, x, z, build.rot);
+    ghost.setValid(res.ok, res.ok && !!res.warning);
+    const inside = x >= 0 && z >= 0 && x + w <= ctx.city.grid.w && z + d <= ctx.city.grid.h;
+    const pv = inside ? placementPreview(ctx.city, def, x, z, build.rot) : null;
+    if (inside) {
+      ghost.showPieces(placementMatrices(placeBuilding(ctx.city.grid, def, x, z, build.rot)));
+      const top = ctx.city.grid.rangeOver(x, z, w, d).max;
+      ghost.showCursor(x, top, z, w, d);
+      // The area it will serve, so coverage is judged before building (D-121).
+      if (pv?.area) ghost.showRing(x + w / 2, top - 0.4, z + d / 2, pv.area.radius);
+      else ghost.hideRing();
+    } else ghost.hideAll();
+    ctx.bus.emit('tool:tooltip', {
+      text: res.ok
+        ? `${def.name} · ${fmt(def.stats.cost)} ◈${pv ? previewText(pv) : ''} · ${pinned() ? 'tap a lot to build' : 'R to rotate'}${res.warning ? ` · ⚠ ${res.warning}` : ''}`
+        : `${def.name} — ${blockedText(ctx, def.id, res.reason!)}`,
+      tone: res.ok && !res.warning ? 'ok' : 'bad',
+    });
+  };
+
   const place: Tool = {
     id: 'build',
     label: 'Build',
     icon: '✿',
     grid: true,
-    activate() {
+    activate(ctx) {
       lastKey = '';
       manualRot = false;
+      spot = null;
+      if (pinned()) {
+        const v = ctx.cameraCtl.getView();
+        spot = suggestLot(ctx, Math.floor(v.x), Math.floor(v.z));
+      }
     },
-    deactivate: () => ghost.hideAll(),
+    deactivate: () => {
+      spot = null;
+      ghost.hideAll();
+    },
     hover(ctx, hit) {
+      if (pinned()) {
+        if (spot) preview(ctx, spot.x, spot.z);
+        else if (lastKey !== 'none') {
+          ghost.hideAll();
+          lastKey = 'none';
+          ctx.bus.emit('tool:tooltip', { text: `${buildings.get(build.def).name} · tap a lot to build`, tone: 'ok' });
+        }
+        return;
+      }
       if (!hit) {
         ghost.hideAll();
         lastKey = '';
         return;
       }
-      const { def, w, d, x, z } = anchor(ctx, hit);
-      const key = `${def.id}|${x}|${z}|${build.rot}|${ctx.city.credits >= def.stats.cost}`;
-      if (key === lastKey) return;
-      lastKey = key;
-      const res = ctx.city.checkPlacement(def, x, z, build.rot);
-      ghost.setValid(res.ok, res.ok && !!res.warning);
-      const inside = x >= 0 && z >= 0 && x + w <= ctx.city.grid.w && z + d <= ctx.city.grid.h;
-      const pv = inside ? placementPreview(ctx.city, def, x, z, build.rot) : null;
-      if (inside) {
-        ghost.showPieces(placementMatrices(placeBuilding(ctx.city.grid, def, x, z, build.rot)));
-        const top = ctx.city.grid.rangeOver(x, z, w, d).max;
-        ghost.showCursor(x, top, z, w, d);
-        // The area it will serve, so coverage is judged before building (D-121).
-        if (pv?.area) ghost.showRing(x + w / 2, top - 0.4, z + d / 2, pv.area.radius);
-        else ghost.hideRing();
-      } else ghost.hideAll();
-      ctx.bus.emit('tool:tooltip', {
-        text: res.ok
-          ? `${def.name} · ${fmt(def.stats.cost)} ◈${pv ? previewText(pv) : ''} · ${ctx.input.touch ? 'tap it again to build' : 'R to rotate'}${res.warning ? ` · ⚠ ${res.warning}` : ''}`
-          : `${def.name} — ${blockedText(ctx, def.id, res.reason!)}`,
-        tone: res.ok && !res.warning ? 'ok' : 'bad',
-      });
+      const { x, z } = anchor(ctx, hit);
+      preview(ctx, x, z);
     },
     up(ctx, hit, e) {
       if (!hit || !ctx.input.isTap) return;
-      const { def, w, d, ...at } = anchor(ctx, hit);
+      const { def, ...at } = anchor(ctx, hit);
       let { x, z } = at;
-      if (e.touch) {
-        // A tap inside the previewed footprint builds there, so a slightly-off finger doesn't shift it.
-        const inside = (a: { x: number; z: number }) => hit.tx >= a.x && hit.tx < a.x + w && hit.tz >= a.z && hit.tz < a.z + d;
-        if (!confirmTap(`build:${def.id}:${build.rot}`, x, z, inside)) return;
-        ({ x, z } = armed!);
-        armed = null;
+      if (e.touch && spot) {
+        // A tap on the pinned preview builds there, so a slightly-off finger doesn't shift it.
+        const [sw, sd] = ctx.city.footprint(def, build.rot);
+        if (hit.tx >= spot.x && hit.tx < spot.x + sw && hit.tz >= spot.z && hit.tz < spot.z + sd) ({ x, z } = spot);
       }
       if (ctx.commands.execute('build', { def: def.id, x, z, rot: build.rot })) {
         ctx.bus.emit('toast', { text: `${def.name} is taking root`, tone: 'ok' });
         lastKey = '';
+        // Touch: the preview moves on to the next free lot beside it, so a row is one tap per building.
+        if (pinned()) {
+          const [w, d] = ctx.city.footprint(def, build.rot);
+          spot = suggestLot(ctx, Math.floor(x + w / 2), Math.floor(z + d / 2));
+        }
       } else {
         // Say why, and for a lock, limit or empty purse what to do next (the Build panel's card lists the steps).
         const res = ctx.city.checkPlacement(def, x, z, build.rot);
         const why = res.ok ? null : res.reason;
         if (why) ctx.bus.emit('toast', { text: `${def.name}: ${blockedText(ctx, def.id, why, true)}`, tone: 'bad' });
+        // Touch: the refused spot shows red, so the steward sees the lot and the reason together.
+        if (e.touch) spot = { x, z };
       }
     },
     key(_ctx, e) {

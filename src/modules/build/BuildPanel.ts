@@ -288,7 +288,9 @@ export class BuildPanel {
       this.hint,
       holding
         ? touch
-          ? 'Tap to preview, tap again to place · Done to finish'
+          ? tool === 'build'
+            ? 'Tap a lot to build · Done to finish'
+            : 'Tap to preview, tap again to confirm · Done to finish'
           : 'Esc or right-click puts it down'
         : touch
           ? 'Pick a building or an action'
@@ -384,7 +386,7 @@ export class BuildPanel {
       h(
         'div',
         { class: blocked && this.pinned === def.id ? 'bp-place hidden' : 'bp-place' },
-        h('span', {}, isTouchDevice() ? 'Tap the map to preview, tap again to build.' : 'Click the map to place it · R rotates'),
+        h('span', {}, isTouchDevice() ? 'Tap a lot on the map to build it.' : 'Click the map to place it · R rotates'),
         h('button', { class: 'bp-rot', title: 'Rotate (R)', onClick: () => (construction.state.rot = (construction.state.rot + 1) % 4) }, icon('rotate'), ' Rotate'),
       ),
     );

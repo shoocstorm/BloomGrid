@@ -154,7 +154,12 @@ class HappeningsCard {
     if (!hp || !live || closed) return;
     // Sit under the milestone card when it shows.
     const above = document.querySelector<HTMLElement>('#hud > .jc-m:not(.hp):not(.hidden)');
-    this.card.style.top = above && !isCompact() ? `${above.offsetTop + above.offsetHeight + 8}px` : '';
+    // Desktops: under it. Portrait phones: stacked above it (landscape sets the two side by side, ui/mobile.css).
+    const compact = isCompact();
+    this.card.style.top = above && !compact ? `${above.offsetTop + above.offsetHeight + 8}px` : '';
+    const parent = this.card.parentElement;
+    const stack = above && parent && compact && innerHeight > innerWidth;
+    this.card.style.bottom = stack ? `${parent.clientHeight - above.offsetTop + 8}px` : '';
     const total = HAPPENING_SECONDS[hp.kind] * PULSE_TICKS;
     const remain = Math.max(0, hp.endTick - c.city.tick);
     const secs = Math.ceil(remain / PULSE_TICKS);
