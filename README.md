@@ -228,7 +228,8 @@ a disaster weathered, your first top-level building. Click or Esc skips one; ⚙
 all, major only or off.
 
 **Settings** (⚙ in the top bar): graphics quality, and a power mode (Battery 30 fps · Balanced 60 fps · Max) that
-keeps laptops cool. The game idles at a lower frame rate when nothing moves.
+keeps laptops cool. The game idles at a lower frame rate when the camera is still and you have not clicked, dragged,
+scrolled or pressed a key for a few seconds (just moving the mouse over the city keeps it idle).
 
 **Runs on:** any recent Chrome, Edge or Safari. It uses WebGPU where available and falls back to WebGL2 automatically.
 

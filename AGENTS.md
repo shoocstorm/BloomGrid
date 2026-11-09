@@ -232,7 +232,10 @@ GPU ≈ 3.5 ms per frame, GPU uploads < 1 MB/s.** If a change raises these notic
 `docs/decisions.md`. Rules: never set `DynamicDrawUsage` on instance attributes; keep instanced batches ≥ 1040
 capacity; never use `backdrop-filter` or animate `box-shadow`/layout properties in the HUD; anything that changes
 shadow casters must call `atmosphere.invalidateShadows()`; rendering is paced by `PowerManager`, so don't add your
-own `requestAnimationFrame` loops.
+own `requestAnimationFrame` loops. Plain cursor moves (`input.lastHover`) never lift the frame rate to the active cap; only presses, drags,
+the wheel, keys and camera motion do (and hover while a `grid` tool previews, D-150). A per-frame shadow invalidation
+is a bug: invalidate once when casters change. Wild-greenery-scale pieces repeated by the thousand get a `far` model
+(`registerPiece({ far: { geometry, at } })`, same attributes, D-150).
 
 ## 7¾. Growing the knowledge base (Seedvault)
 

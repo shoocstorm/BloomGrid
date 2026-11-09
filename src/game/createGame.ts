@@ -171,7 +171,7 @@ export async function createGame(
   const gpuMs = { value: 0, lastFrame: 0, pending: false };
   (globalThis as unknown as { __gpuMs: typeof gpuMs }).__gpuMs = gpuMs;
   const dynRes = new DynamicResolution();
-  const power = new PowerManager(ctx.input, ctx.cameraCtl);
+  const power = new PowerManager(ctx.input, ctx.cameraCtl, () => !!ctx.tools.active?.grid && !ctx.tools.suspended);
   ctx.engine.targetFps = () => power.targetFps();
   dynRes.enabled = !params.has('nodynres');
   const applySize = () => {

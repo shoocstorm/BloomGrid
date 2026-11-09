@@ -42,8 +42,14 @@ export class Input {
   dragDY = 0;
   /** Total pointer travel since the current button went down (px). */
   dragDistance = 0;
-  /** performance.now() of the last player input (drives idle frame-rate throttling). */
+  /**
+   * performance.now() of the last deliberate input: a press, a drag, the wheel, a key (drives the full frame rate).
+   * A cursor merely moving over the city is `lastHover` instead: counting it here kept the game at its full rate
+   * for as long as the mouse was over the canvas, i.e. the whole session (D-150).
+   */
   lastActivity = performance.now();
+  /** performance.now() of the last cursor move without a button (placement previews follow it at full rate). */
+  lastHover = 0;
   /** The last pointer was a finger. */
   touch = false;
   /** Two or more fingers are (or were, until all lift) down: a camera gesture, not a tool action. */
@@ -67,7 +73,15 @@ export class Input {
 
   constructor(private el: HTMLElement) {
     const touch = () => (this.lastActivity = performance.now());
-    for (const ev of ['pointerdown', 'pointermove', 'wheel']) el.addEventListener(ev, touch, { passive: true });
+    for (const ev of ['pointerdown', 'wheel']) el.addEventListener(ev, touch, { passive: true });
+    el.addEventListener(
+      'pointermove',
+      (e) => {
+        if (e.buttons || e.pointerType === 'touch') this.lastActivity = performance.now();
+        else this.lastHover = performance.now();
+      },
+      { passive: true },
+    );
     window.addEventListener('keydown', touch);
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     el.addEventListener('pointerdown', (e) => {

@@ -2565,3 +2565,40 @@ scenario (the showcase), not a new starting island.
   named after the fallen city ("Coralhaven" → "Coralhaven II", `nextName`); **More choices** opens the New Chapter
   dialog. The screen closes on `city:reset` / `load:done`, so every path out of it (load, chapter dialog) clears it.
   The plain fallback dialog founds `fresh-island` too.
+
+## D-150: Keep laptops cool in long sessions (pacing, shadow refreshes, far greenery)
+
+**Context.** After a while in the showcase city a MacBook's fan ran hard. Nothing leaked: a scripted session
+(inspector, dashboard, map, build mode, every explore mode, the tour, fireworks) left CPU, draw calls, triangles,
+objects and heap where they started. The heat was the steady load, and three things kept it higher than it needed
+to be:
+
+1. **Hover held the full frame rate.** `pointermove` counted as activity, so with the cursor over the city (most of
+   a session) the game rendered at 60 fps nonstop; the 30 fps idle rate only came when the hand left the mouse.
+   60 fps costs ≈ 75% of a core across the page and GPU processes, against ≈ 45% at 30.
+2. **Shadows re-rendered ≈ 12 times a second, idle or not.** The "light moved" test compared the light's position,
+   which sits 250 units out along the sun direction, so the sun's slow turn passed it every frame and bypassed the
+   0.6° `turned` gate; and `instancer.animating` invalidated shadows on every frame while greenery sprouted (ivy and
+   flowers, which cast no shadow, pop in almost constantly in a blooming city).
+3. **Wild greenery was most of each frame's triangles**: palms (332 triangles), broad-leaf bushes (168) and canopy
+   (80) at full detail up to their cull distance, ≈ 12.5M of 20.7M triangles in a downtown view.
+
+**Decision.**
+- `Input.lastActivity` is presses, drags, the wheel and keys; plain cursor moves are `lastHover`. `PowerManager`
+  renders at the mode's cap while the camera moves, for 3 s after deliberate input (was 6 s), and for hover only
+  while a placement tool (`grid`) previews under the cursor. Hover highlights look the same at the idle rate.
+- `Atmosphere.follow` compares the snapped light target, not its position; the instancer reports
+  `takeShadowChange()` once when a tween on a shadow-casting batch ends, instead of `animating` every frame.
+  Shadow refreshes: ≈ 12/s → ≈ 2/s.
+- Pieces may declare `far: { geometry, at }`: each batch gets a second InstancedMesh over the same instance
+  attributes (one upload feeds both) and draws one of the two per frame, so draw calls do not change. Palm (≈ 50
+  triangles), bush (28) and canopy (20) have far models from the same generators. Triangles in the reference
+  downtown view: 20.7M → 13.7M; overview 9.9M → 6.5M.
+
+**Measured** (headless, founding city, High): pacing 30 fps while hovering, 60 for 3 s after a click, 60 while
+dragging or hovering with a build tool; `bun run perf` 24.9% active, 17.4% idle (unchanged reference). macOS
+`ioreg` "Device Utilization" did not track the game's frame rate (≈ 70% at 20, 30 and 60 fps), so it is not a
+usable GPU measure; headless `?gputime` stays too noisy to see these changes.
+
+**Rejected.** Lowering the active cap below 60 (camera motion should stay smooth); dropping more greenery
+(it is the island's look).

@@ -100,9 +100,15 @@ class DirtySlots {
 const CHUNK_Y_MIN = -12;
 const CHUNK_Y_MAX = 40;
 
-/** One InstancedMesh for a (piece, chunk) pair. Swap-remove keeps instances densely packed. */
+/**
+ * One InstancedMesh for a (piece, chunk) pair. Swap-remove keeps instances densely packed. A piece with a `far`
+ * model gets a second mesh over the same instance attributes (one upload feeds both); per frame only one of the two
+ * is drawn, so draw calls stay the same and distant chunks cost a fraction of the vertices (D-150).
+ */
 class InstanceBatch {
   mesh: InstancedMesh;
+  /** The simplified model drawn beyond `piece.far.at` (shares `mesh`'s instance attributes). */
+  farMesh: InstancedMesh | null = null;
   params: InstancedBufferAttribute;
   handles: InstanceHandle[] = [];
   capacity = INITIAL_CAPACITY;
@@ -125,9 +131,10 @@ class InstanceBatch {
       new Vector3(cx * chunkSize + half, CHUNK_Y_MIN + hy, cz * chunkSize + half),
       Math.hypot(half, half, hy) + 4,
     );
-    const { mesh, params } = this.create(this.capacity);
+    const { mesh, params, farMesh } = this.create(this.capacity);
     this.mesh = mesh;
     this.params = params;
+    this.farMesh = farMesh;
   }
 
   get count(): number {
@@ -151,24 +158,81 @@ class InstanceBatch {
     mesh.boundingSphere = this.bounds;
     mesh.name = `${this.piece.id}@${this.cx},${this.cz}`;
     this.parent.add(mesh);
-    return { mesh, params };
+    let farMesh: InstancedMesh | null = null;
+    if (this.piece.far) {
+      const fg = this.piece.far.geometry.clone();
+      fg.setAttribute('aParams', params);
+      farMesh = new InstancedMesh(fg, mesh.material, capacity);
+      farMesh.instanceMatrix = mesh.instanceMatrix;
+      farMesh.instanceColor = mesh.instanceColor;
+      farMesh.count = 0;
+      farMesh.castShadow = mesh.castShadow;
+      farMesh.receiveShadow = mesh.receiveShadow;
+      farMesh.frustumCulled = true;
+      farMesh.boundingSphere = this.bounds;
+      farMesh.visible = false;
+      farMesh.name = `${mesh.name}:far`;
+      this.parent.add(farMesh);
+    }
+    return { mesh, params, farMesh };
+  }
+
+  /** Draws the full model, the far one, or neither (`far` is ignored for pieces without one). */
+  show(visible: boolean, far: boolean): void {
+    const f = this.farMesh;
+    if (!f) return void (this.mesh.visible = visible);
+    this.mesh.visible = visible && !far;
+    f.visible = visible && far;
+  }
+
+  /** Both models drawable at once (shader warm-up builds every pipeline). */
+  showAll(on: boolean): void {
+    this.mesh.visible = on;
+    this.mesh.frustumCulled = !on;
+    if (this.farMesh) {
+      this.farMesh.visible = on;
+      this.farMesh.frustumCulled = !on;
+    }
+  }
+
+  setCastShadow(on: boolean): void {
+    this.mesh.castShadow = on;
+    if (this.farMesh) this.farMesh.castShadow = on;
+  }
+
+  private setCount(n: number): void {
+    this.mesh.count = n;
+    if (this.farMesh) this.farMesh.count = n;
   }
 
   private grow(): void {
     const old = this.mesh;
     const oldParams = this.params;
     this.capacity *= 2;
-    const { mesh, params } = this.create(this.capacity);
+    const oldFar = this.farMesh;
+    const { mesh, params, farMesh } = this.create(this.capacity);
     mesh.instanceMatrix.array.set(old.instanceMatrix.array as Float32Array);
     mesh.instanceColor!.array.set(old.instanceColor!.array as Float32Array);
     params.array.set(oldParams.array as Float32Array);
     mesh.count = old.count;
     mesh.visible = old.visible;
+    mesh.castShadow = old.castShadow;
+    if (farMesh && oldFar) {
+      farMesh.count = old.count;
+      farMesh.visible = oldFar.visible;
+      farMesh.castShadow = old.castShadow;
+    }
     this.parent.remove(old);
     old.geometry.dispose();
     old.dispose();
+    if (oldFar) {
+      this.parent.remove(oldFar);
+      oldFar.geometry.dispose();
+      oldFar.dispose();
+    }
     this.mesh = mesh;
     this.params = params;
+    this.farMesh = farMesh;
   }
 
   add(handle: InstanceHandle, m: Matrix4, color: Color, p: ArrayLike<number>): void {
@@ -177,7 +241,7 @@ class InstanceBatch {
     handle.batch = this;
     handle.slot = slot;
     this.handles.push(handle);
-    this.mesh.count = this.handles.length;
+    this.setCount(this.handles.length);
     this.writeSlot(slot, m, color, p);
   }
 
@@ -224,7 +288,7 @@ class InstanceBatch {
       this.dParams.mark(slot);
     }
     this.handles.pop();
-    this.mesh.count = this.handles.length;
+    this.setCount(this.handles.length);
     handle.batch = null;
     handle.slot = -1;
   }
@@ -235,7 +299,7 @@ class InstanceBatch {
       h.slot = -1;
     }
     this.handles.length = 0;
-    this.mesh.count = 0;
+    this.setCount(0);
   }
 
   flush(): void {
@@ -248,6 +312,11 @@ class InstanceBatch {
     this.parent.remove(this.mesh);
     this.mesh.geometry.dispose();
     this.mesh.dispose();
+    if (this.farMesh) {
+      this.parent.remove(this.farMesh);
+      this.farMesh.geometry.dispose();
+      this.farMesh.dispose();
+    }
   }
 }
 
@@ -297,9 +366,23 @@ export class ChunkedInstancer {
     return n;
   }
 
-  /** True while growth tweens are playing (shadows should refresh). */
+  /** A tween on a shadow-casting batch finished since the last `takeShadowChange` (D-150). */
+  private shadowChanged = false;
+
+  /** True while growth tweens are playing. */
   get animating(): boolean {
     return this.tweens.length > 0;
+  }
+
+  /**
+   * True once after a tween on a batch that casts shadows ended (a piece popped in or was removed), so the shadow
+   * map refreshes once for it. Not while it plays: a busy city sprouts ivy, flowers and canopy almost every frame,
+   * and refreshing shadows for each of those kept the whole shadow pass re-rendering at its cap (D-150).
+   */
+  takeShadowChange(): boolean {
+    const c = this.shadowChanged;
+    this.shadowChanged = false;
+    return c;
   }
 
   get batchCount(): number {
@@ -388,12 +471,9 @@ export class ChunkedInstancer {
     // three keys node builds by InstancedMesh uuid, so every (piece, chunk) batch builds its own
     // graph. Build them all here, not just those in view: the boot camera starts over the whole
     // island, and the first frame otherwise built ~250 graphs synchronously (≈1 s stall).
-    for (const b of this.batches.values()) {
-      b.mesh.visible = b.count > 0;
-      b.mesh.frustumCulled = false;
-    }
+    for (const b of this.batches.values()) b.showAll(b.count > 0);
     await compile();
-    for (const b of this.batches.values()) b.mesh.frustumCulled = true;
+    for (const b of this.batches.values()) b.showAll(false);
     handles.forEach((h) => this.remove(h));
     this.update(0, camera);
   }
@@ -446,6 +526,7 @@ export class ChunkedInstancer {
       const k = (this.time - t.start) / t.duration;
       if (k <= 0) continue;
       const done = k >= 1;
+      if (done && t.handle.batch.mesh.castShadow) this.shadowChanged = true;
       if (t.out && done) {
         t.handle.batch.remove(t.handle);
         this.tweens[i] = this.tweens[this.tweens.length - 1]!;
@@ -471,16 +552,17 @@ export class ChunkedInstancer {
       if (b.piece.castShadow) {
         const sx = Math.max(0, Math.abs(sf.x - (b.cx * this.chunkSize + half)) - half);
         const sz = Math.max(0, Math.abs(sf.z - (b.cz * this.chunkSize + half)) - half);
-        b.mesh.castShadow = Math.hypot(sx, sz) < this.shadowRadius;
+        b.setCastShadow(Math.hypot(sx, sz) < this.shadowRadius);
       }
       if (b.piece.lod !== Infinity) {
         _v.set(b.cx * this.chunkSize + half, 0, b.cz * this.chunkSize + half);
         const dx = Math.max(0, Math.abs(cam.x - _v.x) - half);
         const dz = Math.max(0, Math.abs(cam.z - _v.z) - half);
         const d = Math.hypot(dx, dz, cam.y * 0.5);
-        b.mesh.visible = b.count > 0 && d < b.piece.lod * this.lodScale;
+        const far = b.piece.far;
+        b.show(b.count > 0 && d < b.piece.lod * this.lodScale, !!far && d >= far.at * this.lodScale);
       } else {
-        b.mesh.visible = b.count > 0;
+        b.show(b.count > 0, false);
       }
     }
   }

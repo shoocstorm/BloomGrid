@@ -24,6 +24,12 @@ export interface PieceType {
   receiveShadow: boolean;
   /** Cull distance in world units (before quality scaling). */
   lod: number;
+  /**
+   * A simplified model drawn from `at` world units out (before quality scaling) up to `lod` (D-150). Same pivot,
+   * size and attribute layout (`uv` tags included) as `geometry`, so the material reads it the same way. Wild
+   * greenery is most of the island's triangles; a distant palm a few pixels tall does not need 332.
+   */
+  far?: { geometry: BufferGeometry; at: number };
 }
 
 const pieces = new Map<string, PieceType>();
@@ -130,7 +136,7 @@ export const PART = { trunk: 0, leaf: 1, nut: 2 } as const;
  * side and catches light on both halves. `path(t)` is the midrib, `width(t)` the half-width; `side` is a horizontal
  * unit vector across the blade.
  */
-function blade(out: Tris, path: (t: number) => number[], width: (t: number) => number, side: number[], fold: number, segs: number, part = 1): void {
+function blade(out: Tris, path: (t: number) => number[], width: (t: number) => number, side: number[], fold: number, segs: number, part = 1, flat = false): void {
   let prev: number[][] | null = null;
   for (let i = 0; i <= segs; i++) {
     const t = i / segs;
@@ -141,8 +147,12 @@ function blade(out: Tris, path: (t: number) => number[], width: (t: number) => n
     const row = [l, m, r];
     if (prev) {
       const t0 = (i - 1) / segs;
-      out.quad(prev[0]!, row[0]!, row[1]!, prev[1]!, part, t0, t);
-      out.quad(prev[1]!, row[1]!, row[2]!, prev[2]!, part, t0, t);
+      // Far models skip the midrib: one quad edge to edge (the fold is invisible at a few pixels).
+      if (flat) out.quad(prev[0]!, row[0]!, row[2]!, prev[2]!, part, t0, t);
+      else {
+        out.quad(prev[0]!, row[0]!, row[1]!, prev[1]!, part, t0, t);
+        out.quad(prev[1]!, row[1]!, row[2]!, prev[2]!, part, t0, t);
+      }
     }
     prev = row;
   }
@@ -151,14 +161,15 @@ function blade(out: Tris, path: (t: number) => number[], width: (t: number) => n
 /**
  * Coconut palm, about 1 unit tall: a slim ringed trunk curving to +x, a crown of arching folded fronds that droop
  * at the tips, and a cluster of nuts under them. Trunk, fronds and nuts are one mesh (one draw per chunk), told
- * apart by `uv.x` (see `PART`). Scaled flat and wide it doubles as a tree fern.
+ * apart by `uv.x` (see `PART`). Scaled flat and wide it doubles as a tree fern. `far` is the distant model
+ * (D-150): the same trunk curve and fronds in a fraction of the triangles (≈ 50 instead of 332), no nuts.
  */
-function palmGeometry(): BufferGeometry {
+function palmGeometry(far = false): BufferGeometry {
   const out = new Tris();
   const lean = 0.16;
   const trunkAt = (t: number) => [lean * t * t, t * 0.86, 0];
-  const R = 6;
-  const SEG = 7;
+  const R = far ? 3 : 6;
+  const SEG = far ? 2 : 7;
   for (let i = 0; i < SEG; i++) {
     const [t0, t1] = [i / SEG, (i + 1) / SEG];
     const [c0, c1] = [trunkAt(t0), trunkAt(t1)];
@@ -182,8 +193,9 @@ function palmGeometry(): BufferGeometry {
     const [dx, dz] = [Math.cos(a), Math.sin(a)];
     const side = [-dz, 0, dx];
     const path = (t: number) => [top[0]! + dx * len * t, top[1]! + rise * t * 2 - droop * t * t - 0.01, top[2]! + dz * len * t];
-    blade(out, path, (t) => 0.075 * Math.sin(Math.PI * Math.min(1, t * 1.05 + 0.05)) * (1 - t * 0.25), side, 0.45, 6);
+    blade(out, path, (t) => 0.075 * Math.sin(Math.PI * Math.min(1, t * 1.05 + 0.05)) * (1 - t * 0.25), side, 0.45, far ? 2 : 6, 1, far);
   }
+  if (far) return out.build();
   // A short spike of new leaf at the centre.
   blade(out, (t) => [top[0]! + 0.02 * t, top[1]! + 0.14 * t, top[2]!], (t) => 0.03 * (1 - t), [1, 0, 0], 0.2, 2);
   // Nuts: three small diamonds under the crown.
@@ -210,9 +222,10 @@ function palmGeometry(): BufferGeometry {
 /**
  * Broad-leaf tropical clump (banana, heliconia, elephant ear, bird-of-paradise): big paddle leaves rising from the
  * centre and arching out, within the old round bush's unit volume (radius 0.5, height 1) so every planter, verge
- * and garden that used a round shrub now grows tropical understorey without a new draw call.
+ * and garden that used a round shrub now grows tropical understorey without a new draw call. `far` keeps the
+ * leaves' arcs in two flat segments each (28 triangles instead of 168, D-150).
  */
-function broadleafGeometry(): BufferGeometry {
+function broadleafGeometry(far = false): BufferGeometry {
   const out = new Tris();
   const N = 7;
   for (let i = 0; i < N; i++) {
@@ -229,7 +242,9 @@ function broadleafGeometry(): BufferGeometry {
       return [dx * out, y, dz * out];
     };
     const w = inner ? 0.07 : 0.13;
-    blade(out, path, (t) => (t < 0.3 ? 0.012 : w * Math.pow(Math.sin(Math.PI * ((t - 0.3) / 0.7)), 0.6) + 0.006), side, 0.3, 6);
+    // Far: sample the blade, not the thin stalk (t ≥ 0.3), so two segments still read as a leaf.
+    if (far) blade(out, (t) => path(0.3 + t * 0.7), (t) => w * Math.pow(Math.sin(Math.PI * Math.min(0.95, t + 0.05)), 0.6) + 0.006, side, 0.3, 2, 1, true);
+    else blade(out, path, (t) => (t < 0.3 ? 0.012 : w * Math.pow(Math.sin(Math.PI * ((t - 0.3) / 0.7)), 0.6) + 0.006), side, 0.3, 6);
   }
   return out.build();
 }
@@ -257,10 +272,17 @@ export function initPieces(): void {
   registerPiece({ id: 'sunPetal', geometry: petalGeometry(), material: 'flower' });
 
   registerPiece({ id: 'trunk', geometry: base(new CylinderGeometry(0.32, 0.5, 1, 6)), material: 'bark', lod: 260 });
-  registerPiece({ id: 'canopy', geometry: base(jitter(new IcosahedronGeometry(0.5, 1), 0.12)), material: 'canopy', lod: 320 });
-  registerPiece({ id: 'bush', geometry: broadleafGeometry(), material: 'bush', lod: 160 });
+  // Far models (D-150): wild greenery is most of a frame's triangles; beyond `at` it draws a fraction of them.
+  registerPiece({
+    id: 'canopy',
+    geometry: base(jitter(new IcosahedronGeometry(0.5, 1), 0.12)),
+    material: 'canopy',
+    lod: 320,
+    far: { geometry: base(jitter(new IcosahedronGeometry(0.5, 0), 0.08)), at: 110 },
+  });
+  registerPiece({ id: 'bush', geometry: broadleafGeometry(), material: 'bush', lod: 160, far: { geometry: broadleafGeometry(true), at: 60 } });
   // Tropical palm (trunk + fronds + nuts in one mesh, D-127); a tree fern when squashed.
-  registerPiece({ id: 'palm', geometry: palmGeometry(), material: 'palm', lod: 280 });
+  registerPiece({ id: 'palm', geometry: palmGeometry(), material: 'palm', lod: 280, far: { geometry: palmGeometry(true), at: 80 } });
   registerPiece({ id: 'ivy', geometry: new PlaneGeometry(1, 1, 1, 3).translate(0, -0.5, 0.01), material: 'ivy', castShadow: false, lod: 140 });
   registerPiece({ id: 'grass', geometry: grassGeometry(), material: 'grass', castShadow: false, receiveShadow: false, lod: 90 });
   registerPiece({ id: 'flower', geometry: base(new IcosahedronGeometry(0.5, 0).scale(1, 0.7, 1), 0.35), material: 'flower', castShadow: false, lod: 110 });

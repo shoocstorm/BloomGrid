@@ -168,6 +168,7 @@ export class Atmosphere {
     this.scene.environmentIntensity = 0.25 + 0.75 * (1 - night);
   }
 
+  /** The snapped shadow focus at the last refresh (the light's target, not its position: see `follow`). */
   private lastShadowPos = new Vector3(Infinity, 0, 0);
   private lastShadowDir = new Vector3();
   private shadowDirty = true;
@@ -208,12 +209,14 @@ export class Atmosphere {
     this.sun.target.position.set(tx, target.y, tz);
     this.sun.position.set(tx, target.y, tz).addScaledVector(this.sunDir, 250);
     this.sinceShadow += dt;
-    const moved = this.lastShadowPos.distanceToSquared(this.sun.position) > 1e-6;
+    // Compare the snapped focus, not the light's position: the light sits 250 units out along the sun direction, so
+    // the sun's slow turn moved it every frame and refreshed shadows at the cap all day, past the `turned` gate (D-150).
+    const moved = this.lastShadowPos.distanceToSquared(this.sun.target.position) > 1e-6;
     // ~0.6° of sun travel (≈ every 0.6 s at 1× speed): shadows creep imperceptibly in between.
     const turned = this.lastShadowDir.angleTo(this.sunDir) > 0.01;
     if ((moved || turned || this.shadowDirty) && this.sinceShadow >= 1 / this.maxShadowHz) {
       this.sun.shadow.needsUpdate = true;
-      this.lastShadowPos.copy(this.sun.position);
+      this.lastShadowPos.copy(this.sun.target.position);
       this.lastShadowDir.copy(this.sunDir);
       this.shadowDirty = false;
       this.sinceShadow = 0;

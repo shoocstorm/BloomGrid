@@ -117,7 +117,8 @@ export const worldModule: GameModule = {
         // Interpolate time of day between ticks for smooth sun motion.
         const t = (c.city.timeOfDay + (f.alpha * c.engine.speed * c.engine.step) / DAY_LENGTH) % 1;
         atmosphere.applyTime(t);
-        if (c.instancer.animating) atmosphere.invalidateShadows();
+        // Once per finished pop-in on a shadow caster, not every frame while plants sprout (D-150).
+        if (c.instancer.takeShadowChange()) atmosphere.invalidateShadows();
         atmosphere.follow(c.camera.position, c.cameraCtl.target, c.cameraCtl.distance, f.dt);
         c.instancer.shadowFocus.copy(c.cameraCtl.target);
         // Zoomed far out, distant shadows are sub-pixel: only the area around the focus casts them.
