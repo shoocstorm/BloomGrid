@@ -28,6 +28,20 @@ body {
   color: var(--ink);
   user-select: none;
   -webkit-user-select: none;
+  /* Phones: no font inflation on rotation, no rubber-band or pull-to-refresh, no grey tap flash or long-press
+     callout; the page never zooms (pinches belong to the camera). */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+/* Pinned in place, so iOS can't scroll the page (a focused text field, a stray swipe) and leave a gap under the
+   status bar or home indicator. */
+body {
+  position: fixed;
+  inset: 0;
 }
 
 #game {

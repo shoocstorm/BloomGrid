@@ -16,7 +16,7 @@ import { deserializeCity } from '@/sim/save';
 import { chunkSizeFor } from '@/sim/City';
 import { createRenderer, type RendererInfo } from '@/render/Renderer';
 import { ChunkedInstancer } from '@/render/Instancer';
-import { isTouchDevice } from '@/platform/device';
+import { isTouchDevice, onViewportChange } from '@/platform/device';
 import { DynamicResolution, QUALITY_TIERS, type QualitySettings, type QualityTier } from '@/render/Quality';
 import { PostFX } from '@/render/PostFX';
 import { PowerManager } from '@/render/Power';
@@ -194,7 +194,7 @@ export async function createGame(
   ctx.services.provide('render', { postfx, dynamicResolution: dynRes, setQuality, power });
   ctx.services.provide('save', new SaveManager(ctx));
   ctx.services.provide('agent', new AgentToolRegistry<GameContext>(ctx));
-  window.addEventListener('resize', applySize);
+  onViewportChange(applySize);
 
   // Core per-frame systems.
   systems.add({ id: 'core.tools', phase: 'input', update: (c, f) => c.tools.update(f.dt) });

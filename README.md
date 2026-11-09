@@ -139,7 +139,7 @@ bar's Pulse button opens City Pulse, the same console as on desktops with Pulse,
 (unlock projects, sea wonders, fishing) tabs; tap the button, ✕ or the city to close it. The logo at the top left
 opens About. The HUD shows less on a phone
 (no telemetry strip or explore modes), and phones start on Medium graphics. Flora is the glowing orb beside the
-Build button; her console opens full-screen.
+Build button; her console opens full-screen. On an iPhone, Safari's Share → **Add to Home Screen** runs BloomGrid full screen, without browser bars, in either orientation.
 
 **Flora** (**U**): a city assistant that runs a small AI model on your own computer. Ask it what needs fixing,
 or tell it what to do ("build three vertical farms in Bayfront", "fix the power problem in Bayfront", "set taxes to

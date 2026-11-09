@@ -2616,3 +2616,24 @@ builds exactly there. Remove, retrofit and mist keep tap-to-preview, tap-again-t
 spend on a spot the steward should see first). Undo stays the safety net for a mis-tap.
 
 **Rejected.** A floating confirm button (still two taps); dragging the ghost (conflicts with one-finger pan).
+
+## D-152: iPhone full-screen web app
+
+**Context.** On an iPhone the game should open from the home screen as a full-screen app, with the top bar and
+the bottom controls clear of the notch / Dynamic Island, the home indicator and, in landscape, the side insets.
+
+**Decision.**
+- Shell: `viewport-fit=cover`, `apple-mobile-web-app-capable` + black-translucent status bar, `apple-mobile-web-app-title`,
+  `format-detection` off, `public/manifest.webmanifest` (standalone, `display_override` fullscreen for Android,
+  any orientation) and opaque full-bleed icons rendered from `public/icons/icon.svg` by `scripts/app-icons.mjs`.
+- Page: `body` fixed to the viewport, no overscroll, no text inflation on rotation, no tap flash or long-press
+  callout; iOS ignores `user-scalable=no`, so `gesture*` and multi-touch `touchmove` are cancelled on the document
+  (pinches belong to the camera, which reads pointer events).
+- Safe areas: phone rules use `--top` / `--bot` / `--gut-l` / `--gut-r`; script layout reads `safeInsets()` (a probe
+  element's computed `env()` padding). The renderer resizes on `onViewportChange` (resize, `orientationchange`,
+  `visualViewport`, and a check 350 ms later, because iOS reports sizes mid-rotation).
+- Home-screen mode (`body.standalone`) shades the strip under the status bar so its white text reads over the island.
+- Landscape top bar on phones: when the one-row bar clips (a notch's insets take ≈ 120 px), `Hud.fitStats` hides the
+  season chip (`cfit-1`), then gives the stats their own row (`cfit-2`, `--chips` follows), and the chip comes back.
+
+**Rejected.** The Fullscreen API (iPhone Safari has none for pages); hiding stats to fit (phones keep all six).

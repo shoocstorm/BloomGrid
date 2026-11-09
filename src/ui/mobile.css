@@ -17,6 +17,9 @@ body.touch .lens-bar kbd {
 
 body.compact {
   --gut: 8px;
+  /* The side gutters clear the notch and rounded corners of a phone held sideways (viewport-fit=cover). */
+  --gut-l: calc(var(--gut) + env(safe-area-inset-left, 0px));
+  --gut-r: calc(var(--gut) + env(safe-area-inset-right, 0px));
   --top: calc(env(safe-area-inset-top, 0px) + 6px);
   --bot: calc(env(safe-area-inset-bottom, 0px) + 6px);
   /* First line under the two top-bar rows (the console sheet, the lens legend). */
@@ -27,11 +30,25 @@ body.compact {
   --below: calc(var(--chips) + 42px);
 }
 
+/* Home-screen web app (iOS black-translucent status bar): the clock, signal and battery are drawn in white over the
+   page, so a soft shade under them keeps them readable over a bright island. Only as tall as the notch area. */
+body.compact.standalone::before {
+  content: '';
+  position: fixed;
+  z-index: 9;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 18px);
+  background: linear-gradient(rgba(2, 10, 12, 0.6), rgba(2, 10, 12, 0));
+  pointer-events: none;
+}
+
 /* ── Top bar: clock + actions, then the key stats ─────────────────────────── */
 .compact .topbar {
   top: var(--top);
-  left: calc(var(--gut) + env(safe-area-inset-left, 0px));
-  right: calc(var(--gut) + env(safe-area-inset-right, 0px));
+  left: var(--gut-l);
+  right: var(--gut-r);
   flex-wrap: wrap;
   gap: 6px;
 }
@@ -146,8 +163,8 @@ body.compact {
 }
 .compact .pulse.console {
   top: var(--chips);
-  left: var(--gut);
-  right: var(--gut);
+  left: var(--gut-l);
+  right: var(--gut-r);
   width: auto;
   height: var(--sheet-h);
   max-height: none;
@@ -171,14 +188,14 @@ body.compact {
 }
 .compact .lens-wrap {
   top: var(--chips);
-  width: calc(100vw - 2 * var(--gut));
+  width: calc(100vw - var(--gut-l) - var(--gut-r));
   z-index: 13;
 }
 
 /* ── Bottom: inspector sheet above a scrolling toolbar ────────────────────── */
 .compact .dock {
-  left: calc(var(--gut) + env(safe-area-inset-left, 0px));
-  right: calc(var(--gut) + env(safe-area-inset-right, 0px));
+  left: var(--gut-l);
+  right: var(--gut-r);
   bottom: var(--bot);
   transform: none;
   max-width: none;
@@ -248,8 +265,8 @@ body.compact {
 
 .compact .info {
   position: absolute;
-  left: var(--gut);
-  right: var(--gut);
+  left: var(--gut-l);
+  right: var(--gut-r);
   bottom: calc(var(--bot) + 58px);
   max-height: 44dvh;
   overflow-y: auto;
@@ -269,7 +286,7 @@ body.compact {
   top: var(--below);
   bottom: auto;
   flex-direction: column;
-  width: calc(100vw - 2 * var(--gut));
+  width: calc(100vw - var(--gut-l) - var(--gut-r));
   /* Under open sheets (z 14). */
   z-index: 11;
 }
@@ -279,7 +296,7 @@ body.compact {
 }
 .compact .crisis-wrap {
   top: var(--below);
-  width: calc(100vw - 2 * var(--gut));
+  width: calc(100vw - var(--gut-l) - var(--gut-r));
   min-width: 0;
 }
 
@@ -328,8 +345,8 @@ body.compact {
 .compact .xp-menu {
   position: absolute;
   top: 0;
-  left: var(--gut);
-  right: var(--gut);
+  left: var(--gut-l);
+  right: var(--gut-r);
   width: auto;
   height: var(--sheet-h);
   max-height: none;
@@ -340,7 +357,7 @@ body.compact {
 .compact .xp-menu {
   position: fixed;
   top: var(--chips) !important;
-  right: var(--gut) !important;
+  right: var(--gut-r) !important;
   overflow-y: auto;
 }
 /* Flora's console is the one full-screen surface: edge to edge, no rounded corners, frame or shadow. */
@@ -359,7 +376,7 @@ body.compact .ai.panel.max {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .compact .modal {
-  width: calc(100vw - 2 * var(--gut));
+  width: calc(100vw - var(--gut-l) - var(--gut-r));
   max-height: calc(100dvh - 2 * var(--top));
   overflow-y: auto;
   padding: 16px;
@@ -415,6 +432,19 @@ body.compact .ai.panel.max {
   .compact .stats {
     order: 0;
     flex: 1 1 0;
+  }
+  /* Too tight for one row (Hud.fitStats; a notched iPhone's safe areas): the season chip goes first (City Pulse
+     carries it); if that is not enough, the stats take their own row (the chip comes back beside the clock) and
+     everything under the top bar moves down with it. */
+  .compact .topbar.cfit-1:not(.cfit-2) .clock .season {
+    display: none;
+  }
+  .compact .topbar.cfit-2 .stats {
+    order: 3;
+    flex: 1 0 100%;
+  }
+  body.compact:has(.topbar.cfit-2) {
+    --chips: calc(var(--top) + 86px);
   }
   /* The narrow sheets keep a readable width instead of stretching across the landscape screen: City Pulse on
      the left, Settings and the view-mode menu under their buttons on the right; the big dialogs stay full width. */
@@ -506,14 +536,14 @@ body.compact.flora-open #hud > :not(.ai) {
 
 /* Debug panels (F3 telemetry, ` inspector) on phones: full width above the toolbar / under the chips. */
 .compact .perf.holo {
-  left: var(--gut);
-  right: var(--gut);
+  left: var(--gut-l);
+  right: var(--gut-r);
   width: auto;
   bottom: calc(var(--bot) + 58px);
 }
 .compact .insp.holo {
-  left: var(--gut);
-  right: var(--gut);
+  left: var(--gut-l);
+  right: var(--gut-r);
   width: auto;
   top: var(--chips);
   max-height: 60dvh;
@@ -541,10 +571,10 @@ body.compact.flora-open #hud > :not(.ai) {
 }
 .compact .si-panel {
   position: fixed;
-  left: 8px;
-  right: 8px;
+  left: var(--gut-l);
+  right: var(--gut-r);
   top: auto;
-  bottom: 8px;
+  bottom: var(--bot);
   width: auto;
   max-height: 72vh;
   transform: none !important;
@@ -595,8 +625,8 @@ body.compact.flora-open #hud > :not(.ai) {
 .compact .jc-m {
   top: auto;
   bottom: calc(var(--bot) + 70px);
-  left: var(--gut);
-  right: var(--gut);
+  left: var(--gut-l);
+  right: var(--gut-r);
   width: auto;
   padding: 10px 12px 12px;
 }
@@ -651,7 +681,7 @@ body.compact.flora-open #hud > :not(.ai) {
 }
 .compact .jc-m.folded {
   left: auto;
-  right: var(--gut);
+  right: var(--gut-r);
 }
 .compact .jc-m.folded .jc-m-pill {
   min-height: 38px;
@@ -661,11 +691,11 @@ body.compact.flora-open #hud > :not(.ai) {
 @media (orientation: landscape) {
   .compact .jc-m:not(.folded) {
     right: auto;
-    width: min(400px, calc(50vw - 1.5 * var(--gut)));
+    width: min(400px, calc(50vw - var(--gut-l) / 2 - var(--gut-r) / 2 - 4px));
   }
   .compact .jc-m.hp {
     left: auto;
-    right: var(--gut);
+    right: var(--gut-r);
   }
 }
 /* Short landscape screens: the same content, packed tighter so the city keeps its middle. */
@@ -707,7 +737,7 @@ body.compact.flora-open #hud > :not(.ai) {
   height: 7vh;
 }
 .compact .tour-cap {
-  left: 16px;
+  left: calc(var(--gut-l) + 8px);
   bottom: calc(7vh + 16px);
   max-width: calc(100vw - 32px);
   padding-left: 12px;
@@ -727,7 +757,7 @@ body.compact.flora-open #hud > :not(.ai) {
   bottom: 7vh;
 }
 .compact .tour-ctl {
-  right: 12px;
+  right: calc(var(--gut-r) + 4px);
   bottom: calc(3.5vh - 17px);
   opacity: 0.9;
 }

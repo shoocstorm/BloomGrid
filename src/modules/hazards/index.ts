@@ -21,6 +21,7 @@ import { placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { closeX } from '@/ui/closeX';
+import { safeInsets } from '@/platform/device';
 import './hazards.css';
 
 /** Flame and smoke instances per fire (scaled by intensity), and smoke for each ruin. */
@@ -288,10 +289,11 @@ export const hazardsModule: GameModule = {
       const show = ctx.cameraCtl.enabled ? Math.min(n, fires.length) : 0;
       const W = innerWidth;
       const H = innerHeight;
-      // Edge inset in pixels (clear of the top bar and the dock).
-      const mx = 30;
-      const mTop = 64;
-      const mBot = 90;
+      // Edge inset in pixels (clear of the top bar and the dock, and of a phone's notch and home indicator).
+      const safe = safeInsets();
+      const mx = 30 + Math.max(safe.left, safe.right);
+      const mTop = 64 + safe.top;
+      const mBot = 90 + safe.bottom;
       for (let i = 0; i < PINS; i++) {
         const p = pins[i]!;
         if (i >= show) {

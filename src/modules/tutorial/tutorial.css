@@ -497,8 +497,8 @@ body.chapter-open .pulse {
   outline-offset: 2px;
 }
 .compact .tt {
-  left: 16px;
-  right: 16px;
+  left: calc(var(--gut-l) + 8px);
+  right: calc(var(--gut-r) + 8px);
   width: auto;
   bottom: calc(var(--bot) + 70px);
 }

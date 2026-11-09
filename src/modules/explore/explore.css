@@ -125,7 +125,7 @@ body.compact .xp-pad:not(.hidden) {
 .xp-exit {
   /* Top-left under the top bar: the thumbs own the bottom corners. */
   position: fixed;
-  left: var(--gut, 12px);
+  left: var(--gut-l, 12px);
   top: var(--below, 120px);
   padding: 10px 16px;
   font-family: var(--mono);

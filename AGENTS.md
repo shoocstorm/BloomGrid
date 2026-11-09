@@ -345,6 +345,11 @@ The knowledge base is never finished: treat it as part of every feature. Flora's
   that acts on a single tap should preview first when `e.touch` (no hover on touch), and a drag-drawing tool should
   implement `cancel` (a second finger turns the press into a camera gesture). Placing a building is the exception: one
   tap builds, and the preview is pinned to a suggested free lot instead (`spot` in `construction/tools.ts`, D-151).
+- iPhone full screen (D-152): the page runs edge to edge (`viewport-fit=cover`, black-translucent status bar, home-screen
+  app via `public/manifest.webmanifest` + `apple-touch-icon`). Phone HUD edges use `--top` / `--bot` / `--gut-l` /
+  `--gut-r` (safe areas included), never a bare px offset or `--gut` alone; script layout reads `safeInsets()` and
+  sizes on `onViewportChange` (`platform/device.ts`). Icons: edit `public/icons/icon.svg`, then
+  `node scripts/app-icons.mjs` (full-bleed, opaque: iOS fills transparency with black).
 - Dynamic resolution (`DynamicResolution` in `render/Quality.ts`) judges each window's median frame and skips judging under `hold(s)` (boot, loader city changes, D-142): something that replaces or rebuilds the whole view outside the loader should call `services.get('render').dynamicResolution.hold(s)`, or its slow first seconds cut the render scale.
 - Probe scripts launch Chrome only through `launchChrome` in `scripts/lib/chrome.mjs` (never `puppeteer.launch`): it kills Chrome's whole process tree on every exit path (errors, signals, a SIGKILLed node via a detached guard), ends hung runs after `maxSeconds`, and reaps leftovers tagged `--bloomgrid-probe=<pid>`. A stray headless Chrome keeps rendering the game at full CPU.
 - Headless `?gputime` swings 1.7–5 ms between identical runs; compare several runs on and off before blaming a change.

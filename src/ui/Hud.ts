@@ -388,10 +388,20 @@ class Hud {
     const set = (level: number) => {
       for (let i = 1; i <= FIT_LEVELS; i++) bar.classList.toggle(`fit-${i}`, i <= level);
     };
-    if (isCompact()) return set(0);
+    const clipped = () => el.scrollWidth > el.clientWidth + 1;
+    if (isCompact()) {
+      // Phones (landscape, where the stats share the clock's row): the season chip gives way first, then the stats
+      // take a row of their own, as in portrait. A notch's safe areas narrow the row on iPhones.
+      set(0);
+      bar.classList.remove('cfit-1', 'cfit-2');
+      if (clipped()) bar.classList.add('cfit-1');
+      if (clipped()) bar.classList.add('cfit-2');
+      return;
+    }
+    bar.classList.remove('cfit-1', 'cfit-2');
     let level = 0;
     set(0);
-    while (level < FIT_LEVELS && el.scrollWidth > el.clientWidth + 1) set(++level);
+    while (level < FIT_LEVELS && clipped()) set(++level);
   }
 
   /** Telemetry strip (bottom-left): camera focus coordinates, heading, altitude, sim rate, fps. */
