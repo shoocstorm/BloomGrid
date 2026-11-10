@@ -12,26 +12,45 @@ import './goals.css';
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
 /**
- * Goals (Phase 16, D-072): the City Pulse tab for a growing city. Unlock projects (Sky-lane charter, the Aeroline,
+ * Goals (Phase 16, D-072): the Build panel's second tab (D-153; it was a City Pulse tab) for a growing city. Unlock projects (Sky-lane charter, the Aeroline,
  * Wake Flora) with their criteria ticked live, cost, duration, a Start button and a progress bar; the sea wonders
  * found and what will reveal the rest; and the fishing fleet's stock and income. Rebuilt at 1 Hz while shown, and
- * on project and wonder events. A city without progression (the showcase) says everything is open. On phones,
- * where the console shows only the pulse, the panel sits at the top of the City Pulse sheet instead (its phone
- * home), shown only while there is something to earn.
+ * on project and wonder events. A city without progression (the showcase) says everything is open. Its badge
+ * (projects ready to start + milestones to claim) shows on the tab and on the Build launcher.
  */
 export const goalsModule: GameModule = {
   id: 'goals',
-  deps: ['pulse', 'hud'],
+  deps: ['build', 'hud'],
   init(ctx) {
     const { city } = ctx;
-    const pulse = ctx.services.get('pulse');
     const el = h('div', { class: 'goals' });
-    const tab = pulse.addTab('goals', 'Goals', '✧', el);
+    const tab = ctx.services.get('build').addTab('goals', 'Goals', 'star', el);
     let key = '';
     /** Read by the 1 Hz refresh: only while its tab is open. */
     const shown = () => tab.selected;
 
-    const render = () => {
+    /**
+     * What the tab shows, as text: the tab is rebuilt only when this changes (not every second), and never while
+     * the pointer is on one of its buttons, so a Start or Claim press is never swallowed by a rebuild.
+     */
+    const signature = () => {
+      const g = city.growth;
+      const parts: (string | number)[] = [g.milestones.length, g.wonders.join(), Math.round(g.fish * 100), city.stats.fishing.toFixed(1), Math.round(g.fishIncome)];
+      for (const id of PROJECT_IDS) {
+        const st = projectStatus(city, id);
+        parts.push(st);
+        const run = g.projects.find((r) => r.id === id);
+        if (st === 'running' && run) parts.push(Math.round(projectProgress(city, run) * 100), Math.round((run.endTick - city.tick) / 10));
+        else if (st !== 'open') parts.push(...PROJECTS[id].criteria(city).map((c) => `${c.ok ? 1 : 0}${c.label}`));
+      }
+      for (const m of openMilestones(city).slice(0, 4)) {
+        const p = m.progress(city);
+        parts.push(m.id, Math.round(Math.min(1, p.have / p.need) * 100), milestoneDone(city, m) ? 1 : 0);
+      }
+      return parts.join('|');
+    };
+
+    const render = (force = false) => {
       const g = city.growth;
       el.classList.toggle('gl-open', !g.progression);
       if (!g.progression) {
@@ -48,6 +67,10 @@ export const goalsModule: GameModule = {
         );
         return;
       }
+      if (!force && el.querySelector('button:hover')) return;
+      const sig = signature();
+      if (sig === key) return;
+      key = sig;
       const projects = PROJECT_IDS.map((id) => {
         const def = PROJECTS[id];
         const status = projectStatus(city, id);
@@ -102,7 +125,15 @@ export const goalsModule: GameModule = {
                   !c.ok && c.build && buildings.has(c.build)
                     ? h(
                         'button',
-                        { class: 'gl-do', title: `Build a ${buildings.get(c.build).name}`, onClick: () => ctx.services.get('construction').startBuilding(c.build!) },
+                        {
+                          class: 'gl-do',
+                          title: `Build a ${buildings.get(c.build).name}`,
+                          // Picking it up switches the panel to its Build tab, on the building's category.
+                          onClick: () => {
+                            ctx.services.get('build').open(buildings.get(c.build!).category);
+                            ctx.services.get('construction').startBuilding(c.build!);
+                          },
+                        },
                         icon('build'),
                         'Build',
                       )
@@ -196,7 +227,6 @@ export const goalsModule: GameModule = {
             'The sea is overfished: fewer boats (or a cleaner coast) let the stock recover.',
           ),
         );
-      key = '';
     };
 
     const badge = () => {
@@ -210,18 +240,23 @@ export const goalsModule: GameModule = {
       for (const id of PROJECT_IDS) {
         const now = projectStatus(city, id) === 'ready';
         if (now && !told.has(id) && isCompact())
-          ctx.bus.emit('toast', { text: `${PROJECTS[id].name} is ready to start: open City Pulse`, tone: 'ok' });
+          ctx.bus.emit('toast', { text: `${PROJECTS[id].name} is ready to start: Build → Goals`, tone: 'ok' });
         if (now) told.add(id);
         else told.delete(id);
       }
     };
     const told = new Set<string>();
     let timer = 0;
+    let wasShown = false;
     ctx.systems.add({
       id: 'goals',
       phase: 'render',
       order: 112,
       update(_c, f) {
+        // Fresh the moment the tab is opened, then once a second.
+        const now = shown();
+        if (now && !wasShown) render();
+        wasShown = now;
         timer += f.dt;
         if (timer < 1) return;
         timer = 0;
@@ -237,7 +272,7 @@ export const goalsModule: GameModule = {
       'city:reset',
       'load:done',
     ] as const)
-      ctx.bus.on(ev, () => ((key = ''), render(), badge()));
+      ctx.bus.on(ev, () => ((key = ''), render(true), badge()));
     ctx.bus.on('project:done', ({ id }) =>
       ctx.bus.emit('toast', { text: `✓ ${PROJECTS[id].name} complete: ${PROJECTS[id].unlocks}`, tone: 'ok' }),
     );

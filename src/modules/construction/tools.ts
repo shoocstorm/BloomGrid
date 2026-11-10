@@ -89,7 +89,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
     const { city } = ctx;
     const r = city.buildingRecord(eid);
     const [w, d] = city.footprint(city.buildingDef(eid), r.rot);
-    ghost.showCursor(r.x, city.grid.rangeOver(r.x, r.z, w, d).max, r.z, w, d);
+    ghost.showCursor(r.x, city.grid.padOver(r.x, r.z, w, d), r.z, w, d);
   };
 
   /** What the pointer is over (D-129): buildings by their whole volume, bridges by deck and structure. */
@@ -348,7 +348,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
     const pv = inside ? placementPreview(ctx.city, def, x, z, build.rot) : null;
     if (inside) {
       ghost.showPieces(placementMatrices(placeBuilding(ctx.city.grid, def, x, z, build.rot)));
-      const top = ctx.city.grid.rangeOver(x, z, w, d).max;
+      const top = ctx.city.grid.padOver(x, z, w, d);
       ghost.showCursor(x, top, z, w, d);
       // The area it will serve, so coverage is judged before building (D-121).
       if (pv?.area) ghost.showRing(x + w / 2, top - 0.4, z + d / 2, pv.area.radius);
@@ -733,7 +733,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
       if (from !== null) {
         const r = city.buildingRecord(from);
         const [w, d] = city.footprint(city.buildingDef(from), r.rot);
-        ghost.showRing(r.x + w / 2, city.grid.rangeOver(r.x, r.z, w, d).max, r.z + d / 2, 1.6);
+        ghost.showRing(r.x + w / 2, city.grid.padOver(r.x, r.z, w, d), r.z + d / 2, 1.6);
       } else ghost.hideRing();
       let text = 'Click a tower to start weaving';
       let ok = false;

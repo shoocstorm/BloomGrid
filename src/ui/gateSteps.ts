@@ -24,7 +24,7 @@ export function runGate(ctx: GameContext, a: GateAction): void {
       else toast(`${PROJECTS[a.project].name} can't start yet`, 'bad');
       return;
     case 'goals':
-      return ctx.services.get('pulse').show('goals');
+      return ctx.services.get('build').show('goals');
     case 'credits':
       ctx.services.get('build').close();
       return ctx.services.tryGet('statinfo')?.open('credits');

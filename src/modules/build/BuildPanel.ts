@@ -1,6 +1,7 @@
 import { buildings } from '@/content';
 import { CATEGORY_ICONS, CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
-import { buildBlock, type BuildBlock } from '@/sim/buildGate';
+import { isHero } from '@/content/heroes';
+import { buildBlock, buildStates, type BuildState } from '@/sim/buildGate';
 import type { GameContext } from '@/game/context';
 import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from '@/ui/dom';
@@ -12,6 +13,23 @@ const fmt = (n: number) => Math.round(n).toLocaleString();
 /** Build actions in the panel, in order. Inspect is not one: leaving build mode (Done, Esc) is. */
 const ACTIONS = ['road', 'channel', 'bulldoze', 'retrofit', 'mist', 'weave', 'reclaim'];
 const CAT_KEY = 'bloomgrid.build.category';
+
+/** A card's group in the list, in list order: what can be built now comes first (D-153). */
+type Group = 'open' | BuildState['kind'];
+const GROUPS: Group[] = ['open', 'credits', 'capped', 'locked'];
+const GROUP_LABELS: Record<Group, string> = {
+  open: 'Ready to build',
+  credits: 'Saving up',
+  capped: 'At the limit',
+  locked: 'Locked',
+};
+
+/** A tab of the Build panel (Build, and Goals from the goals module, D-153). */
+export interface BuildTab {
+  select(): void;
+  setBadge(text: string, tone?: 'warn' | 'crit' | ''): void;
+  readonly selected: boolean;
+}
 
 function tags(def: BuildingDef): HTMLElement {
   const s = def.stats;
@@ -36,6 +54,11 @@ function tags(def: BuildingDef): HTMLElement {
  * card (with a floating 3D preview of a building on desktops). Picking a category only lists its buildings;
  * placing starts when a building is picked. Leaving: Done, Esc (first drops what is in hand, then closes), a
  * right-click (drops what is in hand), or B again.
+ *
+ * Each category lists what can be built now first (cheapest first), then what needs credits, what is at its
+ * limit and what is locked, under small group labels; the order is re-read at 5 Hz but never moves cards under
+ * the pointer. Hero buildings carry a gold mark. The Goals tab (unlock projects, milestones, sea wonders) sits
+ * beside Build, since goals are mostly met by building (D-153).
  */
 export class BuildPanel {
   readonly el: HTMLElement;
@@ -47,6 +70,18 @@ export class BuildPanel {
   /** Each card's cost line (it becomes "Locked" or "3/3 · next at 1.2k pop" while blocked). */
   private cardCost = new Map<string, HTMLElement>();
   private cardKey = new Map<string, string>();
+  /** Each card's group at the last sort; the list re-sorts when one changes. */
+  private cardGroup = new Map<string, Group>();
+  private groupLabels = new Map<Group, HTMLElement>();
+  private orderKey = '';
+  /** The pointer is over the list: hold the order so a card never jumps away from a click. */
+  private overList = false;
+  /** Ready-to-build count per category chip. */
+  private catCount = new Map<BuildingCategory, HTMLElement>();
+  private tabsEl = h('div', { class: 'bd-tabs', role: 'tablist' });
+  private tabs: { id: string; btn: HTMLElement; pane: HTMLElement; badge: HTMLElement }[] = [];
+  private tab = 'build';
+  private onTab = new Set<(id: string) => void>();
   /** A blocked building that was clicked: the card explains how to get it instead of picking it up (D-130). */
   private pinned: string | null = null;
   /** The explanation card's "what next" section, refreshed at 5 Hz apart from the rest of the card. */
@@ -138,6 +173,9 @@ export class BuildPanel {
         h('span', { class: 'g' }, icon(`cat:${cat}`, CATEGORY_ICONS[cat])),
         h('span', { class: 'l' }, CATEGORY_LABELS[cat]),
       );
+      const n = h('span', { class: 'bd-count', title: 'Ready to build' });
+      b.append(n);
+      this.catCount.set(cat, n);
       this.catBtns.set(cat, b);
       cats.append(b);
     }
@@ -146,6 +184,12 @@ export class BuildPanel {
       'section',
       { class: 'build panel holo hidden', role: 'dialog', 'aria-label': 'Build' },
       head,
+      this.tabsEl,
+    );
+    this.addTab(
+      'build',
+      'Build',
+      'build',
       h(
         'div',
         { class: 'bd-scroll' },
@@ -158,12 +202,18 @@ export class BuildPanel {
         h('div', { class: 'bd-body' }, this.list, this.brief),
       ),
     );
+    this.list.addEventListener('pointerenter', () => (this.overList = true));
+    this.list.addEventListener('pointerleave', () => {
+      this.overList = false;
+      this.sortList();
+    });
     this.fab = h(
       'button',
       { class: 'build-fab', title: 'Build (B)', 'aria-label': 'Build', onClick: onToggle },
       icon('build'),
       h('span', {}, 'Build'),
       touch ? null : h('kbd', {}, 'B'),
+      this.fabBadge,
     );
     ctx.hud.append(this.el, this.float);
     this.el.addEventListener('pointerleave', () => this.releaseHeight());
@@ -181,6 +231,73 @@ export class BuildPanel {
     this.renderList();
   }
 
+  /** Adds a tab (its pane scrolls on its own); the Build tab is the first. */
+  addTab(id: string, label: string, glyph: string, pane: HTMLElement): BuildTab {
+    const badge = h('span', { class: 'con-badge' });
+    const btn = h(
+      'button',
+      { class: 'bd-tab', role: 'tab', title: label, onClick: () => this.selectTab(id) },
+      icon(glyph),
+      h('span', {}, label),
+      badge,
+    );
+    pane.classList.add('bd-pane', `bd-pane-${id}`);
+    pane.setAttribute('role', 'tabpanel');
+    this.tabsEl.append(btn);
+    this.el.append(pane);
+    this.tabs.push({ id, btn, pane, badge });
+    this.selectTab(this.tab);
+    const selected = () => this.open && this.tab === id;
+    return {
+      select: () => this.selectTab(id),
+      setBadge: (text, tone = '') => {
+        setText(badge, text);
+        badge.className = `con-badge ${tone}`;
+        this.syncFabBadge();
+      },
+      get selected() {
+        return selected();
+      },
+    };
+  }
+
+  /** Called with the tab id whenever the shown tab changes. */
+  onTabChange(fn: (id: string) => void): void {
+    this.onTab.add(fn);
+  }
+
+  get currentTab(): string {
+    return this.tab;
+  }
+
+  selectTab(id: string): void {
+    if (!this.tabs.some((t) => t.id === id)) id = 'build';
+    const changed = id !== this.tab;
+    this.tab = id;
+    for (const t of this.tabs) {
+      const on = t.id === id;
+      t.btn.classList.toggle('on', on);
+      t.btn.setAttribute('aria-selected', String(on));
+      t.pane.classList.toggle('hidden', !on);
+    }
+    this.el.classList.toggle('on-build', id === 'build');
+    if (!changed) return;
+    // Leaving the Build tab puts down what is in hand: the map shouldn't place what the panel no longer shows.
+    if (id !== 'build' && this.ctx.tools.active && this.ctx.tools.active.id !== 'select') this.ctx.tools.setActive('select');
+    this.peeking = null;
+    this.briefKey = '';
+    this.sync();
+    for (const fn of this.onTab) fn(id);
+  }
+
+  /** The launcher shows the other tabs' badges (Goals ready to start or claim) while the panel is closed. */
+  private fabBadge = h('span', { class: 'con-badge' });
+  private syncFabBadge(): void {
+    const b = this.tabs.find((t) => t.id !== 'build' && t.badge.textContent);
+    setText(this.fabBadge, b?.badge.textContent ?? '');
+    this.fabBadge.className = b ? b.badge.className : 'con-badge';
+  }
+
   get open(): boolean {
     return !this.el.classList.contains('hidden');
   }
@@ -194,6 +311,7 @@ export class BuildPanel {
     this.briefKey = '';
     this.releaseHeight();
     if (open) this.renderList();
+    else this.selectTab('build');
     this.renderBrief();
   }
 
@@ -222,16 +340,21 @@ export class BuildPanel {
       b.setAttribute('aria-selected', String(c === this.category));
     }
     setText(this.listTitle, `${CATEGORY_LABELS[this.category]} buildings`);
-    this.list.replaceChildren();
     this.cards.clear();
     this.cardCost.clear();
     this.cardKey.clear();
+    this.cardGroup.clear();
+    this.groupLabels.clear();
+    this.orderKey = '';
+    this.list.replaceChildren();
+    for (const g of GROUPS) this.groupLabels.set(g, h('div', { class: `bd-group bd-group-${g}` }));
     for (const def of buildings.all().filter((b) => b.category === this.category)) {
       const cost = h('div', { class: 'c' });
+      const hero = isHero(def);
       const card = h(
         'button',
         {
-          class: 'card',
+          class: hero ? 'card hero' : 'card',
           title: def.description,
           onClick: () => {
             const holding = ctx.tools.active?.id === 'build' && construction.state.def === def.id;
@@ -249,16 +372,46 @@ export class BuildPanel {
             construction.startBuilding(def.id);
           },
         },
-        h('div', { class: 'n' }, def.name),
+        h('div', { class: 'n' }, hero ? h('span', { class: 'bd-hero', title: 'Hero building: one of a kind' }, icon('star')) : null, def.name),
         cost,
         tags(def),
       );
       this.hoverPeek(card, { def: def.id });
       this.cards.set(def.id, card);
       this.cardCost.set(def.id, cost);
-      this.list.append(card);
     }
     this.sync();
+  }
+
+  /**
+   * Orders the cards by group (ready, saving up, at the limit, locked), cheapest first, with a label over each
+   * group that has cards. Moves only when a card changed group, and never while the pointer is on the list.
+   */
+  private sortList(): void {
+    if (this.overList && this.list.childElementCount) return;
+    const ids = [...this.cards.keys()];
+    const rank = (id: string) => GROUPS.indexOf(this.cardGroup.get(id) ?? 'open');
+    const cost = (id: string) => buildings.get(id).stats.cost;
+    ids.sort((a, b) => rank(a) - rank(b) || cost(a) - cost(b) || a.localeCompare(b));
+    const key = ids.map((id) => `${id}:${this.cardGroup.get(id)}`).join(',');
+    if (key === this.orderKey) return;
+    this.orderKey = key;
+    const nodes: HTMLElement[] = [];
+    let last: Group | null = null;
+    const shown = new Set(ids.map((id) => this.cardGroup.get(id) ?? 'open'));
+    for (const id of ids) {
+      const g = this.cardGroup.get(id) ?? 'open';
+      // One group only (everything ready, as in the showcase): no label needed.
+      if (g !== last && shown.size > 1) {
+        const n = ids.filter((i) => this.cardGroup.get(i) === g).length;
+        const label = this.groupLabels.get(g)!;
+        setText(label, `${GROUP_LABELS[g]} · ${n}`);
+        nodes.push(label);
+      }
+      last = g;
+      nodes.push(this.cards.get(id)!);
+    }
+    this.list.replaceChildren(...nodes);
   }
 
   /** Follows the active tool: lit action, the building in hand (its category opens), the hint line. */
@@ -278,15 +431,26 @@ export class BuildPanel {
     const { ctx } = this;
     const st = ctx.services.get('construction').state;
     const tool = ctx.tools.active?.id ?? 'select';
-    for (const [id, c] of this.cards) {
-      c.classList.toggle('on', tool === 'build' && st.def === id);
-      this.syncCard(id, c, buildBlock(ctx.city, id));
+    if (this.open) {
+      // Every building's state in one pass: the open category's cards, and the chips' ready counts.
+      const all = buildings.all();
+      const states = buildStates(ctx.city, all.map((d) => d.id));
+      const ready = new Map<BuildingCategory, number>();
+      for (const d of all) if (!states.get(d.id)) ready.set(d.category, (ready.get(d.category) ?? 0) + 1);
+      for (const [cat, el] of this.catCount) setText(el, String(ready.get(cat) ?? 0));
+      for (const [id, c] of this.cards) {
+        c.classList.toggle('on', tool === 'build' && st.def === id);
+        this.syncCard(id, c, states.get(id) ?? null);
+      }
+      this.sortList();
     }
     const touch = isTouchDevice();
     const holding = tool !== 'select';
     setText(
       this.hint,
-      holding
+      this.tab !== 'build'
+        ? 'Unlock projects, milestones and sea wonders'
+        : holding
         ? touch
           ? tool === 'build'
             ? 'Tap a lot to build · Done to finish'
@@ -301,19 +465,22 @@ export class BuildPanel {
   }
 
   /** A card's state and cost line: locked, at its limit (with when the next opens), unaffordable or open. */
-  private syncCard(id: string, c: HTMLElement, block: BuildBlock | null): void {
+  private syncCard(id: string, c: HTMLElement, state: BuildState | null): void {
     const def = buildings.get(id);
-    const kind = block?.kind ?? 'open';
-    const key = `${kind}|${block?.short ?? ''}`;
+    const kind: Group = state?.kind ?? 'open';
+    this.cardGroup.set(id, kind);
+    const key = `${kind}|${state?.short ?? ''}`;
     if (this.cardKey.get(id) === key) return;
     this.cardKey.set(id, key);
     c.classList.toggle('locked', kind === 'locked');
     c.classList.toggle('capped', kind === 'capped');
     c.classList.toggle('poor', kind === 'credits');
-    c.title = block && kind !== 'credits' ? `${block.reason}. Click for how to get it.` : def.description;
+    const hero = isHero(def) ? ' Hero building: one of a kind.' : '';
+    c.title =
+      state && kind !== 'credits' ? `${def.name}: ${state.short}. Click for how to get it.` : `${def.description}${hero}`;
     this.cardCost.get(id)?.replaceChildren(
       ...(kind === 'locked' || kind === 'capped'
-        ? [icon(kind === 'locked' ? 'st-off' : 'st-warn'), ` ${block!.short}`]
+        ? [icon(kind === 'locked' ? 'st-off' : 'st-warn'), ` ${state!.short}`]
         : [icon('credits'), ` ${fmt(def.stats.cost)} · ${def.footprint[0]}×${def.footprint[1]}`]),
     );
   }
@@ -349,12 +516,13 @@ export class BuildPanel {
     const what =
       this.peeking ??
       (active === 'build' ? { def: construction.state.def } : active !== 'select' ? { tool: active } : this.pinned ? { def: this.pinned } : null);
-    this.renderGate(this.open && what && 'def' in what ? what.def : null);
-    const key = !this.open ? 'closed' : !what ? 'none' : 'def' in what ? `d:${what.def}` : `t:${what.tool}`;
+    const shown = this.open && this.tab === 'build';
+    this.renderGate(shown && what && 'def' in what ? what.def : null);
+    const key = !shown ? 'closed' : !what ? 'none' : 'def' in what ? `d:${what.def}` : `t:${what.tool}`;
     if (key === this.briefKey) return this.placeFloat();
     this.briefKey = key;
     this.stageTaken = false;
-    if (!this.open || !what) {
+    if (!shown || !what) {
       this.brief.className = 'brief empty';
       this.brief.replaceChildren(h('p', { class: 'bp-desc' }, isTouchDevice() ? 'Tap a building to see what it does.' : 'Point at a building or an action to see what it does; click it to pick it up.'));
       return this.placeFloat();
@@ -377,7 +545,14 @@ export class BuildPanel {
     const blocked = this.gate.childElementCount > 0;
     this.brief.className = 'brief building';
     this.brief.replaceChildren(
-      h('div', { class: 'bp-head' }, h('span', { class: 'bp-ico' }, icon(`cat:${def.category}`, CATEGORY_ICONS[def.category])), h('b', {}, def.name), h('span', { class: 'bp-cat' }, CATEGORY_LABELS[def.category])),
+      h(
+        'div',
+        { class: 'bp-head' },
+        h('span', { class: 'bp-ico' }, icon(`cat:${def.category}`, CATEGORY_ICONS[def.category])),
+        h('b', {}, def.name),
+        isHero(def) ? h('span', { class: 'bp-hero', title: 'Hero building: one of a kind' }, icon('star'), 'Hero') : null,
+        h('span', { class: 'bp-cat' }, CATEGORY_LABELS[def.category]),
+      ),
       // Can't be built now: why and what to do come first (D-130).
       this.gate,
       h('p', { class: 'bp-desc' }, def.description),
@@ -403,7 +578,7 @@ export class BuildPanel {
   placeFloat(): void {
     // A building in hand: the map is where the steward looks, so the preview steps aside (hovering a card brings it back).
     const holding = this.ctx.tools.active?.id === 'build' && !this.peeking;
-    const on = this.open && !this.stageTaken && !holding && this.brief.classList.contains('building') && !isCompact();
+    const on = this.open && this.tab === 'build' && !this.stageTaken && !holding && this.brief.classList.contains('building') && !isCompact();
     this.float.classList.toggle('hidden', !on);
     if (!on) return;
     const r = this.el.getBoundingClientRect();

@@ -81,6 +81,21 @@ export class Grid {
     return { min, max };
   }
 
+  /**
+   * Height a building on the lot (x, z, w × d tiles) stands at: its highest corner, or the highest corner one step
+   * outside the lot where that is higher (D-154). Ground right beside a lot that rises above the lot's own top would
+   * bury the building's ground floor; standing on the ring's height instead puts it on a plinth that meets that
+   * ground flush. Grading keeps the ring at or below the pad wherever it can, so the plinth shows only on lots it
+   * could not grade (a bank steeper than a highway allows, a kept terrace, an older save).
+   */
+  padOver(x: number, z: number, w: number, d: number): number {
+    const x0 = Math.max(0, x - 1);
+    const z0 = Math.max(0, z - 1);
+    const x1 = Math.min(this.w, x + w + 1);
+    const z1 = Math.min(this.h, z + d + 1);
+    return this.rangeOver(x0, z0, x1 - x0, z1 - z0).max;
+  }
+
   isWater(x: number, z: number): boolean {
     return this.rangeOver(x, z, 1, 1).min < SEA_LEVEL + 0.05;
   }

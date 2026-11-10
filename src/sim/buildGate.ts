@@ -21,7 +21,7 @@ export type GateAction =
   | { kind: 'place'; def: string }
   /** Start an unlock project (it is ready). */
   | { kind: 'start'; project: UnlockId }
-  /** Open the Goals tab. */
+  /** Open the Build panel's Goals tab. */
   | { kind: 'goals' }
   /** Open the credits guide (ways to earn, loans). */
   | { kind: 'credits' };
@@ -190,6 +190,52 @@ function creditsBlock(city: City, id: string): BuildBlock | null {
 /** Why `id` can't be built now and what to do, or null when it can (credits included). */
 export function buildBlock(city: City, id: string): BuildBlock | null {
   return lockedBlock(city, id) ?? capped(city, id) ?? creditsBlock(city, id);
+}
+
+/** A card's state without the steps: what the Build panel sorts and labels its cards by. */
+export interface BuildState {
+  kind: BuildBlock['kind'];
+  /** Same text as `BuildBlock.short`. */
+  short: string;
+}
+
+/**
+ * `buildBlock`'s kind and short line for many buildings at once, cheap enough for the Build panel's 5 Hz refresh:
+ * one pass counts every building (not one per limited def), each project's status is read once, and no steps are
+ * written. Null for a building that can be placed now.
+ */
+export function buildStates(city: City, ids: readonly string[]): Map<string, BuildState | null> {
+  const out = new Map<string, BuildState | null>();
+  let counts: Map<string, number> | null = null;
+  const status = new Map<UnlockId, ReturnType<typeof projectStatus>>();
+  const pop = city.stats.population;
+  for (const id of ids) {
+    const def = buildings.get(id);
+    const req = def.requires;
+    if (req && !isOpen(city.growth, req)) {
+      let st = status.get(req);
+      if (!st) status.set(req, (st = projectStatus(city, req)));
+      out.set(id, { kind: 'locked', short: st === 'ready' ? 'Ready to unlock' : st === 'running' ? 'Unlocking…' : 'Locked' });
+      continue;
+    }
+    if (def.limit) {
+      if (!counts) {
+        counts = new Map();
+        for (const e of city.buildingEntities()) {
+          const d = city.buildingDef(e).id;
+          counts.set(d, (counts.get(d) ?? 0) + 1);
+        }
+      }
+      const s = limitStatus(def.limit, pop, counts.get(id) ?? 0);
+      if (s.have >= s.max) {
+        out.set(id, { kind: 'capped', short: `${s.have}/${s.max} · next at ${fmtK(s.nextAt)} pop` });
+        continue;
+      }
+    }
+    const cost = def.stats.cost;
+    out.set(id, city.credits >= cost ? null : { kind: 'credits', short: `◈${fmtK(cost - city.credits)} short` });
+  }
+  return out;
 }
 
 /** Locked or at its limit: not something to suggest building right now (credits aside, they come and go). */

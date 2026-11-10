@@ -91,7 +91,7 @@ export const windModule: GameModule = {
     const head = (eid: number) => {
       const { grid } = ctx.city;
       const [x, z, w, d] = [Building.x[eid]!, Building.z[eid]!, Building.w[eid]!, Building.d[eid]!];
-      const y = grid.rangeOver(x, z, w, d).max + 0.02 + TURBINE_TOP;
+      const y = grid.padOver(x, z, w, d) + 0.02 + TURBINE_TOP;
       return new Matrix4().compose(new Vector3(x + w / 2, y, z + d / 2), facing, one);
     };
     const isTurbine = (eid: number) => ctx.city.buildingDef(eid).id === 'wind-turbine';

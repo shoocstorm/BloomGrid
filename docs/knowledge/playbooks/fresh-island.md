@@ -15,7 +15,7 @@ every tier at Stable. Watch the fish stock in the Goals tab.
 
 ## Stage 2: unlock projects
 
-The Goals tab (City Pulse) lists each project's conditions and cost. Live numbers: [Rules of play](kb:reference-rules).
+The Goals tab (Build panel) lists each project's conditions and cost. Live numbers: [Rules of play](kb:reference-rules).
 
 - **Sky-lane charter**: needs residents and a Drone Fabricator. Unlocks pod docks, interchanges and the Skylane
   Nexus: the cure for early traffic.

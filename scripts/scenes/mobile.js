@@ -1,6 +1,6 @@
 // Phone HUD check: run with `bun run snap -- --mobile --eval @scripts/scenes/mobile.js --after 1500`.
 // window.SHEET = 'pulse' | 'advisor' | 'lens' | 'goals' | 'info' | 'build' | 'dashboard' | 'gesture' picks what to open
-// (the first four open the City Pulse console from the top bar on that tab, D-106).
+// (the first three open the City Pulse console from the top bar on that tab, D-106; 'goals' the Build sheet's Goals tab, D-153).
 (async () => {
   const g = window.bloomgrid;
   document.querySelector('.help-ok')?.click();
@@ -8,7 +8,8 @@
   const canvas = g.renderer.domElement;
   const touch = (type, id, x, y) =>
     canvas.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', clientX: x, clientY: y, bubbles: true, isPrimary: id === 1 }));
-  const tabs = { pulse: 0, lens: 1, advisor: 2, goals: 3 };
+  const tabs = { pulse: 0, lens: 1, advisor: 2 };
+  if (sheet === 'goals') g.services.get('build').show('goals');
   if (sheet in tabs) {
     if (document.querySelector('.pulse.collapsed')) document.querySelector('.act-pulse').click();
     document.querySelectorAll('.con-tab')[tabs[sheet]]?.click();

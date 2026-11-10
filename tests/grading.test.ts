@@ -68,31 +68,61 @@ describe('lot grading (D-099)', () => {
     for (let i = x0 + 6; i <= x0 + 8; i++) expect(g.corner(i, z + 2)).toBeCloseTo(1.5, 4);
   });
 
-  it('leaves no showcase building in a hollow', () => {
+  it('cuts the ground one tile out flush with the pad, so nothing beside the lot stands above it', () => {
+    const { s, g, W, x0, z0 } = flatSite();
+    const [x, z] = [x0 + 6, z0 + 6];
+    for (let j = z0; j <= z0 + 16; j++) for (let i = x + 3; i <= x0 + 24; i++) g.heights[j * W + i] = 1.4;
+    s.city.refreshTerrainDerived();
+    expect(s.commands.execute('build', { def: 'garden-residence', x, z, rot: 0 })).toBe(true);
+    expect(g.padOver(x, z, 2, 2)).toBeCloseTo(g.rangeOver(x, z, 2, 2).max, 4);
+    expect(g.corner(x + 3, z + 1)).toBeLessThanOrEqual(g.rangeOver(x, z, 2, 2).max + 1e-4);
+  });
+
+  it('lifts a lot to meet a higher neighbouring lot touching it (D-154)', () => {
+    const { s, g, W, x0, z0 } = flatSite();
+    const z = z0 + 6;
+    // A 1.6 shelf east of x0 + 9: the first house stands on it, the second on the 1.0 ground right beside it.
+    for (let j = z0; j <= z0 + 16; j++) for (let i = x0 + 9; i <= x0 + 24; i++) g.heights[j * W + i] = 1.6;
+    s.city.refreshTerrainDerived();
+    expect(s.commands.execute('build', { def: 'garden-residence', x: x0 + 9, z, rot: 0 })).toBe(true);
+    expect(s.commands.execute('build', { def: 'garden-residence', x: x0 + 7, z, rot: 0 })).toBe(true);
+    // The lower lot came up to the shelf: both pads agree and neither building stands on a plinth.
+    expect(g.rangeOver(x0 + 7, z, 2, 2).min).toBeCloseTo(1.6, 2);
+    expect(g.padOver(x0 + 7, z, 2, 2)).toBeCloseTo(g.rangeOver(x0 + 7, z, 2, 2).max, 4);
+    expect(g.padOver(x0 + 9, z, 2, 2)).toBeCloseTo(g.rangeOver(x0 + 9, z, 2, 2).max, 4);
+    s.commands.undo();
+    s.commands.undo();
+    expect(g.corner(x0 + 7, z)).toBeCloseTo(1, 4);
+  });
+
+  it('seats a building at the ground beside its lot when grading could not cut it (D-154)', () => {
+    const { s, g, W, x0, z0 } = flatSite();
+    const [x, z] = [x0 + 6, z0 + 6];
+    expect(s.commands.execute('build', { def: 'garden-residence', x, z, rot: 0 })).toBe(true);
+    const top = g.rangeOver(x, z, 2, 2).max;
+    expect(g.padOver(x, z, 2, 2)).toBeCloseTo(top, 4);
+    // Ground beside the lot raised after the fact (a terrace edit): the pad follows it, the lot does not.
+    g.heights[(z + 1) * W + x + 3] = top + 0.7;
+    s.city.refreshTerrainDerived();
+    expect(g.padOver(x, z, 2, 2)).toBeCloseTo(top + 0.7, 4);
+    expect(g.rangeOver(x, z, 2, 2).max).toBeCloseTo(top, 4);
+  });
+
+  it('leaves no showcase building buried: nothing beside a lot stands more than a highway step above its top', () => {
     const s = makeSim(20261024);
     applyScenario(s.city, 'founding-city');
     const c = s.city;
     const g = c.grid;
-    const W = g.w + 1;
-    const lot = new Uint8Array(W * (g.h + 1));
+    let plinths = 0;
     for (const e of c.buildingEntities()) {
       const r = c.buildingRecord(e);
       const [w, d] = c.footprint(c.buildingDef(e), r.rot);
-      for (let j = r.z; j <= r.z + d; j++) for (let i = r.x; i <= r.x + w; i++) lot[j * W + i] = 1;
+      // The plinth a building stands on where grading could not bring the ground beside it down or the lot up.
+      const plinth = g.padOver(r.x, r.z, w, d) - g.rangeOver(r.x, r.z, w, d).max;
+      expect(plinth).toBeLessThanOrEqual(CLIFF + 0.01);
+      if (plinth > BANK) plinths++;
     }
-    let hollows = 0;
-    for (const e of c.buildingEntities()) {
-      const r = c.buildingRecord(e);
-      const [w, d] = c.footprint(c.buildingDef(e), r.rot);
-      const pad = g.rangeOver(r.x, r.z, w, d).max;
-      let rise = 0;
-      for (let j = r.z - 1; j <= r.z + d + 1; j++)
-        for (let i = r.x - 1; i <= r.x + w + 1; i++)
-          if (i >= 0 && j >= 0 && i <= g.w && j <= g.h && !lot[j * W + i])
-            rise = Math.max(rise, g.corner(i, j) - pad);
-      if (rise > BANK + 0.01) hollows++;
-    }
-    // Was 23 before grading (ground more than one ramp step above a building's base beside it).
-    expect(hollows).toBeLessThanOrEqual(5);
+    // Was 23 hollows before grading (D-099), 46 lots with ground more than a ramp step above them before D-154.
+    expect(plinths).toBeLessThanOrEqual(30);
   });
 });

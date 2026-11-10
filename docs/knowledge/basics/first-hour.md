@@ -35,7 +35,7 @@ harmony. See [Jobs and housing](kb:systems-jobs-housing).
 
 ## 5. Open the next chapter
 
-The Goals tab in City Pulse lists the unlock projects (the Sky-lane charter, the Aeroline, Wake Flora) and their
+The Goals tab of the Build panel (B, then Goals) lists the unlock projects (the Sky-lane charter, the Aeroline, Wake Flora) and their
 conditions. Waking Flora early makes her advice available, but every request costs credits. See
 [Fresh island playbook](kb:playbooks-fresh-island).
 

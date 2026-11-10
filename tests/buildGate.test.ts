@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { buildings } from '@/content';
 import { applyScenario } from '@/sim/scenario';
-import { buildBlock, unavailable } from '@/sim/buildGate';
+import { buildBlock, buildStates, unavailable } from '@/sim/buildGate';
 import { limitStatus } from '@/sim/limits';
 import { proposeBuilds } from '@/sim/proposals';
+import { isHero } from '@/content/heroes';
 import { makeSim } from './helpers';
 
 /** The build gate (D-130): every "can't build it" says what to do next. */
@@ -71,5 +72,27 @@ describe('build gate (D-130)', () => {
     expect(block.steps.some((st) => st.act?.action.kind === 'credits')).toBe(true);
     s.city.credits = dear.stats.cost;
     expect(buildBlock(s.city, dear.id)).toBeNull();
+  });
+
+  it('the Build panel\'s batch states match the full gate for every building (D-153)', () => {
+    const s = fresh();
+    fillDocks(s);
+    s.city.credits = 400;
+    const ids = buildings.all().map((d) => d.id);
+    const states = buildStates(s.city, ids);
+    const kinds = new Set<string>();
+    for (const id of ids) {
+      const block = buildBlock(s.city, id);
+      expect(states.get(id), id).toEqual(block ? { kind: block.kind, short: block.short } : null);
+      kinds.add(block?.kind ?? 'open');
+    }
+    // The fresh island exercises every group the panel sorts by.
+    expect([...kinds].sort()).toEqual(['capped', 'credits', 'locked', 'open']);
+  });
+
+  it('marks the hero district and landmarks as heroes, not everyday buildings', () => {
+    expect(isHero(buildings.get('aurora-gemini'))).toBe(true);
+    expect(isHero(buildings.get('helix-spire'))).toBe(true);
+    expect(isHero(buildings.get('fishing-dock'))).toBe(false);
   });
 });

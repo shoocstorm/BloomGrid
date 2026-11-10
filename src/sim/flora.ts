@@ -23,7 +23,7 @@ export const floraBilled = (city: City): boolean => city.growth.progression;
 
 /** Why Flora can't take a request now, or null. */
 export function floraBlocker(city: City): string | null {
-  if (floraLocked(city)) return 'Flora is asleep: wake her with the "Wake Flora" project (Goals tab).';
+  if (floraLocked(city)) return 'Flora is asleep: wake her with the "Wake Flora" project (Build → Goals).';
   if (floraBilled(city) && city.credits < FLORA_BASE)
     return `Not enough credits: a request costs at least ${FLORA_BASE}.`;
   return null;

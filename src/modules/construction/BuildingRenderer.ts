@@ -392,8 +392,10 @@ export function placeBuilding(grid: Grid, def: BuildingDef, x: number, z: number
   const [fw, fd] = def.footprint;
   const W = rot % 2 ? fd : fw;
   const D = rot % 2 ? fw : fd;
-  const { min, max } = grid.rangeOver(x, z, W, D);
-  const baseY = max + 0.02;
+  // The pad (D-154): the lot's highest corner or the ground right beside it, whichever is higher, so no neighbouring
+  // ground ever stands above the ground floor; the plinth fills from the lot's lowest corner up to it.
+  const { min } = grid.rangeOver(x, z, W, D);
+  const baseY = grid.padOver(x, z, W, D) + 0.02;
   const base = new Matrix4().compose(_v.set(x + W / 2, baseY, z + D / 2), _q.setFromAxisAngle(UP, -rot * (Math.PI / 2)), _s.set(1, 1, 1));
   const bottom = min - 0.4;
   const plinth = new Matrix4().multiplyMatrices(base, _m.compose(_v.set(0, bottom - baseY, 0), _q.identity(), _s.set(fw * 0.98, baseY - bottom, fd * 0.98)));
@@ -637,12 +639,13 @@ export class BuildingRenderer {
         } else this.removeRetrofit(entry);
       }
     });
-    // Ground edits (land reclamation, scenario terraces) can lift a lot's corners after its building went up: re-seat
-    // every building whose lot touches the changed corners, or it ends up sunk into its own ground.
+    // Ground edits (land reclamation, scenario terraces, a neighbour's grading) can lift a lot's corners or the ring
+    // beside them after its building went up: re-seat every building whose pad reads the changed corners, or it
+    // ends up sunk into its own ground.
     bus.on('terrain:changed', ({ x0, z0, x1, z1 }) => {
       for (const [eid, entry] of [...this.entries]) {
         const [x, z, w, d] = [Building.x[eid]!, Building.z[eid]!, Building.w[eid]!, Building.d[eid]!];
-        if (x > x1 || z > z1 || x + w < x0 || z + d < z0) continue;
+        if (x - 1 > x1 || z - 1 > z1 || x + w + 1 < x0 || z + d + 1 < z0) continue;
         const rec = ctx.city.buildingRecord(eid);
         const place = placeBuilding(ctx.city.grid, buildings.get(rec.def), rec.x, rec.z, rec.rot);
         if (Math.abs(place.base.elements[13]! - entry.base.elements[13]!) < 1e-3 && place.plinth.equals(entry.plinth)) continue;

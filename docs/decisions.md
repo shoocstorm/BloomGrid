@@ -2637,3 +2637,48 @@ the bottom controls clear of the notch / Dynamic Island, the home indicator and,
   season chip (`cfit-1`), then gives the stats their own row (`cfit-2`, `--chips` follows), and the chip comes back.
 
 **Rejected.** The Fullscreen API (iPhone Safari has none for pages); hiding stats to fit (phones keep all six).
+
+## D-153: Build panel lists what can be built first, marks heroes, and holds Goals
+
+**Context.** The Build panel listed a category's buildings in file order: affordable homes sat between locked
+and too-dear ones, and heroes looked like everyday buildings. Goals (unlock projects, milestones) lived in City
+Pulse, a monitoring console, though nearly every goal is met by building.
+
+**Decision.**
+- Cards sort into groups (Ready to build, Saving up, At the limit, Locked), cheapest first, with a small label
+  per group when there is more than one. The order is re-read at 5 Hz but held while the pointer is on the list,
+  so a card never moves away from a click. Category chips show a ready-to-build count.
+- `buildStates` (`sim/buildGate.ts`) gives every building's kind and short line in one pass (one building count,
+  one status per project, no steps); `buildBlock` stays for the explanation card. A test holds the two equal.
+- Hero buildings (`isHero` in `content/heroes.ts`: the hero district's `HERO_IDS`, landmarks, Aurora Gemini,
+  Bloomtopia, Bloom Stadium) get a small gold star and gold edge on their card and a Hero chip on the explanation
+  card. `explore/roof.ts` reads the same list.
+- Goals is the Build panel's second tab (`build.addTab`, `build.show('goals')`); its badge also shows on the Build
+  launcher. Goal links (gate steps, tutorial, Flora's hints) open it there. The tab rebuilds only when its content
+  changes and never while the pointer is on one of its buttons. Leaving the Build tab puts down what is in hand.
+
+**Rejected.** Re-sorting on every refresh (cards jumped under the pointer); a separate Goals dialog (one more
+panel for the same job).
+
+## D-154: Buildings stand on their pad: never below the ground beside them
+
+**Context.** A building stood at its lot's highest corner. Where the ground one step outside the lot was higher
+(a neighbour's levelled lot up to CLIFF above, a bank left at BANK above, a kept terrace, a reverted cut), its
+ground floor was buried: pod docks at 294/174 in the showcase stood in a pit below the lawn next door, and the
+player read it as the building melting into the hill.
+
+**Decision.**
+- One pad rule in the sim: `Grid.padOver(x, z, w, d)` is the lot's highest corner or the highest corner of the ring
+  one step outside it, whichever is higher. `placeBuilding` seats the base there (the plinth still fills from the
+  lot's lowest corner), and every other base-height reader uses it (wind-turbine heads, deck spawn, the build
+  ghost's cursor and ring, lightning strikes). The renderer re-seats a building when corners within one step of
+  its lot change, not only its own.
+- Grading (`gradeLots`) makes the pad and the lot agree wherever it can: a lot lifts to meet a higher neighbouring
+  lot or kept terrace touching it (the same MAX_FILL and low-side CLIFF caps as a street, measured from the lot's
+  natural top so chains stay bounded, settled over up to 12 passes), and open ground one tile out is cut flush
+  with the pad before the BANK ramp starts (RAMP 7). What is left stands on a plinth of at most CLIFF, drawn as a
+  terrace step, and `tests/grading.test.ts` holds the showcase to that.
+
+**Rejected.** Lifting the lot to any higher open ground (fills a hillside lot instead of cutting a cheap bank);
+capping the plinth (a capped plinth is a buried ground floor again); re-grading on load (old saves keep their
+ground and get the plinth instead).

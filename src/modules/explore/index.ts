@@ -305,7 +305,7 @@ export const exploreModule: GameModule = {
       if (r && !collider.blocked(r.spawn.x, r.spawn.z, r.spawn.y, false, W)) return _spawn.copy(r.spawn);
       const rec = city.buildingRecord(eid);
       const [w, d] = [Building.w[eid]!, Building.d[eid]!];
-      const base = g().rangeOver(rec.x, rec.z, w, d).max;
+      const base = g().padOver(rec.x, rec.z, w, d);
       let best = -Infinity;
       for (let z = rec.z + 0.3; z < rec.z + d - 0.3; z += 0.25)
         for (let x = rec.x + 0.3; x < rec.x + w - 0.3; x += 0.25) {

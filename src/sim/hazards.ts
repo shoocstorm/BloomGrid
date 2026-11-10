@@ -313,7 +313,7 @@ function strike(city: City, c: CrisisInstance): void {
   city.bus.emit('lightning:strike', {
     x,
     z,
-    y: city.grid.rangeOver(Building.x[eid]!, Building.z[eid]!, Building.w[eid]!, Building.d[eid]!).max,
+    y: city.grid.padOver(Building.x[eid]!, Building.z[eid]!, Building.w[eid]!, Building.d[eid]!),
     eid,
     fire: !!fire,
   });

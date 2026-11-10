@@ -332,7 +332,7 @@ class Assistant {
       const crit = floraLocked(this.ctx.city)
         ? `\n${PROJECTS.flora.criteria(this.ctx.city)
             .map((c) => `${c.ok ? '✓' : '✗'} ${c.label}`)
-            .join('\n')}\nThen start "Wake Flora" (◈${PROJECTS.flora.cost.toLocaleString()}) on the City Pulse Goals tab.`
+            .join('\n')}\nThen start "Wake Flora" (◈${PROJECTS.flora.cost.toLocaleString()}) on the Build panel's Goals tab.`
         : '';
       const msg = `${why}${crit}`;
       this.panel.assistant().finish(msg, true);

@@ -3,7 +3,7 @@ import { Building } from '@/ecs/components';
 import { getPiece } from '@/assets/kit/pieces';
 import type { City } from '@/sim/City';
 import { piecesAt, placeBuilding } from '@/modules/construction/BuildingRenderer';
-import { HERO_IDS } from '@/content/scenarios/founding-city';
+import { isHero } from '@/content/heroes';
 
 /**
  * Rooftop explore mode (D-054): finds the walkable roof of a building from its cached recipe. Every flat solid
@@ -181,8 +181,6 @@ export function roofAt(r: Roof, x: number, z: number): number | null {
   return r.walk[c] ? r.h[c]! : null;
 }
 
-const HEROES = new Set(HERO_IDS);
-
 /**
  * Landmarks worth standing on, at least 4 tall: the hero district's buildings, the city's landmark, and any other
  * one-of-a-kind building at least 6 tiles across (not everyday utilities like Pod Interchanges).
@@ -198,7 +196,7 @@ export function rooftopCandidates(city: City): number[] {
 export function isLandmark(city: City, eid: number): boolean {
   const def = city.buildingDef(eid);
   const big = def.variants === 1 && Math.max(def.footprint[0], def.footprint[1]) >= 6;
-  if (!(HEROES.has(def.id) || def.landmark || big) || def.transit?.rail) return false;
+  if (!(isHero(def) || big) || def.transit?.rail) return false;
   const rec = city.buildingRecord(eid);
   return placeBuilding(city.grid, def, rec.x, rec.z, rec.rot).template.height >= 4;
 }

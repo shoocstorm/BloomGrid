@@ -73,9 +73,9 @@ const STEPS: Step[] = [
   },
   {
     title: 'Set your goals',
-    body: 'The Goals tab lists what to unlock next (Flora, the sky-lanes, the Aeroline) and the sea wonders still to find. Flora wakes once you have a power plant, a Data Spire and 1,500 credits saved.',
-    highlight: '.con-tab[title="Goals"]',
-    done: () => !!document.querySelector('.con-tab.on[title="Goals"]'),
+    body: 'Open Build and its Goals tab: what to unlock next (Flora, the sky-lanes, the Aeroline), your milestones and the sea wonders still to find. Flora wakes once you have a power plant, a Data Spire and 1,500 credits saved.',
+    highlight: '.build-fab, .bd-tab[title="Goals"]',
+    done: () => !!document.querySelector('.build:not(.hidden) .bd-tab.on[title="Goals"]'),
   },
 ];
 /** Highway tiles when the highway step opened (it completes on new ones). */
@@ -164,7 +164,7 @@ class Tutorial {
     this.dots.replaceChildren(
       ...STEPS.map((_, k) => h('i', { class: k < i ? 'done' : k === i ? 'on' : '' })),
     );
-    if (s.highlight) document.querySelector(s.highlight)?.classList.add('tt-glow');
+    if (s.highlight) document.querySelectorAll(s.highlight).forEach((e) => e.classList.add('tt-glow'));
     this.el.classList.remove('hidden');
     rise([this.title, this.body]);
   }

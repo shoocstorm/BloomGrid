@@ -1,7 +1,7 @@
 import type { GameModule } from '@/game/context';
 import type { BuildingCategory } from '@/content/types';
 import { isCompact } from '@/platform/device';
-import { BuildPanel } from './BuildPanel';
+import { BuildPanel, type BuildTab } from './BuildPanel';
 import './build.css';
 
 export interface BuildService {
@@ -11,7 +11,13 @@ export interface BuildService {
   close(): void;
   toggle(): void;
   readonly isOpen: boolean;
+  /** Adds a tab beside Build (Goals, D-153); `pane` scrolls on its own. */
+  addTab(id: string, label: string, glyph: string, pane: HTMLElement): BuildTab;
+  /** Opens the panel on tab `id` ('build', 'goals'). */
+  show(tab: string): void;
 }
+
+export type { BuildTab };
 
 declare module '@/core/Services' {
   interface GameServices {
@@ -22,7 +28,8 @@ declare module '@/core/Services' {
 /**
  * Build mode (D-084): the city-building actions and building catalogue in their own panel, entered from the Build
  * button (or B, or any build hotkey) and left with Done, Esc or B. City Pulse stays a monitoring console; on
- * desktops it folds while build mode is open and comes back as it was.
+ * desktops it folds while build mode is open and comes back as it was. Goals (unlock projects, milestones) are a
+ * tab of this panel (D-153): goals are met by building.
  */
 export const buildModule: GameModule = {
   id: 'build',
@@ -54,18 +61,27 @@ export const buildModule: GameModule = {
       open(category) {
         if (category) panel.showCategory(category);
         setOpen(true);
+        panel.selectTab('build');
       },
       close: () => setOpen(false),
       toggle: () => setOpen(!panel.open),
       get isOpen() {
         return panel.open;
       },
+      addTab: (id, label, glyph, pane) => panel.addTab(id, label, glyph, pane),
+      show(tab) {
+        setOpen(true);
+        panel.selectTab(tab);
+      },
     };
     ctx.services.provide('build', service);
 
     // Any build tool (a hotkey, Flora, the advisor's "build one") opens the panel, so there is always a way out.
     ctx.bus.on('tool:changed', ({ id }) => {
-      if (id !== 'select') setOpen(true);
+      if (id !== 'select') {
+        setOpen(true);
+        panel.selectTab('build');
+      }
       panel.toolChanged(id);
     });
     // The inspector takes the 3D stage; a new city starts outside build mode.

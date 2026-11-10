@@ -24,7 +24,7 @@ export interface PulseService {
   readonly collapsed: boolean;
   /** Hides / shows the console. */
   fold(folded: boolean): void;
-  /** Opens the console on tab `id` (the Goals tab from a "how to unlock it" button). */
+  /** Opens the console on tab `id`. */
   show(id: string): void;
 }
 
@@ -76,7 +76,7 @@ function sparkline(canvas: HTMLCanvasElement, data: number[], color: string): vo
  * City Pulse console: the steward's one panel (D-056), a full-height column on the left with tabs (on phones a
  * sheet under the top bar with the same tabs, D-106).
  * Pulse (system health tiers, demand meters, budget with tax control, harmony breakdown, trend sparklines) is its
- * own; other modules add theirs through the `pulse` service (Lenses, Flora-Net, Goals), so the lens bar and the
+ * own; other modules add theirs through the `pulse` service (Lenses, Flora-Net), so the lens bar and the
  * advisor no longer cover the city. Building is not a tab: it has its own mode and panel (D-084). Updates are
  * throttled and text-diffed. `collapsed` hides the whole console (the top-bar button, P and ✕ show and hide it).
  */

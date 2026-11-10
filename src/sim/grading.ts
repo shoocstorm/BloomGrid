@@ -1,12 +1,14 @@
 /**
- * Lot grading (D-099): a building should sit on ground shaped for it, not in a hollow. A building stands at its lot's
- * highest corner (BuildingRenderer.placeBuilding); where ground right beside the lot rises above that, it reads as
- * sunk. Grading fixes that the way a builder would:
+ * Lot grading (D-099, D-154): a building should sit on ground shaped for it, not in a hollow. A building stands at
+ * its pad (`Grid.padOver`: its lot's highest corner, or the ring of ground right beside the lot where that is higher);
+ * ground above the lot's top beside it would bury the ground floor. Grading shapes the ground the way a builder would,
+ * so the pad and the lot agree and the plinth stays hidden:
  * - Level lots: each lot is levelled to its pad, its highest corner, lifted to meet a higher highway along its
- *   edge (up to MAX_FILL, and never more than CLIFF over a lower street or the water beside it).
- * - Banks: open ground rising beside the lot is cut back to a gentle ramp (BANK per tile, out to RAMP tiles). Ground
- *   falling away is left to the building's plinth: embankments filled from a high lot raised flat ground for tiles
- *   around and made hollows next to lower neighbours.
+ *   edge or a higher neighbouring lot or kept terrace touching it (up to MAX_FILL, and never more than CLIFF over a
+ *   lower street or the water beside it). Adjacent lots so settle on one level where the ground allows.
+ * - Banks: open ground beside the lot is cut flush with the pad one tile out, then back to a gentle ramp (BANK per
+ *   tile, out to RAMP tiles). Ground falling away is left to the building's plinth: embankments filled from a high
+ *   lot raised flat ground for tiles around and made hollows next to lower neighbours.
  * Never touched: other buildings' lots (their plinths hide them), highways beyond the lot's edge (they keep their
  * own grade), corners next to bridges or filtration channels, and water. Pure: returns corner heights to write
  * through `setCorners`.
@@ -16,8 +18,10 @@ import { SEA_LEVEL } from './Grid';
 
 /** Height a bank may rise per tile of distance from the lot (a ≈24° slope, half a highway's limit). */
 export const BANK = 0.45;
-/** Tiles a ramp or embankment may run from a lot before it meets the natural ground. */
-export const RAMP = 6;
+/** Tiles a ramp or embankment may run from a lot before it meets the natural ground (the first tile is flat). */
+export const RAMP = 7;
+/** Passes the pads settle over: a lot lifted to a neighbour can lift the next lot along a row. */
+const PASSES = 12;
 /** Tiles out to which a higher street lifts a lot (ramped down by BANK a tile beyond the first). */
 export const STREET = 3;
 /** A street up to this much higher than a lot is a kerb step, not a reason to lift the lot. */
@@ -74,30 +78,40 @@ export function gradeLots(
     fixedC[z * W + x] === 1 || (keep(z * W + x) && !lotCorner[z * W + x]);
   const street = (x: number, z: number) => streetC[z * W + x] === 1;
   const wet = (c: number) => at(c) < SEA_LEVEL + 0.05;
-  // 1. Pads: each lot stands at its highest corner, lifted to meet a higher street along its edge. Lifting writes lot
-  // corners only, which can raise a neighbouring lot's pad, so repeat until no lot moves.
+  // 1. Pads: each lot stands at its highest corner, lifted to meet a higher street along its edge or a higher lot or
+  // kept terrace touching it. Lifting writes lot corners only, which can raise a neighbouring lot's pad, so repeat
+  // until no lot moves. The fill is measured from the lot's natural top, so a chain of lifts stays within MAX_FILL.
+  const natural = lots.map(({ x, z, w, d }) => g.rangeOver(x, z, w, d).max);
   const pads = lots.map(() => 0);
-  for (let pass = 0; pass < 6; pass++) {
+  for (let pass = 0; pass < PASSES; pass++) {
     let changed = false;
     lots.forEach(({ x, z, w, d }, n) => {
       let pad = -Infinity;
       for (let j = z; j <= z + d; j++) for (let i = x; i <= x + w; i++) pad = Math.max(pad, at(j * W + i));
       // The street to meet: a highway along the edge, or one a few tiles off that a BANK ramp must still reach.
       let road = -Infinity;
+      // Ground beside the lot that grading never cuts (another lot, a kept terrace): the lot rises to meet it.
+      let meet = -Infinity;
       let low = Infinity;
       for (let j = z - STREET; j <= z + d + STREET; j++)
         for (let i = x - STREET; i <= x + w + STREET; i++) {
           if (i < 0 || j < 0 || i > g.w || j > g.h) continue;
           const k = Math.max(x - i, i - (x + w), z - j, j - (z + d), 0);
-          // Kept terrace corners still count: a street lying on a terrace is a street to meet.
-          if (k === 0 || lotCorner[j * W + i] || fixedC[j * W + i]) continue;
+          if (k === 0) continue;
           const v = at(j * W + i);
+          // Kept terrace corners still count: a street lying on a terrace is a street to meet.
+          if (lotCorner[j * W + i] || fixedC[j * W + i]) {
+            if (k === 1 && !street(i, j) && v >= SEA_LEVEL + 0.05) meet = Math.max(meet, v);
+            continue;
+          }
           if (street(i, j)) road = Math.max(road, v - (k - 1) * BANK);
           // Ground no embankment can reach (a lower street, water) beside the lot caps the lift: a corner lot meets
           // its higher street only as far as it can without towering over the lower one.
           if (k === 1 && (street(i, j) || v < SEA_LEVEL + 0.05)) low = Math.min(low, v);
         }
-      if (road > pad + KERB) pad = Math.max(pad, Math.min(road, pad + MAX_FILL, low + CLIFF));
+      const limit = Math.min(natural[n]! + MAX_FILL, low + CLIFF);
+      if (road > pad + KERB) pad = Math.max(pad, Math.min(road, limit));
+      if (meet > pad + 0.02) pad = Math.max(pad, Math.min(meet, limit));
       // Level the lot to its pad (the building covers it): the banks then fall away from a flat edge, and the tiles
       // round it stay gentle enough for highways. Corners a street rests on keep their height.
       for (let j = z; j <= z + d; j++)
@@ -128,8 +142,8 @@ export function gradeLots(
     });
     if (!changed) break;
   }
-  // 2. Banks: open ground round each lot is cut down to a ramp rising BANK per tile from its pad; every lot nearby
-  // has its say at once (the lowest cap wins).
+  // 2. Banks: open ground round each lot is cut flush with its pad one tile out, then down to a ramp rising BANK per
+  // tile beyond; every lot nearby has its say at once (the lowest cap wins).
   const cap = new Map<number, number>();
   lots.forEach(({ x, z, w, d }, n) => {
     for (let j = z - RAMP; j <= z + d + RAMP; j++)
@@ -138,7 +152,7 @@ export function gradeLots(
         const k = Math.max(x - i, i - (x + w), z - j, j - (z + d), 0);
         const c = j * W + i;
         if (k === 0 || lotCorner[c] || street(i, j) || fixed(i, j) || wet(c)) continue;
-        cap.set(c, Math.min(cap.get(c) ?? Infinity, pads[n]! + k * BANK));
+        cap.set(c, Math.min(cap.get(c) ?? Infinity, pads[n]! + (k - 1) * BANK));
       }
   });
   for (const [c, hi] of cap) {

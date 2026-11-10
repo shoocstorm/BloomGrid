@@ -301,3 +301,132 @@ body:not(.compact) .build {
 .compact .build .brief.empty {
   display: none;
 }
+
+/* ── Tabs (D-153): Build and Goals, under the header ── */
+.bd-tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
+  margin: 6px 0 2px;
+}
+.bd-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 4px;
+  border-radius: var(--r-sm);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.bd-tab .ico {
+  width: 14px;
+  height: 14px;
+}
+.bd-tab:hover {
+  color: var(--ink);
+  background: var(--bg-hover);
+}
+.bd-tab.on {
+  color: var(--accent);
+  background: rgba(95, 242, 218, 0.14);
+}
+.build .bd-pane.hidden {
+  display: none;
+}
+.build .bd-pane-goals {
+  counter-reset: sec;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  padding: 4px 2px 0 0;
+}
+/* Goals waiting (ready to start, milestones to claim) show on the launcher while the panel is closed. */
+.build-fab .con-badge {
+  top: -5px;
+  right: -5px;
+}
+
+/* ── The buildings list (D-153): ready first, then saving up, at the limit, locked ── */
+.bd-group {
+  grid-column: 1 / -1;
+  margin: 6px 0 1px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.bd-group:first-child {
+  margin-top: 0;
+}
+.bd-group-open {
+  color: var(--accent);
+}
+/* Ready-to-build count on each category chip. */
+.bd-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+.build .tool.cat.on .bd-count {
+  color: var(--accent);
+}
+/* Hero buildings: a small gold star and a gold edge, quiet enough not to compete with the state colours. */
+.build .card.hero {
+  border-left-color: rgba(255, 207, 106, 0.55);
+}
+.build .card.hero.on {
+  border-color: var(--accent);
+}
+.bd-hero {
+  display: inline-flex;
+  vertical-align: -1px;
+  margin-right: 4px;
+  color: var(--warn);
+}
+.bd-hero .ico {
+  width: 10px;
+  height: 10px;
+}
+.bp-hero {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border: 1px solid rgba(255, 207, 106, 0.45);
+  border-radius: var(--pill);
+  color: var(--warn);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.bp-hero .ico {
+  width: 9px;
+  height: 9px;
+}
+
+/* Phones: the sideways strip has no room for group labels (the order still holds); Goals scroll inside the sheet. */
+.compact .bd-group,
+.compact .bd-count {
+  display: none;
+}
+.compact .dock-row .build-fab {
+  position: relative;
+}
+.compact .build .bd-pane-goals {
+  max-height: 46vh;
+}
+.compact .bd-tabs {
+  margin: 0 0 2px;
+}

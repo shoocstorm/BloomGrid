@@ -1,6 +1,6 @@
 /*
  * Phone layout. `body.compact` (platform/device.ts) trims the HUD to what a thumb needs: clock,
- * key stats and actions on top; the City Pulse console (Pulse, Lenses, Flora-Net, Goals tabs) as one sheet
+ * key stats and actions on top; the City Pulse console (Pulse, Lenses, Flora-Net tabs) as one sheet
  * from the top bar's Pulse button; the inspector as a bottom sheet; a scrolling icon toolbar. Telemetry and keyboard hints are
  * dropped; explore modes keep their top-bar switcher (glyph only) and get a touch pad (explore.css). `body.touch` only removes hover/keyboard affordances.
  * Loaded after theme.css so it wins without !important wars.
@@ -156,7 +156,7 @@ body.compact {
 }
 
 
-/* ── City Pulse console (D-056, D-106): the same tabbed panel as desktops (Pulse, Lenses, Flora-Net, Goals),
+/* ── City Pulse console (D-056, D-106): the same tabbed panel as desktops (Pulse, Lenses, Flora-Net),
    a sheet under the top bar opened and closed by the top bar's Pulse button. ── */
 .compact .rightcol {
   display: contents;

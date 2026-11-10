@@ -13,7 +13,7 @@ order: 4
 
 On a fresh island the card at the top right (above the Build button on a phone) shows your **next milestone**: a
 short goal such as a second fishing dock, Food at 100%, 250 residents or ◈3,000 saved. The bar shows how close you
-are. A **Build** button picks the building that gets you there. The Goals tab in City Pulse lists the next few.
+are. A **Build** button picks the building that gets you there. The Goals tab of the Build panel lists the next few.
 
 ## How do I claim a reward?
 
