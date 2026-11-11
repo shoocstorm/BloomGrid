@@ -147,14 +147,18 @@ interface SubZone {
 }
 
 /**
- * Living zones (D-049): homes, denser near the centre so the towns keep their residents after giving blocks to
- * work, industry and sport; a few vertical farms for food. Jobs live in the work and industry zones.
+ * Living zones (D-049, D-155): homes in three densities by ring, so the city reads as one that grew from its
+ * centre: inner blocks are a near-continuous street wall of towers with corner studios and a park now and then,
+ * the middle rings mix towers and houses, and the edge is houses with gardens between. Jobs live in the work and
+ * industry zones; the few studios inside the inner rings are corner shops.
  */
 const homes: Mix = (ring) =>
-  ring <= 6
-    ? [{ 'canopy-tower': 2, 'garden-residence': 4, 'pocket-park': 3, 'vertical-farm': 1 }, 0.75]
-    : [{ 'garden-residence': 5, 'pocket-park': 4 }, 0.68];
-const offices: Mix = () => [{ 'greenhouse-hub': 3, 'living-studio': 4, 'vertical-farm': 2, 'pocket-park': 1 }, 0.85];
+  ring <= 5
+    ? [{ 'canopy-tower': 3, 'garden-residence': 3, 'living-studio': 1, 'pocket-park': 1, 'vertical-farm': 1 }, 0.92]
+    : ring <= 7
+      ? [{ 'canopy-tower': 2, 'garden-residence': 4, 'pocket-park': 2, 'vertical-farm': 1 }, 0.82]
+      : [{ 'garden-residence': 5, 'pocket-park': 3 }, 0.68];
+const offices: Mix = () => [{ 'greenhouse-hub': 3, 'living-studio': 4, 'vertical-farm': 2, 'pocket-park': 1 }, 0.92];
 const factories: Mix = () => [
   { 'mycelium-brickworks': 2, 'kelp-refinery': 1, 'solar-glass-foundry': 2, 'circular-reclaimery': 2, 'drone-fabricator': 2, 'phyto-garden': 3 },
   0.85,
@@ -170,7 +174,8 @@ const TOWNS: Town[] = [
   {
     name: 'Bayfront',
     blocks: [-3, 4, 4, 7],
-    mix: () => [{ 'canopy-tower': 3, 'garden-residence': 3, 'pocket-park': 2, 'vertical-farm': 1 }, 0.65],
+    // Downtown: a tower skyline on the bay, studios at the corners.
+    mix: () => [{ 'canopy-tower': 4, 'garden-residence': 2, 'living-studio': 1, 'pocket-park': 1, 'vertical-farm': 1 }, 0.9],
     parks: 8,
     bridges: { z: [5, 7] },
     shore: 's',
@@ -204,8 +209,8 @@ const TOWNS: Town[] = [
 ];
 const subZoneAt = (t: Town, i: number, j: number) =>
   t.zones?.find(({ blocks: [i0, j0, i1, j1] }) => i >= i0 && i <= i1 && j >= j0 && j <= j1);
-/** The Sunfield solar farm, north-west of Westbrook (its south street is Westbrook's north street). */
-const UTILITY: Town[] = [{ name: 'Sunfield', blocks: [-9, -2, -7, -2], mix: () => [{}, 0], parks: 0, lanes: 5, zone: 'utility' }];
+/** The Sunfield solar farm, north-west of Westbrook (its south street is Westbrook's north street), two block rows deep (D-155). */
+const UTILITY: Town[] = [{ name: 'Sunfield', blocks: [-9, -3, -7, -2], mix: () => [{}, 0], parks: 0, lanes: 5, zone: 'utility' }];
 
 /** Steepest step between neighbouring blocks' terraces: streets refuse tiles that climb more than 0.9. */
 const TERRACE_STEP = 0.8;
@@ -214,10 +219,10 @@ const TERRACE_STEP = 0.8;
  * Builds the hero district around the centre block at (sx, sz): grades every block into a terrace (each as
  * close to its ground as the TERRACE_STEP limit allows, so the streets between them stay drivable and the
  * empty lots are ready to build on), places the Aurora Gemini (D-135), then the heroes of QUARTERS. Each hero sits
- * flush with the street on its block's side facing away from the centre, long side along it. Returns false if the
- * twins won't fit.
+ * flush with the street on its block's side facing away from the centre, long side along it. Returns the blocks
+ * (`i,j`) built on, or null if the twins won't fit.
  */
-function heroDistrict(b: ScenarioBuilder, sx: number, sz: number): boolean {
+function heroDistrict(b: ScenarioBuilder, sx: number, sz: number): Set<string> | null {
   const n = GRID - 1;
   const ring = (i: number, j: number) => Math.max(Math.abs(i), Math.abs(j)) * 100 + Math.abs(i) + Math.abs(j);
   const blocks = (i0: number, j0: number, i1: number, j1: number) => {
@@ -248,7 +253,7 @@ function heroDistrict(b: ScenarioBuilder, sx: number, sz: number): boolean {
     });
     b.level(sx + GRID * i, sz + GRID * j, sx + GRID * i + n - 1, sz + GRID * j + n - 1, 3, (lo + hi) / 2);
   });
-  if (!b.building('aurora-gemini', sx, sz, 0)) return false;
+  if (!b.building('aurora-gemini', sx, sz, 0)) return null;
 
   const land = (x: number, z: number, w: number, d: number) => {
     for (let k = z; k < z + d; k++) for (let m = x; m < x + w; m++) if (!b.isLand(m, k)) return false;
@@ -289,7 +294,7 @@ function heroDistrict(b: ScenarioBuilder, sx: number, sz: number): boolean {
         if (typeof hero !== 'string') used.add(`${i},${j + 1}`);
         break;
       }
-  return true;
+  return used;
 }
 
 /**
@@ -343,7 +348,8 @@ export default defineScenario({
     // (0, 0) at the island's exact centre where the river rises; the Wellspring Spire moved out to the Working Hills.
     // Heroes are placed now (so the utility sweeps count them) but the grid's streets are drawn last, so the
     // sweeps never fill its lots.
-    const spire = heroDistrict(b, sx, sz);
+    const heroBlocks = heroDistrict(b, sx, sz);
+    const spire = heroBlocks !== null;
 
     // The towns continue the hero district's grid on every side, so the island reads as one planned city: blocks
     // are lined with buildings round a green courtyard, densest by the centre and the bay, thinning toward the
@@ -392,14 +398,23 @@ export default defineScenario({
     // Aeroline stations (the line itself is drawn above the streets by the aeroline module).
     const line = aerolineRoute(S);
     for (const st of line.stations) b.building('aeroline-station', st.bx, st.bz, st.rot);
-    // The two lot rows either side of the line take only low buildings, so nothing rises into the viaduct.
+    // The two lot rows either side of the line take only low buildings, so nothing rises into the viaduct: inside
+    // the towns' and quarters' blocks only (D-155). Where the line crosses open country the rows stay open: homes
+    // out there are beyond every dock's reach, and a row of them walking to work is one stream on one street.
     const low = { 'garden-residence': 3, 'pocket-park': 2, 'greenhouse-hub': 1 };
+    const blockRects = [...TOWNS.map((t) => tiles(t.blocks)), ...QUARTERS.map((q) => tiles(q.blocks))];
+    const fillInBlocks = (r: Rect) => {
+      for (const [bx0, bz0, bx1, bz1] of blockRects) {
+        const [x0, z0, x1, z1] = [Math.max(r[0], bx0), Math.max(r[1], bz0), Math.min(r[2], bx1), Math.min(r[3], bz1)];
+        if (x0 <= x1 && z0 <= z1) fillRect([x0, z0, x1, z1], low);
+      }
+    };
     for (let i = 0; i < line.corners.length; i++) {
       const [a, c] = [line.corners[i]!, line.corners[(i + 1) % line.corners.length]!].map(([x, z]) => [Math.floor(x), Math.floor(z)]) as [number, number][];
       const [x0, x1, z0, z1] = [Math.min(a[0], c[0]), Math.max(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[1], c[1])];
       for (const k of [-2, 1]) {
-        if (z0 === z1) fillRect([x0, z0 + k, x1, z0 + k + 1], low);
-        else fillRect([x0 + k, z0, x0 + k + 1, z1], low);
+        if (z0 === z1) fillInBlocks([x0, z0 + k, x1, z0 + k + 1]);
+        else fillInBlocks([x0 + k, z0, x0 + k + 1, z1]);
       }
     }
     fillRect(tiles([-3, 4, -2, 5]), { 'supertree-grove': 1 }, 1, 1);
@@ -422,16 +437,30 @@ export default defineScenario({
       for (let j = j0 + 1; j <= j1; j += 3)
         for (let i = i0 + 1; i <= i1; i += 3) if (!subZoneAt(t, i, j)) fillRect(tiles([i, j, i, j]), { 'pod-interchange': 1 }, 1, 1);
     }
-    // A Pod Dock on every living block: a home's road commuters travel in one stream to the nearest workplace,
+    // Pod Docks on every living block: a home's road commuters travel in one stream to the nearest workplace,
     // and with jobs zoned away from homes those streams would jam the streets between, so most fly instead.
-    // Work, industry, venue and sport blocks need none (docks lift commuters from homes).
+    // Work, industry, venue and sport blocks need none (docks lift commuters from homes). A dock reaches 12
+    // tiles, so they stand mid-side (D-155): on every side of the dense inner blocks (level-3 towers house
+    // well over one dock's riders), north and south in the middle rings, north at the edge; a home more than
+    // a dock's reach from every dock walks, and a block of towers walking is the stream that jams a street.
+    const dockSides = (i: number, j: number, sides: string) => {
+      const [x0, z0, x1, z1] = tiles([i, j, i, j]);
+      let n = 0;
+      for (const side of sides) {
+        const [x, z] =
+          side === 'n' ? [x0 + 6, z0] : side === 's' ? [x0 + 6, z1 - 1] : side === 'w' ? [x0, z0 + 6] : [x1 - 1, z0 + 6];
+        if (b.building('pod-dock', x, z, 0)) n++;
+        else n += fillRect([x0, z0, x1, z1], { 'pod-dock': 1 }, 1, 1);
+      }
+      return n;
+    };
     for (const t of TOWNS) {
       const [i0, j0, i1, j1] = t.blocks;
       for (let j = j0; j <= j1; j++)
         for (let i = i0; i <= i1; i++) {
           if (subZoneAt(t, i, j)) continue;
-          // Dense inner blocks (towers) get a second dock: their commuters travel furthest to the zoned jobs.
-          fillRect(tiles([i, j, i, j]), { 'pod-dock': 1 }, 1, Math.max(Math.abs(i), Math.abs(j)) <= 6 ? 2 : 1);
+          const ring = Math.max(Math.abs(i), Math.abs(j));
+          dockSides(i, j, ring <= 5 ? 'nsew' : ring <= 7 ? 'ns' : 'n');
         }
     }
     fillRect(tiles(down.blocks), { 'flora-hive': 1 }, 1, 1);
@@ -492,6 +521,23 @@ export default defineScenario({
     const islet = isletRect;
     fillRect(islet, { 'ember-watch': 1 }, 1, 1);
 
+    // A city that grew from its centre (D-155): the hero district and the blocks round it stand at level 3, the
+    // middle rings at level 2 and the edge at level 1, the steps feathered so no street is a hard line between
+    // levels. Applied before the sweeps below, which then size power, jobs and food for the grown city. The
+    // outlying works (Sunfield, the islets, the wind farm) stay as built.
+    if (spire) b.tier(lineX(-GRID_W) + 1, lineZ(-GRID_N) + 1, lineX(GRID_W + 1) - 1, lineZ(GRID_S + 1) - 1, 2);
+    for (const t of TOWNS) {
+      const [i0, j0, i1, j1] = t.blocks;
+      for (let j = j0; j <= j1; j++)
+        for (let i = i0; i <= i1; i++) {
+          const ring = Math.max(Math.abs(i), Math.abs(j));
+          const [tier, chance] = ring <= 5 ? [2, 1] : ring === 6 ? [2, 0.55] : ring === 7 ? [1, 1] : ring === 8 ? [1, 0.5] : [0, 0];
+          if (tier > 0) b.tier(...tiles([i, j, i, j]), tier, chance);
+          // What the feathering left at the lower level keeps the level below it, not level 1.
+          if (ring === 6 && chance < 1) b.tier(...tiles([i, j, i, j]), 1);
+        }
+    }
+
     // Balance: jobs for most of the labour force, power with a thin margin; water and food left short. Utilities go
     // to their own places: solar panels to the Sunfield, water works to any town or utility shore.
     const towns = TOWNS.map((t) => tiles(t.blocks));
@@ -518,7 +564,7 @@ export default defineScenario({
     // Food: vertical farms in the towns, then as urban farm towers in whatever work-zone lots remain.
     sweep('vertical-farm', () => t().food > t().population * 0.55, [...towns, ...zoned('work')]);
     // 1.12× planned demand: the factories run near full shifts, so live use sits close to the plan.
-    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.12, [sun, islet]);
+    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.16, [sun, islet]);
     sweep('water-works', () => t().waterProduced > t().waterUsed * 0.88, [[0, 0, S - 1, S - 1]]);
 
     if (park) b.road(park[0] + 8, park[1] - 1, park[0] + 28, park[1] - 1, true);
@@ -530,12 +576,18 @@ export default defineScenario({
       for (let j = -GRID_N; j <= GRID_S + 1; j++) b.road(x0, lineZ(j), x1, lineZ(j), j === 2 || j === GRID_S + 1);
       // The hero district's streets are Bloom Boulevards (D-096).
       b.roadLevel(x0, z0, x1, z1, 2);
-      // Transit for the hero district's living quarter (its towers' commuters otherwise jam the centre's
-      // streets): an interchange in its middle and a dock in every block, now that the streets reach the lots.
-      for (const q of QUARTERS.filter((qq) => qq.zone === 'living')) {
+      // Transit for the whole hero district (D-155): an interchange in every quarter's middle and a dock in every
+      // block, now that the streets reach the lots. The Civic Ring and the Garden Quarter house thousands in the
+      // Sky Ark, the twins and the Habitat Cascade, and without a dock in reach they walk to the nearest hiring
+      // hero in one stream that jams the centre's boulevards.
+      // Only blocks a hero stands on: the spare blocks stay empty graded lots for the steward's heroes.
+      for (const q of QUARTERS) {
         const [i0, j0, i1, j1] = q.blocks;
-        fillRect(tiles([Math.round((i0 + i1) / 2), Math.round((j0 + j1) / 2), Math.round((i0 + i1) / 2), Math.round((j0 + j1) / 2)]), { 'pod-interchange': 1 }, 1, 1);
-        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) fillRect(tiles([i, j, i, j]), { 'pod-dock': 1 }, 1, 1);
+        const built: [number, number][] = [];
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (heroBlocks!.has(`${i},${j}`)) built.push([i, j]);
+        built.sort((p, q2) => Math.max(Math.abs(p[0]), Math.abs(p[1])) - Math.max(Math.abs(q2[0]), Math.abs(q2[1])));
+        built.some(([i, j]) => fillRect(tiles([i, j, i, j]), { 'pod-interchange': 1 }, 1, 1) > 0);
+        for (const [i, j] of built) dockSides(i, j, 'ns');
       }
       // An Ember Watch station for the centre's living and work quarters.
       for (const q of QUARTERS.filter((qq) => qq.zone === 'living' || qq.zone === 'work')) fillRect(tiles(q.blocks), { 'ember-watch': 1 }, 1, 1);
@@ -543,6 +595,13 @@ export default defineScenario({
 
     // Named areas for the inventory and the inspector, most specific first; their streets included.
     const streets = ([i0, j0, i1, j1]: Rect): Rect => [lineX(i0), lineZ(j0), lineX(i1 + 1), lineZ(j1 + 1)];
+    // The towns' inner rings are Bloom Boulevards too (D-155): the grown blocks round the centre fill their
+    // streets, and a boulevard carries more before it jams.
+    for (const t of TOWNS) {
+      const [i0, j0, i1, j1] = t.blocks;
+      for (let j = j0; j <= j1; j++)
+        for (let i = i0; i <= i1; i++) if (Math.max(Math.abs(i), Math.abs(j)) <= 6) b.roadLevel(...streets([i, j, i, j]), 2);
+    }
     if (wharfLot) {
       const n = Math.max(...b.footprint('fireworks-factory'));
       b.nameArea('Westport Wharf', wharfLot[0] - 1, wharfLot[1] - 1, wharfLot[0] + n, wharfLot[1] + n, 'industry');

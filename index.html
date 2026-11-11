@@ -3,14 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <!-- Full-screen phone web app: edge to edge under the notch and home indicator (the HUD keeps to the safe areas,
-         ui/mobile.css), no page zoom, launched from the home screen without browser bars (manifest, apple-*). -->
+         ui/mobile.css), no page zoom, launched from the home screen without browser bars (manifest). No
+         apple-mobile-web-app-status-bar-style / theme-color: with black-translucent, iOS home-screen apps lay the page out
+         short of the home indicator and leave a strip of page background there (D-156). -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="BloomGrid" />
     <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
-    <meta name="theme-color" content="#061315" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>BloomGrid</title>
@@ -23,6 +22,8 @@
       html,
       body {
         margin: 0;
+        /* Dark page: iOS draws the status bar's clock and battery in white over it. */
+        color-scheme: dark;
         background: radial-gradient(ellipse at 50% 45%, #0c2c33 0%, #061719 45%, #020a0c 100%) #020a0c;
       }
     </style>

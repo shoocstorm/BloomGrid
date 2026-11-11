@@ -283,6 +283,12 @@ export interface ScenarioBuilder {
    * feathering back into the terrain over `margin` tiles (never over earlier edits). Water is never filled. Saved as terrain edits. Returns the height used.
    */
   level(x0: number, z0: number, x1: number, z1: number, margin?: number, height?: number): number;
+  /**
+   * Raises every building whose north-west tile lies in x0..x1 × z0..z1 (inclusive) to level `tier` + 1 (0–2; a
+   * building already higher keeps its level; one that cannot level is left alone), each with probability `chance`.
+   * The running totals follow the levels' size and use multipliers, so later balance sweeps see the grown city (D-155).
+   */
+  tier(x0: number, z0: number, x1: number, z1: number, tier: number, chance?: number): void;
   /** Names the tile rectangle x0..x1 × z0..z1 (inclusive): a town, quarter or park, with what it is for. Earlier names win where areas overlap. */
   nameArea(name: string, x0: number, z0: number, x1: number, z1: number, zone?: ZoneKind): void;
   /** Running utility totals of everything placed so far (at full occupancy). */

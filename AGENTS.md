@@ -118,7 +118,7 @@ To light a fire from a snap eval: `(await import('/src/sim/hazards.ts')).ignite(
 | Building levels (looks)            | every building that can level designs its level 2 and 3 inline in its recipe: `b.level(2 \| 3, fn)` adds pieces from that level, `b.upTo(1 \| 2, fn)` marks a roof or crown a later level replaces (lift it onto the new storey). Level blocks draw from their own stream, so level 1 never shifts. Grow in the building's own language (storeys, segments, wings, rides), never a generic slab. Check with `scripts/scenes/heroes.js` (`window.HERO`, `VARIANT`, `STYLE`); `tests/levelLooks.test.ts` fails for a levelling building with no design (D-100) |
 | Native / desktop behaviour         | `src/platform/` (`web.ts`, `tauri.ts`); Rust commands in `src-tauri/src/lib.rs`                                                                                            |
 | Terrain / island shape             | `src/sim/terrain.ts` (pure height function); look in `src/world/Terrain.ts` (steep faces draw as stone embankments, D-140)                                                                                                                                |
-| Starting city content              | `src/content/scenarios/<id>.ts` (`defineScenario`); builder in `src/sim/scenario.ts`                                                                                       |
+| Starting city content              | `src/content/scenarios/<id>.ts` (`defineScenario`); builder in `src/sim/scenario.ts`. `b.tier(rect, level, chance)` grows what stands in a rect (totals follow, so run it before balance sweeps); the founding city's level gradient, ring mixes and mid-side docks are in `founding-city.ts` (D-155) |
 | Management metric / tier           | `src/sim/pulse.ts` + `src/sim/pulseState.ts`; UI in `src/modules/pulse/`                                                                                                   |
 | Data lens / advisor rule           | `registerOverlay` in `src/sim/overlays.ts` (needs `about` / `read` / `act` text for the Lenses card); `registerAdvisorRule` in `src/sim/advisor.ts`                                                                                  |
 | Crisis / difficulty                | `registerCrisis` in `src/sim/crises.ts`; presets in `src/sim/difficulty.ts`; UI in `src/modules/crises/`                                                                   |
@@ -348,7 +348,10 @@ The knowledge base is never finished: treat it as part of every feature. Flora's
   that acts on a single tap should preview first when `e.touch` (no hover on touch), and a drag-drawing tool should
   implement `cancel` (a second finger turns the press into a camera gesture). Placing a building is the exception: one
   tap builds, and the preview is pinned to a suggested free lot instead (`spot` in `construction/tools.ts`, D-151).
-- iPhone full screen (D-152): the page runs edge to edge (`viewport-fit=cover`, black-translucent status bar, home-screen
+- iPhone full screen (D-152, D-156): the page runs edge to edge (`viewport-fit=cover`, `color-scheme: dark`; no
+  `apple-mobile-web-app-status-bar-style` or `theme-color`). `body` is the screen: in flow, `100dvh`, and full-screen
+  layers sit `position: absolute` in it; a `position: fixed` full-screen layer stops short of the home indicator in an
+  iOS home-screen app. The renderer sizes from the canvas, not `innerHeight`. Home-screen
   app via `public/manifest.webmanifest` + `apple-touch-icon`). Phone HUD edges use `--top` / `--bot` / `--gut-l` /
   `--gut-r` (safe areas included), never a bare px offset or `--gut` alone; script layout reads `safeInsets()` and
   sizes on `onViewportChange` (`platform/device.ts`). Icons: edit `public/icons/icon.svg`, then

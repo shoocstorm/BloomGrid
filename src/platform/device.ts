@@ -4,7 +4,7 @@
  * primary pointer is a finger: keyboard hints hide and tools ask for a confirming second tap.
  * Both follow the live media queries, so rotating a phone or resizing a window re-evaluates them.
  * `standalone` is the home-screen web app (iOS "Add to Home Screen", an installed PWA): no browser bars, and the
- * status bar is drawn over the page (black-translucent), so the HUD keeps to the safe areas.
+ * page runs under the status bar and home indicator (viewport-fit=cover), so the HUD keeps to the safe areas.
  */
 const COMPACT_QUERY = '(max-width: 760px), (max-height: 520px) and (pointer: coarse)';
 const TOUCH_QUERY = '(pointer: coarse)';

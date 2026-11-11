@@ -20,6 +20,13 @@ function measure(s: ReturnType<typeof makeSim>, pulses: number) {
   return { actual: (s.city.credits - c0) / pulses, shown };
 }
 
+/**
+ * How far the shown and actual flows may differ: 0.3 credits per second, or 0.3% of the flows in play when the
+ * city's books are bigger (the founding city's grown core doubles them, D-155), whichever is more.
+ */
+const tolerance = (s: ReturnType<typeof makeSim>) =>
+  Math.max(0.3, 0.003 * (s.city.stats.income + s.city.stats.upkeep));
+
 function deficit() {
   const s = makeSim(20261024);
   applyScenario(s.city, 'founding-city');
@@ -37,7 +44,7 @@ describe('credit flow (D-115)', () => {
     expect(m.shown).toBeLessThan(0);
     expect(s.city.stats.debtService).toBeGreaterThan(0);
     expect(s.city.stats.fireworks).toBeLessThan(0);
-    expect(Math.abs(m.shown - m.actual)).toBeLessThan(0.3);
+    expect(Math.abs(m.shown - m.actual)).toBeLessThan(tolerance(s));
   });
 
   it('matches in austerity (credits below zero: upkeep only part paid)', () => {
@@ -46,7 +53,7 @@ describe('credit flow (D-115)', () => {
     s.step(PULSE_TICKS * 90);
     expect(s.city.steward.funding).toBeLessThan(1);
     const m = measure(s, 60);
-    expect(Math.abs(m.shown - m.actual)).toBeLessThan(0.3);
+    expect(Math.abs(m.shown - m.actual)).toBeLessThan(tolerance(s));
   });
 
   it("the Credits guide's breakdown adds up to the same flow", () => {

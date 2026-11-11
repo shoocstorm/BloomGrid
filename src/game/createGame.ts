@@ -177,8 +177,13 @@ export async function createGame(
   const applySize = () => {
     const pr = Math.min(window.devicePixelRatio, ctx.quality.settings.maxPixelRatio) * dynRes.scale;
     renderer.setPixelRatio(pr);
-    renderer.setSize(window.innerWidth, window.innerHeight, false);
-    camera.aspect = window.innerWidth / window.innerHeight;
+    // The canvas's laid-out size (100dvh, see ui/styles.css), not innerWidth/innerHeight: in an iOS home-screen app
+    // those can leave out the home-indicator strip, which would squash the picture into a too-short buffer.
+    const el = renderer.domElement;
+    const w = el.clientWidth || window.innerWidth;
+    const h = el.clientHeight || window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
     camera.updateProjectionMatrix();
   };
   const setQuality = (t: QualityTier) => {

@@ -30,8 +30,8 @@ body.compact {
   --below: calc(var(--chips) + 42px);
 }
 
-/* Home-screen web app (iOS black-translucent status bar): the clock, signal and battery are drawn in white over the
-   page, so a soft shade under them keeps them readable over a bright island. Only as tall as the notch area. */
+/* Home-screen web app: the page runs under the status bar and its clock, signal and battery are drawn in white
+   (color-scheme: dark), so a soft shade under them keeps them readable over a bright island. Only as tall as the notch area. */
 body.compact.standalone::before {
   content: '';
   position: fixed;
@@ -679,9 +679,11 @@ body.compact.flora-open #hud > :not(.ai) {
 .compact .jc-m.hp .jc-m-head {
   padding-right: 30px;
 }
+/* Folded: just the pill, so no card padding (`.compact .jc-m` above would otherwise wrap it in 10–12px). */
 .compact .jc-m.folded {
   left: auto;
   right: var(--gut-r);
+  padding: 0;
 }
 .compact .jc-m.folded .jc-m-pill {
   min-height: 38px;

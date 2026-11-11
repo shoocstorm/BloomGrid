@@ -421,8 +421,11 @@ body:not(.compact) .build {
 .compact .bd-count {
   display: none;
 }
+/* Relative for the Goals badge; `inset: auto` drops the desktop `left: 50%` / `bottom: 16px`, which would otherwise
+   shift it half a screen right and lift it above Flora's orb. */
 .compact .dock-row .build-fab {
   position: relative;
+  inset: auto;
 }
 .compact .build .bd-pane-goals {
   max-height: 46vh;

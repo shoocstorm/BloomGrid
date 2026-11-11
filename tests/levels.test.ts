@@ -21,7 +21,8 @@ function settled() {
 const thrivingHome = (s: ReturnType<typeof makeSim>) => {
   const e = s.city
     .buildingEntities()
-    .filter((x) => s.city.buildingDef(x).stats.population > 0)
+    // A home still at level 1: the founding city's core already stands at levels 2 and 3 (D-155).
+    .filter((x) => s.city.buildingDef(x).stats.population > 0 && Building.tier[x] === 0)
     .sort(
       (a, b) =>
         Math.min(Service.power[b]!, Service.water[b]!) - Math.min(Service.power[a]!, Service.water[a]!) ||

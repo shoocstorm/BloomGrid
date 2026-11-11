@@ -9,7 +9,8 @@
   --c2: #8ef07a;
   --c3: #ff9fc4;
   --ink: #d9fff6;
-  position: fixed;
+  /* Absolute in the body (the 100dvh screen box, ui/styles.css), not fixed: fixed stops short of the iPhone home bar. */
+  position: absolute;
   inset: 0;
   z-index: 50;
   overflow: hidden;

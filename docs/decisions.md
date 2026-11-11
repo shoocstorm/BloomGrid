@@ -2682,3 +2682,46 @@ player read it as the building melting into the hill.
 **Rejected.** Lifting the lot to any higher open ground (fills a hillside lot instead of cutting a cheap bank);
 capping the plinth (a capped plinth is a buried ground floor again); re-grading on load (old saves keep their
 ground and get the plinth instead).
+
+## D-155: The founding city has grown from its centre
+
+**Context.** Every one of the showcase's 2,390 buildings stood at level 1 and its towns were filled at 65–75%
+with a third of the lots pocket parks, so the core read as the suburbs: gap-toothed frontages and a flat sea of
+2×2 houses right up to the hero district. The designed levels (D-100) never showed in the city the game opens on.
+
+**Decision.**
+- `ScenarioBuilder.tier(x0, z0, x1, z1, tier, chance)` raises the buildings whose north-west tile lies in a rect to a
+  level (those that can level), each with a chance, and moves the builder's totals by the levels' size and use
+  multipliers so the balance sweeps size power, jobs and food for the grown city. The founding city applies it
+  before its sweeps: the hero district and the town blocks within ring 5 at level 3, ring 6 half level 3 and half
+  level 2, ring 7 level 2, ring 8 half level 2, the edge and the outlying works at level 1.
+- Home mixes by ring: inner blocks towers with corner studios and few parks at 92% density, the middle rings towers
+  and houses at 82%, the edge houses and gardens at 68%; downtown is a tower skyline. Pocket parks 721 → 534.
+- Mobility for a city of ≈53k: docks stand mid-side (a dock reaches 12 tiles: every side of the inner blocks, north
+  and south in the middle rings and on every hero block, north at the edge), a dock's riders scale with its level
+  (`size(eid)` in `computeMobility`: more berths), every hero quarter gets an interchange, and the inner towns'
+  streets are Bloom Boulevards. The Aeroline's low rows fill only inside the blocks: a row of houses out in the
+  country was beyond every dock's reach and walked to work as one stream that jammed a shore street (flow 0.55).
+  Sunfield is two block rows deep for the solar sweep. Settled on seed 20261024: flow 1.0, no jammed tiles,
+  unemployment 0, power 17.1k / 15.8k, books positive.
+- Tests that pick a founding-city home pick one still at level 1; the credit-flow tolerance scales with the flows
+  in play (0.3% of income + upkeep). Draw calls: +7 at the full-island view (322 vs 315 at HEAD with the same
+  script), near views unchanged within noise. `bun run showcase` redrew the overview.
+
+**Rejected.** Two or three docks per block placed by the fill (they cluster at the block's north-west corner and
+the far homes still walk); a lower share of road commuters in the sim (a rule change for every city to fix one
+layout); levelling the islets and Sunfield (works stay works).
+
+## D-156: The page is an in-flow 100dvh box, not fixed layers (iPhone home bar)
+
+**Context.** As a home-screen app on iPhone, BloomGrid showed a strip of page background (light blue, then dark)
+over the home indicator, while Andai (same phone, same setup) runs truly full screen. With `black-translucent` and
+`position: fixed` full-screen layers, iOS lays the fixed boxes, `100%` and `innerHeight` out short of the home bar.
+
+**Decision.** Follow Andai: no `apple-mobile-web-app-status-bar-style`, `apple-mobile-web-app-capable` or
+`theme-color` (manifest `theme_color` too); `color-scheme: dark` keeps the status bar's clock white. `body` is
+`position: relative; height: 100dvh` in the page flow, and `#game`, `#hud` and the boot screen are `position: absolute;
+inset: 0` inside it. The renderer sizes from the canvas's client size, not `innerWidth` / `innerHeight`. The page
+background is the night sea, so any gap is dark, never a bright band.
+
+**Rejected.** Keeping the layers fixed and giving them `height: 100dvh` (tried: still short of the home bar on device).

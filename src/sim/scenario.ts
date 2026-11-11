@@ -4,7 +4,8 @@ import { roadLevels } from './roads';
 import { startWonders } from './wonders';
 import { buildings, scenarios } from '@/content';
 import type { ScenarioBuilder } from '@/content/types';
-import { Service } from '@/ecs/components';
+import { Building, Service } from '@/ecs/components';
+import { MAX_TIER, TIER_SIZE, TIER_USE } from './levels';
 import type { City } from './City';
 import { setCorners } from './coast';
 import { allLots, gradeLots } from './grading';
@@ -112,6 +113,31 @@ export function applyScenario(city: City, id: string): { buildings: number; road
       return n;
     },
     totals: () => ({ ...totals }),
+    tier(x0, z0, x1, z1, tier, chance = 1) {
+      const t = Math.min(MAX_TIER, Math.max(0, Math.round(tier)));
+      [x0, z0, x1, z1] = [x0, z0, x1, z1].map(Math.round) as [number, number, number, number];
+      for (let z = Math.max(0, z0); z <= Math.min(g.h - 1, z1); z++)
+        for (let x = Math.max(0, x0); x <= Math.min(g.w - 1, x1); x++) {
+          const eid = g.occupant[g.index(x, z)]!;
+          // Each building once, from its north-west tile.
+          if (eid < 0 || Building.x[eid] !== x || Building.z[eid] !== z) continue;
+          const from = Building.tier[eid]!;
+          const st = buildings.at(Building.def[eid]!).stats;
+          if (from >= t || (st.population <= 0 && st.jobs <= 0)) continue;
+          if (chance < 1 && rng.next() > chance) continue;
+          Building.tier[eid] = t;
+          // A grown building holds, makes and uses more: keep the totals the sweeps read in step (D-155).
+          const grow = TIER_SIZE[t]! - TIER_SIZE[from]!;
+          const draw = TIER_USE[t]! - TIER_USE[from]!;
+          if (st.energy > 0) totals.energyProduced += st.energy * grow;
+          else totals.energyUsed -= st.energy * draw;
+          if (st.water > 0) totals.waterProduced += st.water * grow;
+          else totals.waterUsed -= st.water * draw;
+          totals.food += st.food * grow;
+          totals.population += st.population * grow;
+          totals.jobs += st.jobs * grow;
+        }
+    },
     nameArea(name, x0, z0, x1, z1, zone) {
       [x0, z0, x1, z1] = [x0, z0, x1, z1].map(Math.round) as [number, number, number, number];
       city.districts.push({ name, ...(zone ? { zone } : {}), x0: Math.min(x0, x1), z0: Math.min(z0, z1), x1: Math.max(x0, x1), z1: Math.max(z0, z1) });
