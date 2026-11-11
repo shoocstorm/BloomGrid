@@ -513,10 +513,12 @@ class Hud {
     if (!this.group.length) return this.select(null);
     this.showInfo();
     const def = city.buildingDef(this.group[0]!);
-    const preview = ctx.services.tryGet('preview');
+    // Phones: no 3D stage, so the sheet's height goes to the details.
+    const preview = isCompact() ? null : ctx.services.tryGet('preview');
     this.info.classList.toggle('staged', !!preview);
     setText(this.stageName, `${this.group.length} × ${def.name}`);
-    preview?.showDef(this.stage, def.id);
+    if (preview) preview.showDef(this.stage, def.id);
+    else ctx.services.tryGet('preview')?.hide();
     let residents = 0;
     let jobs = 0;
     for (const e of this.group) {
@@ -573,10 +575,10 @@ class Hud {
     this.infoBody.replaceChildren(h('div', { class: 'ix-scroll' }, ...parts), foot ?? '');
   }
 
-  /** Shows the 3D stage for a building, or folds it away (networks, nothing selected). */
+  /** Shows the 3D stage for a building, or folds it away (networks, nothing selected, and always on phones). */
   private stageFor(eid: number | null): void {
     const preview = this.ctx.services.tryGet('preview');
-    const on = eid !== null && !!preview;
+    const on = eid !== null && !!preview && !isCompact();
     this.info.classList.toggle('staged', on);
     if (on) setText(this.stageName, this.ctx.city.buildingDef(eid!).name);
     if (on) preview!.show(this.stage, eid!);

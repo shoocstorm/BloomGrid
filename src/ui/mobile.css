@@ -268,7 +268,8 @@ body.compact {
   left: var(--gut-l);
   right: var(--gut-r);
   bottom: calc(var(--bot) + 58px);
-  max-height: 44dvh;
+  /* No 3D stage on phones (Hud.stageFor), so the sheet is a little taller and all of it is details. */
+  max-height: 54dvh;
   overflow-y: auto;
   padding: 12px 14px;
   z-index: 15;

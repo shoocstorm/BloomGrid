@@ -6,4 +6,4 @@ dist
 shots
 assets-raw
 public/wllama/
-.firebaese/*
+.firebase
