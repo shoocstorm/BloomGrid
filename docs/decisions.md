@@ -2725,3 +2725,37 @@ inset: 0` inside it. The renderer sizes from the canvas's client size, not `inne
 background is the night sea, so any gap is dark, never a bright band.
 
 **Rejected.** Keeping the layers fixed and giving them `height: 100dvh` (tried: still short of the home bar on device).
+
+## D-157: Foresight: forecasts from the pulse history, proactive Flora (plan v5, Phase 24)
+
+**Context.** The city reported its state but never looked ahead. The advisor and Flora reacted only to thresholds
+already crossed, and the 240-sample `pulse.history` fed charts and nothing else. Plan v5 (`docs/plan-v5.md`)
+starts with foresight so that later phases (policies, the director) have forecasts to act on.
+
+**Decision.**
+- **Forecast engine.** `sim/forecast.ts` fits a Theil–Sen trend over the last 30 samples (5 sim minutes) of energy
+  balance, water balance, food ratio, harmony and population. Credits use the exact `netIncome` instead of a fit.
+  - It projects 10 sim minutes ahead and reports when the next tier threshold is crossed: runs short (Strained),
+    then Critical.
+  - A season change inside the horizon is added as a step from its `waterMul` / `foodMul`, and named when it is
+    the cause.
+  - Confidence is 1 − MAD(residuals) / MAD(values), scaled down for short histories. Below 0.35, nothing is
+    projected.
+  - Pure, cached per pulse; it adds no saved or hashed state.
+- **Consumers.**
+  - **Advisor:** a `forecast-<metric>` rule for systems not yet flagged.
+  - **Proposals:** `planFor` sizes the build to the gap projected at the horizon.
+  - **Flora:** a proactive review every 30 pulses (15 on Eager) posts a heads-up with proposal cards. Each forecast
+    gets one notice per 180 sim s, and none during a city's first 60 pulses. Settings → Display → Flora's
+    heads-ups offers Quiet / Normal / Eager.
+  - **Stat cards:** a Forecast line, plus a dashed projection and threshold on the trend chart.
+  - **City Pulse:** a Coming up strip with forecasts, forecast crises and the next season.
+  - **Tools:** `whats_coming`.
+- **Menu order.** `whats_coming` is registered after every other tool (`foresightTools`). Menus keep registry
+  order on a tie, so a request that isn't about the future keeps its long-standing tools and letters. Registered
+  among the insight tools, it pushed Demolish off a 15-tool menu.
+
+**Rejected.**
+- **A least-squares fit:** one big build or crisis spike swung it.
+- **Forecasting tier ratios directly:** ratios are not in the history, and adding them would have meant a save
+  migration. Balances with thresholds scaled by today's demand give the same crossing.

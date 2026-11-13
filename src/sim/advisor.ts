@@ -9,6 +9,7 @@ import { FAIL_SECONDS } from './steward';
 import { creditLimit, netIncome } from './finance';
 import { ZONE, zoneOf } from './floranet';
 import { atRisk } from './coast';
+import { warnings, type ForecastMetric } from './forecast';
 
 export type Severity = 0 | 1 | 2; // info, warning, critical
 
@@ -427,5 +428,40 @@ registerAdvisorRule((city) => {
     fix: 'Build Mangrove Seawalls on the shore in front of them (each protects 9 tiles up to 1.4 m), or reclaim higher land (Build → Reclaim) further out.',
     focus,
     build: 'mangrove-seawall',
+  };
+});
+
+// ── Foresight (plan v5, Phase 24) ────────────────────────────────────────────
+
+const FORECAST_BUILD: Partial<Record<ForecastMetric, string>> = { energy: 'solar-spire', water: 'water-works', food: 'vertical-farm' };
+const FORECAST_FIX: Record<ForecastMetric, string> = {
+  energy: 'Add generation before it bites: a Sunflower Spire or an Algae Bioreactor on a connected highway.',
+  water: 'Add NEWater Reclamation Works on the coast now; they take a moment to rise.',
+  food: 'Build Orchard Stacks or a Fishing Boat Dock before the larders run low.',
+  harmony: 'See what is pulling harmony down (top bar → Harmony) and fix the biggest drag.',
+  budget: 'Cut costs or raise income: a little more tax, fewer idle buildings, or a loan to bridge it.',
+  population: '',
+};
+
+/**
+ * The soonest forecast trouble (`sim/forecast.ts`) for a system that is not already flagged: the advice arrives
+ * while there is still time. Proposals for it are sized to the projected gap at the horizon (`proposals.ts`).
+ */
+registerAdvisorRule((city) => {
+  const tierKey: Partial<Record<ForecastMetric, keyof typeof city.pulse.tiers>> = { energy: 'energy', water: 'water', food: 'food', harmony: 'harmony', budget: 'budget' };
+  const f = warnings(city).find((w) => {
+    const k = tierKey[w.metric];
+    return k && (w.level === 'critical' || city.pulse.tiers[k] < 2);
+  });
+  if (!f || f.eta === null) return null;
+  return {
+    id: `forecast-${f.metric}`,
+    severity: f.eta < 300 || f.level === 'critical' ? 1 : 0,
+    title: `Forecast: ${f.text.replace(/\s*\(.*\)\.?$/, '').replace(/\.$/, '')}`,
+    detail: f.season
+      ? `The ${f.season} season changes supply: plan for it now.`
+      : `Trend over the last minutes: ${f.label.toLowerCase()} ${f.perMin < 0 ? 'falling' : 'rising'}; ${Math.round(f.confidence * 100)}% sure.`,
+    fix: FORECAST_FIX[f.metric],
+    build: FORECAST_BUILD[f.metric],
   };
 });

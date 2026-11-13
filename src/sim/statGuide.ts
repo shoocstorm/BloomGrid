@@ -7,6 +7,7 @@ import { TAX_MAX, TAX_MIN, TIERS, tierFromRatio, type HistoryMetric, type Tier }
 import { creditLimit, LOAN_SIZES, netIncome, totalDebt } from './finance';
 import type { ProposalFocus } from './proposals';
 import { INDICATOR_NAMES as N } from './indicators';
+import { forecastFor, type Forecast, type ForecastMetric } from './forecast';
 
 /**
  * Stat guides (D-092): what each top-bar indicator means, what moves it right now and the steward's best levers,
@@ -80,7 +81,12 @@ export interface StatGuide {
   levers: GuideLever[];
   /** Flora's planner focus for "suggested builds" (null: none fits). */
   focus: ProposalFocus | null;
+  /** Where it is heading (plan v5, `sim/forecast.ts`); null for indicators without a forecast. */
+  forecast: Forecast | null;
 }
+
+/** A guide before its forecast is attached (`statGuide`). */
+type Base = Omit<StatGuide, 'forecast'>;
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -123,7 +129,7 @@ const place = (city: City, key: keyof BuildingStats, unit: string, why: string, 
 const sorted = (levers: (GuideLever | null | false | undefined)[]) =>
   levers.filter((l): l is GuideLever => !!l).sort((a, b) => b.weight - a.weight);
 
-function credits(city: City): StatGuide {
+function credits(city: City): Base {
   const s = city.stats;
   const p = city.pulse;
   const net = netIncome(city);
@@ -181,7 +187,7 @@ function credits(city: City): StatGuide {
   };
 }
 
-function residents(city: City): StatGuide {
+function residents(city: City): Base {
   const s = city.stats;
   const p = city.pulse;
   const occ = s.capacity > 0 ? s.population / s.capacity : 0;
@@ -240,7 +246,7 @@ function residents(city: City): StatGuide {
   };
 }
 
-function utility(city: City, kind: 'energy' | 'water'): StatGuide {
+function utility(city: City, kind: 'energy' | 'water'): Base {
   const s = city.stats;
   const p = city.pulse;
   const energy = kind === 'energy';
@@ -303,7 +309,7 @@ function utility(city: City, kind: 'energy' | 'water'): StatGuide {
   };
 }
 
-function food(city: City): StatGuide {
+function food(city: City): Base {
   const s = city.stats;
   const p = city.pulse;
   const made = s.foodProduced;
@@ -353,7 +359,7 @@ function food(city: City): StatGuide {
   };
 }
 
-function ecology(city: City): StatGuide {
+function ecology(city: City): Base {
   const s = city.stats;
   const p = city.pulse;
   const per = Math.max(1, s.buildings);
@@ -419,7 +425,7 @@ const HARMONY: { key: keyof City['pulse']['harmony']; label: string; fix: (city:
   { key: 'consequences', label: 'Consequences', fix: (_c, v) => ({ label: 'Cause & effect', detail: 'rules in force and how to lift them', action: { kind: 'causes' }, weight: -v }) },
 ];
 
-function harmony(city: City): StatGuide {
+function harmony(city: City): Base {
   const s = city.stats;
   const p = city.pulse;
   const h = p.harmony;
@@ -467,20 +473,26 @@ function harmony(city: City): StatGuide {
 }
 
 /** The guide for one top-bar indicator, from the last pulse. */
+const FORECAST_OF: Record<StatId, ForecastMetric | null> = { credits: 'budget', pop: 'population', energy: 'energy', water: 'water', food: 'food', eco: null, happy: 'harmony' };
+
 export function statGuide(city: City, id: StatId): StatGuide {
-  switch (id) {
-    case 'credits':
-      return credits(city);
-    case 'pop':
-      return residents(city);
-    case 'energy':
-    case 'water':
-      return utility(city, id);
-    case 'food':
-      return food(city);
-    case 'eco':
-      return ecology(city);
-    case 'happy':
-      return harmony(city);
-  }
+  const g = ((): Base => {
+    switch (id) {
+      case 'credits':
+        return credits(city);
+      case 'pop':
+        return residents(city);
+      case 'energy':
+      case 'water':
+        return utility(city, id);
+      case 'food':
+        return food(city);
+      case 'eco':
+        return ecology(city);
+      case 'happy':
+        return harmony(city);
+    }
+  })();
+  const m = FORECAST_OF[id];
+  return { ...g, forecast: m ? forecastFor(city, m) : null };
 }

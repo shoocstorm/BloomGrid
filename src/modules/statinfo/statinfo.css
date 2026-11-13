@@ -112,6 +112,27 @@
   margin: 0 0 10px;
   font-size: 13px;
 }
+.si-fc {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 6px 9px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+  border-left: 2px solid var(--ink-faint);
+  font-size: 12px;
+}
+.si-fc > span:last-child {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.si-fc.warn {
+  border-left-color: var(--warn);
+}
+.si-fc.bad {
+  border-left-color: var(--crit);
+}
 .si-best {
   margin-top: 9px;
   padding: 7px 9px;
@@ -430,6 +451,30 @@
 .si-spark .area {
   fill: rgba(95, 242, 218, 0.1);
 }
+.si-spark .proj {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+.si-spark .proj.warn {
+  stroke: var(--warn);
+}
+.si-spark .proj.bad {
+  stroke: var(--crit);
+}
+.si-spark .now {
+  stroke: var(--ink-faint);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.si-spark .limit {
+  stroke: var(--crit);
+  stroke-dasharray: 2 2;
+  opacity: 0.7;
+  vector-effect: non-scaling-stroke;
+}
 .si-spark .zero {
   stroke: var(--ink-faint);
   stroke-dasharray: 3 3;
@@ -733,4 +778,7 @@
   border-left: 2px solid var(--accent);
   background: var(--bg-raise);
   font-size: 11.5px;
+}
+.si-fc .si-sec {
+  margin: 0;
 }

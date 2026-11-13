@@ -182,7 +182,9 @@ export function plainIntent(request: string): string | null {
     // Cause and effect (D-074): "why is…", "what caused…".
     [/^why\b|\bwhat caused\b|\bhow come\b|\bconsequences?\b/, 'why'],
     [/\b(fires?|burning|earthquakes?|quakes?|lightning|incidents?|emergenc(y|ies)|damaged?)\b/, 'incident_status'],
-    [/\b(crisis|crises|storm|flood|heatwave|drought|forecast)\b/, 'crisis_status'],
+    // Foresight (plan v5): supply forecasts, the season ahead and forecast crises.
+    [/\b(forecasts?|coming up|what'?s coming|ahead|run(ning)? (out|short|low)|will (we|it|the)\b.*\b(last|run|hold)|predict(ion)?s?|next few minutes)\b/, 'whats_coming'],
+    [/\b(crisis|crises|storm|flood|heatwave|drought)\b/, 'crisis_status'],
     [/\b(trend|over time|improving|getting (better|worse))\b/, 'city_trends'],
     [/\b(best|cheapest|which building)\b/, 'building_types'],
     [/\b(advice|advise|suggest|recommend)\b/, 'advisor_tips'],
@@ -203,6 +205,7 @@ export function plainIntent(request: string): string | null {
     'city_trends',
     'building_types',
     'advisor_tips',
+    'whats_coming',
   ]);
   const hits = rules.filter(([re, t]) => re.test(r) && (!question || lookups.has(t))).map(([, t]) => t);
   return hits.length ? hits[0]! : null;

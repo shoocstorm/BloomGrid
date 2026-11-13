@@ -219,6 +219,17 @@ export const settingsModule: GameModule = {
             : [];
         })(),
         ...(() => {
+          // Flora's foresight (plan v5): how readily she warns about forecast trouble.
+          const flora = ctx.services.tryGet('assistant');
+          return flora
+            ? [
+                h('h4', {}, 'Flora’s heads-ups'),
+                h('p', { class: 'set-hint' }, 'Flora watches the trends and speaks up before a supply runs short. Normal: only trouble due within about 5 minutes that she is sure of.'),
+                radio('foresight', { quiet: 'Quiet', normal: 'Normal', eager: 'Eager' }, flora.foresight, (m) => (flora.foresight = m)),
+              ]
+            : [];
+        })(),
+        ...(() => {
           // Tip bubbles (D-118): residents' tips over happy buildings.
           const juice = ctx.services.tryGet('juice');
           return juice

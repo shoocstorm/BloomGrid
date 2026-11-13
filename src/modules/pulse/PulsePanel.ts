@@ -3,6 +3,7 @@ import type { GameContext } from '@/game/context';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { LOAN_SIZES, creditLimit, netIncome, totalDebt } from '@/sim/finance';
+import { comingUp } from '@/sim/forecast';
 import { CREDIT_FLOW, INDICATOR_NAMES as N, SYSTEM_LABELS, SYSTEM_ORDER } from '@/sim/indicators';
 
 /** Re-exported for the modules that label systems (advisor, Flora, moments). */
@@ -85,6 +86,8 @@ export class PulsePanel {
   readonly body = h('div', { class: 'pulse-body' });
   private rows = new Map<SystemKey, { dot: HTMLElement; tier: HTMLElement; val: HTMLElement }>();
   private demand = new Map<string, HTMLElement>();
+  private coming: { el: HTMLElement; ic: HTMLElement; title: HTMLElement; when: HTMLElement }[] = [];
+  private comingKey = '';
   private budget = new Map<string, HTMLElement>();
   private harmony = new Map<string, HTMLElement>();
   private sparks: { canvas: HTMLCanvasElement; metric: HistoryMetric; color: string; label: HTMLElement }[] = [];
@@ -152,6 +155,14 @@ export class PulsePanel {
       health.append(h('div', { class: 'tier-row' }, dot, h('span', { class: 'tier-label' }, SYSTEM_LABELS[k]), val, tier));
     }
 
+    // Foresight (plan v5): the next few things heading the city's way (forecast shortfalls, crises, the season).
+    const coming = h('div', { class: 'pulse-sec coming' }, h('div', { class: 'pulse-title' }, 'Coming up'));
+    for (let i = 0; i < 3; i++) {
+      const row = { el: h('div', { class: 'cu-row' }), ic: h('span', { class: 'cu-ic' }), title: h('b'), when: h('span', { class: 'cu-when' }) };
+      row.el.append(row.ic, row.title, row.when);
+      this.coming.push(row);
+      coming.append(row.el);
+    }
     const demand = h('div', { class: 'pulse-sec' }, h('div', { class: 'pulse-title' }, 'Demand'));
     for (const [id, label] of [
       ['homes', 'Homes'],
@@ -228,7 +239,7 @@ export class PulsePanel {
       trends.append(h('div', { class: 'spark-row' }, h('span', {}, label), canvas, lab));
     }
 
-    body.append(health, bloomSec, demand, budget, harmony, trends);
+    body.append(health, coming, bloomSec, demand, budget, harmony, trends);
     ctx.hud.append(this.el);
     // The telemetry strip lives under the header, so it stays visible when the panel is folded.
     this.el.insertBefore(ctx.services.get('hud').readout, this.tabsEl);
@@ -330,6 +341,21 @@ export class PulsePanel {
       setText(r.tier, TIERS[t]);
       r.tier.className = `tier-name t${t}`;
       setText(r.val, values[k]);
+    }
+    const ahead = comingUp(city, 3);
+    ahead.forEach((c, i) => {
+      const r = this.coming[i]!;
+      // Never `info` as a class: that is the inspector panel (AGENTS gotcha).
+      r.el.className = `cu-row ${c.tone === 'info' ? 'calm' : c.tone}`;
+      r.el.title = c.detail;
+      setText(r.title, c.title);
+      setText(r.when, c.in < 60 ? '< 1 min' : `~${Math.round(c.in / 60)} min`);
+    });
+    for (let i = 0; i < this.coming.length; i++) this.coming[i]!.el.hidden = i >= ahead.length;
+    const key = ahead.map((c) => c.kind + (c.metric ?? '')).join();
+    if (key !== this.comingKey) {
+      this.comingKey = key;
+      ahead.forEach((c, i) => this.coming[i]!.ic.replaceChildren(icon(c.kind === 'season' ? 'calendar' : c.kind === 'crisis' ? 'storm' : c.metric === 'budget' ? 'credits' : c.metric === 'harmony' ? 'happy' : (c.metric ?? 'pulse'))));
     }
     const bar = (id: string, v: number) => {
       const el = this.demand.get(id)!;

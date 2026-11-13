@@ -5,7 +5,7 @@ import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { TIERS } from '@/sim/pulseState';
 import { getCrisis } from '@/sim/crises';
 import { actionTools } from '@/sim/actionTools';
-import { insightTools } from '@/sim/insightTools';
+import { foresightTools, insightTools } from '@/sim/insightTools';
 import { hazardTools } from '@/sim/hazardTools';
 import { fireworksTools } from '@/sim/fireworksTools';
 import { happeningTools } from '@/sim/happeningTools';
@@ -20,6 +20,8 @@ import { roadTools } from '@/sim/roadTools';
 import { proposeBuilds, type ProposalFocus } from '@/sim/proposals';
 import { floraBilled, floraBlocker, floraLocked, floraWake, type FloraPhase } from '@/sim/flora';
 import { diagnose } from '@/sim/proposals';
+import { MIN_CONFIDENCE, warnings, type ForecastMetric } from '@/sim/forecast';
+import { PULSE_TICKS } from '@/sim/pulseConst';
 import { Building } from '@/ecs/components';
 import { PROJECTS } from '@/sim/projects';
 import { allOverlays, getOverlay } from '@/sim/overlays';
@@ -48,9 +50,21 @@ export interface AssistantService {
   /** Turns Autonomous mode (act without asking) on or off, as the Profile tab's switch does. */
   autonomous(on: boolean): void;
   readonly engine: LlmEngine;
+  /** How readily she warns about forecast trouble (plan v5): Quiet, Normal (soon and sure) or Eager (all of it). */
+  foresight: Foresight;
 }
 
+export type Foresight = 'quiet' | 'normal' | 'eager';
 const AUTO_KEY = 'bloomgrid.ai.autoApprove';
+const FORESIGHT_KEY = 'bloomgrid.ai.foresight';
+/** Proactive review (plan v5): pulses between reviews, the soonest ETA worth a word, and the least confidence. */
+const FORESIGHT: Record<Exclude<Foresight, 'quiet'>, { every: number; eta: number; sure: number }> = {
+  normal: { every: 30, eta: 300, sure: 0.5 },
+  eager: { every: 15, eta: Infinity, sure: MIN_CONFIDENCE },
+};
+/** Sim seconds before the same forecast is mentioned again, and before a new city's trends are worth reading. */
+const FORESIGHT_REPEAT = 180;
+const FORESIGHT_SETTLE = 60;
 
 class Assistant {
   readonly engine = new LlmEngine();
@@ -64,10 +78,16 @@ class Assistant {
   /** Fresh islands (D-092): her wake state as last shown (null right after a city change: no toasts then). */
   private phase: FloraPhase | null = null;
   private wakeTimer = 99;
+  foresight: Foresight = 'normal';
+  /** Forecast topics last mentioned (sim tick), and pulses since this city began (trends need history). */
+  private foreseen = new Map<string, number>();
+  private pulses = 0;
 
   constructor(private ctx: GameContext) {
     try {
       this.autoApprove = localStorage.getItem(AUTO_KEY) === '1';
+      const f = localStorage.getItem(FORESIGHT_KEY);
+      if (f === 'quiet' || f === 'normal' || f === 'eager') this.foresight = f;
     } catch {
       /* ignore */
     }
@@ -101,6 +121,15 @@ class Assistant {
     }
   }
 
+  setForesight(f: Foresight): void {
+    this.foresight = f;
+    try {
+      localStorage.setItem(FORESIGHT_KEY, f);
+    } catch {
+      /* ignore */
+    }
+  }
+
   /** Notices from the city's own events: no model needed, throttled per topic. */
   private watch(): void {
     const { bus } = this.ctx;
@@ -128,6 +157,32 @@ class Assistant {
         `${label} dropped to ${TIERS[tier]} (was ${TIERS[prev]}).`,
         `${label} dropped to ${TIERS[tier]}. What is causing it and what should we do?`,
         proposalsFor(system),
+      );
+    });
+    // Foresight (plan v5, Phase 24): a review every few pulses speaks up before a supply runs short, with proposals
+    // sized to the projected gap. Tier drops already have their own notice, so a forecast of what is already
+    // flagged is left to them unless it is heading for Critical.
+    const TIER: Record<ForecastMetric, keyof typeof this.ctx.city.pulse.tiers | null> = { energy: 'energy', water: 'water', food: 'food', harmony: 'harmony', budget: 'budget', population: null };
+    bus.on('stats:updated', () => {
+      const city = this.ctx.city;
+      this.pulses++;
+      if (this.foresight === 'quiet' || this.ctx.loading || this.pulses < FORESIGHT_SETTLE) return;
+      const cfg = FORESIGHT[this.foresight];
+      if (this.pulses % cfg.every !== 0) return;
+      const f = warnings(city).find((w) => {
+        const k = TIER[w.metric];
+        if (!k || w.eta! > cfg.eta || w.confidence < cfg.sure) return false;
+        if (w.level === 'short' && city.pulse.tiers[k] >= 2) return false;
+        const last = this.foreseen.get(`${w.metric}:${w.level}`);
+        return last === undefined || city.tick - last >= FORESIGHT_REPEAT * PULSE_TICKS;
+      });
+      if (!f) return;
+      this.foreseen.set(`${f.metric}:${f.level}`, city.tick);
+      notice(
+        `forecast:${f.metric}`,
+        `Heads-up: ${f.text}`,
+        `What's coming for ${f.label.toLowerCase()}, and what should we do before it runs short?`,
+        proposalsFor(f.metric === 'harmony' ? 'harmony' : f.metric),
       );
     });
     bus.on('crisis:forecast', ({ crisis }) => {
@@ -228,6 +283,8 @@ class Assistant {
     this.pending = null;
     this.history = [];
     this.lastNotice.clear();
+    this.foreseen.clear();
+    this.pulses = 0;
     // The city's name is set after the reset (new island or loaded save): greet once it is.
     setTimeout(() => this.panel.reset(this.ctx.city.growth.name));
   }
@@ -615,7 +672,7 @@ export const assistantModule: GameModule = {
   deps: ['inventory', 'pulse', 'hud'],
   init(ctx) {
     const agent = ctx.services.get('agent');
-    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...happeningTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...bulkTools, ...roadTools, ...gameTools()]) agent.register(t);
+    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...happeningTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...bulkTools, ...roadTools, ...gameTools(), ...foresightTools]) agent.register(t);
     const a = new Assistant(ctx);
     ctx.services.provide('assistant', {
       toggle: (open) => a.panel.toggle(open),
@@ -623,6 +680,12 @@ export const assistantModule: GameModule = {
       ask: (text) => a.ask(text),
       autonomous: (on) => a.setAutoApprove(on),
       engine: a.engine,
+      get foresight() {
+        return a.foresight;
+      },
+      set foresight(f: Foresight) {
+        a.setForesight(f);
+      },
     });
     ctx.input.onKey((e) => {
       if (e.code === 'KeyU' && !e.metaKey && !e.ctrlKey)

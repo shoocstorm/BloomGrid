@@ -20,7 +20,7 @@ import { cityBrief } from '@/ai/brief';
 import type { ChatMessage, GenOptions } from '@/ai/llm/engine';
 import { actionTools, connectPath, findSites, resolveType, type ActionCtx } from '@/sim/actionTools';
 import { inventoryTools } from '@/sim/inventoryTools';
-import { insightTools } from '@/sim/insightTools';
+import { foresightTools, insightTools } from '@/sim/insightTools';
 import { hazardTools } from '@/sim/hazardTools';
 import { fireworksTools } from '@/sim/fireworksTools';
 import { happeningTools } from '@/sim/happeningTools';
@@ -43,7 +43,7 @@ function founded() {
 function registry(s: ReturnType<typeof makeSim>) {
   const ctx: ActionCtx = { city: s.city, commands: s.commands };
   const r = new AgentToolRegistry<ActionCtx>(ctx);
-  for (const t of [...inventoryTools, ...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...happeningTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...proposalTools, ...bulkTools, ...roadTools]) r.register(t);
+  for (const t of [...inventoryTools, ...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...happeningTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...proposalTools, ...bulkTools, ...roadTools, ...foresightTools]) r.register(t);
   return r;
 }
 

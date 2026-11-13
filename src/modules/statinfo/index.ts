@@ -1,6 +1,7 @@
 import type { GameContext, GameModule } from '@/game/context';
 import { buildings } from '@/content';
 import type { BuildingCategory } from '@/content/types';
+import { MIN_CONFIDENCE } from '@/sim/forecast';
 import { STAT_IDS, statGuide, type GuideLever, type GuidePart, type StatGuide, type StatId } from '@/sim/statGuide';
 import { seasonGuide, type SeasonGuide } from '@/sim/seasonGuide';
 import { SEASONS } from '@/sim/seasons';
@@ -102,6 +103,14 @@ function parts(rows: GuidePart[], kind: StatGuide['partsKind']): HTMLElement {
   );
 }
 
+/** Where the indicator is heading (plan v5): only when there is a trend worth reading. */
+function forecastLine(g: StatGuide): HTMLElement | null {
+  const f = g.forecast;
+  if (!f || f.confidence < MIN_CONFIDENCE || (f.eta === null && Math.abs(f.perMin) < 1e-6)) return null;
+  const tone = f.eta === null ? 'calm' : f.level === 'critical' ? 'bad' : 'warn';
+  return h('div', { class: `si-fc ${tone}` }, h('span', { class: 'si-sec' }, 'Forecast'), h('span', {}, icon(f.perMin >= 0 ? 'up' : 'down'), f.text));
+}
+
 /** The indicator's recent history as an area sparkline with the change over the window. */
 function spark(ctx: GameContext, g: StatGuide): HTMLElement | null {
   const data = ctx.city.pulse.history[g.history].slice(-SPARK_SAMPLES);
@@ -114,8 +123,16 @@ function spark(ctx: GameContext, g: StatGuide): HTMLElement | null {
     hi += 1;
     lo -= 1;
   }
+  // Foresight (plan v5): the last quarter shows where the trend is heading over the forecast horizon.
+  const f = g.forecast && g.forecast.confidence >= MIN_CONFIDENCE && g.forecast.history === g.history ? g.forecast : null;
+  const end = f ? f.atHorizon : 0;
+  if (f) {
+    lo = Math.min(lo, end);
+    hi = Math.max(hi, end);
+  }
+  const span = f ? W * 0.78 : W;
   const y = (v: number) => H - 3 - ((v - lo) / (hi - lo)) * (H - 6);
-  const pts = data.map((v, i) => `${((i / (data.length - 1)) * W).toFixed(1)},${y(v).toFixed(1)}`);
+  const pts = data.map((v, i) => `${((i / (data.length - 1)) * span).toFixed(1)},${y(v).toFixed(1)}`);
   const svg = document.createElementNS(SVG, 'svg');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('preserveAspectRatio', 'none');
@@ -129,6 +146,11 @@ function spark(ctx: GameContext, g: StatGuide): HTMLElement | null {
   if (lo < 0 && hi > 0) path(`M0,${y(0).toFixed(1)}H${W}`, 'zero');
   path(`M${pts.join('L')}L${W},${H}L0,${H}Z`, 'area');
   path(`M${pts.join('L')}`, 'line');
+  if (f) {
+    path(`M${span},0V${H}`, 'now');
+    path(`M${pts[pts.length - 1]}L${W},${y(end).toFixed(1)}`, `proj ${f.eta !== null ? (f.level === 'critical' ? 'bad' : 'warn') : ''}`);
+    if (f.threshold !== null && f.threshold >= lo && f.threshold <= hi) path(`M${span},${y(f.threshold).toFixed(1)}H${W}`, 'limit');
+  }
   const d = data[data.length - 1]! - data[0]!;
   const mins = Math.round((data.length * 10) / 60);
   const unit = g.id === 'credits' ? '◈' : '';
@@ -289,6 +311,7 @@ class StatInfo {
       h('div', { class: 'si-val' }, h('b', {}, g.value), h('span', {}, g.sub)),
       gauge(g) ?? '',
       h('p', { class: 'si-status' }, g.status),
+      forecastLine(g) ?? '',
       best ? h('div', { class: 'si-best' }, h('span', { class: 'si-sec' }, 'Best move'), h('div', {}, icon(leverIcon(best)), h('b', {}, best.label), h('small', {}, best.detail))) : '',
       h('div', { class: 'si-hint' }, 'Click for the breakdown and actions'),
     );
@@ -310,6 +333,7 @@ class StatInfo {
     );
     s.body.replaceChildren(
       h('p', { class: 'si-status big' }, g.status),
+      forecastLine(g) ?? '',
       gauge(g) ?? '',
       h('div', { class: 'si-sec' }, g.partsTitle),
       parts(g.parts, g.partsKind),

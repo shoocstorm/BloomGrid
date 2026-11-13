@@ -247,3 +247,31 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/* Coming up (plan v5): forecast shortfalls, crises and the season ahead. */
+.cu-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  gap: 7px;
+  align-items: center;
+  padding: 3px 0 3px 6px;
+  border-left: 2px solid var(--ink-faint);
+  margin: 3px 0;
+}
+.cu-row.warn {
+  border-left-color: var(--warn);
+}
+.cu-row.bad {
+  border-left-color: var(--crit);
+}
+.cu-row b {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cu-when {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}

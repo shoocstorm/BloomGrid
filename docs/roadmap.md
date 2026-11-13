@@ -314,6 +314,17 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Walkers faster and clear of the car lanes (D-125); fish, rabbits and birds in explore modes (D-126)
 - **Accept:** ✅ snaps WebGPU + WebGL, `tests/happenings.test.ts`, `placementPreview`, `zoomPivot`; perf within noise (D-120), `tests/roadPlan.test.ts`
 
+## 🚧 Phases 24–29: Plan v5, a city that thinks back (designed 2026-11-13)
+
+Design and checklists in [`plan-v5.md`](plan-v5.md); tick here as phases land.
+
+- [x] Phase 24: Foresight: trends and forecasts from the pulse history, forecast advice sized to the projected gap, proactive Flora notices, Coming up strip, forecast lines on the stat cards, `whats_coming` (D-157)
+- [ ] Phase 25: Policies: ordinances with trade-offs, sector funding, split tax with a tolerance band
+- [ ] Phase 26: Living demand and districts: demand-driven growth, migration, commute and job types, district approval, petitions and protests, district voices
+- [ ] Phase 27: The Director: neglect escalates into crises, crisis chains, adaptive tension, pressure on the showcase
+- [ ] Phase 28: Charters and eras: tiered civic goals, eras, live legacy score, challenge scenarios
+- [ ] Phase 29: Living stories and Flora plans: resident story arcs, one-approval multi-action plans, Flora memory
+
 ---
 
 ## Tech debt / open issues

@@ -10,6 +10,7 @@ import { INCOME_SCALE } from './pulse';
 import { HISTORY_METRICS, type HistoryMetric } from './pulseState';
 import { DAY_LENGTH } from './pulseConst';
 import { buildingId } from './inventory';
+import { comingUp, forecastCity, HORIZON } from './forecast';
 
 /**
  * Read-only agent tools that explain the city rather than list it: the advisor's advice, trends over time,
@@ -230,6 +231,33 @@ export const insightTools: AgentTool<SimCtx, never>[] = [
             ...(d.stats.pollution > 0 && { pollution: d.stats.pollution }),
             affordable: city.credits >= d.stats.cost,
           })),
+      };
+    },
+  },
+];
+
+/**
+ * Foresight (plan v5, Phase 24). Registered after every other tool: menus keep registry order on a tie, so a
+ * request that is not about the future keeps its long-standing tools (and their letters).
+ */
+export const foresightTools: AgentTool<SimCtx, never>[] = [
+  {
+    name: 'whats_coming',
+    option: 'Forecast: what will run short or change in the next few minutes',
+    description: `Foresight: each supply's trend (fitted over the last 5 sim-minutes) and when it would cross into Strained or Critical within the next ${HORIZON / 60} sim-minutes, with the season change folded in; plus forecast crises and the next season. Use for "what's coming", "will we run out", "forecast".`,
+    input: { type: 'object', properties: {} },
+    effect: 'read',
+    // Trouble ahead ends in a plan: sized proposals for the projected gap.
+    follow: (out) => ((out as { warnings?: unknown[] }).warnings?.length ? { tool: 'propose_builds', args: {} } : null),
+    run({ city }) {
+      const all = forecastCity(city);
+      return {
+        warnings: all
+          .filter((f) => f.eta !== null)
+          .sort((a, b) => a.eta! - b.eta!)
+          .map((f) => ({ metric: f.metric, level: f.level, inSimMinutes: r2(f.eta! / 60), cause: f.season ? `${f.season} season` : 'trend', text: f.text })),
+        trends: all.map((f) => ({ metric: f.metric, now: r2(f.now), perSimMinute: r2(f.perMin), confidence: r2(f.confidence), text: f.text })),
+        ahead: comingUp(city, 5).map((c) => ({ kind: c.kind, inSimMinutes: r2(c.in / 60), title: c.title, detail: c.detail })),
       };
     },
   },

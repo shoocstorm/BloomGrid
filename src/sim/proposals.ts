@@ -9,6 +9,7 @@ import { evaluateAdvisor, type Advisory } from './advisor';
 import { findSites, type Site } from './actionTools';
 import { activeRules } from './consequences';
 import { SYSTEMS, TIERS } from './pulseState';
+import { etaText, forecastFor } from './forecast';
 
 /**
  * Build proposals (D-089): what Flora suggests building, worked out here rather than by the model. Each one
@@ -42,9 +43,9 @@ export interface BuildProposal {
 
 /** Advisories each focus covers. */
 const FOCUS: Record<Exclude<ProposalFocus, 'any'>, string[]> = {
-  energy: ['energy'],
-  water: ['water'],
-  food: ['food'],
+  energy: ['energy', 'forecast-energy'],
+  water: ['water', 'forecast-water'],
+  food: ['food', 'forecast-food'],
   jobs: ['jobs', 'staff'],
   homes: ['homes', 'staff'],
   ecology: ['pollution', 'bloom', 'dry-soil', 'symbiosis', 'harmony'],
@@ -131,6 +132,23 @@ function planFor(city: City, a: Advisory | { id: string; build?: string }, defs:
     case 'staff': {
       const need = Math.max(1, s.capacity * 0.1);
       return sizeFor(city, inCat('residential'), (d) => d.stats.population, need).map((r) => ({ ...r, gain: `+${fmt(r.count * r.def.stats.population)} homes${a.id === 'staff' ? ' for workers nearby' : ''}` }));
+    }
+    // Forecast trouble (plan v5): sized to the gap projected at the horizon, not today's, with a 15% margin.
+    case 'forecast-energy': {
+      const f = forecastFor(city, 'energy');
+      const need = Math.max(1, s.energyUsed * 0.15 - f.atHorizon);
+      return sizeFor(city, inCat('energy'), (d) => d.stats.energy, need).map((r) => ({ ...r, gain: `+${fmt(r.count * r.def.stats.energy)} energy covers the gap forecast ${f.eta !== null ? `in ${etaText(f.eta)}` : 'ahead'}` }));
+    }
+    case 'forecast-water': {
+      const f = forecastFor(city, 'water');
+      const need = Math.max(1, s.waterUsed * 0.15 - f.atHorizon);
+      return sizeFor(city, defs.filter((d) => d.category !== 'residential'), (d) => d.stats.water, need).map((r) => ({ ...r, gain: `+${fmt(r.count * r.def.stats.water)} water covers the gap forecast ${f.eta !== null ? `in ${etaText(f.eta)}` : 'ahead'}` }));
+    }
+    case 'forecast-food': {
+      const f = forecastFor(city, 'food');
+      const need = Math.max(1, s.population * (1.1 - f.atHorizon));
+      const fish = city.growth.fish;
+      return sizeFor(city, inCat('food').filter((d) => !d.fishing || fish > 0.6), (d) => d.stats.food, need).map((r) => ({ ...r, gain: `feeds ${fmt(r.count * r.def.stats.food)} more before the shortfall ${f.eta !== null ? `in ${etaText(f.eta)}` : 'ahead'}` }));
     }
     case 'fire-cover': {
       const def = defs.find((d) => d.response);
