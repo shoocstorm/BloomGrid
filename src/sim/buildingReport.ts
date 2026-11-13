@@ -1,6 +1,8 @@
 import { ROAD_REACH } from './networks';
 import { Building, Flow, Greenery, Problem, Service } from '@/ecs/components';
 import type { City } from './City';
+import { paidShare } from './finance';
+import { sectorOf } from './policies';
 import { LABOUR_SHARE } from './pulseConst';
 import { MAX_TIER, THRIVE, growthHold, levelProgress, levels, size, upkeepMul, use } from './levels';
 
@@ -77,7 +79,7 @@ export function buildingReport(city: City, eid: number): BuildingReport {
   if (work)
     consumes.push({ key: 'workers', label: 'Workers', value: st.jobs * big, max: st.jobs * big, supplied: occ, tone: '', unit: 'staff' });
   if (st.upkeep > 0)
-    consumes.push({ key: 'upkeep', label: 'Upkeep', value: st.upkeep * upkeepMul(eid) * city.steward.funding, max: 0, tone: '', unit: '◈/s' });
+    consumes.push({ key: 'upkeep', label: 'Upkeep', value: st.upkeep * upkeepMul(eid) * paidShare(city, sectorOf(def)), max: 0, tone: '', unit: '◈/s' });
   if (st.energy > 0) produces.push({ key: 'energy', label: 'Energy', value: Flow.energy[eid]!, max: st.energy * big, tone: 'good', unit: '/s' });
   if (st.water > 0) produces.push({ key: 'water', label: 'Water', value: Flow.water[eid]!, max: st.water * big, tone: 'good', unit: '/s' });
   if (st.food > 0) produces.push({ key: 'food', label: 'Food', value: Flow.food[eid]!, max: st.food * big, tone: 'good', unit: 'fed' });

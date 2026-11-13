@@ -6,6 +6,7 @@ import { TIERS } from '@/sim/pulseState';
 import { getCrisis } from '@/sim/crises';
 import { actionTools } from '@/sim/actionTools';
 import { foresightTools, insightTools } from '@/sim/insightTools';
+import { policyTools } from '@/sim/policyTools';
 import { hazardTools } from '@/sim/hazardTools';
 import { fireworksTools } from '@/sim/fireworksTools';
 import { happeningTools } from '@/sim/happeningTools';
@@ -672,7 +673,7 @@ export const assistantModule: GameModule = {
   deps: ['inventory', 'pulse', 'hud'],
   init(ctx) {
     const agent = ctx.services.get('agent');
-    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...happeningTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...bulkTools, ...roadTools, ...gameTools(), ...foresightTools]) agent.register(t);
+    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...happeningTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...bulkTools, ...roadTools, ...gameTools(), ...foresightTools, ...policyTools]) agent.register(t);
     const a = new Assistant(ctx);
     ctx.services.provide('assistant', {
       toggle: (open) => a.panel.toggle(open),

@@ -266,7 +266,9 @@ export function computeMobility(city: City): void {
     if (moved <= 0.5) break;
   }
   // Each level carries more before it jams (D-096).
-  for (let i = 0; i < n; i++) traffic[i] = g.road[i] ? load[i]! / (TILE_CAPACITY * roadCapacity(city, i)) : 0;
+  // Ordinances (plan v5: car-free core, free pods) take a share of the cars off the highways.
+  const carShare = city.consequences.mods.trafficLoad;
+  for (let i = 0; i < n; i++) traffic[i] = g.road[i] ? (load[i]! * carShare) / (TILE_CAPACITY * roadCapacity(city, i)) : 0;
 
   // Travel time: every jammed tile on the way slows the trip.
   let free = 0;

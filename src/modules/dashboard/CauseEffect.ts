@@ -1,6 +1,7 @@
 import type { GameContext } from '@/game/context';
 import { RULES, activeRules, measure, type Measures } from '@/sim/consequences';
 import { riskReport } from '@/sim/risk';
+import { POLICIES, isActive } from '@/sim/policies';
 import { creditGrade } from '@/sim/consequenceState';
 import { DAY_LENGTH } from '@/sim/pulseConst';
 import { h } from '@/ui/dom';
@@ -57,6 +58,27 @@ export class CauseEffect {
           'days at 70+ (a city people love after 1)',
         ),
       ),
+      // Ordinances the steward chose (plan v5, Phase 25): causes by decision rather than by drift.
+      ...(() => {
+        const laws = POLICIES.filter((p) => isActive(city, p.id));
+        if (!laws.length) return [];
+        return [
+          h('h3', {}, `Ordinances · ${laws.length}`),
+          h(
+            'div',
+            { class: 'ce-list' },
+            ...laws.map((p) =>
+              h(
+                'div',
+                { class: 'ce-rule' },
+                h('div', { class: 'ce-head' }, icon(p.icon), h('b', {}, p.name)),
+                h('p', {}, h('span', { class: 'ce-k' }, 'Gain'), p.upside),
+                h('p', {}, h('span', { class: 'ce-k' }, 'Cost'), p.downside),
+              ),
+            ),
+          ),
+        ];
+      })(),
       h('h3', {}, active.length ? `In force · ${active.length}` : 'In force'),
       active.length
         ? h(

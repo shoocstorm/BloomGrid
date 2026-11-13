@@ -10,6 +10,7 @@ import { creditLimit, netIncome } from './finance';
 import { ZONE, zoneOf } from './floranet';
 import { atRisk } from './coast';
 import { warnings, type ForecastMetric } from './forecast';
+import { getPolicy, isActive, policyBlock } from './policies';
 
 export type Severity = 0 | 1 | 2; // info, warning, critical
 
@@ -274,7 +275,12 @@ registerAdvisorRule((city) => {
     severity: city.steward.funding < 1 ? 2 : 1,
     title: `${count} buildings worn down; nature is reclaiming them`,
     detail: 'Worn buildings run at reduced capacity and lose residents. Underfunded maintenance and floods cause it.',
-    fix: city.steward.funding < 1 ? 'Get out of debt so maintenance is fully funded; buildings then recover on their own.' : 'They recover over time now that maintenance is funded.',
+    fix:
+      city.credits < 0
+        ? 'Get out of debt so maintenance is fully funded; buildings then recover on their own.'
+        : city.steward.funding < 1
+          ? 'Raise the maintenance budget to 100% or more (City Pulse → Policies); buildings then recover.'
+          : 'They recover over time now that maintenance is funded.',
     focus,
   };
 });
@@ -464,4 +470,25 @@ registerAdvisorRule((city) => {
     fix: FORECAST_FIX[f.metric],
     build: FORECAST_BUILD[f.metric],
   };
+});
+
+/**
+ * Policies (plan v5, Phase 25): when a forecast shortfall has an ordinance that answers it, and the city could
+ * enact it now, say so beside the build proposals. A trade-off, so only a suggestion (info).
+ */
+const POLICY_FOR_FORECAST: Partial<Record<ForecastMetric, string>> = { energy: 'night-sky', water: 'rainwater-code', harmony: 'four-day-week', budget: 'tourist-levy' };
+registerAdvisorRule((city) => {
+  for (const f of warnings(city)) {
+    const id = POLICY_FOR_FORECAST[f.metric];
+    const p = id ? getPolicy(id) : undefined;
+    if (!p || isActive(city, p.id) || policyBlock(city, p.id, true)) continue;
+    return {
+      id: `policy-${p.id}`,
+      severity: 0,
+      title: `An ordinance could help: ${p.name}`,
+      detail: `${f.text} ${p.upside}`,
+      fix: `Enact ${p.name} (City Pulse → Policies, ◈${p.enact.toLocaleString('en-US')}). Trade-off: ${p.downside}`,
+    };
+  }
+  return null;
 });

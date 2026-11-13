@@ -1,4 +1,5 @@
-import { netIncome } from '@/sim/finance';
+import { netIncome, paidShare, taxSplit } from '@/sim/finance';
+import { sectorOf } from '@/sim/policies';
 import { query } from 'bitecs';
 import { CREDIT_FLOW, INDICATOR_NAMES as N, SYSTEM_ORDER } from '@/sim/indicators';
 import type { GameContext, GameModule } from '@/game/context';
@@ -10,7 +11,6 @@ import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { holoHead, rise } from '@/ui/holo';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
-import { INCOME_SCALE } from '@/sim/pulse';
 import { LineChart } from './LineChart';
 import { InventoryView } from './InventoryView';
 import { IncidentLog } from './IncidentLog';
@@ -234,14 +234,13 @@ class Dashboard {
     const count: Partial<Record<BuildingCategory, number>> = {};
     for (const eid of query(city.world, [Building])) {
       const d = buildings.at(Building.def[eid]!);
-      upkeep[d.category] = (upkeep[d.category] ?? 0) + d.stats.upkeep;
+      upkeep[d.category] = (upkeep[d.category] ?? 0) + d.stats.upkeep * paidShare(city, sectorOf(d));
       count[d.category] = (count[d.category] ?? 0) + 1;
     }
-    const residentsTax = s.population * 0.6 * p.taxRate * INCOME_SCALE;
-    const workersTax = s.employed * 0.4 * p.taxRate * INCOME_SCALE;
+    const { residents: residentsTax, business: workersTax } = taxSplit(city);
     this.bars(this.budget, [
       { label: 'Resident tax', value: residentsTax, text: signed(residentsTax) },
-      { label: 'Worker tax', value: workersTax, text: signed(workersTax) },
+      { label: 'Business tax', value: workersTax, text: signed(workersTax) },
       ...(s.fishing > 0 ? [{ label: 'Fishing', value: s.fishing, text: signed(s.fishing) }] : []),
       ...(s.tourism > 0 ? [{ label: 'Visitors', value: s.tourism, text: signed(s.tourism) }] : []),
       ...(Math.abs(s.fireworks) >= 0.05 ? [{ label: 'Fireworks', value: Math.abs(s.fireworks), text: signed(s.fireworks), neg: s.fireworks < 0 }] : []),
@@ -250,7 +249,8 @@ class Dashboard {
       // Upkeep as paid: austerity (credits below zero) pays only part of it.
       ...(Object.entries(upkeep) as [BuildingCategory, number][])
         .sort((a, b) => b[1] - a[1])
-        .map(([c, v]) => ({ label: `${CATEGORY_LABELS[c]} upkeep`, value: v * city.steward.funding, text: signed(-v * city.steward.funding), neg: true })),
+        .map(([c, v]) => ({ label: `${CATEGORY_LABELS[c]} upkeep`, value: v, text: signed(-v), neg: true })),
+      ...(s.policyCost > 0.05 ? [{ label: 'Ordinances', value: s.policyCost, text: signed(-s.policyCost), neg: true }] : []),
     ]);
     this.bars(
       this.landuse,

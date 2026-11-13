@@ -1,3 +1,5 @@
+import { createPolicyState, type PolicyState } from './policyState';
+import { policyHash } from './policies';
 import { addComponent, addEntity, createWorld, query, removeEntity, type World } from 'bitecs';
 import type { EventBus } from '@/core/EventBus';
 import { Building, Flow, Greenery, Service } from '@/ecs/components';
@@ -95,6 +97,8 @@ export interface CityStats {
   /** Fireworks' smoothed net credits per second (`FireworksState.flow`): visitors minus shells and crews. */
   fireworks: number;
   insurance: number;
+  /** Running cost of the ordinances in force (credits/s, plan v5). */
+  policyCost: number;
 }
 
 export type PlacementResult = { ok: true; warning?: string } | { ok: false; reason: string };
@@ -130,6 +134,8 @@ export class City {
   consequences!: ConsequenceState;
   /** Happenings: residents' requests and good surprises (D-123). */
   happenings!: HappeningState;
+  /** Ordinances, sector budgets and the business tax (plan v5, Phase 25). */
+  policies!: PolicyState;
   /** Flora-Net soil zones (saved). */
   soil!: SoilState;
   /** Corner heights changed from the generated terrain (land reclamation), saved sparsely. */
@@ -185,6 +191,7 @@ export class City {
     this.growth = createGrowthState();
     this.consequences = createConsequenceState();
     this.happenings = createHappeningState();
+    this.policies = createPolicyState();
     this.roadCount = 0;
     this.nextUid = 1;
     this.uids.clear();
@@ -497,7 +504,7 @@ export class City {
       (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0},${r.tier ?? 0},${Math.round(r.age ?? 0)},${Math.round(r.thrive ?? 0)},${(r.scorch ?? 0).toFixed(3)},${r.off ? 1 : 0},${r.by ?? 'system'},${Math.round(r.spent ?? 0)}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}|${policyHash(this)}`,
     );
   }
 }
@@ -525,6 +532,7 @@ export function emptyStats(): CityStats {
     demandFood: 0,
     fishing: 0,
     tourism: 0,
+    policyCost: 0,
     fireworks: 0,
     insurance: 0,
   };

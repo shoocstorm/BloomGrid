@@ -8,6 +8,7 @@ import { creditLimit, LOAN_SIZES, netIncome, totalDebt } from './finance';
 import type { ProposalFocus } from './proposals';
 import { INDICATOR_NAMES as N } from './indicators';
 import { forecastFor, type Forecast, type ForecastMetric } from './forecast';
+import { getPolicy, isActive, policyBlock, type PolicyId } from './policies';
 
 /**
  * Stat guides (D-092): what each top-bar indicator means, what moves it right now and the steward's best levers,
@@ -47,6 +48,8 @@ export type LeverAction =
   | { kind: 'tax'; rate: number }
   | { kind: 'loan'; amount: number }
   | { kind: 'causes' }
+  /** Enact an ordinance (plan v5, Phase 25). */
+  | { kind: 'policy'; id: string }
   | { kind: 'incidents' };
 
 export interface GuideLever {
@@ -162,11 +165,12 @@ function credits(city: City): Base {
     partsTitle: 'Cash flow per second',
     partsKind: 'sum',
     parts: [
-      { label: 'Taxes', value: s.income, text: signed(s.income), tone: 'good', note: `${Math.round(p.taxRate * 100)}% rate on residents and workers` },
+      { label: 'Taxes', value: s.income, text: signed(s.income), tone: 'good', note: `${Math.round(p.taxRate * 100)}% on residents, ${Math.round(city.policies.businessRate * 100)}% on businesses` },
       { label: 'Fishing', value: s.fishing, text: signed(s.fishing), tone: 'good' },
       { label: 'Visitors', value: s.tourism, text: signed(s.tourism), tone: 'good' },
       { label: 'Fireworks', value: s.fireworks, text: signed(s.fireworks), tone: tone(s.fireworks), note: 'shells and crews against show visitors' },
-      { label: 'Upkeep', value: -s.upkeep, text: signed(-s.upkeep), tone: 'bad', note: city.steward.funding < 1 ? 'austerity: 40% paid' : `${fmt(s.buildings)} buildings` },
+      { label: 'Upkeep', value: -s.upkeep, text: signed(-s.upkeep), tone: 'bad', note: city.credits < 0 ? 'austerity: 40% paid' : city.steward.funding !== 1 ? `maintenance budget ${pct(city.policies.budget.maintenance)}` : `${fmt(s.buildings)} buildings` },
+      { label: 'Ordinances', value: -s.policyCost, text: signed(-s.policyCost), tone: 'bad' },
       { label: 'Insurance', value: -s.insurance, text: signed(-s.insurance), tone: 'bad' },
       { label: 'Loans', value: -s.debtService, text: signed(-s.debtService), tone: 'bad', note: debt > 0 ? `◈${fmt(debt)} still owed` : undefined },
     ].filter((x) => Math.abs(x.value) >= 0.05 || x.label === 'Taxes' || x.label === 'Upkeep') as GuidePart[],
@@ -473,6 +477,7 @@ function harmony(city: City): Base {
 }
 
 /** The guide for one top-bar indicator, from the last pulse. */
+const POLICY_FOR: Partial<Record<StatId, PolicyId>> = { energy: 'night-sky', water: 'rainwater-code', happy: 'four-day-week', credits: 'tourist-levy' };
 const FORECAST_OF: Record<StatId, ForecastMetric | null> = { credits: 'budget', pop: 'population', energy: 'energy', water: 'water', food: 'food', eco: null, happy: 'harmony' };
 
 export function statGuide(city: City, id: StatId): StatGuide {
@@ -494,5 +499,13 @@ export function statGuide(city: City, id: StatId): StatGuide {
     }
   })();
   const m = FORECAST_OF[id];
-  return { ...g, forecast: m ? forecastFor(city, m) : null };
+  const fc = m ? forecastFor(city, m) : null;
+  // An ordinance that answers this indicator, when it is not in force and could be (plan v5).
+  const pid = POLICY_FOR[id];
+  const pol = pid ? getPolicy(pid) : undefined;
+  if (pol && !isActive(city, pol.id) && !policyBlock(city, pol.id, true)) {
+    const trouble = g.tier >= 2 || (fc?.eta ?? null) !== null;
+    g.levers = sorted([...g.levers, { label: `Enact ${pol.name}`, detail: `${pol.upside} ${pol.downside}`, action: { kind: 'policy', id: pol.id }, weight: trouble ? 1.6 : 0.25 }]);
+  }
+  return { ...g, forecast: fc };
 }

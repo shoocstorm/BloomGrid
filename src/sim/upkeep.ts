@@ -15,7 +15,8 @@ export function updateCondition(eid: number, funding: number, flooded: boolean, 
   if (flooded) c -= 0.01 * Math.max(0.5, floodSeverity);
   if (funding < 1) c -= 0.004 * (1 - funding);
   if (abandoned) c -= 0.001;
-  if (funding >= 1 && !flooded) c += 0.003;
+  // Funded above plan (plan v5 budgets), crews mend faster.
+  if (funding >= 1 && !flooded) c += 0.003 * funding;
   c = Math.min(1, Math.max(0, c));
   Service.condition[eid] = c;
   return c;

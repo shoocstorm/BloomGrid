@@ -319,7 +319,7 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 Design and checklists in [`plan-v5.md`](plan-v5.md); tick here as phases land.
 
 - [x] Phase 24: Foresight: trends and forecasts from the pulse history, forecast advice sized to the projected gap, proactive Flora notices, Coming up strip, forecast lines on the stat cards, `whats_coming` (D-157)
-- [ ] Phase 25: Policies: ordinances with trade-offs, sector funding, split tax with a tolerance band
+- [x] Phase 25: Policies: eight ordinances with trade-offs, maintenance / response / ecology budgets, business tax with a staffing squeeze, steeper resident tax above 16%, Policies tab, Flora tools (D-158; deferred: Open data and Emergency reserve ordinances, green roofs as a build-cost multiplier) with a tolerance band
 - [ ] Phase 26: Living demand and districts: demand-driven growth, migration, commute and job types, district approval, petitions and protests, district voices
 - [ ] Phase 27: The Director: neglect escalates into crises, crisis chains, adaptive tension, pressure on the showcase
 - [ ] Phase 28: Charters and eras: tiered civic goals, eras, live legacy score, challenge scenarios

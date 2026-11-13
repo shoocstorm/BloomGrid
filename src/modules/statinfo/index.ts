@@ -2,6 +2,7 @@ import type { GameContext, GameModule } from '@/game/context';
 import { buildings } from '@/content';
 import type { BuildingCategory } from '@/content/types';
 import { MIN_CONFIDENCE } from '@/sim/forecast';
+import { getPolicy, policyBlock } from '@/sim/policies';
 import { STAT_IDS, statGuide, type GuideLever, type GuidePart, type StatGuide, type StatId } from '@/sim/statGuide';
 import { seasonGuide, type SeasonGuide } from '@/sim/seasonGuide';
 import { SEASONS } from '@/sim/seasons';
@@ -47,6 +48,8 @@ function leverIcon(l: GuideLever): string {
     case 'tax':
     case 'loan':
       return 'credits';
+    case 'policy':
+      return 'pen';
     case 'causes':
       return 'network';
     case 'incidents':
@@ -478,6 +481,10 @@ class StatInfo {
       case 'causes':
         ctx.services.get('dashboard').openCauses();
         return this.close();
+      case 'policy':
+        if (ctx.commands.execute('setPolicy', { id: a.id, on: true })) toast(`${getPolicy(a.id)?.name ?? a.id} in force (⌘Z undoes)`);
+        else toast(policyBlock(ctx.city, a.id, true) ?? 'The council turned it down', 'bad');
+        break;
       case 'incidents':
         ctx.services.get('dashboard').openIncidents();
         return this.close();

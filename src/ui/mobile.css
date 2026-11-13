@@ -778,3 +778,18 @@ body.compact.flora-open #hud > :not(.ai) {
 .compact .over.holo {
   overflow: hidden auto;
 }
+
+/* Policies (plan v5): finger-sized switches. */
+.compact .pol-sw {
+  width: 44px;
+  height: 24px;
+}
+.compact .pol-sw::after {
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+}
+.compact .pol-sw[aria-checked='true']::after {
+  transform: translateX(20px);
+}

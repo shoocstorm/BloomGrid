@@ -41,6 +41,7 @@ export function computeActivity(city: City, f: Fields): void {
   boxBlur(a, g.w, g.h, ACTIVITY_BLUR.r, ACTIVITY_BLUR.passes);
   let sum = 0;
   let built = 0;
+  const glow = city.consequences.mods.nightGlow;
   for (let i = 0; i < a.length; i++) {
     if (f.shore[i] === 0) {
       a[i] = 0;
@@ -55,5 +56,6 @@ export function computeActivity(city: City, f: Fields): void {
       built++;
     }
   }
-  city.pulse.nightlife = built ? sum / built : 0;
+  // A night-sky ordinance (plan v5) dims night life; the activity field itself (walkers by day) is untouched.
+  city.pulse.nightlife = built ? (sum / built) * glow : 0;
 }

@@ -69,6 +69,8 @@ declare module '@/core/EventBus' {
     'milestone:claimed': { id: string; reward: number };
     /** Happenings (D-123): one began; a request was met (claimable); it ended (claimed, missed or run its course). */
     'happening:start': { happening: Happening };
+    /** An ordinance came into force or was repealed (plan v5, Phase 25). */
+    'policy:changed': { id: string; on: boolean };
     'happening:met': { happening: Happening };
     'happening:end': { happening: Happening; outcome: 'claimed' | 'missed' | 'done' };
     'tip:collected': { eid: number; amount: number; combo: number };

@@ -2759,3 +2759,48 @@ starts with foresight so that later phases (policies, the director) have forecas
 - **A least-squares fit:** one big build or crisis spike swung it.
 - **Forecasting tier ratios directly:** ratios are not in the history, and adding them would have meant a save
   migration. Balances with thresholds scaled by today's demand give the same crossing.
+
+## D-158: Policies: ordinances, sector budgets and a business tax (plan v5, Phase 25)
+
+**Context.** The steward's only economic lever was one linear tax slider, and upkeep funding was automatic: 100%,
+or 40% in debt. Forecasts (D-157) showed trouble ahead but offered only buildings as an answer.
+
+**Decision.**
+- **Ordinances.** Eight are data in `sim/policies.ts` (`POLICIES`): car-free core, night-sky, fishing quota,
+  green roofs, four-day week, tourist levy, rainwater code, free sky-pods. Each has an upside, a downside, an
+  enact fee and a running cost.
+  - Effects go through the consequence modifiers: `applyPolicies` runs in `updateConsequences`, with new mod keys
+    `trafficLoad`, `workerTax`, `energyDemand`, `waterSupply`, `nightGlow`, `tourismMul`, `fishEffort`,
+    `reputationDrift` and `natureEco`. Every reader picks them up on the next pulse.
+  - The running cost is `stats.policyCost` and is part of `netIncome` (D-115).
+  - `setPolicy` is undoable and refunds the fee. There is a 60 s cooldown per ordinance. On a fresh island
+    ordinances open at 500 residents.
+- **Sector budgets.** Upkeep is summed per sector in pulse pass 1 (`sectorOf`): defs with `response` →
+  response, `nature` → ecology, everything else → maintenance. `updateFinance` pays each sector at its budget
+  (50–125%) × austerity.
+  - `steward.funding` stays as the maintenance share, so condition, road overgrowth, the neglect rule and the
+    advisor keep reading it.
+  - Funding above 1 mends faster.
+  - The response budget scales `fireSpread`. The ecology budget scales `bloomLoss` and nature buildings' eco
+    output.
+- **Business tax.** `policies.businessRate` taxes the worker share of income (`taxSplit` in `finance.ts`, shared by
+  the pulse, dashboard and Flora). Above 15% it squeezes commercial and industry staffing. v19 saves migrate with
+  the business rate equal to the old single rate.
+- **Resident tax harmony** (`taxHarmony`): unchanged up to 16%, steeper above. A happy streak softens only the
+  steep part, so the founding city's balance (12%) is untouched.
+- **Surfaces:**
+  - **City Pulse → Policies** (`modules/policies/`): switches, cooldowns and reasons, budget and business-tax
+    sliders.
+  - **Causes tab:** ordinances in force.
+  - **Stat-card levers** (`{ kind: 'policy' }`).
+  - **Advisor:** a `policy-<id>` suggestion when a forecast has an answering ordinance.
+  - **Flora tools:** `policies_status` / `set_policy` / `set_budget`, registered last.
+  - **Knowledge:** `reference-policies` and `systems-policies`.
+- Save v20. State is hashed through `policyHash`.
+
+**Rejected or deferred.**
+- **Green roofs as a build-cost multiplier:** build cost is read in about 20 places (proposals, gates, tools,
+  refunds). The mandate costs ◈0.002/s per building instead.
+- **"Open data" and "Emergency reserve" ordinances:** deferred, as they need hooks that don't exist yet.
+- **A night-sky dim on the activity field itself:** the field also places daytime walkers. It dims the night-life
+  reading only.

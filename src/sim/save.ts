@@ -1,3 +1,4 @@
+import { createPolicyState, type PolicyState } from './policyState';
 import { roadLevels, roadWear } from './roads';
 import type { ZoneKind } from '@/content/types';
 import { Service } from '@/ecs/components';
@@ -11,7 +12,7 @@ import { createHappeningState, type HappeningState } from './happeningState';
 import { builderCode, builderFromCode } from './builders';
 import { loadBridges, saveBridges, type BridgeSave } from './bridges';
 
-export const SAVE_VERSION = 19;
+export const SAVE_VERSION = 20;
 
 export interface SaveData {
   version: number;
@@ -53,6 +54,8 @@ export interface SaveData {
   happenings: HappeningState;
   /** Named highway bridges as [key, name, built tick, builder code] (v19+, D-128). */
   roadBridges: BridgeSave[];
+  /** Ordinances, sector budgets and the business tax (v20+, plan v5 Phase 25). */
+  policies: PolicyState;
   /** Set by the v19 migration: bridge decks before named bridges carried the highway level, reset to Standard. */
   resetBridgeLevels?: boolean;
   /** Feature modules persist their own state under their module id. */
@@ -166,6 +169,11 @@ export function migrateSave(data: SaveData): SaveData {
     data.resetBridgeLevels = true;
     data.version = 19;
   }
+  if (data.version === 19) {
+    // Policies (v20, D-158): no ordinances, budgets as designed, businesses taxed at the residents' rate as before.
+    data.policies = createPolicyState(data.pulse.taxRate);
+    data.version = 20;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -201,6 +209,7 @@ export function serializeCity(city: City): SaveData {
     growth: structuredClone(city.growth),
     consequences: (({ mods, ...rest }) => (void mods, structuredClone(rest)))(city.consequences),
     happenings: structuredClone(city.happenings),
+    policies: structuredClone(city.policies),
     roadBridges: saveBridges(city),
     bridges: city.weaver.bridges.map((b) => [b.ax, b.az, b.bx, b.bz]),
     terrain: [...city.terrainEdits].map(([c, h]) => [c, round3(h)]),
@@ -225,6 +234,7 @@ export function deserializeCity(city: City, input: SaveData): void {
   Object.assign(city.growth, structuredClone(data.growth));
   Object.assign(city.consequences, structuredClone(data.consequences), { mods: neutralMods() });
   Object.assign(city.happenings, structuredClone(data.happenings));
+  city.policies = structuredClone(data.policies);
   // Terrain first: highways, channels and buildings sit on the edited ground.
   if (data.terrain.length) {
     for (const [c, h] of data.terrain) {

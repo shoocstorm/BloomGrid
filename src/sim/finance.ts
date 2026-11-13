@@ -2,6 +2,8 @@ import type { CommandStack } from '@/core/Commands';
 import type { City } from './City';
 import { DIFFICULTIES } from './difficulty';
 import type { Loan } from './stewardState';
+import { INCOME_SCALE } from './pulseConst';
+import { BUDGET_SECTORS, type BudgetSector } from './policyState';
 import type { SimCtx } from './systems';
 
 /** Loan term in sim seconds. */
@@ -15,7 +17,7 @@ export const LOAN_SIZES = [5000, 15000, 40000] as const;
  */
 export function netIncome(city: City): number {
   const s = city.stats;
-  return s.income + s.fishing + s.tourism + s.fireworks - s.insurance - s.upkeep - s.debtService;
+  return s.income + s.fishing + s.tourism + s.fireworks - s.insurance - s.upkeep - s.debtService - s.policyCost;
 }
 
 /** How much more the city may borrow: ~10 sim-minutes of gross income, at least 5 000. */
@@ -28,11 +30,30 @@ export function totalDebt(city: City): number {
   return city.steward.loans.reduce((a, l) => a + l.remaining, 0);
 }
 
+/** Austerity: the share of upkeep a city in debt can pay. */
+export const AUSTERITY = 0.4;
+
 /**
- * Once per pulse: service loans, then set funding. A treasury below zero forces austerity:
- * only 40% of upkeep is paid, which makes buildings and highways decay (see `upkeep.ts`).
+ * Once per pulse: service loans, then pay upkeep by sector (plan v5): each sector's budget share (`policies.budget`)
+ * times austerity. A treasury below zero forces austerity: only 40% is paid, so buildings and highways decay
+ * (see `upkeep.ts`). `steward.funding` is the maintenance sector's effective share (what condition and roads read).
+ * Returns loan repayments; `upkeep` (sector → designed upkeep) comes back as paid in `stats.upkeep`.
  */
-export function updateFinance(city: City, upkeep: number): number {
+/** Tax from residents and from workplaces this pulse (credits/s), as the pulse books them (plan v5: two rates). */
+export function taxSplit(city: City): { residents: number; business: number } {
+  const s = city.stats;
+  return {
+    residents: s.population * 0.6 * city.pulse.taxRate * INCOME_SCALE,
+    business: s.employed * 0.4 * city.policies.businessRate * city.consequences.mods.workerTax * INCOME_SCALE,
+  };
+}
+
+/** Share of a sector's designed upkeep the city pays now: its budget, times austerity in debt. */
+export function paidShare(city: City, sector: BudgetSector): number {
+  return city.policies.budget[sector] * (city.credits < 0 ? AUSTERITY : 1);
+}
+
+export function updateFinance(city: City, upkeep: Record<BudgetSector, number>): number {
   const st = city.steward;
   let paid = 0;
   for (let i = st.loans.length - 1; i >= 0; i--) {
@@ -45,8 +66,12 @@ export function updateFinance(city: City, upkeep: number): number {
       city.bus.emit('loan:repaid', { id: l.id });
     }
   }
-  st.funding = city.credits < 0 ? 0.4 : 1;
-  const charged = upkeep * st.funding;
+  const austerity = city.credits < 0 ? AUSTERITY : 1;
+  const b = city.policies.budget;
+  st.funding = b.maintenance * austerity;
+  let charged = 0;
+  for (const k of BUDGET_SECTORS) charged += upkeep[k] * b[k] * austerity;
+  city.stats.upkeep = charged;
   city.credits -= charged + paid;
   return paid;
 }

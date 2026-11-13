@@ -1,0 +1,104 @@
+/* City Pulse → Policies (plan v5, Phase 25). */
+.pol-lock {
+  margin: 4px 0 8px;
+  color: var(--warn);
+  font-size: 12px;
+}
+.pol-card {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+  border: 1px solid transparent;
+}
+.pol-card.on {
+  border-color: var(--line-strong);
+}
+.pol-h {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.pol-ic {
+  color: var(--accent);
+}
+.pol-up,
+.pol-down {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.pol-up {
+  color: var(--ink);
+}
+.pol-up::before {
+  content: '+ ';
+  color: var(--accent-2);
+}
+.pol-down {
+  color: var(--ink-soft);
+}
+.pol-down::before {
+  content: '− ';
+  color: var(--warn);
+}
+.pol-f {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+.pol-note {
+  color: var(--warn);
+}
+/* An on/off switch: a track with a knob. */
+.pol-sw {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  padding: 0;
+  border-radius: var(--pill);
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+  cursor: var(--cur-pointer, pointer);
+}
+.pol-sw::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  transition: transform 0.15s;
+}
+.pol-sw[aria-checked='true'] {
+  background: rgba(95, 242, 218, 0.25);
+  border-color: var(--accent);
+}
+.pol-sw[aria-checked='true']::after {
+  transform: translateX(16px);
+  background: var(--accent);
+}
+.pol-sw.blocked {
+  opacity: 0.55;
+}
+.pol-slider {
+  margin: 6px 0 10px;
+}
+.pol-slider input {
+  width: 100%;
+  accent-color: #3ccf8e;
+}
+.pol-slider small {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,12 +1,11 @@
 import type { AgentTool } from '@/core/AgentTools';
-import { netIncome } from './finance';
+import { netIncome, taxSplit } from './finance';
 import { buildings } from '@/content';
 import { CATEGORY_LABELS, type BuildingCategory } from '@/content/types';
 import { Building } from '@/ecs/components';
 import type { SimCtx } from './systems';
 import { evaluateAdvisor } from './advisor';
 import { getCrisis } from './crises';
-import { INCOME_SCALE } from './pulse';
 import { HISTORY_METRICS, type HistoryMetric } from './pulseState';
 import { DAY_LENGTH } from './pulseConst';
 import { buildingId } from './inventory';
@@ -129,9 +128,11 @@ export const insightTools: AgentTool<SimCtx, never>[] = [
       return {
         credits: Math.round(city.credits),
         taxPercent: Math.round(p.taxRate * 100),
+        businessTaxPercent: Math.round(city.policies.businessRate * 100),
+        ordinancesCost: r2(s.policyCost),
         income: {
-          residentTax: r2(s.population * 0.6 * p.taxRate * INCOME_SCALE),
-          workerTax: r2(s.employed * 0.4 * p.taxRate * INCOME_SCALE),
+          residentTax: r2(taxSplit(city).residents),
+          businessTax: r2(taxSplit(city).business),
           fishing: r2(s.fishing),
           visitors: r2(s.tourism),
           fireworksNet: r2(s.fireworks),

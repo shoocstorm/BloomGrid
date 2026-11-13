@@ -17,10 +17,12 @@ import { updateWonders, wonderHarmony } from './wonders';
 import { ageWear, size, updateLevels, upkeepMul, use } from './levels';
 import { updateConsequences } from './consequences';
 import { updateHappenings } from './happenings';
-import { netIncome, updateFinance } from './finance';
+import { netIncome, taxSplit, updateFinance } from './finance';
+import { sectorOf } from './policies';
+import type { BudgetSector } from './policyState';
 import { updateCondition, updateOvergrowth } from './upkeep';
 import { updateStewardship } from './steward';
-import { LABOUR_SHARE, PULSE_TICKS } from './pulseConst';
+import { INCOME_SCALE, LABOUR_SHARE, PULSE_TICKS } from './pulseConst';
 import { bloomLayers, computeBloom, computeIrrigation, computePairing } from './bloom';
 import { computeActivity } from './nightlife';
 import { computeMobility } from './mobility';
@@ -36,8 +38,7 @@ const FIREWORKS_FLOW_EMA = 1 / 30;
 export { PULSE_TICKS };
 
 const HISTORY_EVERY = 10; // pulses
-/** Credits per taxed resident-second; tuned so a mature city nets a modest surplus at 12% tax. */
-export const INCOME_SCALE = 0.06;
+export { INCOME_SCALE };
 
 // Scratch buffers reused across pulses (no per-pulse allocation for typical network counts).
 let prodE = new Float64Array(64);
@@ -78,6 +79,18 @@ function runFieldPass(city: SimCtx['city']): void {
 }
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
+/** Designed upkeep per budget sector this pulse (reused). */
+const upkeepBy: Record<BudgetSector, number> = { maintenance: 0, response: 0, ecology: 0 };
+
+/**
+ * Harmony points from the resident tax (plan v5): as before up to 16% (−1.5 per point above 10%), then steeper,
+ * so squeezing an upset city costs more; a long happy streak (60 s at 70+) softens that steep part by a fifth.
+ */
+export function taxHarmony(rate: number, harmonyStreak: number): number {
+  const over = rate - 0.1;
+  const steep = over > 0.06 ? 1 + (over - 0.06) * 8 : 1;
+  return -over * 150 * steep * (over > 0.06 && harmonyStreak > 60 ? 0.8 : 1);
+}
 const approach = (v: number, target: number, up: number, down: number) =>
   v < target ? Math.min(target, v + up) : Math.max(target, v - down);
 
@@ -139,8 +152,12 @@ export const pulseSystem: System<SimCtx> = {
     let population = 0;
     let staffedJobs = 0;
     let food = 0;
-    let upkeep = 0;
+    // Upkeep by budget sector (plan v5): maintenance, emergency response, ecology.
+    upkeepBy.maintenance = upkeepBy.response = upkeepBy.ecology = 0;
     let amenity = 0;
+    const cm = city.consequences.mods;
+    const energyDemand = mod.energyDemand * cm.energyDemand;
+    const waterSupply = mod.waterSupply * cm.waterSupply;
     s.energyProduced = s.energyUsed = s.waterProduced = s.waterUsed = 0;
     for (const eid of ents) {
       const def0 = buildings.at(Building.def[eid]!);
@@ -154,7 +171,7 @@ export const pulseSystem: System<SimCtx> = {
       population += st.population * big * occ;
       jobsTotal += st.jobs * big;
       staffedJobs += st.jobs * big * occ;
-      upkeep += st.upkeep * upkeepMul(eid);
+      upkeepBy[sectorOf(def0)] += st.upkeep * upkeepMul(eid);
       // Retrofits, banyan merges and woven sky-bridges delight residents; so does a grown building.
       const lvl = Building.level[eid]!;
       amenity += st.happiness + Building.tier[eid]! + (lvl === BANYAN_LEVEL ? 4 : lvl > 0 ? 2 : 0) + (bridges?.get(eid) ?? 0) * 3;
@@ -184,9 +201,9 @@ export const pulseSystem: System<SimCtx> = {
       if (net < 0) continue;
       const retro = Building.level[eid]! > 0;
       const sym = def0.symbiosis && Service.paired[eid] ? def0.symbiosis.outputMul : 1;
-      const e = st.energy > 0 ? st.energy * big * activity * mod.energySupply * sym : st.energy * draw * activity * mod.energyDemand * (retro ? 0.8 : 1);
+      const e = st.energy > 0 ? st.energy * big * activity * mod.energySupply * sym : st.energy * draw * activity * energyDemand * (retro ? 0.8 : 1);
       // Water works need power to pump.
-      const w = st.water > 0 ? st.water * big * activity * Service.power[eid]! * mod.waterSupply * season.waterMul : st.water * draw * activity * mod.waterDemand * (retro ? 0.85 : 1);
+      const w = st.water > 0 ? st.water * big * activity * Service.power[eid]! * waterSupply * season.waterMul : st.water * draw * activity * mod.waterDemand * (retro ? 0.85 : 1);
       if (e > 0) prodE[net] += e;
       else demE[net] -= e;
       if (w > 0) prodW[net] += w;
@@ -218,6 +235,7 @@ export const pulseSystem: System<SimCtx> = {
     let greenSum = 0;
     let condSum = 0;
     const harmony01 = s.happiness / 100;
+    const businessSqueeze = 1 - Math.max(0, city.policies.businessRate - 0.15) * 2;
     const funding = city.steward.funding;
     // A bare coast makes floods bite harder (consequences, D-074).
     const floodSev = city.steward.crises.reduce((a, c) => (c.phase === 'active' ? Math.max(a, c.severity) : a), 0) * city.consequences.mods.flood;
@@ -259,7 +277,9 @@ export const pulseSystem: System<SimCtx> = {
         resServices += service * st.population;
         resWeight += st.population;
       } else if (st.jobs > 0) {
-        const target = isFlooded || isOffline || Service.off[eid] ? 0 : staffing * clamp(service + 0.2, 0, 1);
+        // A steep business tax squeezes shops and works (plan v5): above 15% they hire less.
+        const squeeze = def.category === 'commercial' || def.category === 'industry' ? businessSqueeze : 1;
+        const target = isFlooded || isOffline || Service.off[eid] ? 0 : staffing * clamp(service + 0.2, 0, 1) * squeeze;
         Service.occupancy[eid] = approach(occ, target, 0.03, 0.02);
         if (Service.occupancy[eid]! < 0.5 && !Service.off[eid]) p |= Problem.UNSTAFFED;
       }
@@ -270,7 +290,7 @@ export const pulseSystem: System<SimCtx> = {
       greenSum += g;
       condSum += cond;
       const retro = Building.level[eid]! > 0;
-      const eco = st.eco * (0.3 + 0.7 * g) * (Building.level[eid] === BANYAN_LEVEL ? 2 : retro ? 1.5 : 1) + (bridges?.get(eid) ?? 0) * 2;
+      const eco = st.eco * (def.category === 'nature' ? city.consequences.mods.natureEco : 1) * (0.3 + 0.7 * g) * (Building.level[eid] === BANYAN_LEVEL ? 2 : retro ? 1.5 : 1) + (bridges?.get(eid) ?? 0) * 2;
       const pairMul = def.symbiosis && Service.paired[eid] ? def.symbiosis.pollutionMul : 1;
       const smog = Math.max(0, st.pollution * (1 - 0.4 * g) * pairMul * (retro ? 0.7 : 1));
       s.eco += eco;
@@ -314,7 +334,7 @@ export const pulseSystem: System<SimCtx> = {
     h.services = resWeight > 0 ? -30 * (1 - resServices / resWeight) : 0;
     h.jobs = -25 * unemployment;
     h.food = population > 1 ? -20 * (1 - Math.min(1, foodRatio)) : 0;
-    h.taxes = -(pulse.taxRate - 0.1) * 150;
+    h.taxes = taxHarmony(pulse.taxRate, city.consequences.harmonyStreak);
     // Amenities only delight when maintained.
     h.amenities = clamp((amenity / per) * 2, -10, 15) * (condSum / per);
     h.crises = mod.harmony;
@@ -329,10 +349,11 @@ export const pulseSystem: System<SimCtx> = {
     s.happiness += (target - s.happiness) * 0.06;
 
     // Budget.
-    s.income = (population * 0.6 + s.employed * 0.4) * pulse.taxRate * INCOME_SCALE;
+    // Residents pay the resident rate; workplaces the business rate (plan v5), less what ordinances cost trade.
+    const tax = taxSplit(city);
+    s.income = tax.residents + tax.business;
     city.credits += s.income;
-    s.debtService = updateFinance(city, upkeep);
-    s.upkeep = upkeep * city.steward.funding;
+    s.debtService = updateFinance(city, upkeepBy);
 
     // Health tiers.
     const net = netIncome(city);

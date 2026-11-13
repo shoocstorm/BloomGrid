@@ -376,7 +376,7 @@ export class PulsePanel {
     const owed = totalDebt(city);
     setText(this.owed, owed > 0 ? Math.round(owed).toLocaleString() : 'none');
     const f = city.steward.funding;
-    setText(this.funding, f >= 1 ? 'Fully funded' : `Austerity (${Math.round(f * 100)}%)`);
+    setText(this.funding, city.credits < 0 ? `Austerity (${Math.round(f * 100)}%)` : f >= 1 ? (f > 1 ? `Boosted (${Math.round(f * 100)}%)` : 'Fully funded') : `Budget ${Math.round(f * 100)}%`);
     this.funding.className = f >= 1 ? 'good' : 'bad';
     const limit = creditLimit(city);
     for (const [amount, b] of this.loanBtns) b.disabled = amount > limit;

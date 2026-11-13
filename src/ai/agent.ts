@@ -171,6 +171,8 @@ export function plainIntent(request: string): string | null {
     [/\b(tax|taxes)\b.*\d|\d.*\b(tax|taxes)\b/, 'set_tax'],
     [/\b(take|get) (a )?loan\b|\bborrow\b/, 'take_loan'],
     [/\b(where is|show me|locate|take me to)\b/, 'object_select'],
+    // Sector budgets (plan v5) before the budget question: "cut the ecology budget to 80%".
+    [/\b(set|raise|lower|cut|increase|reduce|boost)\b.*\b(budget|funding)\b|\b(budget|funding)\b.*\b(to|at) \d+\s*%?/, 'set_budget'],
     [/\b(budget|money|spending|income|upkeep|afford)\b/, 'budget_breakdown'],
     [/\bfireworks?\b/, 'fireworks_status'],
     // Progression (Phase 22): unlock projects, goals, fishing, wonders.
@@ -182,6 +184,9 @@ export function plainIntent(request: string): string | null {
     // Cause and effect (D-074): "why is…", "what caused…".
     [/^why\b|\bwhat caused\b|\bhow come\b|\bconsequences?\b/, 'why'],
     [/\b(fires?|burning|earthquakes?|quakes?|lightning|incidents?|emergenc(y|ies)|damaged?)\b/, 'incident_status'],
+    // Policies (plan v5, Phase 25): budgets, then enacting / repealing an ordinance, then questions about them.
+    [/\b(enact|repeal|adopt|pass|introduce|bring in|scrap|lift|cancel|turn (on|off)|switch (on|off)|ban)\b.*\b(ordinances?|polic(y|ies)|car-?free|cars?|night-?sky|quota|green[- ]roofs?|four-?day|levy|rainwater|free (sky-?)?pods?|free transit|fares?)\b/, 'set_policy'],
+    [/\b(ordinances?|polic(y|ies)|car-?free|night-?sky|fishing quota|green[- ]roofs?|four-?day( week)?|tourist levy|rainwater code|free (sky-?)?pods?|free transit|ban(ning)? cars)\b/, 'policies_status'],
     // Foresight (plan v5): supply forecasts, the season ahead and forecast crises.
     [/\b(forecasts?|coming up|what'?s coming|ahead|run(ning)? (out|short|low)|will (we|it|the)\b.*\b(last|run|hold)|predict(ion)?s?|next few minutes)\b/, 'whats_coming'],
     [/\b(crisis|crises|storm|flood|heatwave|drought)\b/, 'crisis_status'],
@@ -206,6 +211,7 @@ export function plainIntent(request: string): string | null {
     'building_types',
     'advisor_tips',
     'whats_coming',
+    'policies_status',
   ]);
   const hits = rules.filter(([re, t]) => re.test(r) && (!question || lookups.has(t))).map(([, t]) => t);
   return hits.length ? hits[0]! : null;

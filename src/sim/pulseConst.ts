@@ -4,3 +4,5 @@ export const PULSE_TICKS = 10;
 export const LABOUR_SHARE = 0.65;
 /** Sim seconds per full day (here, not in City, so seasons can import it without a cycle). */
 export const DAY_LENGTH = 360;
+/** Credits per taxed resident-second; tuned so a mature city nets a modest surplus at 12% tax. */
+export const INCOME_SCALE = 0.06;

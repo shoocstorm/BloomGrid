@@ -6,6 +6,8 @@ import { allCrises } from './crises';
 import './hazards';
 import './disasters';
 import { RULES } from './consequences';
+import { POLICIES, POLICY_COOLDOWN, POLICY_POPULATION } from './policies';
+import { BUDGET_MAX, BUDGET_MIN } from './policyState';
 import {
   CATCH_MUL,
   FESTIVAL_HARMONY,
@@ -317,6 +319,29 @@ function buildingDocs(): KnowledgeDoc[] {
     });
 }
 
+function policiesDoc(): KnowledgeDoc {
+  const body = [
+    `Ordinances are enacted in City Pulse → Policies (or by asking Flora). Each costs credits to enact, may have a running cost, and can change once every ${POLICY_COOLDOWN} s. On a fresh island the council hears them from ${POLICY_POPULATION} residents. Guide: [Policies and budgets](kb:systems-policies).`,
+    '',
+    '| Ordinance | Gain | Cost | Enact |',
+    '| --- | --- | --- | --- |',
+    ...POLICIES.map((p) => `| ${p.name} | ${p.upside} | ${p.downside} | ◈${p.enact.toLocaleString('en-US')} |`),
+    '',
+    `- Budgets (maintenance, emergency response, parks and ecology) run ${BUDGET_MIN * 100}–${BUDGET_MAX * 100}%: the share of that sector's upkeep the city pays. In debt, austerity pays 40% of it on top.`,
+    '- Business tax is charged on workplaces (the worker share of tax income); above 15% shops and works hire fewer people.',
+    '- Resident tax: −1.5 harmony per point above 10%, steeper above 16%; a long happy streak softens the steep part.',
+  ].join('\n');
+  return ref({
+    id: 'reference-policies',
+    title: 'Ordinances and budgets: numbers',
+    summary: `The ${POLICIES.length} ordinances with their gains, costs and enact fees; budget and tax ranges.`,
+    tags: ['policy', 'policies', 'ordinance', 'budget', 'tax', 'business tax', ...POLICIES.map((p) => p.id)],
+    related: ['systems-policies', 'systems-budget'],
+    order: 26,
+    body,
+  });
+}
+
 let cache: KnowledgeDoc[] | null = null;
 
 /** The generated reference docs (built once: registries are fixed after load). */
@@ -326,6 +351,7 @@ export function referenceDocs(): KnowledgeDoc[] {
     crisesDoc(),
     rulesDoc(),
     happeningsDoc(),
+    policiesDoc(),
     lensesDoc(),
     issuesDoc(),
     ...buildingDocs(),

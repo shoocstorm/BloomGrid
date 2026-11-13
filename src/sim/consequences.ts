@@ -3,6 +3,7 @@ import type { City } from './City';
 import { DAY_LENGTH } from './pulseConst';
 import { seasonAt } from './seasons';
 import { applyHappenings } from './happenings';
+import { applyPolicies } from './policies';
 import { neutralMods, type ConsequenceMods, type FeedEntry } from './consequenceState';
 
 /**
@@ -273,7 +274,7 @@ export function updateConsequences(city: City): void {
   const dirty = st.rules['dirty-coast']?.level ?? 0;
   st.reputation = clamp01(
     st.reputation +
-      ((s.happiness >= 70 ? 0.4 : s.happiness < 45 ? -0.4 : 0) - (crisis ? 0.5 : 0) - dirty * 0.6) /
+      ((s.happiness >= 70 ? 0.4 : s.happiness < 45 ? -0.4 : 0) - (crisis ? 0.5 : 0) - dirty * 0.6 + st.mods.reputationDrift) /
         DAY_LENGTH,
   );
 
@@ -312,6 +313,9 @@ export function updateConsequences(city: City): void {
   mods.tourism = Math.max(0, s.income * 0.2 * (st.reputation - 0.3));
   // Happenings (D-123): festival and cruise visitors, a bumper catch, the mood after a request.
   applyHappenings(city, mods);
+  // Ordinances and sector budgets (plan v5, Phase 25); their running cost is charged here.
+  applyPolicies(city, mods);
+  mods.tourism *= mods.tourismMul;
   st.mods = mods;
   city.credits += mods.tourism - mods.insurance;
   st.tourismIncome += mods.tourism;

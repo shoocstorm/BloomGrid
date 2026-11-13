@@ -7,6 +7,7 @@ import { NO_ENTITY } from './Grid';
 import type { BuildingRecord, City } from './City';
 import { TAX_MAX, TAX_MIN } from './pulseState';
 import { registerFinanceCommands } from './finance';
+import { registerPolicyCommands } from './policies';
 import { registerHazardCommands } from './hazards';
 import { registerFireworksCommands } from './fireworks';
 import { registerProjectCommands } from './projects';
@@ -75,6 +76,7 @@ function setOvergrowth(city: City, values: [number, number][]): void {
 /** Registers the core city-building commands. Feature modules register their own. */
 export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerFinanceCommands(stack);
+  registerPolicyCommands(stack);
   registerHazardCommands(stack);
   registerFireworksCommands(stack);
   registerProjectCommands(stack);

@@ -45,6 +45,17 @@ export interface ConsequenceMods {
   floraDiscount: number;
   /** 0..1: fireworks smoke lingers (Haze). */
   smogHold: number;
+  /** Policies (plan v5, Phase 25): highway load, worker-tax yield, energy demand, water supply, night glow,
+   * visitor spending, fishing effort, reputation drift per day, and nature buildings' ecology output. */
+  trafficLoad: number;
+  workerTax: number;
+  energyDemand: number;
+  waterSupply: number;
+  nightGlow: number;
+  tourismMul: number;
+  fishEffort: number;
+  reputationDrift: number;
+  natureEco: number;
 }
 
 export const neutralMods = (): ConsequenceMods => ({
@@ -61,6 +72,15 @@ export const neutralMods = (): ConsequenceMods => ({
   bloomLoss: 0,
   floraDiscount: 0,
   smogHold: 0,
+  trafficLoad: 1,
+  workerTax: 1,
+  energyDemand: 1,
+  waterSupply: 1,
+  nightGlow: 1,
+  tourismMul: 1,
+  fishEffort: 1,
+  reputationDrift: 0,
+  natureEco: 1,
 });
 
 export interface ConsequenceState {

@@ -44,6 +44,8 @@ export function updateFishing(
     boats += f.boats;
     effort += f.boats * Service.occupancy[e]!;
   }
+  // A fishing quota (plan v5) keeps boats in harbour part of the time: less catch, less taken from the stock.
+  effort *= city.consequences.mods.fishEffort;
   const clean = cleanSea(city) * city.consequences.mods.fishing;
   const income = effort * CATCH_VALUE * g.fish * clean;
   g.fish = Math.min(
