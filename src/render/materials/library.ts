@@ -50,6 +50,7 @@ import { activityGlow, bloomAt, overlayDim, withOverlay } from './overlay';
 import { is, styleData } from './styles';
 import { CODE_LINES, DISPLAY_FRAMES, DISPLAY_RECTS, displayAtlas } from './display';
 import { wonderMaterial } from './wonder';
+import { bumped, reliefFade, roomInterior } from './surface';
 
 /**
  * Shared material library. Every instanced piece references one of these, so the whole city
@@ -231,8 +232,22 @@ export function initMaterials(): void {
     // Char (grime 0.7..1, D-075): soot darkening the walls, heaviest along the streaks.
     const soot = smoothstep(0.7, 1.0, grime);
     m.colorNode = mix(walls.mul(dinge), vec3(0.11, 0.1, 0.09).add(vec3(0.08).mul(streak)), soot.mul(0.85));
-    m.roughnessNode = st.roughness;
+    m.roughnessNode = st.roughness.add(n2.mul(0.08)).add(grout.mul(is(p, 1)).mul(0.1)).clamp(0.05, 1);
     m.metalnessNode = st.metalness.mul(float(1).sub(seam));
+    // Relief (D-160), in world units: recessed grout and mortar, standing seams, board gaps and the basket weave
+    // catch the sun, so a wall reads as built rather than printed. Walls only, like the patterns.
+    const pickH = (k: number, v: Node<'float'>) => v.mul(is(p, k));
+    // Smooth-noise relief reads as hammered metal above a millimetre or so: plaster and render stay nearly flat.
+    const relief = pickH(0, n1.mul(0.0004))
+      .add(pickH(1, grout.mul(-0.012)))
+      .add(pickH(2, strata.mul(0.004).add(n1.mul(0.0008))))
+      .add(pickH(3, n1.mul(0.0008).add(n2.mul(0.0015))))
+      .add(pickH(4, seam.mul(0.016)))
+      .add(pickH(5, mosaicGrout.mul(-0.007)))
+      .add(pickH(6, board.mul(-0.016).add(grain.mul(0.04))))
+      .add(pickH(7, mortar.mul(-0.02).sub(n1.mul(0.004))))
+      .add(pickH(8, weave.mul(0.012)));
+    m.normalNode = bumped(relief, float(1).sub(smoothstep(0.6, 0.9, normalWorld.y)).mul(reliefFade(0.12)));
     return m;
   });
 
@@ -246,6 +261,10 @@ export function initMaterials(): void {
     const grime = float(1).sub(iGreenery).clamp(0, 1);
     const soot = smoothstep(0.7, 1.0, grime);
     m.colorNode = mix(mix(color(0xffffff).add(grain), vec3(0.5, 0.49, 0.46), grime.mul(0.85)), vec3(0.12, 0.1, 0.09), soot.mul(0.85));
+    // Raised grain and board joints every ~0.14 units (D-160); weathered timber dries rougher.
+    const joints = stripes(positionWorld.x.add(positionWorld.z).div(0.14), 0.93);
+    m.normalNode = bumped(grain.mul(0.05).sub(joints.mul(0.01)), reliefFade(0.1));
+    m.roughnessNode = float(0.72).add(grime.mul(0.2)).add(joints.mul(0.1));
     return m;
   });
 
@@ -303,9 +322,30 @@ export function initMaterials(): void {
     // Weathering (aParams.x = 1 − grime on building glass, D-073): panes dull and brown, reflections soften.
     const grime = float(1).sub(iGreenery).clamp(0, 1);
     const soot = smoothstep(0.7, 1.0, grime);
-    m.colorNode = mix(mix(mix(pane, frame, frames), vec3(0.3, 0.28, 0.23), grime.mul(0.7)), vec3(0.05, 0.045, 0.04), soot.mul(0.8));
-    m.roughnessNode = mix(mix(float(0.12), float(0.7), frames), float(0.75), grime);
-    m.metalnessNode = mix(float(0.45), float(0.0), frames);
+    // Rooms behind the glass (D-160): on walls, each window is the front of a room traced by the view ray, so
+    // façades have depth, furniture, blinds and ceiling lamps. Roofs and far façades keep the flat pane.
+    const wall = float(1).sub(smoothstep(0.5, 0.85, abs(normalWorld.y)));
+    // Rooms read fully while a window is ~20 px or more, and fade into the pane by ~7 px: a few-pixel room is a
+    // dark speck, and a whole façade of them turned glass towers into perforated grey blocks.
+    const cellPx = max(fwidth(fxv), fwidth(fyv));
+    const near = float(1).sub(smoothstep(0.05, 0.14, cellPx)).mul(wall);
+    const room = roomInterior(fxv, fyv, k, 0.32, 0.3, iSeed);
+    const fabric = mix(color(0xeee8dc), color(0xd8cdb8), hash(floorIdx.add(col.mul(5)).add(iSeed)));
+    // The pane: the room seen through tinted glass (the style tint multiplies in as instanceColor; classic glass
+    // keeps its teal), with a share of the pane's own colour for the glass body; blinds where drawn.
+    const glassTint = mix(vec3(1), vec3(0.62, 0.95, 0.98), classic);
+    const seen = mix(room.day.mul(1.5).mul(glassTint), pane.mul(0.5), 0.3);
+    const inside = mix(seen, fabric.mul(0.75), room.blind);
+    const glazing = mix(pane.mul(0.55), inside, near);
+    m.colorNode = mix(mix(mix(glazing, frame, frames), vec3(0.3, 0.28, 0.23), grime.mul(0.7)), vec3(0.05, 0.045, 0.04), soot.mul(0.8));
+    // Mirror-sharp only close up: a far pane is many panes in a pixel, and a sharp sun glint on it sparkles.
+    m.roughnessNode = mix(mix(mix(float(0.12), float(0.05), near), float(0.55), frames), float(0.75), grime);
+    // Real glass: a dielectric whose reflection rises at grazing angles (Fresnel), with a light coating on some
+    // towers; it was a half-metal mirror. Far façades keep more reflectance (the rooms are averaged out there).
+    const coat = mix(hash(iSeed.mul(3.7)).mul(0.25).add(0.12), float(0.42), classic);
+    m.metalnessNode = mix(mix(coat, float(0.4), float(1).sub(near)), float(0.0), frames);
+    // Mullions and transoms stand proud of the glass: their edges catch the sun.
+    m.normalNode = bumped(frames.mul(0.02), near.mul(reliefFade(0.25)));
     // aParams.w = power supply: windows go dark during brownouts.
     // About 40% of windows lit in the evening, thinning to ~10% in the small hours; each its own brightness and
     // tone (mostly amber lamps, a few cool screens), so façades read as rooms rather than glowing panels.
@@ -315,7 +355,10 @@ export function initMaterials(): void {
     const tone = mix(hash(col.mul(1.7).add(floorIdx.mul(5.3)).add(iSeed.mul(13))), float(0.5), far);
     const warm = mix(mix(color(0xff9f4a), color(0xffd9a0), tone), color(0xcfe4ff), step(0.88, tone));
     const level = tone.mul(0.6).add(0.25);
-    m.emissiveNode = warm.mul(lit).mul(level).mul(float(1).sub(frames)).mul(float(1).sub(soot)).mul(U.night).mul(0.55).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.05));
+    // Near, a lit window shows its lamp-lit room (a glowing blind where one is drawn); far, the flat average.
+    const roomGlow = mix(room.lamp.mul(0.7), warm.mul(0.9), room.blind);
+    const glowCol = mix(warm.mul(level), roomGlow.mul(level.add(0.35)), near);
+    m.emissiveNode = glowCol.mul(lit).mul(float(1).sub(frames)).mul(float(1).sub(soot)).mul(U.night).mul(0.55).add(color(0xbff7ff).mul(iGlow).mul(U.night).mul(0.05));
     return m;
   });
 
@@ -338,7 +381,18 @@ export function initMaterials(): void {
     // Blossom specks (~0.02 units) are sub-pixel beyond close range: fade them out instead of letting them sparkle.
     const blossom = step(cells, 0.07).mul(cover).mul(iGreenery).mul(float(1).sub(smoothstep(0.008, 0.025, wpx)));
     const petal = mix(color(0xffb7d5), color(0xffe08a), hash(floor(positionWorld.mul(9)).dot(vec3(1, 7, 13))));
-    m.colorNode = mix(mix(color(0xe9e4d6), mossCol, cover), petal, blossom);
+    // Cushions of moss and fern (D-160): each Worley cell is a mound, darker in the hollows between them, lifted by
+    // the relief below so living walls read as plants rather than a green print.
+    // Mounds fade to their mean (not to the hollow) once cells are a few pixels, or far walls darken and crawl.
+    const near = float(1).sub(smoothstep(0.012, 0.045, wpx));
+    const mound = float(1).sub(cells);
+    // Two scales of cushion, the larger breaking up the cell grid so it never reads as paving.
+    const big = mx_noise_float(positionWorld.mul(2.1)).mul(0.5).add(0.5);
+    const hollow = mix(float(0.9), mix(float(0.8), float(1.06), mound.mul(0.55).add(big.mul(0.45))), near);
+    m.colorNode = mix(mix(color(0xe9e4d6), mossCol.mul(hollow), cover), petal, blossom);
+    // Relief only where the moss is thick: bare plaster stays smooth (mound cells on plaster read as hammered metal).
+    m.normalNode = bumped(mound.mul(0.03).add(n.mul(0.008)).mul(smoothstep(0.45, 0.9, cover)), near.mul(reliefFade(0.11)));
+    m.roughnessNode = mix(float(0.9), float(1), cover);
     // Glowing veins are thin contour lines of a noise field: drawn at least ~a pixel wide and dimmed as they widen.
     const vn = abs(mx_noise_float(positionWorld.mul(1.8)));
     const vpx = fwidth(vn);
@@ -354,7 +408,14 @@ export function initMaterials(): void {
     const strata = mx_noise_float(vec3(positionWorld.x.mul(0.8), positionWorld.y.mul(7), positionWorld.z.mul(0.8))).mul(0.5).add(0.5);
     const stone = mix(color(0x8a7458), color(0xb9a27c), strata);
     const top = smoothstep(0.5, 0.8, normalWorld.y);
-    m.colorNode = mix(stone, color(0x6fae4a), top);
+    // Dressed stone courses on the sides (D-160): bedding joints, a rough face per block, a lawn on top.
+    const course = positionWorld.y.div(0.22);
+    const along = positionWorld.x.add(positionWorld.z).div(0.55).add(mod(floor(course), 2).mul(0.5));
+    const joint = max(stripes(course, 0.92), stripes(along, 0.96));
+    const blockTone = hash(floor(course).mul(13).add(floor(along))).mul(0.12).sub(0.06);
+    const face = mx_noise_float(positionWorld.mul(5)).mul(0.5).add(0.5);
+    m.colorNode = mix(stone.add(blockTone).mul(float(1).sub(joint.mul(0.35))), color(0x6fae4a), top);
+    m.normalNode = bumped(joint.mul(-0.018).add(face.mul(0.01)), float(1).sub(top).mul(reliefFade(0.15)));
     return m;
   });
 
@@ -372,7 +433,25 @@ export function initMaterials(): void {
     m.emissiveNode = mix(instanceColor, color(0x7ff7e6), 0.6).mul(iGlow.mul(0.2).add(rim)).mul(bioPulse()).mul(glow);
     return m;
   };
-  define('canopy', foliage(0.015), { vitality: true });
+  // Tree crowns (D-160): smooth-shaded clustered lobes (normals bent round the crown, see `crownGeometry`), the
+  // baked occlusion in uv.y darkening the crown's heart and underside, and a leaf-scale dapple with relief that
+  // fades once leaves are sub-pixel.
+  define('canopy', () => {
+    const m = foliage(0.015)() as MeshStandardNodeMaterial;
+    m.flatShading = false;
+    // The crown's own shade fades to its mean once a crown is under ~14 px: a dark speck on a bright lawn pops in
+    // and out of pixels as the camera moves (the island view flickered with every tree, D-070).
+    const ao = mix(float(0.78), uv().y, pieceCover(14));
+    const fine = float(1).sub(smoothstep(0.01, 0.04, length(fwidth(positionWorld))));
+    const leaves = mx_worley_noise_float(positionWorld.mul(16));
+    const dapple = float(1).sub(leaves).mul(fine);
+    const hue = mx_noise_float(positionWorld.mul(0.6)).mul(0.5).add(0.5);
+    const tone = mix(vec3(0.92, 1.0, 0.86), vec3(1.06, 1.02, 0.9), hue);
+    m.colorNode = (m.colorNode as Node<'vec3'>).mul(tone).mul(ao.mul(0.85).add(0.15)).mul(dapple.mul(0.3).add(0.85));
+    m.normalNode = bumped(dapple.mul(0.025), fine);
+    m.roughnessNode = float(0.75);
+    return m;
+  }, { vitality: true });
   // Broad-leaf clumps are open blades (D-127): both faces show.
   define('bush', foliage(0.015, true), { vitality: true });
   // Palms (D-127): one mesh, parts tagged in uv.x (0 trunk, 1 frond, 2 nut). Fronds take the instance tint and the

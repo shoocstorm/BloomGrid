@@ -36,9 +36,9 @@ interface SkyKey {
 const KEYS: SkyKey[] = [
   { e: -0.35, zenith: 0x070b24, horizon: 0x18204a, sun: 0x8fa8ff, sunI: 0.35, hemiI: 0.35, lift: [0, 0.012, 0.04], gain: [0.94, 0.98, 1.06], sat: 0.92, con: 1.04, bloom: 0.9 },
   { e: -0.05, zenith: 0x1c2a63, horizon: 0x6a5a9a, sun: 0xa0b4ff, sunI: 0.2, hemiI: 0.45, lift: [0.03, 0, 0.035], gain: [1.03, 0.97, 1], sat: 1.02, con: 1.04, bloom: 0.8 },
-  { e: 0.08, zenith: 0x4a6fb8, horizon: 0xffb38a, sun: 0xffb070, sunI: 1.6, hemiI: 0.7, lift: [0, 0.008, 0.025], gain: [1.08, 1, 0.9], sat: 1.14, con: 1.05, bloom: 0.65 },
-  { e: 0.3, zenith: 0x5aa8f0, horizon: 0xd9ecf5, sun: 0xffeccc, sunI: 2.6, hemiI: 0.9, lift: [0, 0, 0.005], gain: [1.02, 1, 0.98], sat: 1.1, con: 1.04, bloom: 0.5 },
-  { e: 1.0, zenith: 0x4f9ff0, horizon: 0xcfeaff, sun: 0xfff6e6, sunI: 3.0, hemiI: 1.0, lift: [0, 0, 0], gain: [1, 1, 1], sat: 1.08, con: 1.04, bloom: 0.45 },
+  { e: 0.08, zenith: 0x4a6fb8, horizon: 0xffb38a, sun: 0xffb070, sunI: 1.8, hemiI: 0.55, lift: [0, 0.008, 0.025], gain: [1.08, 1, 0.9], sat: 1.14, con: 1.05, bloom: 0.65 },
+  { e: 0.3, zenith: 0x5aa8f0, horizon: 0xd9ecf5, sun: 0xffeccc, sunI: 2.9, hemiI: 0.68, lift: [0, 0, 0.005], gain: [1.02, 1, 0.98], sat: 1.1, con: 1.04, bloom: 0.5 },
+  { e: 1.0, zenith: 0x4f9ff0, horizon: 0xcfeaff, sun: 0xfff6e6, sunI: 3.3, hemiI: 0.72, lift: [0, 0, 0], gain: [1, 1, 1], sat: 1.08, con: 1.04, bloom: 0.45 },
 ];
 
 const ca = new Color();
@@ -165,7 +165,7 @@ export class Atmosphere {
     this.hemi.color.copy(U.horizon.value).lerp(ca.setHex(0xffffff), 0.3);
     this.hemi.groundColor.setHex(night > 0.5 ? 0x1a2a3a : 0x5a7a4a);
     if (elev < 0) this.sunDir.multiplyScalar(-1).setY(Math.max(0.35, -elev));
-    this.scene.environmentIntensity = 0.25 + 0.75 * (1 - night);
+    this.scene.environmentIntensity = 0.24 + 0.48 * (1 - night);
   }
 
   /** The snapped shadow focus at the last refresh (the light's target, not its position: see `follow`). */

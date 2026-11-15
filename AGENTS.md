@@ -192,6 +192,8 @@ To light a fire from a snap eval: `(await import('/src/sim/hazards.ts')).ignite(
 | Game over (steward replaced)       | chronicle maths `src/sim/legacy.ts` (`stewardLegacy`: score, rank, cause, highlights, lessons); screen `src/modules/crises/GameOver.ts`; "try again" founds a fresh island via `wizard.island` (never the showcase) (D-149) |
 | Seasonal / crisis weather          | `src/modules/crises/Weather.ts` (uniforms + `atmosphere.haze`)                                                                                                             |
 | New lit material                   | always via `define()` in `render/materials/library.ts` (gets lens + optional vitality support)                                                                             |
+| Surface relief, rooms behind glass | `bumped(height, fade)` / `reliefFade(size)` / `roomInterior(...)` in `render/materials/surface.ts`: relief from a procedural height in world units (no textures), interior-mapped rooms per window cell. Keep smooth-noise relief ≲ 1 mm (it reads as hammered metal) and fade every relief and pattern to its mean by pixel size; check `bun run flicker -- --day` (D-160) |
+| Roof detail (parapets, plant)      | `modules/construction/roofDetail.ts`, run on every template in `buildingTemplate`: bare flat roofs per level get a parapet and plant from `slab` / `concreteCyl`; heroes and nature skipped (D-160) |
 
 The full layer description is in `docs/architecture.md`.
 

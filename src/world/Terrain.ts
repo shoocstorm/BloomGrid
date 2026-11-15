@@ -1,6 +1,7 @@
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, Group, Mesh, MeshStandardNodeMaterial } from 'three/webgpu';
-import { color, cross, dFdx, dFdy, floor, fract, max, mix, mx_noise_float, normalFlat, normalGeometry, normalView, positionWorld, smoothstep, step, vertexColor, abs, float } from 'three/tsl';
+import { color, cross, dFdx, dFdy, floor, fract, max, mix, mx_noise_float, normalFlat, normalGeometry, positionWorld, smoothstep, step, vertexColor, abs, float, vec3 } from 'three/tsl';
 import { stripes } from '@/render/materials/library';
+import { bumped } from '@/render/materials/surface';
 import type { Grid } from '@/sim/Grid';
 import { terrainHeight } from '@/sim/terrain';
 import { fbm } from '@/sim/noise';
@@ -11,9 +12,9 @@ import { cloudShade } from '@/render/grade';
 const C = {
   deep: new Color(0x5b7f6a),
   sand: new Color(0xe3d3a0),
-  grassA: new Color(0x7cbb4c),
-  grassB: new Color(0x5a9a3d),
-  meadow: new Color(0xa3d164),
+  grassA: new Color(0x6ea845),
+  grassB: new Color(0x4f8a36),
+  meadow: new Color(0x93bd5a),
   rock: new Color(0x9a8f80),
   mossRock: new Color(0x6e8a58),
   snow: new Color(0xf4f6f8),
@@ -42,7 +43,21 @@ function material(): MeshStandardNodeMaterial {
   const detail = mx_noise_float(positionWorld.mul(0.9)).mul(0.035).add(mx_noise_float(positionWorld.mul(7)).mul(0.02));
   // Wet sand (D-120): a darker band just above the sea that the shore wash keeps damp; it follows floods.
   const wet = smoothstep(0.32, 0.04, positionWorld.y.sub(U.waterLevel)).mul(smoothstep(-0.3, 0.0, positionWorld.y.sub(U.waterLevel)));
-  const base = vertexColor().xyz.add(detail).mul(float(1).sub(wet.mul(0.22)));
+  const vc = vertexColor().xyz;
+  // Living ground (D-160): grass is never one green. Broad drifts of drier and lusher turf, clumps a metre or so
+  // across and, close up, a blade-scale speckle; each scale fades to its mean once it is under a few pixels.
+  const px = max(abs(dFdx(positionWorld.x)), abs(dFdy(positionWorld.z))).max(max(abs(dFdy(positionWorld.x)), abs(dFdx(positionWorld.z))));
+  const grassy = smoothstep(0.03, 0.12, vc.y.sub(max(vc.x, vc.z)));
+  const drift = mx_noise_float(positionWorld.xz.mul(0.045)).add(mx_noise_float(positionWorld.xz.mul(0.13)).mul(0.5));
+  const dry = smoothstep(0.15, 0.75, drift);
+  const lush = smoothstep(-0.2, -0.7, drift);
+  const clump = mx_noise_float(positionWorld.xz.mul(1.4)).mul(float(1).sub(smoothstep(0.05, 0.25, px)));
+  const blade = mx_noise_float(positionWorld.xz.mul(32)).mul(float(1).sub(smoothstep(0.006, 0.025, px)));
+  const turf = vc
+    .mul(mix(vec3(1), vec3(1.12, 1.0, 0.62), dry.mul(0.55)))
+    .mul(mix(float(1), float(0.82), lush))
+    .mul(clump.mul(0.1).add(blade.mul(0.06)).add(1));
+  const base = mix(vc, turf, grassy).add(detail).mul(float(1).sub(wet.mul(0.22)));
   // Steep faces (D-140): where a terrace meets a reservoir, river or the sea the ground drops a storey or more inside
   // one tile. Vertex normals are smoothed with the flat ground round them, so such a face was lit like level grass
   // and its colour blended sand into grass: from the water it read as a pale, see-through sheet with trees floating
@@ -67,7 +82,10 @@ function material(): MeshStandardNodeMaterial {
   const gz = abs(fract(positionWorld.z).sub(0.5));
   const line = smoothstep(0.46, 0.5, max(gx, gz)).mul(U.grid).mul(float(1).sub(steep));
   m.colorNode = withOverlay(mix(ground, color(0xeafff6), line.mul(0.5)), false).mul(cloudShade());
-  m.normalNode = mix(normalView, normalFlat, steep).normalize();
+  // Turf and sand relief close up: clumps and blades bend the light a little (flat on walls).
+  const sandRipple = mx_noise_float(vec3(positionWorld.x.mul(3), 0, positionWorld.z.mul(0.8))).mul(float(1).sub(grassy));
+  const relief = clump.mul(0.008).add(blade.mul(0.003).mul(grassy)).add(sandRipple.mul(0.01).mul(float(1).sub(smoothstep(0.02, 0.08, px))));
+  m.normalNode = mix(bumped(relief, float(1).sub(steep)), normalFlat, steep).normalize();
   m.emissiveNode = color(0x7ff7e6).mul(line).mul(U.night).mul(0.25).add(float(0));
   return m;
 }

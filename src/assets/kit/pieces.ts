@@ -249,6 +249,55 @@ function broadleafGeometry(far = false): BufferGeometry {
   return out.build();
 }
 
+/**
+ * Tree crown (D-160): a cluster of leafy lobes inside the old unit ball (radius 0.5, centred 0.5 up), so every tree
+ * and recipe that sized a round canopy keeps its silhouette, now broken into clumps. Normals are bent out from the
+ * crown's centre (foliage shades as one volume, not as faceted balls) and `uv.y` carries a baked occlusion: 1 on the
+ * sunlit outer top, darker toward the inside and the underside, which the `canopy` material multiplies in. `far` is
+ * two coarse lobes (D-150).
+ */
+function crownGeometry(far = false): BufferGeometry {
+  const lobes: [number, number, number, number][] = far
+    ? [
+        [0.04, 0.06, 0.02, 0.38],
+        [-0.15, -0.08, -0.08, 0.3],
+      ]
+    : [
+        [0, 0.1, 0, 0.34],
+        [0.2, -0.04, 0.08, 0.26],
+        [-0.17, -0.02, 0.17, 0.25],
+        [-0.08, -0.08, -0.22, 0.26],
+        [0.13, 0.2, -0.12, 0.2],
+      ];
+  const parts = lobes.map(([x, y, z, r], i) => {
+    // Only the main lobe is subdivided (≈160 triangles a crown, 40 far): bent normals hide the side lobes' facets.
+    const g = jitter(new IcosahedronGeometry(r, far || i > 0 ? 0 : 1), r * 0.3);
+    // Lobe orientation varies so facets never line up between lobes.
+    g.rotateY(i * 1.3).rotateX(i * 0.7);
+    return g.translate(x, y, z);
+  });
+  const g = mergeGeometries(parts)!;
+  const pos = g.attributes.position!;
+  const nrm = g.attributes.normal!;
+  const uvs = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    const [x, y, z] = [pos.getX(i), pos.getY(i), pos.getZ(i)];
+    const d = Math.hypot(x, y, z) || 1;
+    // Bend: mostly the radial direction from the crown centre, a little of the lobe's own facet.
+    const k = 0.65;
+    const n = [nrm.getX(i) * (1 - k) + (x / d) * k, nrm.getY(i) * (1 - k) + (y / d) * k, nrm.getZ(i) * (1 - k) + (z / d) * k];
+    const l = Math.hypot(n[0]!, n[1]!, n[2]!) || 1;
+    nrm.setXYZ(i, n[0]! / l, n[1]! / l, n[2]! / l);
+    // Occlusion: outer shell and top bright, the crown's heart and underside in its own shade.
+    const out = Math.min(1, d / 0.45);
+    const up = (y / 0.5 + 1) / 2;
+    uvs[i * 2] = 0;
+    uvs[i * 2 + 1] = Math.min(1, 0.35 + 0.45 * out * out + 0.3 * up);
+  }
+  g.setAttribute('uv', new BufferAttribute(uvs, 2));
+  return base(g);
+}
+
 export function initPieces(): void {
   if (pieces.size) return;
   const box = () => base(new BoxGeometry(1, 1, 1));
@@ -275,10 +324,10 @@ export function initPieces(): void {
   // Far models (D-150): wild greenery is most of a frame's triangles; beyond `at` it draws a fraction of them.
   registerPiece({
     id: 'canopy',
-    geometry: base(jitter(new IcosahedronGeometry(0.5, 1), 0.12)),
+    geometry: crownGeometry(),
     material: 'canopy',
     lod: 320,
-    far: { geometry: base(jitter(new IcosahedronGeometry(0.5, 0), 0.08)), at: 110 },
+    far: { geometry: crownGeometry(true), at: 110 },
   });
   registerPiece({ id: 'bush', geometry: broadleafGeometry(), material: 'bush', lod: 160, far: { geometry: broadleafGeometry(true), at: 60 } });
   // Tropical palm (trunk + fronds + nuts in one mesh, D-127); a tree fern when squashed.

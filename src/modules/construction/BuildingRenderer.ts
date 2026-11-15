@@ -9,6 +9,7 @@ import type { Grid } from '@/sim/Grid';
 import type { InstanceHandle } from '@/render/Instancer';
 import type { GameContext } from '@/game/context';
 import { STYLES, isStyled, pickStyle, restyle, styleIndex, type BuildingStyle } from '@/render/materials/styles';
+import { roofDetail } from './roofDetail';
 
 /** One piece of a cached recipe run, in building-local space (origin = footprint centre at ground). */
 export interface TemplatePiece {
@@ -48,6 +49,8 @@ export interface BuildingTemplate {
    * range. Empty for a recipe with no designed levels, which gets the generic overlay instead.
    */
   ranged: TemplatePiece[];
+  /** Plant on the main roof (D-160), shown at level 1 only when the generic level overlay builds a terrace there. */
+  roofPlant?: TemplatePiece[];
   /** Banyan merge overlay (aerial roots, buttresses, crown), built on demand. */
   banyan?: TemplatePiece[];
   rng: Rng;
@@ -123,7 +126,16 @@ export function buildingTemplate(def: BuildingDef, variant: number): BuildingTem
   }, tierRng);
   const bounds = run.bounds;
   if (bounds.minX === Infinity) Object.assign(bounds, { minX: -0.4, maxX: 0.4, minZ: -0.4, maxZ: 0.4, top: 0.5 });
-  t = { pieces: run.pieces, ranged: run.ranged, height: run.height, bounds, rng };
+  // Roof detail (D-160): parapets and plant on bare flat roofs, from its own stream so recipes never shift.
+  const roof = roofDetail(def, run.pieces, run.ranged, bounds.top, idx * 131 + variant);
+  t = {
+    pieces: run.pieces.concat(roof.always),
+    ranged: run.ranged.concat(roof.ranged),
+    height: run.height,
+    bounds,
+    rng,
+    ...(roof.main.length ? { roofPlant: roof.main } : {}),
+  };
   templates.set(key, t);
   return t;
 }
@@ -305,6 +317,7 @@ export function tierPieces(t: BuildingTemplate, tier: number): TemplatePiece[] {
   };
   const [w, d] = [maxX - minX, maxZ - minZ];
   const [cx, cz] = [(minX + maxX) / 2, (minZ + maxZ) / 2];
+  if (tier === 0 && t.roofPlant) out.push(...t.roofPlant);
   if (tier >= 1 && w > 0.4 && d > 0.4) {
     push('slab', [cx, top, cz], [w * 0.92, 0.06, d * 0.92], 0, PALETTE.concrete, 0);
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {

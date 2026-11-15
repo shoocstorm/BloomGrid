@@ -2862,3 +2862,56 @@ that type are skipped). `bun run perf`: main thread 23.9–27.0% vs 23.3–23.9%
   consequence modifiers; every district shares them.
 - **`ECS` store fields for commute and match:** the global component arrays are shared between cities; grid layers
   are per city and need no reset.
+
+## D-160: Photographic surfaces: rooms behind glass, procedural relief, rebalanced light, clustered crowns, roof detail
+
+**Context.** Close up and at the default city zoom the city read as flat-shaded toys: an ambient fill as strong as the
+sun (hemisphere 1.0 plus the sky environment at 1.0) washed out form and shadow; glass was a half-metal mirror with a
+flat pane; walls, timber and plinths were printed patterns with no relief; the ground was one green; tree crowns were
+single faceted balls; plain flat roofs were bare lids.
+
+**Decision.**
+- **Relief without textures** (`render/materials/surface.ts`): `bumped(height, fade)` bends the shading normal from a
+  procedural height in world units (Mikkelsen's surface gradient with analytic `dFdx/dFdy` of the height; three's
+  `bumpMap` needs a texture). Recessed grout, mortar and board gaps, standing seams, basket weave, raised mullions,
+  dressed plinth courses, moss cushions, leaf dapple and turf clumps. Every relief fades with `reliefFade(size)` /
+  the pattern's own pixel fade (D-064/D-070). Smooth-noise relief above ~1 mm reads as hammered metal: plaster,
+  render and earth stay nearly flat.
+- **Rooms behind glass** (`roomInterior`): interior mapping per window cell (the façade's pattern coordinates: one
+  unit per column along `u = x + z` and per 0.32 storey, 0.3 deep): the view ray hits the back wall (furniture band,
+  a picture), floor, ceiling or a side wall (a plant), with per-room paint, corner occlusion and blinds on a third of
+  windows; at night the lit windows show the lamp-lit room (ceiling fixture, pool of light) instead of a flat glow.
+  Rooms read while a window is ≥ ~20 px and fade into a reflective tinted pane by ~7 px (a whole façade of few-pixel
+  rooms turned glass towers into perforated grey blocks); classic glass keeps its teal through the rooms. Glass is a
+  dielectric (Fresnel) with a light per-building coating (metalness 0.12–0.42) instead of metalness 0.45; mirror-sharp
+  only close up.
+- **Light:** day hemisphere 0.55–0.72 (was 0.7–1.0), sun 1.8–3.3 (1.6–3.0), environment 0.24 + 0.48·day (0.25 +
+  0.75·day). The sun now models the form; the grade and keys are otherwise unchanged.
+- **Ground:** natural grass tones (less saturated), broad dry/lush drifts, clumps and a blade speckle near the camera,
+  each fading to its mean by pixel size; light turf relief.
+- **Crowns** (`crownGeometry` in `assets/kit/pieces.ts`): five jittered lobes (one subdivided) in the old unit ball,
+  normals bent 65 % toward the crown centre (it shades as one volume), baked occlusion in `uv.y` (darker heart and
+  underside, faded to its mean under ~14 px); ≈160 triangles near, 40 far (was 80 / 20).
+- **Roof detail** (`modules/construction/roofDetail.ts`): after a recipe runs, each bare flat roof (slab, glass or
+  timber block nothing stands on) gets a parapet and plant (condensers with fan grilles, vent stacks, a hatch, a water
+  tank on legs) from existing pieces. Judged per level: a roof a level builds on is dressed below that level only
+  (joined to `ranged`), a generic-level building's main-roof plant shows at level 1 only (`roofPlant`, the level-2
+  terrace covers it). Heroes and nature are skipped. Today 4 of 80 types have bare roofs (the catalogue's designed
+  roofs are already dressed); it covers plain recipes added later.
+
+**Measured** (headless, founding city, High). Draws unchanged (302). Triangles 27.4 M vs 25.1 M per frame (+9 %, the
+crowns). `bun run perf`: GPU ms per frame 5.9–11.8 vs 5.0–9.5 before (noisy, ≈ +1–2 ms: room tracing and relief);
+main thread 26–28 % vs 24–26 %; idle 19 % vs 18 %. `bun run flicker` (whole scene, 70 / 140 / 260): night 0.125 /
+0.160 / 0.129 (unchanged); day 0.43 / 0.49 / 0.61 vs 0.27 / 0.27 / 0.32. Pieces alone are level or better (moss,
+glass, plinth, canopy all lower); the rest is the stronger sun-to-fill contrast, which raises every existing small
+edge over the threshold: with the old light the same materials measured 0.36 / 0.45 / 0.65. Accepted as the cost of
+the deeper light; the first try (hemisphere 0.45–0.55, environment 0.22 + 0.38) measured 0.56 / 0.77 / 1.08.
+
+**Rejected.**
+- **Moss mounds faded to the hollow tone** far away: far living walls darkened and their moss edge crawled (+0.3 %
+  day flicker at 260); they fade to their mean now.
+- **Rooms at every window size:** dark specks across mid-distance façades; replaced by the 20 → 7 px fade.
+- **A per-building roof check that counted level pieces at every level:** almost every recipe designs levels, so no
+  roof was ever bare.
+- **Bevels from screen-space edge distance:** pixel-wide lines crawl in motion (D-070); not attempted in geometry,
+  where non-uniform instance scale would stretch a unit-box bevel.
