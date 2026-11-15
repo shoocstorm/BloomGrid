@@ -1,3 +1,5 @@
+import { APPROVAL, JOB_TYPES, JOB_WANT, MOOD_SECONDS } from './approval';
+import { MATCH_DETOUR } from './mobility';
 import { buildings } from '@/content';
 import { CATEGORY_CODES, CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
 import type { KnowledgeDoc } from '@/content/knowledge';
@@ -10,6 +12,9 @@ import { POLICIES, POLICY_COOLDOWN, POLICY_POPULATION } from './policies';
 import { BUDGET_MAX, BUDGET_MIN } from './policyState';
 import {
   CATCH_MUL,
+  DISTRICT_MOOD,
+  PETITION_LIFT,
+  PROTEST_HARMONY,
   FESTIVAL_HARMONY,
   HAPPENING_GAP,
   HAPPENING_NAMES,
@@ -120,6 +125,9 @@ function happeningsDoc(): KnowledgeDoc {
     `- Request reward: ◈${REQUEST_REWARD.base} plus ◈${REQUEST_REWARD.perResident} per resident (up to ◈${REQUEST_REWARD.base + REQUEST_REWARD.cap}), and Harmony +${MOOD.claimed} for ${m(MOOD.seconds)}. A missed request: Harmony ${MOOD.missed} for ${m(MOOD.seconds)}. An answered request nobody claims pays out 2 min after its deadline.`,
     `- Festival: Harmony +${FESTIVAL_HARMONY} and visitors (◈${VISITORS.festival.flat}/s plus ${VISITORS.festival.share * 100}% of tax income); a free fireworks show when a factory has shells.`,
     `- Cruise: visitors (◈${VISITORS.cruise.flat}/s plus ${VISITORS.cruise.share * 100}% of tax income). Bumper catch: fishing haul ×${CATCH_MUL}.`,
+    `- ${HAPPENING_NAMES.petition} (${m(HAPPENING_SECONDS.petition)}): a district below ${APPROVAL.petition} approval asks for ${PETITION_LIFT} more points or for the ordinance that answers its complaint. Answered: the request reward and approval +${DISTRICT_MOOD.petition} there for ${m(MOOD_SECONDS)}; ignored: ${DISTRICT_MOOD.ignored}.`,
+    `- ${HAPPENING_NAMES.protest} (up to ${m(HAPPENING_SECONDS.protest)}): a district below ${APPROVAL.protest} for ${APPROVAL.protestPulses} s. Its workplaces staff ${APPROVAL.protestStaffing * 100}% and city harmony ${PROTEST_HARMONY} until it reaches ${APPROVAL.calm}; left to fizzle out, approval ${DISTRICT_MOOD.festered} there for ${m(MOOD_SECONDS)}.`,
+    `- ${HAPPENING_NAMES.praise}: a district at ${APPROVAL.praise}+ for ${m(APPROVAL.praisePulses)} sends half a request reward and approval +${DISTRICT_MOOD.praise}.`,
   ].join('\n');
   return ref({
     id: 'reference-happenings',
@@ -342,6 +350,38 @@ function policiesDoc(): KnowledgeDoc {
   });
 }
 
+function districtsDoc(): KnowledgeDoc {
+  const A = APPROVAL;
+  const body = [
+    'Each district (and the outskirts) has its own approval of the steward, 0–100. City harmony is the resident-weighted mean.',
+    '',
+    '| Term | Effect on a district |',
+    '| --- | --- |',
+    '| City-wide | every harmony term except the local ones (taxes, jobs, food, ecology, bloom, traffic, crises, policies…) |',
+    '| Power and water | its homes against the city mean (up to −30 for dry, dark homes) |',
+    '| Amenities | its parks, venues and grown buildings against the city mean |',
+    `| Smog | ${A.smogPts} per unit of pollution at its homes above ${A.smogFree}, up to −${A.smogMax} |`,
+    `| Commute | ${A.commutePts} per tile of trip above ${A.commuteFree}, up to −${A.commuteMax} (a pod ride counts as 8) |`,
+    `| Job match | ${A.matchPts} per share of workers short of ${A.matchFree * 100}% in the job they want, up to −${A.matchMax}; a city under ${A.matchPopulation.toLocaleString('en-US')} residents expects less |`,
+    '| Mood | a petition answered or ignored, praise, a protest left to fester |',
+    '',
+    `- Workers want ${JOB_TYPES.map((t) => `${t} ${Math.round(JOB_WANT[t] * 100)}%`).join(', ')}. Service: shops and utilities; industry: industry and energy; creative: tech and sports; ecology: nature and food.`,
+    `- They go up to ${MATCH_DETOUR} highway steps past the nearest job for the kind they want; further than that, they take the nearest job.`,
+    '- Homes fill toward their district\'s approval: residents arrive up to 1.2× faster where it is high and leave up to 1.6× faster where it is low.',
+    '- A home grows a level only where local demand for homes is above 0 (city demand + (approval − 60) / 100); a workplace where demand for work is (city demand + 0.2 + (approval − 60) / 200).',
+    '- Bands: Angry < 35, Unhappy < 45, Uneasy < 60, Content < 75, Delighted 75+.',
+  ].join('\n');
+  return ref({
+    id: 'reference-districts',
+    title: 'District approval: numbers',
+    summary: 'What district approval is made of, migration speeds, job types and the level-up demand rule.',
+    tags: ['district', 'approval', 'migration', 'commute', 'job match', 'job type', 'protest', 'petition'],
+    related: ['systems-districts', 'systems-happenings'],
+    order: 27,
+    body,
+  });
+}
+
 let cache: KnowledgeDoc[] | null = null;
 
 /** The generated reference docs (built once: registries are fixed after load). */
@@ -352,6 +392,7 @@ export function referenceDocs(): KnowledgeDoc[] {
     rulesDoc(),
     happeningsDoc(),
     policiesDoc(),
+    districtsDoc(),
     lensesDoc(),
     issuesDoc(),
     ...buildingDocs(),

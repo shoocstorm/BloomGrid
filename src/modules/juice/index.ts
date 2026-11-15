@@ -17,7 +17,7 @@ import { icon } from '@/ui/icons';
 import { isCompact, onCompactChange } from '@/platform/device';
 import { buildBlock } from '@/sim/buildGate';
 import { runGate } from '@/ui/gateSteps';
-import { TIP_ICONS, quoteFor } from './quotes';
+import { TIP_ICONS, voiceFor } from './quotes';
 import './juice.css';
 
 /**
@@ -296,11 +296,13 @@ class Juice {
     this.ctx.bus.emit('juice', { sound: 'tip', step: this.combo - 1 });
     // The burst, what was said, and the amount, over the building.
     this.anchor(h('div', { class: 'jc-burst tone-tip' }, ...petals(8)), b.x, b.y, b.z, 0.9);
+    const voice = voiceFor(city, b.category, Math.random(), b.x, b.z);
     this.anchor(
       h(
         'div',
         { class: 'jc-say' },
-        h('q', {}, quoteFor(city, b.category, Math.random())),
+        h('q', {}, voice.text),
+        h('cite', {}, voice.by),
         this.combo > 1 ? h('span', { class: 'jc-combo' }, `Combo ×${this.combo}`) : null,
       ),
       b.x,

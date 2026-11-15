@@ -5,11 +5,15 @@ import {
   HAPPENING_NAMES,
   HAPPENING_SECONDS,
   askName,
+  complaintFix,
+  complaintLabel,
   describeHappening,
   startHappening,
 } from '@/sim/happenings';
 import type { Happening, HappeningKind } from '@/sim/happeningState';
 import { PULSE_TICKS } from '@/sim/pulseConst';
+import { getPolicy } from '@/sim/policies';
+import { moodOf } from '@/sim/approval';
 import { isCompact } from '@/platform/device';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
@@ -21,11 +25,25 @@ const ICON: Record<HappeningKind, string> = {
   festival: 'sparkle',
   'bumper-catch': 'food',
   cruise: 'wave',
+  petition: 'pen',
+  protest: 'st-warn',
+  praise: 'star',
 };
+/** Kinds whose card leads with the district (plan v5, Phase 26). */
+const DISTRICT_KINDS: HappeningKind[] = ['petition', 'protest', 'praise'];
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
 /** The card's one-line hint (the header carries the time, the footer the credits). */
-function cardHint(hp: Happening): string {
+function cardHint(hp: Happening, approval: number): string {
+  if (hp.kind === 'petition')
+    return hp.status === 'met'
+      ? 'Heard and answered. Claim the reward: the district warms to you for a while.'
+      : hp.policy
+        ? `Enact ${getPolicy(hp.policy)?.name ?? hp.policy}, or lift approval to ${hp.target} (now ${Math.round(approval)}).`
+        : `Lift approval to ${hp.target} (now ${Math.round(approval)}). ${complaintFix(hp.complaint)}`;
+  if (hp.kind === 'protest')
+    return `Workplaces run short-staffed until approval reaches ${hp.target} (now ${Math.round(approval)}). ${complaintFix(hp.complaint)}`;
+  if (hp.kind === 'praise') return 'Approval has stayed high for minutes on end. Claim their thank-you gift.';
   if (hp.kind === 'request')
     return hp.status === 'met'
       ? 'They got it. Claim the reward and enjoy the good mood.'
@@ -96,7 +114,33 @@ class HappeningsCard {
     });
     bus.on('happening:end', ({ happening: hp, outcome }) => {
       if (ctx.loading) return;
-      if (outcome === 'claimed')
+      if (hp.kind === 'protest')
+        bus.emit('toast', {
+          text:
+            outcome === 'done'
+              ? `${hp.place} calms down: the protest is over and workers are back`
+              : `${hp.place}'s protest fizzled out unheard: a grudge lingers`,
+          tone: outcome === 'done' ? 'ok' : 'bad',
+          at: { x: hp.x, z: hp.z },
+        });
+      else if (outcome === 'claimed' && (hp.kind === 'petition' || hp.kind === 'praise'))
+        ctx.services.tryGet('moments')?.play({
+          id: `happening:${hp.id}`,
+          scale: 'minor',
+          tone: 'bloom',
+          emblem: 'happy',
+          eyebrow: hp.kind === 'praise' ? 'District thanks' : 'Petition · answered',
+          title: hp.kind === 'praise' ? `${hp.place} thanks you` : `${hp.place} feels heard`,
+          lines: [`◈${fmt(hp.reward)}`, 'Approval lifts there for a while'],
+          sound: 'milestone',
+        });
+      else if (outcome === 'missed' && hp.kind === 'petition')
+        bus.emit('toast', {
+          text: `${hp.place}'s petition went unanswered: approval there dips for a while`,
+          tone: 'bad',
+          at: { x: hp.x, z: hp.z },
+        });
+      else if (outcome === 'claimed')
         ctx.services.tryGet('moments')?.play({
           id: `happening:${hp.id}`,
           scale: 'minor',
@@ -168,10 +212,11 @@ class HappeningsCard {
       this.left,
       hp.status === 'met' ? 'Ready' : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`,
     );
-    setText(this.hint, cardHint(hp));
+    const approval = hp.district !== undefined ? moodOf(c.city, hp.district).approval : 0;
+    setText(this.hint, cardHint(hp, approval));
     setText(
       this.value,
-      hp.kind === 'request' ? `◈${fmt(hp.reward)}` : hp.earned > 0.5 ? `+◈${fmt(hp.earned)}` : '',
+      hp.reward > 0 ? `◈${fmt(hp.reward)}` : hp.earned > 0.5 ? `+◈${fmt(hp.earned)}` : '',
     );
     this.card.classList.toggle('ready', hp.status === 'met');
     const key = `${hp.id}|${hp.status}`;
@@ -182,18 +227,26 @@ class HappeningsCard {
 
   private render(hp: Happening): void {
     const c = this.ctx;
-    setText(this.kicker, hp.kind === 'request' ? 'Residents ask' : 'Happening');
+    setText(
+      this.kicker,
+      hp.kind === 'request' ? 'Residents ask' : DISTRICT_KINDS.includes(hp.kind) ? HAPPENING_NAMES[hp.kind] : 'Happening',
+    );
     setText(
       this.title,
-      hp.kind === 'request' ? `${hp.place}: ${askName(hp.category!)}` : HAPPENING_NAMES[hp.kind],
+      hp.kind === 'request'
+        ? `${hp.place}: ${askName(hp.category!)}`
+        : DISTRICT_KINDS.includes(hp.kind)
+          ? `${hp.place}${hp.complaint && hp.kind !== 'praise' ? `: ${complaintLabel(hp.complaint)}` : ''}`
+          : HAPPENING_NAMES[hp.kind],
     );
+    this.card.classList.toggle('hp-protest', hp.kind === 'protest');
     this.ico.replaceChildren(icon(ICON[hp.kind]));
     const locate = h(
       'button',
       {
         class: 'jc-do hp-locate',
         title: 'Show where',
-        onClick: () => c.cameraCtl.locate(hp.x, hp.z, { size: (hp.radius ?? 6) * 2 }),
+        onClick: () => c.cameraCtl.locate(hp.x, hp.z, { size: (hp.radius ?? (hp.district !== undefined ? 14 : 6)) * 2 }),
       },
       icon('locate'),
       'Locate',
@@ -214,7 +267,28 @@ class HappeningsCard {
       this.act.replaceChildren(btn);
       return;
     }
-    const id = hp.kind === 'request' ? this.suggest(hp.category!) : null;
+    const enact =
+      hp.kind === 'petition' && hp.policy
+        ? h(
+            'button',
+            {
+              class: 'jc-do',
+              title: getPolicy(hp.policy)?.upside ?? '',
+              onClick: () => {
+                if (!c.commands.execute('setPolicy', { id: hp.policy!, on: true }))
+                  c.bus.emit('toast', { text: `Can't enact ${getPolicy(hp.policy!)?.name ?? hp.policy} now`, tone: 'bad' });
+              },
+            },
+            icon('pen'),
+            `Enact ${getPolicy(hp.policy)?.name ?? hp.policy}`,
+          )
+        : null;
+    const id =
+      hp.kind === 'request'
+        ? this.suggest(hp.category!)
+        : hp.complaint === 'amenities' && hp.kind !== 'praise'
+          ? this.suggest('nature')
+          : null;
     const build = id
       ? h(
           'button',
@@ -230,7 +304,7 @@ class HappeningsCard {
           `Build ${buildings.get(id).name}`,
         )
       : null;
-    this.act.replaceChildren(...(build ? [build] : []), locate);
+    this.act.replaceChildren(...(enact ? [enact] : []), ...(build ? [build] : []), locate);
   }
 }
 
@@ -239,7 +313,7 @@ export const happeningsModule: GameModule = {
   deps: ['hud', 'construction', 'moments', 'juice'],
   init(ctx) {
     const card = new HappeningsCard(ctx);
-    // Drill: ?happening=request|festival|bumper-catch|cruise starts one as soon as the city is up (like ?drill=).
+    // Drill: ?happening=request|festival|bumper-catch|cruise|petition|protest|praise starts one as soon as the city is up (like ?drill=).
     let drill = new URLSearchParams(location.search).get('happening') as HappeningKind | null;
     ctx.systems.add({
       id: 'happenings.card',

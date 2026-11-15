@@ -206,6 +206,11 @@ describe('menu', () => {
     expect(plainIntent('build three pocket parks in Hillcrest')).toBe('build_many');
     expect(plainIntent('pause the game')).toBe('set_speed');
     expect(plainIntent('how is our budget?')).toBe('budget_breakdown');
+    // District approval (plan v5, Phase 26), ahead of "why…" and generic searches.
+    expect(plainIntent('which district is unhappy?')).toBe('district_report');
+    expect(plainIntent('why are people leaving Westbrook?')).toBe('district_report');
+    expect(plainIntent('are the neighbourhoods happy with me?')).toBe('district_report');
+    expect(plainIntent('why is water short?')).toBe('why');
   });
 });
 

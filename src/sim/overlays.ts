@@ -128,7 +128,7 @@ registerOverlay({
   id: 'traffic',
   label: 'Traffic',
   icon: '⇶',
-  legend: ['Free-flowing', 'Gridlock'], about: 'Load on each highway tile from commuters travelling between homes and jobs.', read: 'Green flows freely, red is gridlock: jams slow commuters and add pollution.', act: 'Add Pod Docks and sky-lane hubs, Aeroline stations, more lanes into jammed areas, and jobs closer to homes.',
+  legend: ['Free-flowing', 'Gridlock'], about: 'Load on each highway tile from commuters travelling between homes and jobs.', read: 'Green flows freely, red is gridlock: jams slow commuters and add pollution. Long commutes cost a district approval.', act: 'Add Pod Docks and sky-lane hubs, Aeroline stations, more lanes into jammed areas, and jobs closer to homes.',
   invert: true,
   smooth: false,
   compute(city, _f, value, mask) {

@@ -50,6 +50,8 @@ export type LeverAction =
   | { kind: 'causes' }
   /** Enact an ordinance (plan v5, Phase 25). */
   | { kind: 'policy'; id: string }
+  /** The city map coloured by district approval (plan v5, Phase 26). */
+  | { kind: 'districts' }
   | { kind: 'incidents' };
 
 export interface GuideLever {
@@ -191,6 +193,11 @@ function credits(city: City): Base {
   };
 }
 
+/** "+120 moved in / −40 left a minute" (City Pulse, the residents card, Flora). */
+export const migrationLine = (moved: number, left: number): string =>
+  `+${fmt(moved)} moved in / −${fmt(left)} left a minute`;
+const approvalOf = (city: City, v: { key: string }): number => city.approval.districts[v.key]?.approval ?? city.stats.happiness;
+
 function residents(city: City): Base {
   const s = city.stats;
   const p = city.pulse;
@@ -204,19 +211,23 @@ function residents(city: City): Base {
   const factors: GuidePart[] = [
     { label: 'Power & water', value: utilities, text: pct(utilities), tone: factorTone(utilities), note: 'homes empty in brownouts and dry taps' },
     { label: 'Jobs nearby', value: jobs, text: pct(jobs), tone: factorTone(jobs), note: `${fmt(s.jobs)} jobs for ${fmt(workers)} workers` },
-    { label: 'Harmony', value: harmony, text: pct(harmony), tone: factorTone(harmony), note: 'below 72 harmony, fewer move in' },
+    { label: 'Approval', value: harmony, text: pct(harmony), tone: factorTone(harmony), note: 'homes fill toward their district’s approval; below 72, fewer move in' },
     { label: 'Food', value: food, text: pct(food), tone: factorTone(food), note: `${pct(p.foodRatio)} of residents fed` },
   ];
   const worst = [...factors].sort((a, b) => a.value - b.value)[0]!;
   const tier = tierFromRatio(occ, [0.4, 0.6, 0.8, 0.92]);
+  // Migration over the last minute or so (plan v5, Phase 26).
+  const mv = city.approval.view;
+  const moves = mv.movedIn >= 1 || mv.movedOut >= 1 ? ` ${migrationLine(mv.movedIn, mv.movedOut)}.` : '';
   const status =
-    s.capacity === 0
+    (s.capacity === 0
       ? 'No homes yet: build a residence beside a highway.'
       : worst.value < 0.95
         ? `${pct(occ)} of homes filled. ${worst.label} is holding people back (${worst.text}).`
         : s.demandHomes > 0.3
           ? `${pct(occ)} of homes filled and people want more: build homes.`
-          : `${pct(occ)} of homes filled.`;
+          : `${pct(occ)} of homes filled.`) + moves;
+  const glum = mv.districts.filter((d) => d.capacity > 0).sort((a, b) => approvalOf(city, a) - approvalOf(city, b))[0];
   return {
     id: 'pop',
     title: N.residents,
@@ -236,6 +247,7 @@ function residents(city: City): Base {
       'Homes on desirable land (green, clean, by the coast) fill faster: check the Desirability lens.',
       `About ${Math.round(LABOUR_SHARE * 100)}% of residents work: homes and jobs grow together.`,
       'Residents arrive faster than they leave, so a crisis gives you a minute or two to act.',
+      'Content districts fill faster and empty slower; unhappy ones lose people faster (City map → Approval).',
     ],
     levers: sorted([
       s.demandHomes > 0 && place(city, 'population', 'homes', 'people want to move in', 2 + s.demandHomes, 'residential'),
@@ -243,6 +255,7 @@ function residents(city: City): Base {
       worst === factors[0] && utilities < 0.95 && { label: 'Fix power & water', detail: 'see which networks are short', action: { kind: 'lens', id: p.energyRatio <= p.waterRatio ? 'power' : 'water' }, weight: 4 - utilities * 3 },
       worst === factors[3] && food < 0.95 && place(city, 'food', 'fed', 'hungry residents leave', 4 - food * 3),
       worst === factors[2] && harmony < 0.95 && { label: 'Lift harmony', detail: 'what makes residents unhappy', action: { kind: 'causes' }, weight: 2 },
+      glum && approvalOf(city, glum) < 60 && { label: `See ${glum.name}`, detail: `the least happy district (${Math.round(approvalOf(city, glum))} approval)`, action: { kind: 'districts' }, weight: 1.5 },
       { label: 'Desirability lens', detail: 'where people want to live', action: { kind: 'lens', id: 'desirability' }, weight: 0.3 },
       { label: 'All living buildings', detail: 'browse homes in build mode', action: { kind: 'category', category: 'residential' }, weight: 0.2 },
     ]),
@@ -426,6 +439,7 @@ const HARMONY: { key: keyof City['pulse']['harmony']; label: string; fix: (city:
   { key: 'crises', label: 'Crises', fix: (_c, v) => ({ label: 'Incidents', detail: 'active crises, fires and ruins', action: { kind: 'incidents' }, weight: -v }) },
   { key: 'fireworks', label: 'Fireworks', fix: () => null },
   { key: 'wonders', label: 'Wonders', fix: () => null },
+  { key: 'districts', label: 'Neighbourhoods', fix: (_c, v) => ({ label: 'District approval', detail: 'smog, commutes and job match by district', action: { kind: 'districts' }, weight: -v }) },
   { key: 'consequences', label: 'Consequences', fix: (_c, v) => ({ label: 'Cause & effect', detail: 'rules in force and how to lift them', action: { kind: 'causes' }, weight: -v }) },
 ];
 

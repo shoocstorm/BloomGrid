@@ -31,6 +31,7 @@ import { defenceList, isProtected, updateSeaRise } from './coast';
 import { BANYAN_LEVEL, bridgeEnds } from './weaver';
 import { seasonAt } from './seasons';
 import { MAX_ENTITIES } from '@/ecs/components';
+import { APPROVAL, wantsGrowth, amenityOf, approvalOf, beginMigration, districtIndexOf, migrationRates, noteMove, protestDistrict, updateApproval } from './approval';
 
 /** Smoothing for the fireworks share of the credit flow (≈30 pulses). */
 const FIREWORKS_FLOW_EMA = 1 / 30;
@@ -47,6 +48,8 @@ let prodW = new Float64Array(64);
 let demW = new Float64Array(64);
 /** Per-entity flood flag for the current pulse (pass 1 → pass 2). */
 const flooded = new Uint8Array(MAX_ENTITIES);
+/** Per-entity home service level this pulse (pass 2 → district approval). */
+const served = new Float32Array(MAX_ENTITIES);
 
 /**
  * Tick (within each pulse window) that runs the field pass. Field work is staggered across
@@ -173,8 +176,7 @@ export const pulseSystem: System<SimCtx> = {
       staffedJobs += st.jobs * big * occ;
       upkeepBy[sectorOf(def0)] += st.upkeep * upkeepMul(eid);
       // Retrofits, banyan merges and woven sky-bridges delight residents; so does a grown building.
-      const lvl = Building.level[eid]!;
-      amenity += st.happiness + Building.tier[eid]! + (lvl === BANYAN_LEVEL ? 4 : lvl > 0 ? 2 : 0) + (bridges?.get(eid) ?? 0) * 3;
+      amenity += amenityOf(eid, st, bridges);
       // Flooded buildings are evacuated: they neither produce nor consume. Offline plants trip.
       // Seawalls keep water out of what they protect (up to their height).
       const fl =
@@ -234,9 +236,13 @@ export const pulseSystem: System<SimCtx> = {
     let built = 0;
     let greenSum = 0;
     let condSum = 0;
-    const harmony01 = s.happiness / 100;
     const businessSqueeze = 1 - Math.max(0, city.policies.businessRate - 0.15) * 2;
     const funding = city.steward.funding;
+    // Districts (plan v5, Phase 26): homes fill toward their district's approval; a protesting district walks out.
+    beginMigration(city);
+    const protest = protestDistrict(city);
+    // Too many homes for the jobs on offer: fewer move in (demand-driven growth).
+    const homeDemandMul = 1 + 0.4 * Math.min(0, s.demandHomes);
     // A bare coast makes floods bite harder (consequences, D-074).
     const floodSev = city.steward.crises.reduce((a, c) => (c.phase === 'active' ? Math.max(a, c.severity) : a), 0) * city.consequences.mods.flood;
     for (const eid of ents) {
@@ -269,16 +275,23 @@ export const pulseSystem: System<SimCtx> = {
         const jobFactor = workers > jobsTotal ? 0.6 + 0.4 * (jobsTotal / Math.max(1, workers)) : 1;
         // Desirable land (green, clean, coastal, connected) fills up more readily.
         const desire = 0.85 + 0.3 * desirability[city.grid.index(Building.x[eid]!, Building.z[eid]!)]!;
+        const approval01 = approvalOf(city, eid) / 100;
         const target = isFlooded
           ? 0
-          : clamp(0.1 + 0.9 * service * jobFactor * clamp(harmony01 * 1.4, 0.2, 1) * clamp(foodRatio, 0.5, 1) * desire * (0.5 + 0.5 * cond), 0, 1);
-        // Residents arrive faster than they leave: a crisis gives the steward ~1–2 minutes to act.
-        Service.occupancy[eid] = approach(occ, target, 0.015, 0.008);
+          : clamp(0.1 + 0.9 * service * jobFactor * clamp(approval01 * 1.4, 0.2, 1) * clamp(foodRatio, 0.5, 1) * desire * (0.5 + 0.5 * cond) * homeDemandMul, 0, 1);
+        // Residents arrive faster than they leave (a crisis gives the steward ~1–2 minutes to act), and both
+        // move faster where the district is content or fed up.
+        const rate = migrationRates(approval01);
+        Service.occupancy[eid] = approach(occ, target, 0.015 * rate.inMul, 0.008 * rate.outMul);
+        noteMove(districtIndexOf(city, eid), (Service.occupancy[eid]! - occ) * st.population * size(eid));
+        served[eid] = service;
         resServices += service * st.population;
         resWeight += st.population;
       } else if (st.jobs > 0) {
         // A steep business tax squeezes shops and works (plan v5): above 15% they hire less.
-        const squeeze = def.category === 'commercial' || def.category === 'industry' ? businessSqueeze : 1;
+        const squeeze =
+          (def.category === 'commercial' || def.category === 'industry' ? businessSqueeze : 1) *
+          (protest > -2 && districtIndexOf(city, eid) === protest ? APPROVAL.protestStaffing : 1);
         const target = isFlooded || isOffline || Service.off[eid] ? 0 : staffing * clamp(service + 0.2, 0, 1) * squeeze;
         Service.occupancy[eid] = approach(occ, target, 0.03, 0.02);
         if (Service.occupancy[eid]! < 0.5 && !Service.off[eid]) p |= Problem.UNSTAFFED;
@@ -308,7 +321,7 @@ export const pulseSystem: System<SimCtx> = {
     s.fireworks = fw.flow;
     s.pollution += fireworks.pollution;
     s.fishing = updateFishing(city, ents, mod).income;
-    updateLevels(city, ents, mod);
+    updateLevels(city, ents, mod, (e) => wantsGrowth(city, e));
 
     // Aggregate stats.
     s.buildings = built;
@@ -344,7 +357,11 @@ export const pulseSystem: System<SimCtx> = {
     h.fireworks = fireworks.harmony;
     h.wonders = wonderHarmony(city);
     h.consequences = city.consequences.mods.harmony;
-    const target = clamp(h.base + h.ecology + h.services + h.jobs + h.food + h.taxes + h.amenities + h.crises + h.bloom + h.traffic + h.fireworks + h.wonders + h.consequences, 0, 100);
+    const cityTarget = h.base + h.ecology + h.services + h.jobs + h.food + h.taxes + h.amenities + h.crises + h.bloom + h.traffic + h.fireworks + h.wonders + h.consequences;
+    // City harmony is the resident-weighted mean of district approval (plan v5, Phase 26): local smog, commutes and
+    // job match show up as the Neighbourhoods term.
+    h.districts = updateApproval(city, ents, cityTarget, bridges, (e) => served[e]!, size) - cityTarget;
+    const target = clamp(cityTarget + h.districts, 0, 100);
     pulse.avgGreenery = greenSum / per;
     s.happiness += (target - s.happiness) * 0.06;
 

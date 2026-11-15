@@ -3,7 +3,15 @@
  * Plain data in its own module (no imports) so `City` can hold it; saved (v18) and part of `city.hash()`.
  */
 
-export type HappeningKind = 'request' | 'festival' | 'bumper-catch' | 'cruise';
+export type HappeningKind =
+  | 'request'
+  | 'festival'
+  | 'bumper-catch'
+  | 'cruise'
+  /** District voices (plan v5, Phase 26): a district asks for a fix, takes to the streets, or says thank you. */
+  | 'petition'
+  | 'protest'
+  | 'praise';
 export type HappeningStatus = 'active' | 'met' | 'done' | 'missed';
 
 export interface Happening {
@@ -22,6 +30,12 @@ export interface Happening {
   category?: string;
   radius?: number;
   baseline?: number;
+  /** Petitions, protests and praise: the district's key (name, '' = outskirts), what it complains about, the
+   * ordinance it asks for (if one answers the complaint) and the approval that settles it. */
+  district?: string;
+  complaint?: string;
+  policy?: string;
+  target?: number;
   /** Credits on offer (requests) or earned so far (boons). */
   reward: number;
   earned: number;

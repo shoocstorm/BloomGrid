@@ -5,7 +5,7 @@ category: systems
 summary: Between crises the city brings up good surprises and things residents ask for: a request for a building nearby, a street festival, a bumper catch, a cruise visit. What each one wants and what it pays.
 tags:
   [happening, happenings, request, residents ask, residents want, festival, street party, cruise, cruise ship, bumper catch, visitors, event, good event, reward, claim]
-related: [reference-happenings, systems-harmony, systems-food, basics-milestones-tips]
+related: [systems-districts, reference-happenings, systems-harmony, systems-food, basics-milestones-tips]
 order: 11
 ---
 
@@ -37,3 +37,9 @@ they asked but forgot to claim, it pays out on its own shortly after the deadlin
 - **Bumper catch** (a fishing dock): the fishing haul runs half again higher.
 
 Nothing to press: just enjoy them. A happy, safe city gets more festivals.
+
+## A district is petitioning or protesting: what now?
+
+Districts speak up too: a **petition** asks an unhappy district's price (approval or an ordinance), a **protest**
+cuts its workplaces' staff until it calms down, and a **thank-you** from a delighted district is a gift to claim.
+See [districts and approval](kb:systems-districts) for what each one wants and how to fix the complaint.

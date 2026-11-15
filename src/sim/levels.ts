@@ -6,6 +6,7 @@ import type { Modifiers } from './stewardState';
 import type { SimCtx } from './systems';
 import { DAY_LENGTH } from './pulseConst';
 import { fireAt, isRuined } from './hazards';
+import { wantsGrowth } from './approval';
 
 /**
  * Building levels and ageing (Phase 18, D-073). A home or workplace that thrives (powered, watered, full, green and
@@ -58,6 +59,14 @@ export function growthHold(eid: number): keyof typeof THRIVE | null {
   if (Service.condition[eid]! < THRIVE.condition) return 'condition';
   if (Greenery.value[eid]! < THRIVE.greenery) return 'greenery';
   return null;
+}
+
+/**
+ * What keeps a building from growing, the district's demand included (plan v5, Phase 26): a district with too many
+ * homes for its jobs, or residents who dislike it, grows no more homes; one short of workers grows no workplaces.
+ */
+export function growthHoldIn(city: City, eid: number): keyof typeof THRIVE | 'demand' | null {
+  return growthHold(eid) ?? (wantsGrowth(city, eid) ? null : 'demand');
 }
 
 /** Whether the building grows at all (homes and workplaces). */
@@ -117,8 +126,16 @@ export function upgradeBlocker(city: City, eid: number): string | null {
   return upgradeAdvice(city, eid)?.reason ?? null;
 }
 
-/** Once per pulse, after condition and occupancy: buildings age, thriving ones grow toward their next level. */
-export function updateLevels(city: City, ents: ArrayLike<number> & Iterable<number>, mod: Modifiers): void {
+/**
+ * Once per pulse, after condition and occupancy: buildings age, thriving ones grow toward their next level, where
+ * `wanted` says their district still wants more of them (plan v5, Phase 26; default: always).
+ */
+export function updateLevels(
+  city: City,
+  ents: ArrayLike<number> & Iterable<number>,
+  mod: Modifiers,
+  wanted: (eid: number) => boolean = () => true,
+): void {
   for (const e of ents) {
     // Unfunded upkeep ages buildings faster (consequences, D-074).
     Service.age[e] = Service.age[e]! + city.consequences.mods.ageing;
@@ -126,7 +143,7 @@ export function updateLevels(city: City, ents: ArrayLike<number> & Iterable<numb
     if (st.population <= 0 && st.jobs <= 0) continue;
     const t = Building.tier[e]!;
     if (t >= MAX_TIER) continue;
-    const thriving = !mod.down.has(e) && growthHold(e) === null;
+    const thriving = !mod.down.has(e) && growthHold(e) === null && wanted(e);
     const v = thriving ? Service.thrive[e]! + 1 : Math.max(0, Service.thrive[e]! - 2);
     if (v >= LEVEL_DAYS[t]! * DAY_LENGTH) {
       Building.tier[e] = t + 1;

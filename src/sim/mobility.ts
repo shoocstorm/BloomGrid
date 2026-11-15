@@ -8,6 +8,7 @@ import { isOpen } from './growthState';
 import { size } from './levels';
 import { roadCapacity } from './roads';
 import { ROAD_REACH } from './networks';
+import { JOB_TYPES, JOB_WANT, homeLayers, jobTypeIndex } from './approval';
 
 /** Commuters a highway tile carries per pulse before it starts to jam. */
 export const TILE_CAPACITY = 55;
@@ -15,6 +16,13 @@ export const TILE_CAPACITY = 55;
 const FREE_FLOW = 0.8;
 const UNREACHED = 0xffff;
 const MAX_STEPS = 600;
+/** A pod ride counts as this many tiles of travel in a home's commute (plan v5, Phase 26). */
+const POD_TRIP = 8;
+/**
+ * Extra highway steps a worker will travel, beyond the nearest job of any kind, for the kind of job they want;
+ * further than that, they take the nearest job (so matching never lengthens trips much or jams the highways).
+ */
+export const MATCH_DETOUR = 3;
 
 /** A sky-lane flown by commuter pods: dock → busiest job hub it serves (tile centres). */
 export interface PodRoute {
@@ -98,6 +106,8 @@ let load = new Float32Array(0);
 let arrive = new Float32Array(0);
 let strongest = new Float32Array(0);
 let jobsLeft = new Float32Array(0);
+/** Job type of the workplace(s) at each access tile (−1 = none), for matched commutes. */
+let hubType = new Int8Array(0);
 let rDist = new Uint16Array(0);
 let rNext = new Int32Array(0);
 let queue = new Int32Array(0);
@@ -126,7 +136,9 @@ export function computeMobility(city: City): void {
     rDist = new Uint16Array(n);
     rNext = new Int32Array(n);
     queue = new Int32Array(n);
+    hubType = new Int8Array(n);
   }
+  hubType.fill(-1, 0, n);
   load.fill(0, 0, n);
   arrive.fill(0, 0, n);
   strongest.fill(0, 0, n);
@@ -152,8 +164,12 @@ export function computeMobility(city: City): void {
     }
     if (st.jobs <= 0 || st.population > 0 || Service.occupancy[eid]! <= 0.05) continue;
     const k = accessTiles(city, eid, entrances);
+    const type = jobTypeIndex(def.category);
     for (const at of entrances) {
-      if (jobsLeft[at] === 0) hubTiles.push(at);
+      if (jobsLeft[at] === 0) {
+        hubTiles.push(at);
+        hubType[at] = type;
+      }
       jobsLeft[at] += (st.jobs * size(eid)) / k;
     }
   }
@@ -166,12 +182,20 @@ export function computeMobility(city: City): void {
   const employed = 1 - city.pulse.unemployment;
   const starts: number[] = [];
   const left: number[] = [];
+  /** Per start: its home (index into `homes`) and how many set out; per home: travel time, riders, matched. */
+  const startHome: number[] = [];
+  const startInit: number[] = [];
+  const homeTime = new Float64Array(homes.length);
+  const homeRiders = new Float64Array(homes.length);
+  const homeMatched = new Float64Array(homes.length);
   let commuters = 0;
   let podRiders = 0;
-  for (const eid of homes) {
+  for (let hi = 0; hi < homes.length; hi++) {
+    const eid = homes[hi]!;
     let c = buildings.at(Building.def[eid]!).stats.population * size(eid) * Service.occupancy[eid]! * LABOUR_SHARE * employed;
     if (c <= 0) continue;
     commuters += c;
+    const c0 = c;
     const hx = Building.x[eid]! + Building.w[eid]! / 2;
     const hz = Building.z[eid]! + Building.d[eid]! / 2;
     for (const dk of docks) {
@@ -183,15 +207,22 @@ export function computeMobility(city: City): void {
       c -= take;
       podRiders += take;
     }
+    // Pod riders fly to the busiest hub: a quick trip, and they find their kind of work there.
+    const pods = c0 - c;
+    homeTime[hi] = pods * POD_TRIP;
+    homeRiders[hi] = pods;
+    homeMatched[hi] = pods;
     const k = accessTiles(city, eid, entrances);
     if (!k || c <= 0) continue;
     for (const at of entrances) {
       starts.push(at);
       left.push(c / k);
+      startHome.push(hi);
+      startInit.push(c / k);
     }
   }
 
-  // Assignment rounds. Trips are recorded as (offset, length, count) into `paths` for timing.
+  // Assignment. Trips are recorded as (offset, length, count, start) into `paths` for timing.
   let head: number;
   let tail = 0;
   let from = 0;
@@ -202,19 +233,24 @@ export function computeMobility(city: City): void {
     rNext[i] = from;
     queue[tail++] = i;
   };
-  const trips: number[] = [];
-  let used = 0;
-  let byRoad = 0;
-  for (let round = 0; round < ROUNDS; round++) {
+  /** Flow field from every hub still hiring (of job type `type`, or any when −1); false when there is none. */
+  const flood = (type: number): boolean => {
+    let any = false;
+    for (const at of hubTiles)
+      if (jobsLeft[at]! > 0.5 && (type < 0 || hubType[at] === type)) {
+        any = true;
+        break;
+      }
+    if (!any) return false;
     rDist.fill(UNREACHED, 0, n);
     rNext.fill(-1, 0, n);
     head = tail = 0;
     for (const at of hubTiles)
-      if (jobsLeft[at]! > 0.5) {
+      if (jobsLeft[at]! > 0.5 && (type < 0 || hubType[at] === type)) {
         rDist[at] = 0;
         queue[tail++] = at;
       }
-    if (!tail) break;
+    if (!tail) return false;
     while (head < tail) {
       from = queue[head++]!;
       step = rDist[from]! + 1;
@@ -226,43 +262,64 @@ export function computeMobility(city: City): void {
       if (z < g.h - 1) visit(from + g.w);
       if (x > 0) visit(from - 1);
     }
-    if (round === 0) dist.set(rDist.subarray(0, n));
-    let moved = 0;
-    for (let k = 0; k < starts.length; k++) {
-      const c0 = left[k]!;
-      if (c0 <= 0.5 || rDist[starts[k]!] === UNREACHED) continue;
-      // Find the workplace this home reaches first, then send as many as it still hires.
-      let t = starts[k]!;
-      let len = 1;
-      while (rDist[t] !== 0 && len < MAX_STEPS) {
-        t = rNext[t]!;
-        len++;
-      }
-      const c = Math.min(c0, jobsLeft[t]!);
-      if (c <= 0.5) continue;
-      jobsLeft[t] -= c;
-      left[k] = c0 - c;
-      arrive[t] += c;
-      byRoad += c;
-      moved += c;
-      if (paths.length < used + len) {
-        const grown = new Int32Array(Math.max(used + len, paths.length * 2, 4096));
-        grown.set(paths.subarray(0, used));
-        paths = grown;
-      }
-      trips.push(used, len, c);
-      t = starts[k]!;
-      for (let s = 0; s < len; s++) {
-        paths[used++] = t;
-        load[t] += c;
-        // Agents follow the direction most commuters take through each tile.
-        if (c > strongest[t]!) {
-          strongest[t] = c;
-          next[t] = rNext[t]!;
-        }
-        t = rNext[t]!;
-      }
+    return true;
+  };
+  const trips: number[] = [];
+  let used = 0;
+  let byRoad = 0;
+  /** Sends up to `want` of start `k`'s commuters to the workplace its flow field reaches first; returns how many. */
+  const send = (k: number, want: number, reach = MAX_STEPS): number => {
+    if (want <= 0.5 || rDist[starts[k]!]! >= reach) return 0;
+    let t = starts[k]!;
+    let len = 1;
+    while (rDist[t] !== 0 && len < MAX_STEPS) {
+      t = rNext[t]!;
+      len++;
     }
+    const c = Math.min(want, jobsLeft[t]!);
+    if (c <= 0.5) return 0;
+    jobsLeft[t] -= c;
+    left[k] -= c;
+    arrive[t] += c;
+    byRoad += c;
+    if (paths.length < used + len) {
+      const grown = new Int32Array(Math.max(used + len, paths.length * 2, 4096));
+      grown.set(paths.subarray(0, used));
+      paths = grown;
+    }
+    trips.push(used, len, c, k);
+    t = starts[k]!;
+    for (let s = 0; s < len; s++) {
+      paths[used++] = t;
+      load[t] += c;
+      // Agents follow the direction most commuters take through each tile.
+      if (c > strongest[t]!) {
+        strongest[t] = c;
+        next[t] = rNext[t]!;
+      }
+      t = rNext[t]!;
+    }
+    return c;
+  };
+  // The flow field the agents read: steps to the nearest workplace of any kind.
+  if (flood(-1)) dist.set(rDist.subarray(0, n));
+  else dist.fill(UNREACHED);
+  // First, each worker looks for the kind of job they want (plan v5, Phase 26: service, industry, creative,
+  // ecology), when it is at most a short detour beyond the nearest job.
+  for (let type = 0; type < JOB_TYPES.length; type++) {
+    if (!flood(type)) continue;
+    const share = JOB_WANT[JOB_TYPES[type]!];
+    for (let k = 0; k < starts.length; k++) {
+      const near = dist[starts[k]!]!;
+      if (near === UNREACHED) continue;
+      homeMatched[startHome[k]!] += send(k, startInit[k]! * share, near + MATCH_DETOUR + 1);
+    }
+  }
+  // Then whoever is left takes any job, in rounds: each re-routes the overflow of full workplaces to the next.
+  for (let round = 0; round < ROUNDS; round++) {
+    if (!flood(-1)) break;
+    let moved = 0;
+    for (let k = 0; k < starts.length; k++) moved += send(k, left[k]!);
     if (moved <= 0.5) break;
   }
   // Each level carries more before it jams (D-096).
@@ -273,7 +330,7 @@ export function computeMobility(city: City): void {
   // Travel time: every jammed tile on the way slows the trip.
   let free = 0;
   let actual = 0;
-  for (let k = 0; k < trips.length; k += 3) {
+  for (let k = 0; k < trips.length; k += 4) {
     const off = trips[k]!;
     const len = trips[k + 1]!;
     const c = trips[k + 2]!;
@@ -281,6 +338,18 @@ export function computeMobility(city: City): void {
     for (let s = 0; s < len; s++) time += 1 + 3 * Math.max(0, traffic[paths[off + s]!]! - FREE_FLOW);
     free += len * c;
     actual += time * c;
+    // A home's commute is its trip length (jams already cost harmony through the city's traffic term).
+    const hi = startHome[trips[k + 3]!]!;
+    homeTime[hi] += len * c;
+    homeRiders[hi] += c;
+  }
+  // Each home's mean trip length and matching-job share, for its district's approval.
+  const hl = homeLayers(city);
+  for (let hi = 0; hi < homes.length; hi++) {
+    const t = g.index(Building.x[homes[hi]!]!, Building.z[homes[hi]!]!);
+    const r = homeRiders[hi]!;
+    hl.commute[t] = r > 0 ? homeTime[hi]! / r : 0;
+    hl.match[t] = r > 0 ? Math.min(1, homeMatched[hi]! / r) : 1;
   }
 
   // 4. Sky-lanes: each dock flies to the busiest hub within reach, weighted against distance.

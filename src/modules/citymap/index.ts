@@ -6,10 +6,15 @@ import { ZONES, type ZoneKind } from '@/content/types';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { holoHead } from '@/ui/holo';
+import { approvalBand, complaintLine } from '@/sim/approval';
 import './citymap.css';
+
+export type CityMapMode = 'zones' | 'districts' | 'approval';
 
 export interface CityMapService {
   toggle(open?: boolean): void;
+  /** Opens the map in a colouring (Approval: district approval of the steward, plan v5 Phase 26). */
+  show(mode: CityMapMode): void;
   readonly isOpen: boolean;
 }
 
@@ -48,7 +53,28 @@ function hue(i: number): [number, number, number] {
 }
 
 const rgb = (hex: number): [number, number, number] => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
+
+/** Approval colour: red when angry, amber when uneasy, green when content (D-159). */
+function approvalColor(a: number): [number, number, number] {
+  const stops: [number, [number, number, number]][] = [
+    [30, [240, 90, 80]],
+    [50, [240, 190, 80]],
+    [62, [190, 220, 110]],
+    [78, [90, 220, 140]],
+  ];
+  if (a <= stops[0]![0]) return stops[0]![1];
+  for (let i = 1; i < stops.length; i++) {
+    const [b, cb] = stops[i]!;
+    const [p, cp] = stops[i - 1]!;
+    if (a <= b) {
+      const t = (a - p) / (b - p);
+      return [0, 1, 2].map((k) => Math.round(cp[k]! + (cb[k]! - cp[k]!) * t)) as [number, number, number];
+    }
+  }
+  return stops[stops.length - 1]![1];
+}
 const ZONE_ORDER = Object.keys(ZONES) as ZoneKind[];
+const MODES: CityMapMode[] = ['zones', 'districts', 'approval'];
 
 /**
  * City map (M, ⌖ map button in the top bar's actions): a holographic plan of the island painted from the live
@@ -76,8 +102,11 @@ class CityMap {
   private timer = 0;
   /** Square view box over the land (tiles): the open sea round the island is cropped away. */
   private view = { x: 0, z: 0, size: 1 };
-  /** Colour by zone (default) or one colour per district. */
-  private byZone = true;
+  /** Colour by zone (default), one colour per district, or by approval. */
+  private mode: CityMapMode = 'zones';
+  private get byZone(): boolean {
+    return this.mode === 'zones';
+  }
   private modeBtns: HTMLElement[] = [];
 
   constructor(private ctx: GameContext) {
@@ -109,10 +138,10 @@ class CityMap {
           h(
             'div',
             { class: 'cmap-mode', role: 'tablist' },
-            ...(['Zones', 'Districts'] as const).map((label, k) => {
+            ...(['Zones', 'Districts', 'Approval'] as const).map((label, k) => {
               const btn = h(
                 'button',
-                { class: `cmap-mode-b${k === 0 ? ' on' : ''}`, onClick: () => this.setMode(k === 0) },
+                { class: `cmap-mode-b${k === 0 ? ' on' : ''}`, onClick: () => this.setMode(MODES[k]!) },
                 label,
               );
               this.modeBtns.push(btn);
@@ -138,10 +167,17 @@ class CityMap {
     });
   }
 
-  private setMode(byZone: boolean): void {
-    this.byZone = byZone;
-    this.modeBtns.forEach((b, k) => b.classList.toggle('on', (k === 0) === byZone));
+  setMode(mode: CityMapMode): void {
+    this.mode = mode;
+    this.modeBtns.forEach((b, k) => b.classList.toggle('on', MODES[k] === mode));
     if (this.open) this.paint();
+  }
+
+  /** A district's approval, or null when nobody lives there. */
+  private approvalOf(d: District): number | null {
+    const v = this.ctx.city.approval.view.districts.find((x) => x.key === d.name);
+    if (!v || v.capacity <= 0) return null;
+    return this.ctx.city.approval.districts[d.name]?.approval ?? null;
   }
 
   get isOpen(): boolean {
@@ -189,7 +225,13 @@ class CityMap {
           s.n++;
         }
       }
-    const colors = ds.map((d, i) => (this.byZone && d.zone ? rgb(ZONES[d.zone].color) : hue(i)));
+    const colors = ds.map((d, i): [number, number, number] => {
+      if (this.mode === 'approval') {
+        const a = this.approvalOf(d);
+        return a === null ? [120, 140, 140] : approvalColor(a);
+      }
+      return this.byZone && d.zone ? rgb(ZONES[d.zone].color) : hue(i);
+    });
     const size = Math.min(W, Math.max(lx1 - lx0, lz1 - lz0) + 24);
     const clampV = (c: number) => Math.max(0, Math.min(W - size, Math.round(c - size / 2)));
     this.view = { x: clampV((lx0 + lx1) / 2), z: clampV((lz0 + lz1) / 2), size };
@@ -278,7 +320,13 @@ class CityMap {
           label: h('div'),
           row: h('div'),
         };
-        const stat = `${area.buildings} bldg${area.residents >= 1 ? ` · ${fmtK(area.residents)} res` : ''}`;
+        const appr = this.mode === 'approval' ? this.approvalOf(d) : null;
+        const stat =
+          this.mode === 'approval'
+            ? appr === null
+              ? 'no residents'
+              : `${Math.round(appr)} · ${approvalBand(appr)} · ${fmtK(area.residents)} res`
+            : `${area.buildings} bldg${area.residents >= 1 ? ` · ${fmtK(area.residents)} res` : ''}`;
         const zone = d.zone ? ZONES[d.zone] : null;
         // Names fit their district's width on screen (≈0.78 em per mono character incl. letter spacing).
         const wpx = (d.x1 - d.x0) * pxPerTile;
@@ -308,12 +356,16 @@ class CityMap {
           h('i'),
           h('b', {}, d.name),
           h('span', {}, stat),
+          ...(appr !== null ? [this.complaintOf(d)] : []),
         );
         return area;
       })
       .filter((a): a is Area => a !== null);
     this.labels.replaceChildren(...this.areas.map((a) => a.label));
-    const sorted = [...this.areas].sort((a, b) => b.residents - a.residents || b.buildings - a.buildings);
+    const sorted =
+      this.mode === 'approval'
+        ? [...this.areas].sort((a, b) => (this.approvalOf(a.d) ?? 999) - (this.approvalOf(b.d) ?? 999))
+        : [...this.areas].sort((a, b) => b.residents - a.residents || b.buildings - a.buildings);
     // Grouped by zone (in ZONES order, with what each zone is for), or one list by residents.
     const groups = this.byZone
       ? [
@@ -326,7 +378,7 @@ class CityMap {
         'div',
         { class: 'cmap-lh' },
         h('span', {}, `${this.areas.length} districts`),
-        h('span', {}, this.byZone ? 'by zone' : 'by residents'),
+        h('span', {}, this.byZone ? 'by zone' : this.mode === 'approval' ? 'by approval, lowest first' : 'by residents'),
       ),
       ...groups.flatMap(([z, list]): HTMLElement[] => [
         ...(z
@@ -341,8 +393,21 @@ class CityMap {
           : []),
         ...list.map((a) => a.row),
       ]),
-      h('div', { class: 'cmap-note' }, 'Land outside every district is the Outskirts.'),
+      h(
+        'div',
+        { class: 'cmap-note' },
+        this.mode === 'approval'
+          ? 'Approval of the steward: content districts fill and grow, angry ones petition, protest and empty.'
+          : 'Land outside every district is the Outskirts.',
+      ),
     );
+  }
+
+  /** The district's biggest complaint, as a small line under its legend row. */
+  private complaintOf(d: District): HTMLElement {
+    const v = this.ctx.city.approval.view.districts.find((x) => x.key === d.name);
+    const c = v ? complaintLine(v, this.ctx.city.approval.districts[d.name]?.approval ?? 60) : null;
+    return h('em', { class: 'cmap-why', title: c?.fix ?? '' }, c ? c.label : 'No complaints');
   }
 
   private setHot(a: Area | null): void {
@@ -448,6 +513,10 @@ export const cityMapModule: GameModule = {
     );
     ctx.services.provide('citymap', {
       toggle: (o) => map.toggle(o),
+      show: (mode) => {
+        map.setMode(mode);
+        map.toggle(true);
+      },
       get isOpen() {
         return map.isOpen;
       },

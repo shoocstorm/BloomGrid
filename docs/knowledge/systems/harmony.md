@@ -28,6 +28,7 @@ Harmony drifts toward a target made of these terms (City Pulse breaks them down)
 | Amenities | −10 to +15, scaled by how well buildings are kept |
 | Bloom | −4 to +6 |
 | Traffic | up to −12 from jammed commutes |
+| Neighbourhoods | smog, long commutes and job match in districts, weighted by residents ([districts](kb:systems-districts)) |
 | Crises, fireworks, wonders, consequences | situational |
 
 ## Raising harmony fast
@@ -36,5 +37,8 @@ Harmony drifts toward a target made of these terms (City Pulse breaks them down)
 2. Lower taxes a few points (costs income: watch the budget).
 3. Add parks and amenities near homes and keep them maintained.
 4. A fireworks show gives a short lift (not back to back: fatigue).
+
+Harmony is the average of [district approval](kb:systems-districts), weighted by residents: an unhappy district
+drags it down and empties faster than the rest.
 
 Harmony moves gradually (about 6% of the gap each second), so expect a delay after a fix.

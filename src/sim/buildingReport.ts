@@ -4,7 +4,7 @@ import type { City } from './City';
 import { paidShare } from './finance';
 import { sectorOf } from './policies';
 import { LABOUR_SHARE } from './pulseConst';
-import { MAX_TIER, THRIVE, growthHold, levelProgress, levels, size, upkeepMul, use } from './levels';
+import { MAX_TIER, THRIVE, growthHoldIn, levelProgress, levels, size, upkeepMul, use } from './levels';
 
 /**
  * One building, read for the player (the inspector, D-109): a status verdict, what it consumes and what it
@@ -47,7 +47,8 @@ export interface BuildingReport {
   fill: { label: string; value: number } | null;
 }
 
-const HOLD: Record<keyof typeof THRIVE, string> = {
+const HOLD: Record<keyof typeof THRIVE | 'demand', string> = {
+  demand: 'its district wants no more of these (approval or demand too low)',
   power: `needs ${THRIVE.power * 100}% power`,
   water: `needs ${THRIVE.water * 100}% water`,
   occupancy: `needs to be ${THRIVE.occupancy * 100}% full`,
@@ -124,7 +125,7 @@ export function buildingReport(city: City, eid: number): BuildingReport {
   })();
 
   const grows = levels(city, eid);
-  const hold = grows && Building.tier[eid]! < MAX_TIER ? growthHold(eid) : null;
+  const hold = grows && Building.tier[eid]! < MAX_TIER ? growthHoldIn(city, eid) : null;
   return {
     status,
     issues,

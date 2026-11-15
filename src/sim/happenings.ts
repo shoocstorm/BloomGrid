@@ -9,6 +9,9 @@ import { launchBlocker, startShow, SHOW_FEE } from './fireworks';
 import { isOpen } from './growthState';
 import type { Happening, HappeningKind } from './happeningState';
 import { PULSE_TICKS } from './pulseConst';
+import { APPROVAL, COMPLAINT_TEXT, complaints, districtLabel, moodOf, setDistrictMood } from './approval';
+import { OUTSKIRTS_KEY } from './approvalState';
+import { getPolicy, isActive, policyBlock } from './policies';
 
 /**
  * Happenings (D-123): between crises the city brings up good surprises and things its residents ask for, so a
@@ -35,7 +38,18 @@ export const HAPPENING_SECONDS: Record<HappeningKind, number> = {
   festival: 150,
   'bumper-catch': 180,
   cruise: 90,
+  petition: 300,
+  protest: 300,
+  praise: 120,
 };
+/** District approval points after a petition answered (+) or ignored (−), praise, and a protest left to fester. */
+export const DISTRICT_MOOD = { petition: 5, ignored: -4, praise: 3, festered: -3 } as const;
+/** A petition asks for this many points of approval above where the district stands. */
+export const PETITION_LIFT = 6;
+/** Seconds after the last happening before an angry district may protest. */
+const PROTEST_GAP = 60;
+/** City harmony points while a protest runs (unrest is news everywhere). */
+export const PROTEST_HARMONY = -1;
 /** Requests look for buildings within this many tiles of the residents who asked. */
 export const REQUEST_RADIUS = 12;
 /** Harmony points after a claimed request (+) or a missed one (−), for this many seconds. */
@@ -55,7 +69,37 @@ export const HAPPENING_NAMES: Record<HappeningKind, string> = {
   festival: 'Street festival',
   'bumper-catch': 'Bumper catch',
   cruise: 'Cruise visit',
+  petition: 'District petition',
+  protest: 'District protest',
+  praise: 'District thanks',
 };
+
+/** The ordinance that answers a district's complaint, when there is one the city could enact now. */
+function answeringPolicy(city: City, complaint: string | undefined): string | undefined {
+  const options =
+    complaint === 'commute'
+      ? ['free-transit', 'car-free-core']
+      : complaint === 'services' && city.pulse.waterRatio < city.pulse.energyRatio
+        ? ['rainwater-code']
+        : [];
+  return options.find((id) => !isActive(city, id) && !policyBlock(city, id, true));
+}
+
+/** Centre of a district (its rectangle), or of the outskirts' homes. */
+function districtCentre(city: City, key: string): [number, number] {
+  const d = city.districts.find((x) => x.name === key);
+  if (d) return [(d.x0 + d.x1 + 1) / 2, (d.z0 + d.z1 + 1) / 2];
+  for (const e of city.buildingEntities())
+    if (city.buildingDef(e).stats.population > 0 && !city.areaAt(Building.x[e]!, Building.z[e]!)) return centre(e);
+  return [city.size / 2, city.size / 2];
+}
+
+/** Districts with residents, from the last pulse's view (lowest approval first). */
+const peopled = (city: City) =>
+  city.approval.view.districts
+    .filter((v) => v.capacity >= 50)
+    .map((v) => ({ v, m: moodOf(city, v.key) }))
+    .sort((a, b) => a.m.approval - b.m.approval);
 
 /** What a request asks for, in words ("a Nature building"). */
 export const askName = (category: string): string =>
@@ -146,6 +190,55 @@ function propose(
       const [x, z] = centre(at);
       return { kind, x, z, place: placeName(city, x, z), reward: 0 };
     }
+    case 'petition': {
+      const low = peopled(city).find(({ m }) => m.approval < APPROVAL.petition);
+      if (!low) return null;
+      const complaint = complaints(low.v)[0];
+      const policy = answeringPolicy(city, complaint);
+      const [x, z] = districtCentre(city, low.v.key);
+      return {
+        kind,
+        x,
+        z,
+        place: low.v.name,
+        district: low.v.key,
+        ...(complaint ? { complaint } : {}),
+        ...(policy ? { policy } : {}),
+        target: Math.min(95, Math.ceil(low.m.approval + PETITION_LIFT)),
+        reward: requestReward(city),
+      };
+    }
+    case 'protest': {
+      const angry = peopled(city).find(({ m }) => m.lowFor >= APPROVAL.protestPulses && m.approval < APPROVAL.protest);
+      if (!angry) return null;
+      const complaint = complaints(angry.v)[0];
+      const [x, z] = districtCentre(city, angry.v.key);
+      return {
+        kind,
+        x,
+        z,
+        place: angry.v.name,
+        district: angry.v.key,
+        ...(complaint ? { complaint } : {}),
+        target: APPROVAL.calm,
+        reward: 0,
+      };
+    }
+    case 'praise': {
+      const happy = peopled(city)
+        .reverse()
+        .find(({ m }) => m.highFor >= APPROVAL.praisePulses);
+      if (!happy) return null;
+      const [x, z] = districtCentre(city, happy.v.key);
+      return {
+        kind,
+        x,
+        z,
+        place: happy.v.name,
+        district: happy.v.key,
+        reward: Math.round(requestReward(city) / 20) * 10,
+      };
+    }
     case 'cruise': {
       if (city.stats.population < 400) return null;
       const quays = ents.filter((e) => city.buildingDef(e).placement?.nearWater);
@@ -171,6 +264,11 @@ export function startHappening(city: City, kind: HappeningKind): Happening | nul
     endTick: city.tick + HAPPENING_SECONDS[kind] * PULSE_TICKS,
     earned: 0,
   };
+  // Praise is a thank-you gift: ready to claim at once. Its streak starts over.
+  if (kind === 'praise') {
+    h.status = 'met';
+    moodOf(city, h.district!).highFor = 0;
+  }
   st.current = h;
   if (kind === 'festival' && !launchBlocker(city)) {
     // The festival's show is on the city: the crew fee is refunded.
@@ -180,6 +278,18 @@ export function startHappening(city: City, kind: HappeningKind): Happening | nul
   }
   city.bus.emit('happening:start', { happening: h });
   return h;
+}
+
+/** Pays a met request, petition or praise and lifts the mood (the city's for requests, the district's otherwise). */
+function payOut(city: City, h: Happening): void {
+  const st = city.happenings;
+  city.credits += h.reward;
+  if (h.district !== undefined)
+    setDistrictMood(city, h.district, h.kind === 'praise' ? DISTRICT_MOOD.praise : DISTRICT_MOOD.petition);
+  else {
+    st.mood = MOOD.claimed;
+    st.moodUntil = city.tick + MOOD.seconds * PULSE_TICKS;
+  }
 }
 
 function finish(city: City, h: Happening, outcome: 'claimed' | 'missed' | 'done'): void {
@@ -212,11 +322,25 @@ export function updateHappenings(city: City): void {
       h.status = 'met';
       city.bus.emit('happening:met', { happening: h });
     }
+    // A petition is met by the ordinance it asked for, or by approval climbing to its target.
+    if (
+      h.kind === 'petition' &&
+      h.status === 'active' &&
+      ((h.policy && isActive(city, h.policy)) || moodOf(city, h.district!).approval >= h.target!)
+    ) {
+      h.status = 'met';
+      city.bus.emit('happening:met', { happening: h });
+    }
+    // A protest ends when the district calms down.
+    if (h.kind === 'protest' && moodOf(city, h.district!).approval >= h.target!) {
+      moodOf(city, h.district!).lowFor = 0;
+      h.status = 'done';
+      finish(city, h, 'done');
+      return;
+    }
     // A met request nobody claimed pays out on its own a little after the deadline (it must not block the next).
     if (h.status === 'met' && city.tick >= h.endTick + 120 * PULSE_TICKS) {
-      city.credits += h.reward;
-      st.mood = MOOD.claimed;
-      st.moodUntil = city.tick + MOOD.seconds * PULSE_TICKS;
+      payOut(city, h);
       h.status = 'done';
       finish(city, h, 'claimed');
       return;
@@ -227,6 +351,12 @@ export function updateHappenings(city: City): void {
         st.mood = MOOD.missed;
         st.moodUntil = city.tick + MOOD.seconds * PULSE_TICKS;
         finish(city, h, 'missed');
+      } else if (h.kind === 'petition' || h.kind === 'protest') {
+        // Ignored: the district holds a grudge for a while (and an unheard protest starts its count again).
+        setDistrictMood(city, h.district!, h.kind === 'petition' ? DISTRICT_MOOD.ignored : DISTRICT_MOOD.festered);
+        if (h.kind === 'protest') moodOf(city, h.district!).lowFor = 0;
+        h.status = 'missed';
+        finish(city, h, 'missed');
       } else {
         h.status = 'done';
         finish(city, h, 'done');
@@ -235,12 +365,17 @@ export function updateHappenings(city: City): void {
     return;
   }
   if (!st.auto) return;
+  // An angry district doesn't wait for a calm gap or the end of a crisis: it takes to the streets.
+  const last = st.history.length ? st.history[st.history.length - 1]!.tick : -Infinity;
+  if (city.tick - last >= PROTEST_GAP * PULSE_TICKS && startHappening(city, 'protest')) return;
   if (st.nextTick === 0) st.nextTick = city.tick + FIRST_GAP * PULSE_TICKS;
   if (city.tick < st.nextTick) return;
   if (city.steward.crises.length > 0 || city.stats.happiness < 25) return;
   // Requests are the backbone; boons come when the city has what they need.
   const kinds: [HappeningKind, number][] = [
     ['request', 3],
+    ['petition', 1.5],
+    ['praise', 1],
     ['festival', 1.2],
     ['bumper-catch', 1],
     ['cruise', 0.8],
@@ -263,6 +398,7 @@ export function applyHappenings(city: City, mods: ConsequenceMods): void {
   const st = city.happenings;
   if (city.tick < st.moodUntil) mods.harmony += st.mood;
   const h = st.current;
+  if (h?.kind === 'protest' && h.status === 'active') mods.harmony += PROTEST_HARMONY;
   if (!h || h.status !== 'active') return;
   const s = city.stats;
   let visitors = 0;
@@ -278,7 +414,14 @@ export function applyHappenings(city: City, mods: ConsequenceMods): void {
 export function registerHappeningCommands(stack: CommandStack<SimCtx>): void {
   stack.register<
     { id: number },
-    { reward: number; h: Happening; nextTick: number; mood: number; moodUntil: number }
+    {
+      reward: number;
+      h: Happening;
+      nextTick: number;
+      mood: number;
+      moodUntil: number;
+      district?: { boost: number; boostUntil: number };
+    }
   >('claimHappening', {
     apply({ city }, p) {
       const st = city.happenings;
@@ -290,10 +433,11 @@ export function registerHappeningCommands(stack: CommandStack<SimCtx>): void {
         nextTick: st.nextTick,
         mood: st.mood,
         moodUntil: st.moodUntil,
+        ...(h.district !== undefined
+          ? { district: (({ boost, boostUntil }) => ({ boost, boostUntil }))(moodOf(city, h.district)) }
+          : {}),
       };
-      city.credits += h.reward;
-      st.mood = MOOD.claimed;
-      st.moodUntil = city.tick + MOOD.seconds * PULSE_TICKS;
+      payOut(city, h);
       h.status = 'done';
       finish(city, h, 'claimed');
       return undo;
@@ -304,6 +448,7 @@ export function registerHappeningCommands(stack: CommandStack<SimCtx>): void {
       st.history.pop();
       st.current = u.h;
       Object.assign(st, { nextTick: u.nextTick, mood: u.mood, moodUntil: u.moodUntil });
+      if (u.district && u.h.district !== undefined) Object.assign(moodOf(city, u.h.district), u.district);
     },
   });
 }
@@ -323,5 +468,23 @@ export function describeHappening(city: City, h: Happening): string {
       return `A bumper catch off ${h.place}: the haul runs half again higher (${time})`;
     case 'cruise':
       return `A cruise ship calls at ${h.place}: visitors are spending (${time})`;
+    case 'petition': {
+      const what = h.policy ? `the ${getPolicy(h.policy)?.name ?? h.policy} ordinance` : `approval of ${h.target} (now ${Math.round(moodOf(city, h.district!).approval)})`;
+      return h.status === 'met'
+        ? `${h.place}'s petition is answered: claim ${h.reward} credits`
+        : `${h.place} petitions for ${what}${h.complaint ? `: ${complaintLabel(h.complaint)}` : ''} (${h.reward} credits, ${time})`;
+    }
+    case 'protest':
+      return `${h.place} is protesting${h.complaint ? ` (${complaintLabel(h.complaint)})` : ''}: its workplaces run short-staffed until approval reaches ${h.target} (now ${Math.round(moodOf(city, h.district!).approval)}, ${time})`;
+    case 'praise':
+      return `${h.place} thanks the steward: claim a ${h.reward}-credit gift`;
   }
 }
+
+/** A complaint key in words ("long commutes"). */
+export const complaintLabel = (key: string): string =>
+  (COMPLAINT_TEXT[key as keyof typeof COMPLAINT_TEXT]?.label ?? key).toLowerCase();
+/** What fixes a complaint (the card and Flora). */
+export const complaintFix = (key: string | undefined): string =>
+  (key && COMPLAINT_TEXT[key as keyof typeof COMPLAINT_TEXT]?.fix) || 'Power and water, amenities, lower taxes and fewer crises all help.';
+export { districtLabel, OUTSKIRTS_KEY };

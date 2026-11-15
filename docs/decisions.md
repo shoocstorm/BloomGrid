@@ -2804,3 +2804,61 @@ or 40% in debt. Forecasts (D-157) showed trouble ahead but offered only building
 - **"Open data" and "Emergency reserve" ordinances:** deferred, as they need hooks that don't exist yet.
 - **A night-sky dim on the activity field itself:** the field also places daytime walkers. It dims the night-life
   reading only.
+
+## D-159: Living demand and districts: approval, migration, job types, district voices (plan v5, Phase 26)
+
+**Context.** Residents were one global mood. `demandHomes/Work`, `avgCommute` and the districts themselves drove
+nothing, commuters took the nearest job of any kind, and resident requests were the only voice a place had.
+
+**Decision.**
+- **District approval** (`sim/approval.ts`, state `approvalState.ts`, saved v21, hashed): each named district and
+  the outskirts (key `''`) keeps an approval 0–100 that drifts toward a target like harmony.
+  - Target = the city-wide harmony target + local terms: power and water at its homes and its amenities (each
+    against the resident-weighted city mean, so they shift districts apart without moving the city), smog at its
+    homes, commute length, job match, and a passing mood (petitions, praise, protests).
+  - **City harmony is the resident-weighted mean** of district targets; the difference from the old sum shows as the
+    Neighbourhoods term (`harmony.districts`).
+  - A tile → district grid (painted from the rectangles, most specific wins, rebuilt when the list changes) makes
+    the per-building lookup one array read.
+- **Growth answers it.** Homes fill toward their district's approval (not the city's), arrive up to 1.2× faster and
+  leave up to 1.6× faster (`migrationRates`), and too many homes for the jobs (`demandHomes < 0`) lowers every home's
+  target. Moves are tallied per district as "+N moved in / −N left a minute". A home grows a level only while local
+  home demand (`demandHomes + (approval − 60)/100`) is above 0, a workplace while work demand is
+  (`demandWork + 0.2 + (approval − 60)/200`); paid upgrades are unaffected. Levels take the rule as a `wanted`
+  predicate so `levels.ts` keeps no import of the pulse.
+- **Commute and job types** (`sim/mobility.ts`): workplaces offer service (commercial, utility), industry (industry,
+  energy), creative (tech, sports) or ecology (nature, food) work; workers want 35 / 20 / 25 / 20%. Before the
+  untyped rounds, each type gets its own flood and a home sends its share to the matching job when it is at most
+  `MATCH_DETOUR` (3) steps past the nearest job of any kind. Per home, the mean trip *length* (pods count as 8) and
+  matched share go into grid layers (`homeLayers`). Jams already cost harmony through the traffic term, so the
+  commute term reads length, not congested time. The job-match expectation ramps with population (full at 8 000).
+- **District voices** (new happening kinds): a **petition** (approval < 58: lift it 6 points or enact the ordinance
+  that answers the complaint), a **protest** (< 35 for 60 s: the district's workplaces staff 60% and city harmony −1
+  until it reaches 45; skips the calm gap and crisis check), **praise** (75+ for 180 s: a gift ready to claim).
+  Answered / ignored / festered set the district mood (+5 / −4 / −3 for 240 s).
+- **Surfaces:** City map → **Approval** (red to green, lowest first, each district's complaint); the inspector's
+  district card (approval, band, drift, movement, this home's commute and job match, complaint and fix); a Residents
+  card migration line and lever; the Neighbourhoods harmony term; the Traffic lens's mean commute; inventory
+  districts gain `approval` and the issues `unhappy` / `protesting`; tip bubbles say who speaks ("— a Westbrook
+  baker") and react to the last ordinance, tax change, crisis, forecast and the district's complaint or pride.
+- **Flora:** `district_report` (read, a verdict sentence first) and an intent route for approval, protest, petition
+  and "who is leaving" questions ahead of `why`. With qwen3-1.7b both "which district is unhappy?" and "why are people
+  leaving Westbrook?" go straight to it; before the route and the verdict the model answered from an unrelated
+  `inventory_search` and named a district with no residents.
+
+**Measured.** Founding city (seed 20261024): 53 111 residents and harmony 73.2 at 400 ticks, flow 1.00, Neighbourhoods
+term 0 (unchanged); `zoning.test.ts` passes. Fresh-island pacing: the Aeroline starts at 6 670 s (6 710 before), never
+broke; growth is path-dependent (the scripted steward's timeline jams around 75 min with or without this change).
+`computeMobility` on the settled founding city: 7.6 ms vs 6.6 ms in Node (+5 floods; floods with no hiring workplace of
+that type are skipped). `bun run perf`: main thread 23.9–27.0% vs 23.3–23.9% before (noisy, ≈ +1.5%); idle 16.4% vs
+16.8%; draws unchanged (302 at the default view, as before).
+
+**Rejected.**
+- **Commute as congested travel time:** it double-counted jams already in the traffic term: on the fresh island
+  harmony took −12 and −8 for the same jam and growth stalled.
+- **Unbounded matched commuting** (and a 24-step reach): workers crossed the island for a matching job, mean road
+  trips went from 6 to 26 tiles and fresh-island flow fell from 0.89 to 0.5–0.7.
+- **Per-district policy effects** (car-free core helping only the core): ordinances still act city-wide through the
+  consequence modifiers; every district shares them.
+- **`ECS` store fields for commute and match:** the global component arrays are shared between cities; grid layers
+  are per city and need no reset.

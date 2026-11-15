@@ -1,4 +1,7 @@
 import { netIncome } from '@/sim/finance';
+import { approvalBand, complaintLine, districtIndexOf, districtKey, homeLayers } from '@/sim/approval';
+import { migrationLine } from '@/sim/statGuide';
+import type { City } from '@/sim/City';
 import { MAX_ROAD_LEVEL, ROAD_CAPACITY, ROAD_LEVEL_NAMES, levelCounts, roadLevels, roadStretch, upgradeCost as roadUpgradeCost } from '@/sim/roads';
 import { ROAD } from '@/sim/City';
 import { Building, Problem, Service } from '@/ecs/components';
@@ -1027,12 +1030,13 @@ class Hud {
     if (spent) setText(spent, `◈${fmt(this.ctx.city.spent.get(Building.uid[eid]!) ?? 0)}`);
     const r = buildingReport(this.ctx.city, eid);
     const notes = this.notes(eid);
-    const key = JSON.stringify([r, notes]);
+    const dist = districtFacts(this.ctx.city, eid);
+    const key = JSON.stringify([r, notes, dist]);
     this.hazardActions(eid);
     this.upgradeNote(eid);
     if (key === this.liveKey) return;
     this.liveKey = key;
-    box.replaceChildren(this.statusCard(r), this.keyFacts(eid, r), this.flows(r), notes.length ? h('ul', { class: 'ix-notes' }, ...notes.map(([ico, text, tone]) => h('li', { class: tone }, icon(ico), h('span', {}, text)))) : '');
+    box.replaceChildren(this.statusCard(r), this.keyFacts(eid, r), this.flows(r), dist ? this.districtCard(dist) : '', notes.length ? h('ul', { class: 'ix-notes' }, ...notes.map(([ico, text, tone]) => h('li', { class: tone }, icon(ico), h('span', {}, text)))) : '');
     this.infoBody.querySelector('[data-led]')?.setAttribute('data-tone', r.status.tone);
   }
 
@@ -1046,6 +1050,35 @@ class Hud {
       r.issues.length
         ? h('ol', { class: 'ix-fixes' }, ...r.issues.map((i) => h('li', {}, h('b', {}, i.text), h('span', {}, icon('next'), i.fix))))
         : '',
+    );
+  }
+
+  /**
+   * The building's district (plan v5, Phase 26): approval of the steward with its band and drift, residents moving
+   * in and out, its top complaint and fix, and for a home its commute and job match. The map button opens the city
+   * map coloured by approval.
+   */
+  private districtCard(d: NonNullable<ReturnType<typeof districtFacts>>): HTMLElement {
+    const tone = d.approval >= 60 ? 'good' : d.approval >= 45 ? 'warn' : 'bad';
+    return h(
+      'div',
+      { class: `ix-district ${tone}` },
+      h(
+        'div',
+        { class: 'ix-district-head' },
+        icon('district'),
+        h('b', {}, d.name),
+        h('span', { class: 'ix-district-a' }, `${d.approval}`, h('small', {}, ` ${d.band}${d.arrow}`)),
+        h(
+          'button',
+          { class: 'icon-btn ix-district-map', title: 'District approval on the city map', 'aria-label': 'Open the approval map', onClick: () => this.ctx.services.tryGet('citymap')?.show('approval') },
+          icon('map'),
+        ),
+      ),
+      h('div', { class: 'ix-bar' }, h('i', { style: `width:${d.approval}%` })),
+      h('small', { class: 'ix-district-move' }, d.moves),
+      d.home ? h('small', { class: 'ix-district-move' }, d.home) : '',
+      d.complaint ? h('p', { class: 'ix-district-why' }, h('b', {}, d.complaint), ' ', d.fix) : '',
     );
   }
 
@@ -1283,3 +1316,25 @@ export const hudModule: GameModule = {
     ctx.systems.add({ id: 'hud', phase: 'render', order: 100, update: (_c, f) => hud.update(f.dt) });
   },
 };
+
+/** What the inspector's district card shows (compared between re-reads, so plain data). */
+function districtFacts(city: City, eid: number) {
+  const key = districtKey(city, districtIndexOf(city, eid));
+  const v = city.approval.view.districts.find((d) => d.key === key);
+  const m = city.approval.districts[key];
+  if (!v || !m || v.capacity <= 0) return null;
+  const why = complaintLine(v, m.approval);
+  const home = city.buildingDef(eid).stats.population > 0;
+  const hl = homeLayers(city);
+  const t = city.grid.index(Building.x[eid]!, Building.z[eid]!);
+  return {
+    name: v.name,
+    approval: Math.round(m.approval),
+    band: approvalBand(m.approval),
+    arrow: v.target > m.approval + 0.5 ? ' ▲' : v.target < m.approval - 0.5 ? ' ▼' : '',
+    moves: `${fmt(v.residents)} residents · ${migrationLine(v.movedIn, v.movedOut)}`,
+    home: home && hl.commute[t]! > 0 ? `This home: ${hl.commute[t]!.toFixed(0)}-tile commute · ${Math.round(hl.match[t]! * 100)}% in the work they want` : '',
+    complaint: why?.label ?? '',
+    fix: why?.fix ?? '',
+  };
+}

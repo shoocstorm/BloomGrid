@@ -216,6 +216,13 @@
   color: var(--ink-faint);
   white-space: nowrap;
 }
+.cmap-row .cmap-why {
+  grid-column: 2 / -1;
+  font-size: 10.5px;
+  font-style: normal;
+  color: var(--ink-soft);
+  margin-top: -3px;
+}
 .cmap-row:hover,
 .cmap-row.hot {
   border-color: var(--c);
@@ -269,7 +276,20 @@
   display: none;
 }
 
-/* Zones / Districts colouring toggle, and zone headers in the legend (D-049). */
+/* Phones: three colourings (Zones, Districts, Approval) take a row of their own under the title. */
+.compact .cmap-head {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.compact .cmap-mode {
+  order: 3;
+  flex: 1 0 100%;
+}
+.compact .cmap-mode-b {
+  flex: 1;
+}
+
+/* Zones / Districts / Approval colouring toggle, and zone headers in the legend (D-049, D-159). */
 .cmap-mode {
   display: flex;
   border: 1px solid var(--line);

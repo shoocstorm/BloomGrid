@@ -1875,6 +1875,63 @@ body:not(.compact) .dock {
   border-radius: inherit;
   background: var(--c);
 }
+/* District card (plan v5, Phase 26): approval of the steward where this building stands. */
+.ix-district {
+  --c: var(--accent-2);
+  display: grid;
+  gap: 5px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
+  background: color-mix(in srgb, var(--c) 6%, transparent);
+}
+.ix-district.warn {
+  --c: var(--warn);
+}
+.ix-district.bad {
+  --c: var(--crit);
+}
+.ix-district-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 7px;
+}
+.ix-district-head .ico {
+  width: 15px;
+  height: 15px;
+  color: var(--c);
+}
+.ix-district-head b {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ix-district-a {
+  font: 600 15px var(--mono);
+  color: var(--c);
+}
+.ix-district-a small {
+  font: 500 10px var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ix-district-move {
+  font-size: 10.5px;
+  color: var(--ink-soft);
+}
+.ix-district-why {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+.ix-district-why b {
+  color: var(--c);
+  font-weight: 600;
+}
 .ix-stars {
   display: inline-flex;
   gap: 2px;

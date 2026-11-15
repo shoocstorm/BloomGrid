@@ -138,6 +138,8 @@ export const ISSUES: Record<string, IssueInfo> = {
     hint: 'Over 10% of its buildings report problems: inspect them.',
   },
   failing: { label: 'Failing', severity: 2, hint: 'Over 10% of its buildings are critical: inspect them.' },
+  unhappy: { label: 'Unhappy', severity: 1, hint: 'Approval below 45: see its complaint (district_report) and fix it before it protests.' },
+  protesting: { label: 'Protesting', severity: 2, hint: 'Its workplaces are short-staffed until approval climbs back to 45: fix its complaint.' },
   jammed: { label: 'Jammed', severity: 1, hint: 'Traffic over 90% of capacity: upgrade the bridge or add another crossing.' },
 };
 export const registerIssue = (code: string, info: IssueInfo) => void (ISSUES[code] = info);
@@ -581,7 +583,7 @@ registerInventoryKind({
   label: 'Districts',
   icon: '▦',
   prefixes: ['DST'],
-  description: 'Named towns, quarters and parks with their buildings rolled up. Id = DST-<NAME>.',
+  description: 'Named towns, quarters and parks with their buildings rolled up. Id = DST-<NAME>. Metric `approval` (0–100) where people live; issues `unhappy` (< 45) and `protesting`.',
   list(city) {
     const acc = new Map<
       string,
@@ -611,9 +613,15 @@ registerInventoryKind({
       if (o.status === 'warning') a.warn++;
       if (o.status === 'critical') a.crit++;
     }
+    const protest = city.happenings.current;
     return city.districts.map((d) => {
       const a = acc.get(d.name)!;
       const issues = a.crit > a.n * 0.1 ? ['failing'] : a.crit + a.warn > a.n * 0.1 ? ['troubled'] : [];
+      // District approval (plan v5, Phase 26): only where people live.
+      const v = city.approval.view.districts.find((x) => x.key === d.name);
+      const approval = v && v.capacity > 0 ? (city.approval.districts[d.name]?.approval ?? null) : null;
+      if (protest?.kind === 'protest' && protest.status === 'active' && protest.district === d.name) issues.push('protesting');
+      else if (approval !== null && approval < 45) issues.push('unhappy');
       return {
         id: `DST-${slug(d.name)}`,
         kind: 'district',
@@ -637,6 +645,7 @@ registerInventoryKind({
           critical: a.crit,
           condition: a.n ? r3(a.cond / a.n) : 1,
           greenery: a.n ? r3(a.green / a.n) : 0,
+          ...(approval !== null ? { approval: r1(approval) } : {}),
         },
         ref: {},
       } satisfies CityObject;

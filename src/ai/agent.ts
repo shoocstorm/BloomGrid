@@ -181,6 +181,8 @@ export function plainIntent(request: string): string | null {
     // Hazards (D-076): emergency moves, then risk questions.
     [/\b(evacuate|evacuation|siren|close (the )?(tide )?gates|feather)\b/, 'prepare_hazard'],
     [/\b(risk|risks|tornado|tsunami|how safe)\b/, 'risk_status'],
+    // Districts (plan v5, Phase 26): approval, protests, petitions, who is moving out (before "why…").
+    [/\b(approval|unhappy|upset|angry|protest(s|ing|ers)?|petition(s|ing)?|leaving|moving (out|away|in)|moved (out|in)|migration)\b|\b(districts?|neighbou?rhoods?)\b.*\b(happy|mood|feel|like me|complain)/, 'district_report'],
     // Cause and effect (D-074): "why is…", "what caused…".
     [/^why\b|\bwhat caused\b|\bhow come\b|\bconsequences?\b/, 'why'],
     [/\b(fires?|burning|earthquakes?|quakes?|lightning|incidents?|emergenc(y|ies)|damaged?)\b/, 'incident_status'],
@@ -212,6 +214,7 @@ export function plainIntent(request: string): string | null {
     'advisor_tips',
     'whats_coming',
     'policies_status',
+    'district_report',
   ]);
   const hits = rules.filter(([re, t]) => re.test(r) && (!question || lookups.has(t))).map(([, t]) => t);
   return hits.length ? hits[0]! : null;

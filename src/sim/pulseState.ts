@@ -37,6 +37,8 @@ export interface HarmonyBreakdown {
   wonders: number;
   /** Cause-and-effect rules in force (D-074). */
   consequences: number;
+  /** Local smog, commutes, job match and district moods, weighted by residents (plan v5, Phase 26). */
+  districts: number;
 }
 
 /** Per highway-network utility totals from the last pulse (index = network id). Not saved. */
@@ -106,7 +108,7 @@ export function createPulseState(): PulseState {
     primed: false,
     gate: createTierGate(),
     history: Object.fromEntries(HISTORY_METRICS.map((m) => [m, []])) as unknown as Record<HistoryMetric, number[]>,
-    harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0, crises: 0, bloom: 0, traffic: 0, fireworks: 0, wonders: 0, consequences: 0 },
+    harmony: { base: 55, ecology: 0, services: 0, jobs: 0, food: 0, taxes: 0, amenities: 0, crises: 0, bloom: 0, traffic: 0, fireworks: 0, wonders: 0, consequences: 0, districts: 0 },
     energyRatio: 1,
     waterRatio: 1,
     foodRatio: 1,

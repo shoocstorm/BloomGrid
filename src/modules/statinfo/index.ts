@@ -52,6 +52,8 @@ function leverIcon(l: GuideLever): string {
       return 'pen';
     case 'causes':
       return 'network';
+    case 'districts':
+      return 'district';
     case 'incidents':
       return 'fire';
   }
@@ -485,6 +487,9 @@ class StatInfo {
         if (ctx.commands.execute('setPolicy', { id: a.id, on: true })) toast(`${getPolicy(a.id)?.name ?? a.id} in force (⌘Z undoes)`);
         else toast(policyBlock(ctx.city, a.id, true) ?? 'The council turned it down', 'bad');
         break;
+      case 'districts':
+        ctx.services.tryGet('citymap')?.show('approval');
+        return this.close();
       case 'incidents':
         ctx.services.get('dashboard').openIncidents();
         return this.close();

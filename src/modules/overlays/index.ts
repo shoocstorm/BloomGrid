@@ -129,7 +129,12 @@ export const overlaysModule: GameModule = {
         [hi, pct(reading.good), 'good'],
         [lo, pct(reading.bad), reading.bad > 0.1 ? 'bad' : ''],
       ];
-      if (readingEl.childElementCount !== 3)
+      // Commutes feed district approval (plan v5, Phase 26): the mean trip by highway, in tiles.
+      if (spec.id === 'traffic') {
+        const c = ctx.city.pulse.avgCommute;
+        cells.push(['Mean commute', `${c.toFixed(0)} tiles`, c > 16 ? 'bad' : '']);
+      }
+      if (readingEl.childElementCount !== cells.length)
         readingEl.replaceChildren(...cells.map(() => h('div', { class: 'bp-stat' }, h('span'), h('b'))));
       cells.forEach(([label, v, tone], i) => {
         const cell = readingEl.children[i] as HTMLElement;
