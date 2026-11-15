@@ -2915,3 +2915,37 @@ the deeper light; the first try (hemisphere 0.45–0.55, environment 0.22 + 0.38
   roof was ever bare.
 - **Bevels from screen-space edge distance:** pixel-wide lines crawl in motion (D-070); not attempted in geometry,
   where non-uniform instance scale would stretch a unit-box bevel.
+
+## D-161: Temporal anti-aliasing, calmer dynamic resolution, light-space shadow snapping
+
+**Context.** Moving the camera, the horizontal and vertical lines of buildings (floor plates, mullions, fins,
+railings, window bands) flashed: each pans across pixels at a sub-pixel width, so it appears, vanishes and reappears
+frame to frame. MSAA (4× on High / Ultra) smooths a triangle's edge within one frame but not a line thinner than a
+pixel; the shader fades (D-064/D-070) only cover lines drawn by materials. Two things made it worse: dynamic
+resolution stepped 10 % down while the camera moved and 5 % back up every 1.5 s once it stopped (each step
+re-rasterises the whole frame), and shadow refreshes while panning snapped the focus in world x / z, which moved the
+shadow map's angled texel grid by a fraction of a texel each time.
+
+**Decision.**
+- **TRAA** (`three/examples/jsm/tsl/display/TRAANode.js`) on Medium, High and Ultra (`taa` in `QualitySettings`,
+  `?taa=0` for the old path), replacing MSAA / FXAA there, applied to the HDR scene colour before bloom and tone
+  mapping. Velocity is the camera's alone, from a full-screen pass (`PostFX.cameraVelocity`: depth → world →
+  this and last frame's unjittered view-projection): three's per-object `velocity` MRT adds a previous instance
+  matrix vertex buffer to every batch (the pod mesh is at WebGPU's limit of 8) and copies every batch's matrices each
+  frame. Shader-animated movers (pods, cars, walkers, fireworks) get camera velocity only; variance clipping keeps
+  their trails to a frame or two.
+- **Dynamic resolution** changes rarely and in bigger steps: down 0.15 after two missed 1.5 s windows in a row; up
+  0.15 only after three comfortable windows in a row *at the active cap* (meeting the idle cap proves nothing) and
+  20 s after the last change.
+- **Shadow focus** snapped to whole texels in the light's own axes (`Atmosphere.follow`).
+
+**Measured** (headless, founding city, High, `bun run flicker`, % of pixels jumping > 48/255 per frame at distances
+20 / 35 / 70 / 140 / 260). Day: 0.030 / 0.043 / 0.017 / 0.013 / 0.006 with TAA vs 0.449 / 0.517 / 0.423 / 0.482 /
+0.608 with MSAA 4×. Night: ≤ 0.003 vs 0.035–0.160. Mid-pan screenshots are as sharp as MSAA with no visible smear.
+GPU ms per frame 2.0 / 8.1 vs 15.2 / 10.3 with MSAA (noisy; MSAA 4× over three MRT targets cost more than the TAA
+resolve). Draws +2 (velocity and resolve passes); idle main thread 18 % (unchanged).
+
+**Rejected.**
+- **three's `velocity` MRT:** vertex-buffer limit on the pod mesh, per-frame matrix copies of every batch.
+- **More shader fades for each pattern:** they cannot reach geometry thinner than a pixel, which was most of it.
+- **Keeping MSAA under TAA:** TRAA requires it off; doing both costs the MSAA without improving the result.

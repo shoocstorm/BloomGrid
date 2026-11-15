@@ -56,6 +56,7 @@ function withOverrides(base: QualitySettings, params: URLSearchParams): QualityS
   const q = { ...base };
   if (params.has('pr')) q.maxPixelRatio = Number(params.get('pr'));
   if (params.has('msaa')) q.msaa = Number(params.get('msaa'));
+  if (params.has('taa')) q.taa = params.get('taa') !== '0';
   if (params.has('shadows')) q.shadows = params.get('shadows') !== '0';
   if (params.has('bloom')) q.bloom = params.get('bloom') !== '0';
   if (params.has('shadowmap')) q.shadowMapSize = Number(params.get('shadowmap'));

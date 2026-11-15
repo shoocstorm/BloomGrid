@@ -202,12 +202,20 @@ export class Atmosphere {
       cam.far = 600;
       cam.updateProjectionMatrix();
     }
-    // Snap to shadow texels to avoid shimmering while panning.
+    // Snap the shadow focus to whole texels of the shadow map, in the light's own axes (D-161): the map's texel grid
+    // lies across the sun's direction, so snapping world x / z still moved it by a fraction of a texel on every
+    // refresh while panning, and every shadow edge (floor plates, fins, railings on the façades) crawled.
     const texel = (this.shadowExtent * 2) / this.sun.shadow.mapSize.x;
-    const tx = Math.round(target.x / texel) * texel;
-    const tz = Math.round(target.z / texel) * texel;
-    this.sun.target.position.set(tx, target.y, tz);
-    this.sun.position.set(tx, target.y, tz).addScaledVector(this.sunDir, 250);
+    const right = _right.crossVectors(_up, this.sunDir);
+    // Sun straight overhead (noon at the equinox): any horizontal axis will do, as three's own lookAt does.
+    if (right.lengthSq() < 1e-8) right.set(1, 0, 0);
+    right.normalize();
+    const lup = _lup.crossVectors(this.sunDir, right).normalize();
+    const a = Math.round(target.dot(right) / texel) * texel;
+    const b = Math.round(target.dot(lup) / texel) * texel;
+    const snapped = _snap.copy(right).multiplyScalar(a).addScaledVector(lup, b).addScaledVector(this.sunDir, target.dot(this.sunDir));
+    this.sun.target.position.copy(snapped);
+    this.sun.position.copy(snapped).addScaledVector(this.sunDir, 250);
     this.sinceShadow += dt;
     // Compare the snapped focus, not the light's position: the light sits 250 units out along the sun direction, so
     // the sun's slow turn moved it every frame and refreshed shadows at the cap all day, past the `turned` gate (D-150).
@@ -225,6 +233,11 @@ export class Atmosphere {
     this.fog.far = this.fog.near + 700 * (1 - 0.9 * this.haze);
   }
 }
+
+const _up = new Vector3(0, 1, 0);
+const _right = new Vector3();
+const _lup = new Vector3();
+const _snap = new Vector3();
 
 function smooth(a: number, b: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));

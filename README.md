@@ -258,7 +258,7 @@ packages it. Saves are JSON files in the app data folder, and ⚙ → Display �
 `?quality=low|medium|high|ultra` · `?renderer=webgl` (force the WebGL2 fallback) · `?scenario=empty` (a blank island
 instead of the founding city) · `?difficulty=sandbox|relaxed|steward|hard` · `?seed=123` (a different island) ·
 `?drill=monsoon|king-tide|heatwave|algal-bloom|grid-failure|blight` (start a crisis) · `?happening=request|festival|bumper-catch|cruise|petition|protest|praise` (start a happening) · `?perf` (performance overlay,
-also **F3**) · `?stress=2000` (add a stress city) · `?nodynres` · `?gputime` · `?pr=1 ?msaa=0 ?shadows=0 ?bloom=0`
+also **F3**) · `?stress=2000` (add a stress city) · `?nodynres` · `?taa=0` (MSAA instead of temporal anti-aliasing) · `?gputime` · `?pr=1 ?msaa=0 ?shadows=0 ?bloom=0`
 (quality overrides).
 
 </details>

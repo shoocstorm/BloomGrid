@@ -25,7 +25,7 @@ build and modify it, and keep it running well. Neglect can make the city decline
 
 ```bash
 bun install
-bun run dev            # http://localhost:3000: the welcome screen (New Chapter dialog over a holographic island, before the engine boots; resume / new island / showcase, D-148); ?scenario=founding-city = the showcase (scripts default to it), ?wizard / ?nowizard  (?perf ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty ?difficulty=sandbox|relaxed|steward|hard ?drill=<crisis> ?happening=request|festival|bumper-catch|cruise|petition|protest|praise ?nodynres)
+bun run dev            # http://localhost:3000: the welcome screen (New Chapter dialog over a holographic island, before the engine boots; resume / new island / showcase, D-148); ?scenario=founding-city = the showcase (scripts default to it), ?wizard / ?nowizard  (?perf ?taa=0 ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty ?difficulty=sandbox|relaxed|steward|hard ?drill=<crisis> ?happening=request|festival|bumper-catch|cruise|petition|protest|praise ?nodynres)
 bun run check          # typecheck + lint + tests + production build (must pass before you finish)
 bun run test           # vitest only (NOT `bun test`: that is bun's own runner and skips the Vitest setup)
 bun run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500] [--mobile [--size 844x390]] [--dpr 2]
@@ -361,6 +361,7 @@ The knowledge base is never finished: treat it as part of every feature. Flora's
   `--gut-r` (safe areas included), never a bare px offset or `--gut` alone; script layout reads `safeInsets()` and
   sizes on `onViewportChange` (`platform/device.ts`). Icons: edit `public/icons/icon.svg`, then
   `node scripts/app-icons.mjs` (full-bleed, opaque: iOS fills transparency with black).
+- Anti-aliasing is temporal (TRAA, D-161) on Medium and up (`taa` in `QualitySettings`; `?taa=0` = the old MSAA / FXAA path): velocity comes from depth + the camera in `PostFX.cameraVelocity`, not three's `velocity` MRT (it would add a previous-matrix vertex buffer to every instanced batch: the pod mesh is at WebGPU's 8). Shader-animated movers therefore carry the camera's motion only; TRAA's variance clipping keeps their trails short. Don't add MSAA back under TAA (TRAA requires it off), and judge line flashing with `bun run flicker` at street range (`--dists 20,35,70`) as well as the island view.
 - Dynamic resolution (`DynamicResolution` in `render/Quality.ts`) judges each window's median frame and skips judging under `hold(s)` (boot, loader city changes, D-142): something that replaces or rebuilds the whole view outside the loader should call `services.get('render').dynamicResolution.hold(s)`, or its slow first seconds cut the render scale.
 - Probe scripts launch Chrome only through `launchChrome` in `scripts/lib/chrome.mjs` (never `puppeteer.launch`): it kills Chrome's whole process tree on every exit path (errors, signals, a SIGKILLed node via a detached guard), ends hung runs after `maxSeconds`, and reaps leftovers tagged `--bloomgrid-probe=<pid>`. A stray headless Chrome keeps rendering the game at full CPU.
 - Headless `?gputime` swings 1.7–5 ms between identical runs; compare several runs on and off before blaming a change.
