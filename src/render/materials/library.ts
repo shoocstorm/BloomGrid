@@ -35,11 +35,13 @@ import {
   positionLocal,
   positionViewDirection,
   positionWorld,
+  screenCoordinate,
   sin,
   smoothstep,
   step,
   texture,
   time,
+  uniform,
   uv,
   vec2,
   vec3,
@@ -131,10 +133,35 @@ interface DefineOptions {
   overlay?: 'instanced' | 'plain' | 'none';
   /** Wilt with low vitality (aParams.w). */
   vitality?: boolean;
+  /** Dissolve before the instancer's distance cull (D-162): for materials of pieces with a finite `lod`. */
+  fade?: boolean;
 }
+
+/**
+ * Distance at which the drawn object's pieces are culled (`userData.fadeAt`, set per batch by the instancer), read
+ * per object: one material serves every chunk's batch. Objects without one never fade.
+ */
+const fadeAt = uniform(1e9).onObjectUpdate(({ object }) => (object?.userData.fadeAt as number | undefined) ?? 1e9);
+
+/**
+ * LOD dissolve (D-162): the instancer drops a small piece's whole chunk at its `lod` distance, which popped whole
+ * patches of grass, flowers, trees and bushes in and out as the camera moved. Fragments now dissolve over the last
+ * 18 % before it with an interleaved-gradient dither (keyed to the frame under temporal AA, which averages it into a
+ * smooth fade), measured like the instancer measures (from `U.eye`, height halved), so a chunk is gone before it is
+ * culled. Applies in the shadow pass too (its `cameraPosition` is the sun's, hence `U.eye`).
+ */
+const lodKeep = () => {
+  const e = U.eye;
+  const d = length(vec3(positionWorld.x.sub(e.x), e.y.mul(0.5), positionWorld.z.sub(e.z)));
+  const fade = smoothstep(fadeAt.mul(0.82), fadeAt, d);
+  const px = screenCoordinate.xy.add(U.frame.mul(5.588238));
+  const ign = fract(fract(px.x.mul(0.06711056).add(px.y.mul(0.00583715))).mul(52.9829189));
+  return ign.greaterThanEqual(fade);
+};
 
 function define(name: string, make: () => Material, opts: DefineOptions = {}): void {
   const m = make();
+  if (opts.fade && m instanceof MeshStandardNodeMaterial) m.maskNode = lodKeep();
   if (m instanceof MeshStandardNodeMaterial && opts.overlay !== 'none') {
     let base = (m.colorNode ?? materialColor) as Node<'vec3'>;
     if (opts.vitality) base = withVitality(base);
@@ -451,9 +478,9 @@ export function initMaterials(): void {
     m.normalNode = bumped(dapple.mul(0.025), fine);
     m.roughnessNode = float(0.75);
     return m;
-  }, { vitality: true });
+  }, { vitality: true, fade: true });
   // Broad-leaf clumps are open blades (D-127): both faces show.
-  define('bush', foliage(0.015, true), { vitality: true });
+  define('bush', foliage(0.015, true), { vitality: true, fade: true });
   // Palms (D-127): one mesh, parts tagged in uv.x (0 trunk, 1 frond, 2 nut). Fronds take the instance tint and the
   // foliage look; the trunk and nuts divide the tint out for their own colours. Only frond tips sway, gently.
   define('palm', () => {
@@ -478,11 +505,11 @@ export function initMaterials(): void {
     const glow = activityGlow();
     m.emissiveNode = mix(instanceColor, color(0x7ff7e6), 0.6).mul(iGlow.mul(0.2)).mul(leaf).mul(bioPulse()).mul(glow);
     return m;
-  }, { vitality: true });
-  define('grass', foliage(0.03, true, true), { vitality: true });
-  define('ivy', foliage(0.025, true), { vitality: true });
+  }, { vitality: true, fade: true });
+  define('grass', foliage(0.03, true, true), { vitality: true, fade: true });
+  define('ivy', foliage(0.025, true), { vitality: true, fade: true });
 
-  define('bark', () => new MeshStandardNodeMaterial({ roughness: 1, flatShading: true }));
+  define('bark', () => new MeshStandardNodeMaterial({ roughness: 1, flatShading: true }), { fade: true });
 
   // Pastel flowers: glow in their own colour at night (bioluminescent street lighting).
   // Flowers open with the bloom field: closed buds are green; open blooms take the instance
@@ -496,7 +523,7 @@ export function initMaterials(): void {
     // Flowers are a few pixels at street zoom: their glow fades below ~10 px or the gardens sparkle in motion (D-070).
     m.emissiveNode = instanceColor.mul(iGlow).mul(bioPulse()).mul(1.3).mul(open).mul(activityGlow()).mul(pieceCover(10));
     return m;
-  }, { vitality: true });
+  }, { vitality: true, fade: true });
 
   define('lily', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.5, flatShading: true });
@@ -505,7 +532,7 @@ export function initMaterials(): void {
     m.colorNode = mix(vec3(0.31, 0.6, 0.23).div(max(instanceColor, vec3(0.08))), vec3(1), petal);
     m.emissiveNode = instanceColor.mul(petal).mul(U.night).mul(0.8).mul(pieceCover());
     return m;
-  });
+  }, { fade: true });
 
   // Koi swim lazy circles around their instance origin.
   define('koi', () => {
@@ -515,7 +542,7 @@ export function initMaterials(): void {
     const spots = step(0.55, mx_noise_float(positionLocal.mul(30)));
     m.colorNode = mix(vec3(1), vec3(1.0, 0.98, 0.95).div(max(instanceColor, vec3(0.08))), spots);
     return m;
-  });
+  }, { fade: true });
 
   // Filtration channel: clear green-blue water with drifting ripples and a faint night glow.
   define('channel', () => {
@@ -533,7 +560,7 @@ export function initMaterials(): void {
     m.colorNode = mix(color(0xf6efe4), color(0xffffff), cap);
     m.emissiveNode = color(0x8ff3ff).mul(cap).mul(iGlow).mul(bioPulse()).mul(1.6).mul(activityGlow()).mul(pieceCover());
     return m;
-  }, { vitality: true });
+  }, { vitality: true, fade: true });
 
   // Solar petals: soft sage-to-mint photovoltaic cells with a pearl sheen and white busbars, so the crowns read as
   // light foliage beside the gardens (silicon blue, then teal-bronze, read too dark and busy against the greens).
@@ -651,7 +678,7 @@ export function initMaterials(): void {
       .mul(on)
       .mul(pieceCover(6));
     return m;
-  });
+  }, { fade: true });
 
   define('pool', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.04, metalness: 0.2 });
@@ -675,7 +702,7 @@ export function initMaterials(): void {
     m.emissiveNode = color(0x8ff8ec).mul(iGlow).mul(U.night.mul(0.6).add(0.1)).mul(pieceCover(px));
     return m;
   };
-  define('lumen', lumen(8));
+  define('lumen', lumen(8), { fade: true });
   define('lumenThin', lumen(80));
 
   // Commuter pod shell: pearl body with a glowing window band (instance glow brightens it at night).
@@ -685,7 +712,7 @@ export function initMaterials(): void {
     m.colorNode = mix(color(0xf6f8f4), color(0x2f6f78), band);
     m.emissiveNode = color(0x7ff7e6).mul(band).mul(iGlow.mul(U.night).mul(0.8).add(0.12));
     return m;
-  });
+  }, { fade: true });
 
   // Façade waterfall (retrofit courtyards): white-water streaks sliding down a teal sheet,
   // foam where it lands, and a soft cyan glow at night that follows street activity.
@@ -700,7 +727,7 @@ export function initMaterials(): void {
     m.colorNode = mix(color(0x5fc8d8), color(0xf2fdff), white);
     m.emissiveNode = color(0x7fe9ff).mul(white.mul(0.6).add(0.25)).mul(U.night).mul(0.7).mul(activityGlow());
     return m;
-  }, { overlay: 'plain' });
+  }, { overlay: 'plain', fade: true });
 
   // Living Highway (D-134): a carriageway of dark permeable eco-paving with moss gutters, lane edge lines and the
   // glowing pollen guideline toward connected neighbours; raised stone pavements along open sides (geometry in

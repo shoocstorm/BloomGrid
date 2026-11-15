@@ -9,33 +9,7 @@ import {
   Vector3,
   type Node,
 } from 'three/webgpu';
-import {
-  abs,
-  attribute,
-  cameraPosition,
-  color,
-  cos,
-  dot,
-  float,
-  fract,
-  fwidth,
-  length,
-  max,
-  min,
-  mix,
-  mrt,
-  normalGeometry,
-  normalize,
-  positionGeometry,
-  sign,
-  sin,
-  smoothstep,
-  step,
-  transformNormalToView,
-  vec2,
-  vec3,
-  vec4,
-} from 'three/tsl';
+import { abs, attribute, cameraPosition, color, cos, dot, float, fract, fwidth, length, max, min, mix, mrt, normalGeometry, normalize, positionGeometry, sign, sin, smoothstep, step, transformNormalToView, vec2, vec3, vec4 } from 'three/tsl';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { Building } from '@/ecs/components';
@@ -46,6 +20,7 @@ import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { DRONE_PART, droneGeometry } from './droneModel';
+import { bloomMRT } from '@/render/bloomMRT';
 
 /**
  * Police drones (D-137): the city's heavy patrol drone stands on its pad in the Harmony Gate's roof garden (rotors
@@ -221,7 +196,7 @@ export const policeModule: GameModule = {
       bm.opacityNode = op;
       // The bloom input blends like the colour (alpha = the beam's opacity): written opaque, it wiped out the night
       // glow of the water behind and the bay went dark under every beam.
-      bm.mrtNode = mrt({ emissive: vec4(0.05, 0.055, 0.06, op) }); // a faint share of the beam colour (0xdcefff)
+      bloomMRT(bm, mrt({ emissive: vec4(0.05, 0.055, 0.06, op) })); // a faint share of the beam colour (0xdcefff)
     }
     const beams = new InstancedMesh(beamGeo, bm, CAP);
     beams.count = 0;

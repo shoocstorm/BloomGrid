@@ -11,31 +11,7 @@ import {
   Sphere,
   Vector3,
 } from 'three/webgpu';
-import {
-  abs,
-  attribute,
-  cameraPosition,
-  color,
-  cross,
-  float,
-  fract,
-  fwidth,
-  length,
-  max,
-  min,
-  mix,
-  mrt,
-  normalize,
-  positionGeometry,
-  sin,
-  smoothstep,
-  step,
-  texture,
-  uniform,
-  uv,
-  vec3,
-  vec4,
-} from 'three/tsl';
+import { abs, attribute, cameraPosition, color, cross, float, fract, fwidth, length, max, min, mix, mrt, normalize, positionGeometry, sin, smoothstep, step, texture, uniform, uv, vec3, vec4 } from 'three/tsl';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { h } from '@/ui/dom';
@@ -44,6 +20,7 @@ import { registerPickable } from '@/modules/construction/pick';
 import { isOpen } from '@/sim/growthState';
 import { JET, JET_PART, jetGeometry, liveryTexture } from './jetModel';
 import { lapLength, patrolAt, patrolNode } from './flight';
+import { bloomMRT } from '@/render/bloomMRT';
 
 /**
  * The BloomGrid Sky Guard (D-141): a sci-fi delta-wing interceptor on three engines, in pearl, navy and sea-green
@@ -215,7 +192,7 @@ export const skyguardModule: GameModule = {
       );
       trailMat.colorNode = mix(color(0xf4f8fb), display, smokeOn);
       trailMat.opacityNode = op;
-      trailMat.mrtNode = mrt({ emissive: vec4(0, 0, 0, op) });
+      bloomMRT(trailMat, mrt({ emissive: vec4(0, 0, 0, op) }));
     }
     // The trails are drawn in the shader: their bounds are a ball round the jet as long as the trail (moved each frame).
     trailGeo.boundingSphere = new Sphere(new Vector3(), TRAIL + 8);

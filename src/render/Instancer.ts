@@ -195,6 +195,16 @@ class InstanceBatch {
     }
   }
 
+  /** Hysteresis state (D-162): whether the far model / shadow casting is on, so a camera near a limit can't flip it. */
+  farOn = false;
+  shadowOn = true;
+
+  /** Sets the distance at which the piece's dithered fade completes (D-162; read per object by the materials). */
+  setFadeAt(d: number): void {
+    this.mesh.userData.fadeAt = d;
+    if (this.farMesh) this.farMesh.userData.fadeAt = d;
+  }
+
   setCastShadow(on: boolean): void {
     this.mesh.castShadow = on;
     if (this.farMesh) this.farMesh.castShadow = on;
@@ -549,10 +559,15 @@ export class ChunkedInstancer {
     const sf = this.shadowFocus;
     for (const b of this.batches.values()) {
       b.flush();
+      // Every switch below has a hysteresis band (D-162): without one, a camera resting or easing near a limit
+      // flipped a whole chunk's model, visibility or shadows back and forth, and the city blinked.
       if (b.piece.castShadow) {
         const sx = Math.max(0, Math.abs(sf.x - (b.cx * this.chunkSize + half)) - half);
         const sz = Math.max(0, Math.abs(sf.z - (b.cz * this.chunkSize + half)) - half);
-        b.setCastShadow(Math.hypot(sx, sz) < this.shadowRadius);
+        const ds = Math.hypot(sx, sz);
+        const r = this.shadowRadius;
+        if (b.shadowOn ? ds > r * 1.1 : ds < r) b.shadowOn = !b.shadowOn;
+        b.setCastShadow(b.shadowOn);
       }
       if (b.piece.lod !== Infinity) {
         _v.set(b.cx * this.chunkSize + half, 0, b.cz * this.chunkSize + half);
@@ -560,7 +575,15 @@ export class ChunkedInstancer {
         const dz = Math.max(0, Math.abs(cam.z - _v.z) - half);
         const d = Math.hypot(dx, dz, cam.y * 0.5);
         const far = b.piece.far;
-        b.show(b.count > 0 && d < b.piece.lod * this.lodScale, !!far && d >= far.at * this.lodScale);
+        if (far) {
+          const at = far.at * this.lodScale;
+          if (b.farOn ? d < at * 0.94 : d >= at) b.farOn = !b.farOn;
+        }
+        // The cull needs no band: the materials dissolve the piece over the last stretch before `lod` (fragments
+        // are never nearer than the chunk's nearest point), so it is invisible by the time its chunk is dropped.
+        const lod = b.piece.lod * this.lodScale;
+        b.setFadeAt(lod);
+        b.show(b.count > 0 && d < lod, b.farOn);
       } else {
         b.show(b.count > 0, false);
       }

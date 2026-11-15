@@ -19,6 +19,7 @@ import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { AURORA } from '@/content/buildings/aurora-gemini';
 import { placeBuilding } from '@/modules/construction/BuildingRenderer';
+import { bloomMRT } from '@/render/bloomMRT';
 
 /**
  * The Aurora Gemini's light-work (D-135). Golden searchlights sweep the sky from both crowns after dark, and the steward can put on a light show from the inspector: the beams speed up, fan out
@@ -97,7 +98,7 @@ export const auroraModule: GameModule = {
       const col = mix(beamCol.mul(beamA).mul(beamI), curtainCol.mul(curtainA), kind);
       mat.colorNode = col;
       mat.opacityNode = max(col.x, max(col.y, col.z)).min(1);
-      mat.mrtNode = mrt({ emissive: col.mul(0.6) });
+      bloomMRT(mat, mrt({ emissive: col.mul(0.6) }));
     }
 
     const mesh = new Mesh(undefined, mat);

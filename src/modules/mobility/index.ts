@@ -11,39 +11,7 @@ import {
   TorusGeometry,
   Vector3,
 } from 'three/webgpu';
-import {
-  abs,
-  attribute,
-  cameraPosition,
-  clamp,
-  color,
-  cos,
-  dot,
-  float,
-  floor,
-  fract,
-  fwidth,
-  length,
-  max,
-  min,
-  mix,
-  mrt,
-  normalGeometry,
-  normalize,
-  positionGeometry,
-  positionView,
-  positionWorld,
-  reflect,
-  sin,
-  smoothstep,
-  step,
-  time,
-  transformNormalToView,
-  uniform,
-  uv,
-  vec2,
-  vec3,
-} from 'three/tsl';
+import { abs, attribute, cameraPosition, clamp, color, cos, dot, float, floor, fract, fwidth, length, max, min, mix, mrt, normalGeometry, normalize, positionGeometry, positionView, positionWorld, reflect, sin, smoothstep, step, time, transformNormalToView, uniform, uv, vec2, vec3 } from 'three/tsl';
 import type { Node } from 'three/webgpu';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { GameModule } from '@/game/context';
@@ -58,6 +26,8 @@ import { heightAt, placeBuilding } from '@/modules/construction/BuildingRenderer
 import { podGeometry } from './podModel';
 import { CAR_HOVER, CAR_MIX, CAR_PART, CAR_TYPE, carGeometry } from './carModel';
 import { arcProfile, arcProfileNode, arcY, orientNode, podInfo as packPodInfo, podPathAt, podPathNode } from './skypath';
+import { within } from '@/render/hysteresis';
+import { bloomMRT } from '@/render/bloomMRT';
 
 /** Ride-a-pod camera hook (explore mode): pose of pod i at a clock, mirroring the pod shader. */
 export interface SkylanesService {
@@ -263,7 +233,7 @@ export const mobilityModule: GameModule = {
       const glow = col.mul(max(lum, 0)).mul(U.night.mul(0.9).add(0.35));
       // A little city light on the hull at night, so pods don't turn into silhouettes.
       pm.colorNode = mix(lit.add(col.mul(U.night.mul(0.12))), pane, glass).add(cabin).add(glow);
-      pm.mrtNode = mrt({ emissive: glow.mul(0.6).add(cabin.mul(0.4)) });
+      bloomMRT(pm, mrt({ emissive: glow.mul(0.6).add(cabin.mul(0.4)) }));
     }
     const pods = new InstancedMesh(podGeo, pm, PODS);
     pods.count = 0;
@@ -378,7 +348,7 @@ export const mobilityModule: GameModule = {
       const cover = min(float(1), float(0.04).mul(size).div(max(length(fwidth(positionWorld)), float(1e-5))));
       gm.colorNode = tint.mul(pulse.mul(0.5).add(0.85)).mul(n.mul(0.5).add(1));
       gm.opacityNode = pulse.mul(0.25).add(0.6).mul(cover).mul(mix(float(0.75), float(1), isTrunk)).mul(n.mul(0.45).add(0.55));
-      gm.mrtNode = mrt({ emissive: tint.mul(pulse.mul(0.6).add(0.3)).mul(n.mul(0.9).add(0.1)).mul(cover) });
+      bloomMRT(gm, mrt({ emissive: tint.mul(pulse.mul(0.6).add(0.3)).mul(n.mul(0.9).add(0.1)).mul(cover) }));
     }
     const gates = new InstancedMesh(gateGeo, gm, LANES);
     gates.count = 0;
@@ -419,7 +389,7 @@ export const mobilityModule: GameModule = {
       const tint = mix(day, night, U.night);
       rm.colorNode = tint.mul(dash.mul(0.6).add(0.9)).mul(U.night.mul(0.5).add(1));
       rm.opacityNode = dash.mul(0.45).add(0.5);
-      rm.mrtNode = mrt({ emissive: tint.mul(dash.mul(0.5).add(0.3)).mul(U.night.mul(0.9).add(0.1)) });
+      bloomMRT(rm, mrt({ emissive: tint.mul(dash.mul(0.5).add(0.3)).mul(U.night.mul(0.9).add(0.1)) }));
     }
     const rings = new InstancedMesh(ringGeo, rm, RINGS);
     rings.count = 0;
@@ -813,6 +783,7 @@ export const mobilityModule: GameModule = {
     // whatever exists now (D-007).
     rebuild();
 
+    let agentsNear = false;
     ctx.systems.add({
       id: 'mobility.visuals',
       phase: 'sync',
@@ -825,7 +796,8 @@ export const mobilityModule: GameModule = {
         density.value = 1 - 0.65 * U.night.value;
         // Explore modes put the camera among the lanes: no thickening there.
         zoom.value = c.cameraCtl.enabled ? Math.max(1, Math.min(5, c.cameraCtl.distance / 55)) : 1;
-        agents.visible = agents.count > 0 && c.cameraCtl.distance < 240;
+        agentsNear = within(agentsNear, c.cameraCtl.distance, 240);
+        agents.visible = agents.count > 0 && agentsNear;
         pods.visible = pods.count > 0;
         lanes.visible = gates.visible = lanes.count > 0;
         rings.visible = rings.count > 0;

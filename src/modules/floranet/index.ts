@@ -11,6 +11,7 @@ import { abs, attribute, clamp, color, cos, float, fract, max, mix, positionGeom
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { hash2 } from '@/sim/random';
+import { within } from '@/render/hysteresis';
 
 const DRONES = 1040;
 const BURSTS = 8;
@@ -158,13 +159,15 @@ export const floranetModule: GameModule = {
     });
     rebuild();
 
+    let dronesNear = false;
     ctx.systems.add({
       id: 'floranet.visuals',
       phase: 'sync',
       order: 8,
       update(c, f) {
         now.value += f.dt;
-        drones.visible = drones.count > 0 && c.cameraCtl.distance < 200;
+        dronesNear = within(dronesNear, c.cameraCtl.distance, 200);
+        drones.visible = drones.count > 0 && dronesNear;
         mist.visible = now.value - lastBurst < MIST_SECONDS + 0.2;
       },
     });

@@ -10,19 +10,7 @@ import {
   Vector3,
 } from 'three/webgpu';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import {
-  attribute,
-  color,
-  float,
-  mix,
-  mrt,
-  normalGeometry,
-  positionGeometry,
-  sin,
-  smoothstep,
-  uv,
-  vec3,
-} from 'three/tsl';
+import { attribute, color, float, mix, mrt, normalGeometry, positionGeometry, sin, smoothstep, uv, vec3 } from 'three/tsl';
 import { getMaterial } from '@/render/materials/library';
 import { hash2 } from '@/sim/random';
 import { U } from '@/render/uniforms';
@@ -31,6 +19,7 @@ import { orbit } from './SkyLife';
 import { WONDER_SITES } from './sites';
 import { dome, LANTERN_Y, lighthouse, lotus, stacks, tideGates } from './wonderModels';
 import type { Kit } from './wonderKit';
+import { bloomMRT } from '@/render/bloomMRT';
 
 const LUMEN = 0x8ff7ff;
 const BALL = new SphereGeometry(1, 16, 10);
@@ -187,7 +176,7 @@ export class SeaWonders {
     const col = attribute('color', 'vec3');
     const glow = col.mul(attribute('aGlow', 'float')).mul(U.night.mul(0.9).add(0.04));
     m.colorNode = skyShade(col, rot(normalGeometry)).add(glow);
-    m.mrtNode = mrt({ emissive: glow.mul(0.7) });
+    bloomMRT(m, mrt({ emissive: glow.mul(0.7) }));
     const mesh = new Mesh(geo, m);
     geo.boundingSphere = new Sphere(new Vector3(x, 0, z), 48);
     mesh.name = 'whales';

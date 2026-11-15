@@ -2949,3 +2949,41 @@ resolve). Draws +2 (velocity and resolve passes); idle main thread 18 % (unchang
 - **three's `velocity` MRT:** vertex-buffer limit on the pod mesh, per-frame matrix copies of every batch.
 - **More shader fades for each pattern:** they cannot reach geometry thinner than a pixel, which was most of it.
 - **Keeping MSAA under TAA:** TRAA requires it off; doing both costs the MSAA without improving the result.
+
+## D-162: No switch flips near its limit: LOD dissolve, hysteresis bands, shadow extent levels
+
+**Context.** After TAA (D-161) a search for the same class of problem (something visibly changing while the camera
+moves) found discrete switches with no band: the instancer culled a whole chunk of grass, flowers, trees or bushes
+at its `lod` and swapped the far model at `far.at`, and per-chunk shadow casting toggled at `shadowRadius`; walkers
+(detail figure at 45, shown within 110), hover-cars (240), Drone Hive drones (200) and building signs switched on bare
+`d < N` tests; the world module halved the shadow caster radius at a zoom of 180; and the shadow frustum followed the
+zoom in 4-unit steps, re-rasterising every shadow some twenty times from street to island view.
+
+**Decision.**
+- **Dissolve before the cull:** materials of pieces with a finite `lod` (`fade: true` in `define`: canopy, bush,
+  palm, grass, ivy, bark, flower, lily, koi, fungus, screen, pod, waterfall, lumen) discard fragments over the last
+  18 % before it with an interleaved-gradient dither keyed to `U.frame` (TAA averages it into a smooth fade). The
+  distance is per object (`uniform().onObjectUpdate` reading `userData.fadeAt`, which the instancer sets per batch) and
+  measured like the cull (from `U.eye`, height halved; fragments are never nearer than their chunk's nearest point),
+  so a chunk is invisible when it is dropped. Shadows dissolve with it (`maskNode` applies to the shadow pass; `U.eye`
+  because the shadow pass's camera is the sun). The inspector preview swaps `U.eye` for its camera while it draws.
+- **Bands:** `within(prev, d, limit, 0.08)` (`render/hysteresis.ts`) for walkers, cars, drones, signs and the
+  overview shadow radius; far-model swap back at 94 % of `far.at`; shadow casting off at 110 % of the radius.
+- **Shadow extent levels:** 25 / 34 / 46 / 62 / 84 / 110, up as soon as the view needs more, down only below 60 %.
+
+- **Found on the way (Low quality):** nine materials set `mrtNode = mrt({ emissive })` for their share of the bloom
+  target (sky-lanes, gates, hub rings, aurora, police beams, ferry wake, jet trails, whales, sky life). Low renders
+  without the bloom pipeline, through three's framebuffer target, whose texture is not named `output`: no MRT output
+  matched an attachment, WGSL got an empty output struct, and those objects were never drawn on Low (9 pipeline
+  errors at boot since they were added). They register through `bloomMRT` now; `PostFX.configure` attaches the MRTs
+  only while bloom runs. Low boots with no errors.
+
+**Measured** (headless, High). Flicker (whole scene, 20 / 35 / 70 / 140 / 260): day 0.036 / 0.040 / 0.013 / 0.012 /
+0.005, night ≤ 0.003 (as after D-161). GPU ms per frame with the dissolve 4.9–6.7 vs 4.9–10.0 without (noise); draws
+304 (unchanged).
+
+**Rejected.**
+- **Shrinking pieces to their base instead of discarding:** the instance pivot isn't available in the shader after
+  instancing, and a per-instance attribute would breach the pod mesh's vertex-buffer limit.
+- **A cross-fade between the near and far models:** both would draw in the band (more draws and vertices); the
+  bands keep the swap to one change per approach.

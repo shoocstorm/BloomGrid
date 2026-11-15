@@ -34,6 +34,7 @@ import { Fish } from './fish';
 import { Rabbits } from './rabbits';
 import { Birds } from './birds';
 import { figureGeometry, poseFigure } from './figure';
+import { within } from '@/render/hysteresis';
 
 /** Instanced batches stay above the 1024-instance UBO path (AGENTS.md §8). */
 const CAP = 4096;
@@ -307,6 +308,8 @@ export const walkersModule: GameModule = {
     });
     rebuild();
 
+    let detail = false;
+    let seen = false;
     ctx.systems.add({
       id: 'walkers.visuals',
       phase: 'sync',
@@ -325,8 +328,10 @@ export const walkersModule: GameModule = {
         // Fewer people out in the small hours; explore modes always see them (the camera is in the street).
         shown.value = 1 - 0.7 * U.lateNight.value;
         const d = c.cameraCtl.distance;
-        mesh.visible = mesh.count > 0 && (explore || d < NEAR_DETAIL);
-        far.visible = far.count > 0 && !explore && d >= NEAR_DETAIL && d < SHOW_WITHIN;
+        detail = within(detail, d, NEAR_DETAIL);
+        seen = within(seen, d, SHOW_WITHIN);
+        mesh.visible = mesh.count > 0 && (explore || detail);
+        far.visible = far.count > 0 && !explore && !detail && seen;
         for (const w of wildlife) w.mesh.visible = explore && w.mesh.count > 0;
       },
     });

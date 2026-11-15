@@ -17,6 +17,7 @@ import type { Node } from 'three/webgpu';
 import { hash2 } from '@/sim/random';
 import { U } from '@/render/uniforms';
 import { GeoBuilder, skyShade, tf } from '@/render/bake';
+import { bloomMRT } from '@/render/bloomMRT';
 
 const PETALS = [0xffb7d5, 0xffe08a, 0xc9b6ff, 0x9ff0d8, 0xffc59a] as const;
 
@@ -69,7 +70,7 @@ export class SkyLife {
     const col = attribute('color', 'vec3');
     const glow = col.mul(attribute('aGlow', 'float')).mul(U.night.mul(0.8).add(0.05));
     m.colorNode = skyShade(col, rot(normalGeometry)).add(glow);
-    m.mrtNode = mrt({ emissive: glow.mul(0.6) });
+    bloomMRT(m, mrt({ emissive: glow.mul(0.6) }));
     this.mesh = new Mesh(geo, m);
     this.mesh.frustumCulled = false;
     this.mesh.name = 'sky-life';

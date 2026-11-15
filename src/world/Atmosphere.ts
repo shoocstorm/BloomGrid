@@ -67,7 +67,8 @@ export class Atmosphere {
   bloomGain = 1;
   private sunDir = new Vector3();
   /** Half-size of the shadow frustum; casters beyond it are culled from the shadow pass. */
-  shadowExtent = 60;
+  /** 0 until the first `follow` picks a level (and configures the shadow camera). */
+  shadowExtent = 0;
   sunElevation = 1;
 
   constructor(private scene: Scene) {
@@ -190,9 +191,14 @@ export class Atmosphere {
    */
   follow(cameraPos: Vector3, target: Vector3, distance: number, dt = 0): void {
     this.sky.position.copy(cameraPos);
-    // Capped: at overview zoom, distant shadows are sub-pixel but cost a draw call per batch.
-    const ext = Math.min(110, Math.max(25, distance * 0.9));
-    if (Math.abs(ext - this.shadowExtent) > 4) {
+    // Capped: at overview zoom, distant shadows are sub-pixel but cost a draw call per batch. The extent sets the
+    // shadow texel size, and every change re-rasterises every shadow (their edges jump): it moves between a few
+    // levels only, up as soon as the view needs more, down only once it needs clearly less (D-162). It used to follow
+    // the zoom in 4-unit steps, some twenty jumps from street to island.
+    const want = Math.min(110, Math.max(25, distance * 0.9));
+    const cur = this.shadowExtent;
+    const ext = want > cur ? (SHADOW_LEVELS.find((l) => l >= want) ?? 110) : want < cur * 0.6 ? (SHADOW_LEVELS.find((l) => l >= want / 0.8) ?? 110) : cur;
+    if (ext !== cur) {
       this.shadowExtent = ext;
       this.shadowDirty = true;
       const cam = this.sun.shadow.camera;
@@ -234,6 +240,8 @@ export class Atmosphere {
   }
 }
 
+/** Shadow frustum half-sizes the view steps between (D-162). */
+const SHADOW_LEVELS = [25, 34, 46, 62, 84, 110];
 const _up = new Vector3(0, 1, 0);
 const _right = new Vector3();
 const _lup = new Vector3();

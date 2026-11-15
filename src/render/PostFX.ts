@@ -5,6 +5,7 @@ import { fxaa } from 'three/examples/jsm/tsl/display/FXAANode.js';
 import { traa } from 'three/examples/jsm/tsl/display/TRAANode.js';
 import type { QualitySettings } from './Quality';
 import { grade } from './grade';
+import { setBloomMRT } from './bloomMRT';
 import { U } from './uniforms';
 
 /**
@@ -43,6 +44,8 @@ export class PostFX {
     this.pipeline?.dispose();
     this.pipeline = null;
     this.taa = false;
+    // Materials' own bloom outputs need the scene pass's emissive target (see bloomMRT.ts).
+    setBloomMRT(q.bloom);
     if (!q.bloom) return;
     this.taa = q.taa;
     const scenePass = pass(this.scene, this.camera, { samples: q.taa ? 0 : q.msaa });
@@ -106,7 +109,11 @@ export class PostFX {
       this.renderer.render(this.scene, this.camera);
       return;
     }
-    if (this.taa) this.syncMatrices();
+    if (this.taa) {
+      this.syncMatrices();
+      // Moves dither patterns (LOD dissolve) each frame so TAA averages them into a smooth fade (D-162).
+      U.frame.value = (U.frame.value + 1) % 64;
+    }
     this.pipeline.render();
     if (this.taa) this.prevViewProj.value.multiplyMatrices(this.proj.value, (this.camera as PerspectiveCamera).matrixWorldInverse);
   }

@@ -93,6 +93,7 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Building                 | `src/content/buildings/<id>.ts` with `defineBuilding`                                                             |
 | Kit piece / material     | `registerPiece` (`assets/kit/pieces.ts`), `define` (`render/materials/library.ts`)                                |
 | Anti-aliasing            | TRAA + depth-reprojected camera velocity in `render/PostFX.ts` (`taa` quality flag, D-161)                       |
+| Distance switches        | `within` (`render/hysteresis.ts`); LOD dissolve `fade` in `define` + instancer `fadeAt` (D-162)                   |
 | Surface relief / rooms   | `bumped`, `reliefFade`, `roomInterior` (`render/materials/surface.ts`, D-160)                                       |
 | Generic roof detail      | `roofDetail` (`modules/construction/roofDetail.ts`), applied in `buildingTemplate` (D-160)                          |
 | Sim system               | `System` with `phase: 'sim'` in the module that owns it; pure TS                                                  |

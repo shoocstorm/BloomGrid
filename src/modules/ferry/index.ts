@@ -12,34 +12,7 @@ import {
   SRGBColorSpace,
   Vector3,
 } from 'three/webgpu';
-import {
-  abs,
-  atan,
-  attribute,
-  color,
-  cos,
-  float,
-  floor,
-  fract,
-  fwidth,
-  length,
-  max,
-  min,
-  mix,
-  mrt,
-  normalGeometry,
-  positionGeometry,
-  sign,
-  sin,
-  smoothstep,
-  step,
-  texture,
-  uniform,
-  uv,
-  vec2,
-  vec3,
-  vec4,
-} from 'three/tsl';
+import { abs, atan, attribute, color, cos, float, floor, fract, fwidth, length, max, min, mix, mrt, normalGeometry, positionGeometry, sign, sin, smoothstep, step, texture, uniform, uv, vec2, vec3, vec4 } from 'three/tsl';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { h } from '@/ui/dom';
@@ -63,6 +36,7 @@ import {
   type Pier,
   type SeaMap,
 } from './route';
+import { bloomMRT } from '@/render/bloomMRT';
 
 /**
  * The cruise ferry *Tidesong* (D-141): a multi-deck solar-sail cruise ferry that runs a timetable from Tidesong Pier
@@ -388,7 +362,7 @@ export const ferryModule: GameModule = {
         .min(1);
       wakeMat.colorNode = color(0xeefcfa);
       wakeMat.opacityNode = op;
-      wakeMat.mrtNode = mrt({ emissive: vec4(0, 0, 0, op) });
+      bloomMRT(wakeMat, mrt({ emissive: vec4(0, 0, 0, op) }));
     }
     const wakeMesh = new Mesh(wakeGeo, wakeMat);
     wakeMesh.name = 'ferry.wake';

@@ -68,6 +68,13 @@ export const U = {
   fogColor: uniform(new Color(0xcfeaff)),
   fogNear: uniform(180),
   fogFar: uniform(900),
+  /**
+   * The viewer's eye (the city or explore camera), for effects that must measure from it in every pass: the shadow
+   * pass renders from the sun, so `cameraPosition` there is the light's (D-162).
+   */
+  eye: uniform(new Vector3()),
+  /** Frame counter (0..63) that moves dither patterns each frame under temporal AA, so they average out (D-162). */
+  frame: uniform(0),
   /** Strength of drifting cloud shadows on lit surfaces (0 at night, ≤ 0.15 by day). */
   cloudShadow: uniform(0.12),
 };

@@ -211,6 +211,7 @@ export async function createGame(
     phase: 'render',
     update(c, f) {
       if (dynRes.update(f.dt, power.targetFps())) applySize();
+      U.eye.value.copy(c.camera.position);
       postfx.render();
       c.input.endFrame();
       // Optional GPU timing (?gputime). three reports the *total* GPU time of all frames since

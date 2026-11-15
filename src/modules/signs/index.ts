@@ -5,6 +5,7 @@ import { U } from '@/render/uniforms';
 import { Building } from '@/ecs/components';
 import { buildingId } from '@/sim/inventory';
 import { placeBuilding, signSpots } from '@/modules/construction/BuildingRenderer';
+import { within } from '@/render/hysteresis';
 
 /**
  * Building signs (D-133): every building carries its name and readable id where people look for them. Lit name
@@ -212,13 +213,14 @@ export const signsModule: GameModule = {
     ctx.bus.on('terrain:changed', stale);
     ctx.bus.on('city:reset', stale);
 
+    let near = false;
     ctx.systems.add({
       id: 'signs.visuals',
       phase: 'sync',
       order: 9,
       update(c) {
         const explore = !c.cameraCtl.enabled;
-        const near = explore || c.cameraCtl.distance < SHOW_WITHIN;
+        near = explore || within(near, c.cameraCtl.distance, SHOW_WITHIN);
         if (dirty && near && !ctx.loading) rebuild();
         mesh.visible = near && mesh.count > 0;
       },

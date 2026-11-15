@@ -8,6 +8,7 @@ import { DAY_LENGTH, chunkSizeFor } from '@/sim/City';
 import { Building } from '@/ecs/components';
 import { buildings } from '@/content';
 import { U } from '@/render/uniforms';
+import { within } from '@/render/hysteresis';
 
 export interface WorldService {
   atmosphere: Atmosphere;
@@ -109,6 +110,7 @@ export const worldModule: GameModule = {
 
     ctx.services.provide('world', service);
 
+    let overview = false;
     ctx.systems.add({
       id: 'world.atmosphere',
       phase: 'sync',
@@ -122,7 +124,8 @@ export const worldModule: GameModule = {
         atmosphere.follow(c.camera.position, c.cameraCtl.target, c.cameraCtl.distance, f.dt);
         c.instancer.shadowFocus.copy(c.cameraCtl.target);
         // Zoomed far out, distant shadows are sub-pixel: only the area around the focus casts them.
-        c.instancer.shadowRadius = atmosphere.shadowExtent * (c.cameraCtl.distance > 180 ? 0.45 : 1.1);
+        overview = !within(!overview, c.cameraCtl.distance, 180);
+        c.instancer.shadowRadius = atmosphere.shadowExtent * (overview ? 0.45 : 1.1);
       },
     });
   },

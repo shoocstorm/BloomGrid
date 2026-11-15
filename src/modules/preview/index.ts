@@ -19,6 +19,7 @@ import { color, float, length, mix, positionLocal, smoothstep, uv, abs, fract } 
 import type { GameContext, GameModule } from '@/game/context';
 import { getPiece, pieceIds } from '@/assets/kit/pieces';
 import { ChunkedInstancer } from '@/render/Instancer';
+import { U } from '@/render/uniforms';
 import { buildings } from '@/content';
 
 export interface PreviewService {
@@ -42,6 +43,7 @@ const SPIN = 0.22;
 const _box = new Box3();
 const _pbox = new Box3();
 const _size = new Vector3();
+const _eye = new Vector3();
 const _v = new Vector2();
 const _origin = new Matrix4();
 const _white = new Color(1, 1, 1);
@@ -299,7 +301,11 @@ class Preview {
     renderer.setScissor(x0 - canvas.left, y0 - canvas.top, x1 - x0, y1 - y0);
     renderer.setScissorTest(true);
     renderer.clearDepth();
+    // Distance fades measure from `U.eye` (D-162): the preview's own camera while it draws, then the city's again.
+    _eye.copy(U.eye.value);
+    U.eye.value.copy(this.camera.position);
     renderer.render(this.scene, this.camera);
+    U.eye.value.copy(_eye);
     renderer.setScissorTest(false);
     renderer.getSize(_v);
     renderer.setViewport(0, 0, _v.x, _v.y);
