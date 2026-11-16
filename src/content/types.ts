@@ -274,6 +274,8 @@ export interface ScenarioBuilder {
   /** Fills free road-adjacent land in a rectangle using weighted building picks. Returns count. */
   fill(x0: number, z0: number, x1: number, z1: number, weights: Record<string, number>, density?: number, limit?: number): number;
   isLand(x: number, z: number): boolean;
+  /** True when no building stands on any tile of the rectangle (inclusive; tiles off the map count as free). */
+  noBuilding(x0: number, z0: number, x1: number, z1: number): boolean;
   /** Ground height at tile corner (x, z). */
   height(x: number, z: number): number;
   /** A building's footprint [w, d] in tiles at rotation `rot`. */

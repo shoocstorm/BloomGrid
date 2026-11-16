@@ -5,6 +5,12 @@
   // A clean plate: hide the HUD and Flora's orb for the capture.
   document.getElementById('hud')?.setAttribute('style', 'display:none');
   document.querySelector('.ai-fab')?.setAttribute('style', 'display:none');
+  // No city moment in the plate: hold the queue (as the New Chapter dialog does), skip one that is playing (it dims
+  // the scene itself, not only the DOM) and wait for it to clear.
+  document.body.classList.add('chapter-open');
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  for (let i = 0; i < 40 && (document.querySelector('.fa-stage') || document.body.classList.contains('moment-on')); i++)
+    await new Promise((r) => setTimeout(r, 100));
   const cam = g.cameraCtl;
   const od = cam.overviewDistance;
   cam.lookAt(256, 268, od * 1.18, true);

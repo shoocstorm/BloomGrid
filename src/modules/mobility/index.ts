@@ -690,7 +690,7 @@ export const mobilityModule: GameModule = {
         const yj = hk === undefined ? landingY(r.ax, r.az, r.bx, r.bz) : landingY(hubs[hk]!.x, hubs[hk]!.z, r.bx, r.bz);
         if (hk === undefined) {
           lane(r.ax, r.az, ya, r.bx, r.bz, yj, LANE_DIRECT);
-          const k = Math.max(1, Math.min(6, Math.round(r.riders / 60)));
+          const k = Math.max(1, Math.min(4, Math.round(r.riders / 100)));
           for (let i = 0; i < k; i++)
             pod([r.ax, r.az], [r.bx, r.bz], NO_VIA, ya, yj, i / k + hash2(Math.floor(r.ax), Math.floor(r.az), i) * 0.1, 1);
           continue;
@@ -706,7 +706,7 @@ export const mobilityModule: GameModule = {
         const mates = stationsOf[hk]!;
         const near = nbrs[hk]!;
         const trains = railOf[hk]!;
-        const k = Math.max(1, Math.min(4, Math.round(r.riders / 70)));
+        const k = Math.max(1, Math.min(3, Math.round(r.riders / 110)));
         for (let i = 0; i < k; i++) {
           const seed = i / k + hash2(Math.floor(r.ax), Math.floor(r.az), i) * 0.1;
           const pick = (i + Math.floor(r.ax + r.az)) % 4;

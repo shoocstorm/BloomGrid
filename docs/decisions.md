@@ -3022,3 +3022,24 @@ are removed (gigabytes at 4K); `--keep-frames` keeps them for inspection.
 - **Measured** (headless, High, founding city): draws +5 near the new wonders, unchanged at island zoom; panning
   main thread 25–29% / GPU 4.4–5.0 ms vs the HEAD baseline's 25–28% / 4.4–4.8 ms; idle 17.5% vs 18.9%. Boot
   modules ≈575 ms vs ≈546 ms. Vertices: whales 49k, dolphins 35k, turtle 28k, colonnade 64k, geode 33k.
+
+## D-165 — A calmer showcase: half the pod docks, spaced solar spires, fewer pods and walkers (2026-11-16)
+
+- **Problem:** the founding city felt crowded: 300 pod docks (in the Civic Ring 24 of 36 buildings, in The Exchange
+  18 of 29), 424 sky pods on 384 lane ribbons, ≈1 900 walkers in a close view, and the Sunfield's 214 solar
+  spires shoulder to shoulder (every one touching neighbours on two sides, 104 on three).
+- **Decision:**
+  - *Docks* (`founding-city.ts`): two per block in the inner rings (was four), one elsewhere (was two in the middle
+    rings), one per built hero block (was two). Docks 300 → 165; pod riders unchanged (≈26k), flow 0.98.
+    One per block on alternate outer blocks was tried and rejected: flow fell to 0.94 for 14 fewer docks.
+  - *Sunfield*: service lanes every 6 tiles (was 5) and spires placed only with a free tile all round
+    (`spaced`, using the builder's new `noBuilding(rect)`), two rows per strip. The ≈2 300 power that cost comes
+    from more sea-breeze turbines along the shore roads (`WIND_TURBINES` 110 → 170, already a rotor gap apart).
+  - *Pods per route* (`modules/mobility`): a dock's own lane `riders / 100`, at most 4 (was / 60, 6); through a
+    hub `/ 110`, at most 3 (was / 70, 4). Pods 424 → 262, lanes 384 → 240.
+  - *Walkers*: `PER_TILE` 0.85 (was 1.4); ≈1 900 → ≈1 300 in the same view.
+- **Measured** (seed 20261024, settled 400 ticks): mobility tier 0, flow 0.957 (was 1.0), unemployment 0, power
+  16 922 / 15 487 (margin +1 435, was +1 254), net budget +64/s. 2 472 buildings (was 2 528), 150 spires, 170
+  turbines.
+- `tests/explore.test.ts`'s front-steps case now picks a Work Dome whose door faces a street (the first match had
+  become one facing a neighbour).

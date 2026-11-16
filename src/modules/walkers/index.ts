@@ -38,8 +38,8 @@ import { within } from '@/render/hysteresis';
 
 /** Instanced batches stay above the 1024-instance UBO path (AGENTS.md §8). */
 const CAP = 4096;
-/** Walkers per tile of pavement at full activity. */
-const PER_TILE = 1.4;
+/** Walkers per tile of pavement at full activity (was 1.4: streets read as crowds, D-165). */
+const PER_TILE = 0.85;
 /** Figure scale: a person stands ≈0.3 tiles, the explore avatar's height (D-124). */
 const FIG = 1.4;
 /** Longest straight stretch a walker strolls before fading out (tiles). */

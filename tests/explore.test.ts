@@ -90,7 +90,9 @@ describe('explore collider', () => {
     const eid = s.city.buildingEntities().find((e) => {
       const d = s.city.buildingDef(e);
       const r = s.city.buildingRecord(e);
-      return d.id === 'greenhouse-hub' && r.rot === 0 && doorSteps(g, d, placeBuilding(g, d, r.x, r.z, r.rot)).length > 4;
+      // Its door faces a street (not a neighbour's wall) and stands well above it.
+      const street = g.road[g.index(r.x + 1, r.z + d.footprint[1])]! > 0;
+      return d.id === 'greenhouse-hub' && r.rot === 0 && street && doorSteps(g, d, placeBuilding(g, d, r.x, r.z, r.rot)).length > 4;
     })!;
     expect(eid).toBeDefined();
     const rec = s.city.buildingRecord(eid);

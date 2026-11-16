@@ -210,7 +210,7 @@ const TOWNS: Town[] = [
 const subZoneAt = (t: Town, i: number, j: number) =>
   t.zones?.find(({ blocks: [i0, j0, i1, j1] }) => i >= i0 && i <= i1 && j >= j0 && j <= j1);
 /** The Sunfield solar farm, north-west of Westbrook (its south street is Westbrook's north street), two block rows deep (D-155). */
-const UTILITY: Town[] = [{ name: 'Sunfield', blocks: [-9, -3, -7, -2], mix: () => [{}, 0], parks: 0, lanes: 5, zone: 'utility' }];
+const UTILITY: Town[] = [{ name: 'Sunfield', blocks: [-9, -3, -7, -2], mix: () => [{}, 0], parks: 0, lanes: 6, zone: 'utility' }];
 
 /** Steepest step between neighbouring blocks' terraces: streets refuse tiles that climb more than 0.9. */
 const TERRACE_STEP = 0.8;
@@ -440,9 +440,9 @@ export default defineScenario({
     // Pod Docks on every living block: a home's road commuters travel in one stream to the nearest workplace,
     // and with jobs zoned away from homes those streams would jam the streets between, so most fly instead.
     // Work, industry, venue and sport blocks need none (docks lift commuters from homes). A dock reaches 12
-    // tiles, so they stand mid-side (D-155): on every side of the dense inner blocks (level-3 towers house
-    // well over one dock's riders), north and south in the middle rings, north at the edge; a home more than
-    // a dock's reach from every dock walks, and a block of towers walking is the stream that jams a street.
+    // tiles, so they stand mid-side (D-155): north and south of the dense inner blocks, north elsewhere
+    // (D-165: twice that was a dock on every street, and the sky a tangle of lanes); a home beyond every dock's
+    // reach walks, and a block of towers walking is the stream that jams a street.
     const dockSides = (i: number, j: number, sides: string) => {
       const [x0, z0, x1, z1] = tiles([i, j, i, j]);
       let n = 0;
@@ -460,7 +460,7 @@ export default defineScenario({
         for (let i = i0; i <= i1; i++) {
           if (subZoneAt(t, i, j)) continue;
           const ring = Math.max(Math.abs(i), Math.abs(j));
-          dockSides(i, j, ring <= 5 ? 'nsew' : ring <= 7 ? 'ns' : 'n');
+          dockSides(i, j, ring <= 5 ? 'ns' : 'n');
         }
     }
     fillRect(tiles(down.blocks), { 'flora-hive': 1 }, 1, 1);
@@ -491,7 +491,7 @@ export default defineScenario({
     // Each road joins the highway network, so the farms feed the city grid.
     // About half the founding city's power; the solar sweep below tops up the rest with the usual thin margin.
     const ROTOR_GAP = 9;
-    const WIND_TURBINES = 110; // the industry zones draw ≈1 000 more power than the old mixed towns
+    const WIND_TURBINES = 170; // the industry zones draw ≈1 000 more power than the old mixed towns; the spaced Sunfield holds fewer spires (D-165)
     let turbines = 0;
     const turbine = (x: number, z: number) => turbines < WIND_TURBINES && b.building('wind-turbine', x, z) && turbines++;
     /** Turbines beside road tiles `from`..`to` (steps from x, z along dx, dz); both stay beside the road. */
@@ -564,7 +564,16 @@ export default defineScenario({
     // Food: vertical farms in the towns, then as urban farm towers in whatever work-zone lots remain.
     sweep('vertical-farm', () => t().food > t().population * 0.55, [...towns, ...zoned('work')]);
     // 1.12× planned demand: the factories run near full shifts, so live use sits close to the plan.
-    sweep('solar-spire', () => t().energyProduced > t().energyUsed * 1.16, [sun, islet]);
+    // Spires stand a tile apart (never shoulder to shoulder), rows between the farm's service lanes.
+    const spaced = (id: string, ok: () => boolean, [x0, z0, x1, z1]: Rect) => {
+      const [w, d] = b.footprint(id);
+      for (let z = z0; z <= z1 - d + 1 && !ok(); z++)
+        for (let x = x0; x <= x1 - w + 1 && !ok(); x++)
+          if (b.noBuilding(x - 1, z - 1, x + w, z + d)) b.building(id, x, z);
+    };
+    const powerOk = () => t().energyProduced > t().energyUsed * 1.16;
+    spaced('solar-spire', powerOk, sun);
+    spaced('solar-spire', powerOk, islet);
     sweep('water-works', () => t().waterProduced > t().waterUsed * 0.88, [[0, 0, S - 1, S - 1]]);
 
     if (park) b.road(park[0] + 8, park[1] - 1, park[0] + 28, park[1] - 1, true);
@@ -587,7 +596,7 @@ export default defineScenario({
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (heroBlocks!.has(`${i},${j}`)) built.push([i, j]);
         built.sort((p, q2) => Math.max(Math.abs(p[0]), Math.abs(p[1])) - Math.max(Math.abs(q2[0]), Math.abs(q2[1])));
         built.some(([i, j]) => fillRect(tiles([i, j, i, j]), { 'pod-interchange': 1 }, 1, 1) > 0);
-        for (const [i, j] of built) dockSides(i, j, 'ns');
+        for (const [i, j] of built) dockSides(i, j, 'n');
       }
       // An Ember Watch station for the centre's living and work quarters.
       for (const q of QUARTERS.filter((qq) => qq.zone === 'living' || qq.zone === 'work')) fillRect(tiles(q.blocks), { 'ember-watch': 1 }, 1, 1);

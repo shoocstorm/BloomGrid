@@ -41,6 +41,11 @@ export function applyScenario(city: City, id: string): { buildings: number; road
     size: city.size,
     rand: () => rng.next(),
     isLand: (x, z) => g.inBounds(x, z) && !city.isWaterTile(x, z),
+    noBuilding(x0, z0, x1, z1) {
+      for (let z = z0; z <= z1; z++)
+        for (let x = x0; x <= x1; x++) if (g.inBounds(x, z) && g.occupant[g.index(x, z)] !== -1) return false;
+      return true;
+    },
     height: (x, z) => g.heights[z * (g.w + 1) + x]!,
     footprint: (id, rot = 0) => city.footprint(buildings.get(id), rot),
     road(x0, z0, x1, z1, bridges = false) {
