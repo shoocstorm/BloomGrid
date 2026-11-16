@@ -2987,3 +2987,38 @@ zoom in 4-unit steps, re-rasterising every shadow some twenty times from street 
   instancing, and a per-instance attribute would breach the pod mesh's vertex-buffer limit.
 - **A cross-fade between the near and far models:** both would draw in the band (more draws and vertices); the
   bands keep the swap to one change per approach.
+
+## D-163 — The trailer is the demo: renamed, 4K 60 fps by default, frames cleaned after the encode (2026-11-16)
+
+`bun run trailer` / `scripts/trailer.mjs` are renamed to `bun run demo` / `scripts/demo.mjs` (output
+`shots/demo.mp4`, Chrome profile `bloomgrid-demo-profile` — the first `--ai` run re-downloads the model once;
+D-079/D-102 record the earlier names). The output is 3840×2160 at 60 fps by default (`--width/--height/--fps`
+override; was 1920×1080 at 30). Once the ffmpeg encode finishes, the intermediate segment frames and card PNGs
+are removed (gigabytes at 4K); `--keep-frames` keeps them for inspection.
+
+## D-164 — A living sea: breaching whales, dolphins, three more wonders, wonder stories (2026-11-16)
+
+- **Problem:** the whales were ellipsoid blobs bobbing on a circle; the sea was otherwise still. A raised lotus leaf
+  stood in front of a flower; overlapping lily pads shared one height. Clicking a sea wonder did nothing, and the
+  explore-mode birds flew perfect circles at a fixed bank.
+- **Decision:**
+  - *Sea life* (`modules/scenery/SeaLife.ts`): lofted humpbacks (pale belly and grooves, long pale pectorals,
+    notched flukes, tubercles, lumen spots) and dolphins, one mesh per pod, posed per vertex from `U.clock`. Each
+    whale runs a cycle (deep → breach on ~58% of cycles → surface and blow → arch and fluke-up dive), the tail beating
+    up and down; dolphins porpoise in arcs, schools run deep for spells. Splashes, spouts and a surface slick are
+    parts of the same mesh scaled by envelopes. `whalesNow` / `dolphinsLeaping` mirror the cycle on the CPU for the
+    inspector. Two pods (the last whale a calf on its mother's cycle) and two schools (`WONDER_SITES.dolphins`).
+  - *Three wonders* (`laterWonders.ts`): Turtle Isle (eco 60+ from day 5), Sunken Colonnade (3,000 residents from
+    day 6), Prism Geode (harmony 75+ with 5,000 residents). Each is a ferry destination; `wonderObstacles` keeps
+    every voyage clear of every standing wonder.
+  - *Stories and inspector*: `lore.ts` holds each wonder's tale, things to look for, facts and a keeper's line;
+    clicking a wonder (pickable boxes; pods by their area) or selecting it in the inventory (`ref.object`) opens
+    `hud.objectInspector` with Locate and Charter ferry. Knowledge guide `basics/sea-wonders.md`.
+  - *Lotus fix*: raised leaves are placed only clear of every flower, bud and the pavilion; pads are staggered
+    3.5 cm per pad; petals 6×3.
+  - *Birds* (`walkers/birds.ts`): three-panel cambered wings, a forked tail (long on swallows); wandering loops that
+    swoop, pitched by the climb and banked by the turn (both from the path), and per species flight: gulls glide on
+    M-wings, swallows dart, finches bound with folded wings.
+- **Measured** (headless, High, founding city): draws +5 near the new wonders, unchanged at island zoom; panning
+  main thread 25–29% / GPU 4.4–5.0 ms vs the HEAD baseline's 25–28% / 4.4–4.8 ms; idle 17.5% vs 18.9%. Boot
+  modules ≈575 ms vs ≈546 ms. Vertices: whales 49k, dolphins 35k, turtle 28k, colonnade 64k, geode 33k.

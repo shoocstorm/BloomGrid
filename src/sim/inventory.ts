@@ -53,7 +53,8 @@ export interface CityObject {
    */
   tags?: string[];
   /** Handles for the HUD: the entity (buildings) or an anchor tile (tile-based infrastructure). */
-  ref: { eid?: number; tile?: number };
+  /** HUD handles: a building, a tile, or a free-standing object's inspector key (`hud.objectInspector`). */
+  ref: { eid?: number; tile?: number; object?: string };
 }
 
 export interface IssueInfo {

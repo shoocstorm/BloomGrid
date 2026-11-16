@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Records the ~87s trailer (shots/trailer.mp4) from the running dev server, against the showcase city
+ * Records the ~87s demo (shots/demo.mp4) from the running dev server, against the showcase city
  * (`scenario=founding-city`; a plain boot is a fresh island, D-072). Sixteen shots on a full-day arc —
  * sunrise to night to dawn — camera driven per captured frame (lookAt always centers the subject):
  *   1. sunrise reveal: tight on the Wellspring Spire, exponential pull to the whole island (title)
@@ -18,12 +18,12 @@
  *   14. Bloom Retrofit wave at dawn     15. Flora-Net hive + drone mist
  *   16. pull back to overview (end card)
  *
- * Pacing: shots are short where the trailer runs fast (0.35s dissolves in the daytime run), long where
+ * Pacing: shots are short where the demo runs fast (0.35s dissolves in the daytime run), long where
  * it breathes (0.7–0.8s into night and dawn), and the reveal/end pair mirror each other — tight to
  * wide, with the end holding longest: a 1.1s melt into the bookend pull-back, a slow 1.5s fade to
  * black under the end card, and the fire alerts (panel, pins, beacons) cleared as it begins so the
  * last frame is nothing but the island. A gentle filmic pass (vignette + light grain) closes the
- * encode. City Pulse stays folded the whole way (`pulse.fold(true)` at boot): the trailer frames
+ * encode. City Pulse stays folded the whole way (`pulse.fold(true)` at boot): the demo frames
  * the city, not the console. Flora's model core (Qwen3 1.7B, wllama/WebGPU) is loaded at boot — the
  * first run downloads it once into a persistent Chrome profile (`--no-ai` skips) — and shot 12 asks it
  * a real question about the fires; the answer streams into the console across shots 12–13.
@@ -39,18 +39,20 @@
  * is the exact orbit formula, with nothing left to smooth, chase or clamp between pin and render.
  *
  * Each shot's frames are captured into its own segment directory and the encode chains ffmpeg `xfade`
- * dissolves between them, so the whole trailer reads as one continuous move. Caption cards are
+ * dissolves between them, so the whole demo reads as one continuous move. Caption cards are
  * transparent full-frame PNGs overlaid with alpha fades. Frames are captured at 2× (`--dpr`, quality
  * ultra so the renderer fills the capture size exactly) and lanczos-downscaled to the output frame,
- * which buys the antialiasing and keeps the result sharp; `--width/--height` set the output size and
- * `--crf` (default 20, visually transparent) the encode size trade-off — crf 25 fits a committed
- * public/assets/ copy under GitHub's ~100 MB limit.
+ * which buys the antialiasing and keeps the result sharp; the output is 4K 60 fps by default
+ * (`--width/--height/--fps` override) and `--crf` (default 20, visually transparent) sets the encode
+ * size trade-off — crf 25 + `--dpr 1` fits a committed public/assets/ copy under GitHub's ~100 MB
+ * limit. The intermediate frames and card PNGs are removed once the encode has finished
+ * (`--keep-frames` keeps them for inspection).
  *
  *   bun run dev                # keep it running
- *   bun run trailer            # or: node scripts/trailer.mjs [--duration 82] [--fps 30] [--no-ai]
+ *   bun run demo               # or: node scripts/demo.mjs [--duration 82] [--fps 30] [--no-ai] [--keep-frames]
  */
 import { launchChrome } from './lib/chrome.mjs';
-import { mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, existsSync, readdirSync, rmSync, rmdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -65,21 +67,23 @@ const base = arg('base', 'http://localhost:3000');
 // ultra + 2x device scale: the renderer runs at exactly the 2× capture size (ultra's maxPixelRatio 2;
 // high would cap it at 1.25 and Chrome would upscale a soft frame into the screenshot). ffmpeg then
 // lanczos-downscales to the output frame: the supersample pays for antialiasing and swallows the
-// JPEG capture noise, so the 1080p output stays knife-sharp.
+// JPEG capture noise, so the 4K output stays knife-sharp.
 const path = showcase(arg('path', '/?quality=ultra&nodynres'));
-const fps = Number(arg('fps', 30));
+const fps = Number(arg('fps', 60));
 const PLAN = 93.6;
 const seconds = Number(arg('duration', PLAN));
-const framesDir = arg('frames', 'shots/trailer');
-const out = arg('out', 'shots/trailer.mp4');
+const framesDir = arg('frames', 'shots/demo');
+const out = arg('out', 'shots/demo.mp4');
 /** Flora's live model core in the video (skipped with --no-ai). Downloads once into the profile. */
 const withAi = !process.argv.includes('--no-ai');
+/** Keep the intermediate frames and card PNGs after the encode (removed by default). */
+const keepFrames = process.argv.includes('--keep-frames');
 const AI_MODEL = 'qwen3-1.7b';
 /** Persistent profile: caches the model download (OPFS) so only the first run pays for it. */
-const profile = join(tmpdir(), 'bloomgrid-trailer-profile');
+const profile = join(tmpdir(), 'bloomgrid-demo-profile');
 mkdirSync(profile, { recursive: true });
-const W = Number(arg('width', 1920));
-const H = Number(arg('height', 1080));
+const W = Number(arg('width', 3840));
+const H = Number(arg('height', 2160));
 /** Capture supersampling: screenshots come off the page at W×dpr × H×dpr. */
 const dpr = Number(arg('dpr', 2));
 /** Encode quality: 20 is visually transparent for this content; raise it if the file must shrink. */
@@ -378,14 +382,14 @@ const shots = [
        g.city.steward.fires.length = 0;
        document.querySelectorAll('.toasts .toast').forEach((t) => t.remove());
        document.querySelector('.hz-panel')?.classList.add('hidden');
-       console.warn('[trailer] fire alerts cleared for the ending');
+       console.warn('[demo] fire alerts cleared for the ending');
      })()`,
     tod: (t) => lerp(0.36, 0.46, t),
     view: (t, od) => ({ x: lerp(270, 256, t), z: lerp(250, 258, t), yaw: lerp(3.15, 3.55, t), pitch: lerp(0.56, 1.0, t), dist: zoom(150, od, t) }),
   },
 ];
 // Dissolve per boundary (after shots 1..15): quick cuts through the daytime run, longer breaths into
-// the night acts, dawn and the end. Pacing device — the trailer sprints, then lands, and the last
+// the night acts, dawn and the end. Pacing device — the demo sprints, then lands, and the last
 // boundary melts slowly into the bookend pull-back. The drone→Aeroline cut (boundary 6) is longer and
 // an expanding-circle wipe: the drone sits dead centre from its chase cam, so the circle opens out of
 // the propeller disc into the ride — the "propeller becomes the ring".
@@ -397,7 +401,7 @@ shots.forEach((s) => {
   s.dur *= scale;
   if (s.at) s.at = s.at.map(([at, code]) => [at * scale, code]);
 });
-// Crossfade lengths between shots, shrinking if the trailer is squeezed.
+// Crossfade lengths between shots, shrinking if the demo is squeezed.
 const xfs = XF.map((d) => Math.max(0.2, d * Math.min(1, scale)));
 if (XF.length !== shots.length - 1)
   throw new Error(`XF has ${XF.length} dissolves for ${shots.length - 1} shot boundaries`);
@@ -433,7 +437,7 @@ await page.setViewport({ width: W, height: H, deviceScaleFactor: dpr });
 let errors = 0;
 page.on('console', (m) => ['warn', 'error'].includes(m.type()) && console.log(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => (errors++, console.log(`[pageerror] ${e.message}`)));
-browser.on('disconnected', () => console.log('[trailer] browser disconnected'));
+browser.on('disconnected', () => console.log('[demo] browser disconnected'));
 
 // Caption cards: transparent full-frame PNGs (this ffmpeg build has no drawtext). Bottom cards carry a
 // soft dark gradient band so the type stays readable over bright scenes.
@@ -510,10 +514,10 @@ await page.evaluate(() => {
   document.querySelector('.help-ok')?.click();
   const g = window.bloomgrid;
   g.city.credits = 1e6;
-  // No random crises: the trailer is a movie set, weather must stay pinned clear.
+  // No random crises: the demo is a movie set, weather must stay pinned clear.
   g.city.steward.autoCrises = false;
   if (g.city.happenings) g.city.happenings.auto = false;
-  // The trailer frames the city, not the console: City Pulse stays folded for the whole capture.
+  // The demo frames the city, not the console: City Pulse stays folded for the whole capture.
   g.services.get('pulse').fold(true);
 });
 // The showcase city ships without a Fireworks Factory: build one on the Westport waterfront (like the
@@ -584,8 +588,8 @@ if (withAi) {
     const s = a.engine.state;
     return { ok: s.status === 'ready', status: s.status, error: s.error, backend: s.info?.backend, ms: Math.round(performance.now() - t) };
   }, AI_MODEL);
-  console.log(`[trailer] Flora core ${AI_MODEL}: ${JSON.stringify(ai)}`);
-  if (!ai.ok) console.log('[trailer] WARNING: continuing without the live model (--no-ai hides this)');
+  console.log(`[demo] Flora core ${AI_MODEL}: ${JSON.stringify(ai)}`);
+  if (!ai.ok) console.log('[demo] WARNING: continuing without the live model (--no-ai hides this)');
   else
     // Approve any action Flora proposes during the demo (the ai-probe pattern): an unapproved action
     // would park the turn on the approval chip and the answer would never finish streaming.
@@ -596,7 +600,7 @@ if (withAi) {
     });
 }
 console.log(
-  `[trailer] overview ${od.toFixed(0)}, spire ${spire.x.toFixed(0)}/${spire.z.toFixed(0)}, hive ${hive.x.toFixed(0)}/${hive.z.toFixed(0)}, fireworks yard ${yard.x.toFixed(0)}/${yard.z.toFixed(0)}, ${Math.round(seconds * fps)} frames at ${W}x${H}, ${total.toFixed(1)}s after dissolves`,
+  `[demo] overview ${od.toFixed(0)}, spire ${spire.x.toFixed(0)}/${spire.z.toFixed(0)}, hive ${hive.x.toFixed(0)}/${hive.z.toFixed(0)}, fireworks yard ${yard.x.toFixed(0)}/${yard.z.toFixed(0)}, ${Math.round(seconds * fps)} frames at ${W}x${H}, ${total.toFixed(1)}s after dissolves`,
 );
 
 const totalFrames = Math.round(seconds * fps);
@@ -626,7 +630,7 @@ for (let f = 0; f < totalFrames; f++) {
     }, !!shot.free);
     if (shot.enter) await page.evaluate(enterCode(shot));
     fired.clear();
-    console.log(`[trailer] shot ${i + 1} @ ${time.toFixed(1)}s`);
+    console.log(`[demo] shot ${i + 1} @ ${time.toFixed(1)}s`);
   }
   for (const [at, code] of shot.at ?? []) {
     if (local * shot.dur >= at && !fired.has(at)) (fired.add(at), await page.evaluate(code));
@@ -778,7 +782,7 @@ for (let f = 0; f < totalFrames; f++) {
   await page.evaluate((dt) => window.__bgFrame(dt), 1 / fps);
   // JPEG is safe at the supersampled size: the 2× downscale that follows averages the artefacts away.
   await page.screenshot({ path: join(segDir(i), `f${String(segFrame++).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 96 });
-  if (f % 150 === 0) console.log(`[trailer] frame ${f}/${totalFrames} (${((Date.now() - t0) / 1000).toFixed(0)}s elapsed)`);
+  if (f % 150 === 0) console.log(`[demo] frame ${f}/${totalFrames} (${((Date.now() - t0) / 1000).toFixed(0)}s elapsed)`);
 }
 if (shots[shotIdx].exit) await page.evaluate(shots[shotIdx].exit);
 if (withAi) {
@@ -786,7 +790,7 @@ if (withAi) {
     const m = [...document.querySelectorAll('.ai-msg.bot')].pop();
     return m?.textContent?.replace(/\s+/g, ' ').trim() ?? null;
   });
-  console.log(`[trailer] Flora's last on-screen message: ${last ? `${last.slice(0, 120)}…` : '(none — the demo ask never landed)'}`);
+  console.log(`[demo] Flora's last on-screen message: ${last ? `${last.slice(0, 120)}…` : '(none — the demo ask never landed)'}`);
 }
 await browser.close();
 
@@ -858,11 +862,18 @@ graph.push(
   `[${last}]fade=t=in:st=0:d=1.1,fade=t=out:st=${Math.max(0, total - 1.5).toFixed(2)}:d=1.5,vignette=angle=PI/6,noise=alls=3:allf=t+u,format=yuv420p[v]`,
 );
 const xfLast = xfs[xfs.length - 1] ?? 0;
-console.log(`[trailer] encoding ${out} (${shots.length} segments, ${cards.length} cards, ${xfs.length} dissolves ${(xfs[0] ?? 0).toFixed(2)}–${xfLast.toFixed(2)}s)`);
+console.log(`[demo] encoding ${out} (${shots.length} segments, ${cards.length} cards, ${xfs.length} dissolves ${(xfs[0] ?? 0).toFixed(2)}–${xfLast.toFixed(2)}s)`);
 execFileSync('ffmpeg', [
   '-y',
   ...inputs,
   '-filter_complex', graph.join(';'),
   '-map', '[v]', '-c:v', 'libx264', '-crf', String(crf), '-preset', 'slow', '-movflags', '+faststart', out,
 ], { stdio: 'inherit' });
-console.log(`[trailer] done: ${out} (${errors} page errors)`);
+// The segment frames and card PNGs were only ffmpeg inputs: once the encode has finished they are
+// dead weight (gigabytes at 4K), so wipe them — `--keep-frames` keeps them for inspection.
+if (!keepFrames) {
+  for (const f of readdirSync(framesDir)) if (f !== '.gitignore') rmSync(join(framesDir, f), { recursive: true, force: true });
+  try { rmdirSync(framesDir); } catch { /* .gitignore or a stray file remains: leave the dir */ }
+  console.log(`[demo] intermediate frames removed (${framesDir})`);
+}
+console.log(`[demo] done: ${out} (${errors} page errors)`);

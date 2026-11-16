@@ -20,7 +20,7 @@ import { icon } from '@/ui/icons';
 import { wonderVisible } from '@/sim/wonders';
 import { isOpen } from '@/sim/growthState';
 import { registerPickable } from '@/modules/construction/pick';
-import { WONDER_SITES } from '@/modules/scenery/sites';
+import { WONDER_SITES, wonderObstacles, type WonderSite } from '@/modules/scenery/sites';
 import { FERRY, FERRY_PART, ferryGeometry, ferrySolids, pierGeometry } from './ferryModel';
 import './ferry.css';
 import {
@@ -75,7 +75,7 @@ const SHOW = 45;
 const KNOTS = 2.75;
 
 type Site = { key: keyof typeof WONDER_SITES; name: string; r: number; at: (S: number) => P2 };
-const site = (key: Exclude<keyof typeof WONDER_SITES, 'whales'>, name: string, r: number): Site => ({
+const site = (key: WonderSite, name: string, r: number): Site => ({
   key,
   name,
   r,
@@ -94,6 +94,9 @@ const SITES: Site[] = [
     at: (S) => [WONDER_SITES.whales[0][0] * S, WONDER_SITES.whales[0][1] * S],
   },
   site('stacks', 'Verdant Pillars', 22),
+  site('colonnade', 'Sunken Colonnade', 28),
+  site('geode', 'Prism Geode', 26),
+  site('turtle', 'Turtle Isle', 30),
 ];
 
 type Phase = 'board' | 'astern' | 'turn' | 'sail';
@@ -433,7 +436,7 @@ export const ferryModule: GameModule = {
     };
     const berth = () => pierPoint(pier!, BERTH_ALONG, BERTH_SIDE);
     /** The Aeroline's pylons, when its viaduct stands: courses and the pier keep clear of them. */
-    const pylons = () => ctx.services.tryGet('aeroline')?.pylons ?? [];
+    const pylons = () => [...(ctx.services.tryGet('aeroline')?.pylons ?? []), ...wonderObstacles(S)];
     let pylonCount = 0;
     const layout = () => {
       dirty = false;

@@ -319,7 +319,7 @@ button {
   position: absolute;
   right: 12px;
   top: 74px;
-  width: 290px;
+  width: 360px;
   max-height: calc(100vh - 180px);
   overflow-y: auto;
   display: flex;

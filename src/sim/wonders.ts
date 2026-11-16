@@ -43,6 +43,24 @@ export const WONDERS: WonderDef[] = [
     hint: 'Harmony 70+ from day 4',
     when: (c) => c.day >= 4 && c.stats.happiness >= 70,
   },
+  {
+    id: 'turtle',
+    name: 'Turtle Isle',
+    hint: 'Ecology 60+ from day 5',
+    when: (c) => c.day >= 5 && c.stats.eco >= 60,
+  },
+  {
+    id: 'colonnade',
+    name: 'Sunken Colonnade',
+    hint: '3,000 residents from day 6',
+    when: (c) => c.day >= 6 && c.stats.population >= 3000,
+  },
+  {
+    id: 'geode',
+    name: 'Prism Geode',
+    hint: 'Harmony 75+ with 5,000 residents',
+    when: (c) => c.stats.happiness >= 75 && c.stats.population >= 5000,
+  },
 ];
 
 /** Whether a wonder shows: always without progression, else once discovered. */
@@ -63,7 +81,7 @@ export function updateWonders(city: City): void {
   }
 }
 
-/** Harmony from sightseeing: +0.8 per wonder discovered beyond the starting ones (max +4). */
+/** Harmony from sightseeing: +0.8 per wonder discovered beyond the starting ones (max +4, reached at five). */
 export function wonderHarmony(city: City): number {
   const g = city.growth;
   if (!g.progression) return 0;

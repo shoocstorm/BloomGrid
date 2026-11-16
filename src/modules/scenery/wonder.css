@@ -1,0 +1,36 @@
+/* Sea wonder inspector (D-164): the story and what to look for, between the vitals and the facts. */
+.wonder-story {
+  display: grid;
+  gap: 7px;
+  margin: 4px 0 8px;
+}
+.wonder-story .ws-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.wonder-story .ws-head .ico {
+  width: 12px;
+  height: 12px;
+}
+.wonder-story p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.wonder-story p:first-of-type::first-letter {
+  float: left;
+  margin: 2px 5px 0 0;
+  font-size: 26px;
+  line-height: 0.9;
+  color: var(--ink);
+}

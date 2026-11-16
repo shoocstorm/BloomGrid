@@ -50,7 +50,7 @@ export const LANTERN_Y = 28.6;
 const v3 = (x: number, y: number, z: number) => new Vector3(x, y, z);
 
 /** Surf round an outcrop or a foot at the waterline: small flecks, mostly awash, in a ragged band. */
-function foam(k: Kit, x: number, z: number, r: number, n: number, seed: number): void {
+export function foam(k: Kit, x: number, z: number, r: number, n: number, seed: number): void {
   for (let i = 0; i < n * 1.5; i++) {
     const a = (i / (n * 1.5)) * Math.PI * 2 + hash2(seed, i, 3) * 0.5;
     const d = r * (0.9 + hash2(seed, i, 5) * 0.2);
@@ -66,7 +66,7 @@ function foam(k: Kit, x: number, z: number, r: number, n: number, seed: number):
 }
 
 /** An outcrop of craggy boulders (wet at the waterline), with a grassy cap. */
-function islet(k: Kit, x: number, z: number, r: number, seed: number, n = 9): void {
+export function islet(k: Kit, x: number, z: number, r: number, seed: number, n = 9): void {
   for (let i = 0; i < n; i++) {
     const h = (q: number) => hash2(seed, i * 7 + q, 811);
     const a = h(1) * 6.28;
@@ -504,7 +504,7 @@ function lotusFlower(k: Kit, x: number, y: number, z: number, R: number, tip: nu
     [6, 0.48, 0.36, 1.28],
   ];
   whorls.forEach(([n, len, w, tilt], l) => {
-    const g = petal(R * len, R * w, R * w * 0.35, R * len * 0.1, 0.55, 5, 2);
+    const g = petal(R * len, R * w, R * w * 0.35, R * len * 0.1, 0.55, 6, 3);
     for (let p = 0; p < n; p++) {
       const ry = (p / n) * Math.PI * 2 + spin + l * 0.3;
       k.part(
@@ -543,17 +543,17 @@ function lotusFlower(k: Kit, x: number, y: number, z: number, R: number, tip: nu
 }
 
 /** A lily pad with its notch, an upturned rim, pale veins and a bead or two of water. */
-function lilyPad(k: Kit, x: number, z: number, r: number, rot: number, seed: number): void {
+function lilyPad(k: Kit, x: number, z: number, r: number, rot: number, seed: number, lift = 0): void {
   const notch = 0.28;
   k.part(
-    new CylinderGeometry(1, 1, 0.3, 28, 1, false, notch, Math.PI * 2 - notch * 2).translate(0, 0.15, 0),
-    tf(x, 0, z, 0, rot, 0, r, 1, r),
+    new CylinderGeometry(1, 1, 0.3, 40, 1, false, notch, Math.PI * 2 - notch * 2).translate(0, 0.15, 0),
+    tf(x, lift, z, 0, rot, 0, r, 1, r),
     0x3f9a4f,
     SURF.leaf,
   );
   k.part(
     new TorusGeometry(1, 0.035, 3, 32, Math.PI * 2 - notch * 2),
-    tf(x, 0.32, z, -Math.PI / 2, rot + notch - Math.PI / 2, 0, r, r, 2.4),
+    tf(x, 0.32 + lift, z, -Math.PI / 2, rot + notch - Math.PI / 2, 0, r, r, 2.4),
     0x5cb85c,
     SURF.leaf,
   );
@@ -561,7 +561,7 @@ function lilyPad(k: Kit, x: number, z: number, r: number, rot: number, seed: num
     const a = rot + notch + ((v + 0.5) / 9) * (Math.PI * 2 - notch * 2);
     k.part(
       BOX,
-      tf(x + Math.sin(a) * r * 0.46, 0.3, z + Math.cos(a) * r * 0.46, 0, a, 0, 0.12, 0.03, r * 0.88),
+      tf(x + Math.sin(a) * r * 0.46, 0.3 + lift, z + Math.cos(a) * r * 0.46, 0, a, 0, 0.12, 0.03, r * 0.88),
       0x86cf72,
       SURF.leaf,
     );
@@ -570,7 +570,7 @@ function lilyPad(k: Kit, x: number, z: number, r: number, rot: number, seed: num
     const a = hash2(seed, d, 17) * 6.28;
     k.part(
       BALL_LO,
-      tf(x + Math.cos(a) * r * 0.5, 0.35, z + Math.sin(a) * r * 0.5, 0, 0, 0, 0.22, 0.14, 0.22),
+      tf(x + Math.cos(a) * r * 0.5, 0.35 + lift, z + Math.sin(a) * r * 0.5, 0, 0, 0, 0.22, 0.14, 0.22),
       0xe8fbff,
       SURF.glass,
       0.4,
@@ -589,27 +589,30 @@ export function lotus(x: number, z: number): Kit {
     const [px, pz] = [x + Math.cos(a) * d * 1.25, z + Math.sin(a) * d * 0.85];
     const R = (f === 0 ? 1.75 : 0.75 + h(1) * 0.55) * 4;
     spots.push([px, pz, R]);
-    lilyPad(k, px, pz, R * 1.9, h(2) * 6, f);
+    // Overlapping pads sit a few centimetres apart in height, so their tops never fight for the same depth.
+    const lift = f * 0.035;
+    lilyPad(k, px, pz, R * 1.9, h(2) * 6, f, lift);
     if (f === 1) continue; // the pavilion's pad
     if (f > 1 && h(3) < 0.22) {
       // A closed bud standing up from this pad.
       for (let p = 0; p < 5; p++)
         k.part(
           petal(R * 0.7, R * 0.42, R * 0.18, R * 0.04, 0.5),
-          tf(px, 0.3, pz, -1.42, (p / 5) * Math.PI * 2, 0),
+          tf(px, 0.3 + lift, pz, -1.42, (p / 5) * Math.PI * 2, 0),
           PINKS[f % 4]!,
           SURF.petal,
           0.25,
         );
       continue;
     }
-    lotusFlower(k, px, 0.3, pz, R, PINKS[f % 4]!, h(4) * 6);
+    lotusFlower(k, px, 0.3 + lift, pz, R, PINKS[f % 4]!, h(4) * 6);
   }
+  const padLift = 1 * 0.035;
   // Tea pavilion on pad 1: a round deck, posts, a living roof and a hanging lantern.
   const [tx, tz] = spots[1]!;
   k.part(
     new CylinderGeometry(3.1, 3.2, 0.35, 20).translate(0, 0.17, 0),
-    tf(tx, 0.3, tz),
+    tf(tx, 0.3 + padLift, tz),
     0xb08a5a,
     SURF.wood,
   );
@@ -637,14 +640,19 @@ export function lotus(x: number, z: number): Kit {
   k.part(BALL, tf(tx, 4.75, tz, 0, 0, 0, 0.3), BRASS, SURF.brass);
   k.part(BALL, tf(tx, 2.7, tz, 0, 0, 0, 0.35, 0.45, 0.35), WARM, SURF.glass, 2.4);
   k.part(BOX, tf(tx, 0.65, tz, 0, 0.5, 0, 1.4, 0.45, 0.7), 0x8b6b48, SURF.wood);
-  // Raised lotus leaves on stalks, like green parasols.
-  for (let l = 0; l < 9; l++) {
+  // Raised lotus leaves on stalks, like green parasols: only where they hide no flower, bud or the pavilion (a
+  // leaf's canopy stands at a flower's height, so one over or right beside a flower blocks it from every side).
+  const clear = (lx: number, lz: number, r: number) =>
+    spots.every(([sx, sz, R], i) => Math.hypot(lx - sx, lz - sz) > r + (i === 1 ? 4.2 : R * 1.1) + 1.2);
+  for (let l = 0, placed = 0; l < 60 && placed < 9; l++) {
     const h = (q: number) => hash2(l, q, 6131);
     const a = h(1) * 6.28;
     const d = 6 + h(2) * 26;
     const [lx, lz] = [x + Math.cos(a) * d * 1.2, z + Math.sin(a) * d * 0.8];
     const hh = 2.2 + h(3) * 3;
     const r = 2 + h(4) * 1.6;
+    if (!clear(lx, lz, r)) continue;
+    placed++;
     k.part(
       CYL8,
       tf(lx, 0, lz, (h(5) - 0.5) * 0.15, 0, (h(6) - 0.5) * 0.15, 0.12, hh, 0.12),

@@ -1,5 +1,5 @@
 /**
- * One way to launch headless Chrome for the probe scripts (snap, perf, flicker, trailer, ai-probe) that never leaves
+ * One way to launch headless Chrome for the probe scripts (snap, perf, flicker, demo, ai-probe) that never leaves
  * it behind. A headless Chrome left running keeps rendering the game at full speed, so every exit path kills it:
  *
  * - normal end, `process.exit`, uncaught errors and Ctrl-C / SIGTERM / SIGHUP: the whole process tree is killed

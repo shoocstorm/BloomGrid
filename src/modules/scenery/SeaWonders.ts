@@ -1,44 +1,30 @@
-import {
-  AdditiveBlending,
-  ConeGeometry,
-  DoubleSide,
-  Group,
-  Mesh,
-  MeshBasicNodeMaterial,
-  SphereGeometry,
-  Sphere,
-  Vector3,
-} from 'three/webgpu';
+import { AdditiveBlending, ConeGeometry, DoubleSide, Group, Mesh, MeshBasicNodeMaterial } from 'three/webgpu';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { attribute, color, float, mix, mrt, normalGeometry, positionGeometry, sin, smoothstep, uv, vec3 } from 'three/tsl';
+import { color, smoothstep, uv } from 'three/tsl';
 import { getMaterial } from '@/render/materials/library';
-import { hash2 } from '@/sim/random';
 import { U } from '@/render/uniforms';
-import { GeoBuilder, skyShade, tf } from '@/render/bake';
-import { orbit } from './SkyLife';
-import { WONDER_SITES } from './sites';
+import { WONDER_SITES, type WonderSite } from './sites';
 import { dome, LANTERN_Y, lighthouse, lotus, stacks, tideGates } from './wonderModels';
+import { colonnade, geode, turtle } from './laterWonders';
+import { dolphinSchool, whalePod } from './SeaLife';
 import type { Kit } from './wonderKit';
-import { bloomMRT } from '@/render/bloomMRT';
-
-const LUMEN = 0x8ff7ff;
-const BALL = new SphereGeometry(1, 16, 10);
 
 /**
  * Wonders of the sea, pure decoration out in the deep water off the coast (no sim state, so nothing
  * to save): the Tidewatch Lighthouse with its night beam, the Tide Gates (three giant pearl rings rising
  * out of the sea), the Lotus Atoll of giant floating flowers, the Abyssal Dome observatory, the
- * Verdant Pillars (forested sea stacks) and pods of glowing whales that surface now and then.
+ * Verdant Pillars (forested sea stacks), Turtle Isle, the Sunken Colonnade and the Prism Geode, with pods of glowing
+ * whales and schools of dolphins swimming, breaching and leaping (`SeaLife.ts`, D-164).
  * Each static wonder is one merged mesh (one draw call, culled on its own) in the `wonder` material; the models
- * are in `wonderModels.ts` (D-146).
+ * are in `wonderModels.ts` (D-146) and `laterWonders.ts` (D-164).
  */
 export class SeaWonders {
   readonly group = new Group();
   private beam: Mesh;
 
   constructor(S: number) {
-    const at = (k: keyof typeof WONDER_SITES) => {
-      const [x, z] = WONDER_SITES[k] as readonly [number, number];
+    const at = (k: WonderSite) => {
+      const [x, z] = WONDER_SITES[k];
       return [x * S, z * S] as const;
     };
     this.add('lighthouse', lighthouse(...at('lighthouse')));
@@ -46,8 +32,15 @@ export class SeaWonders {
     this.add('lotus-atoll', lotus(...at('lotus')));
     this.add('abyssal-dome', dome(...at('dome')));
     this.add('verdant-pillars', stacks(...at('stacks')));
+    this.add('turtle-isle', turtle(...at('turtle')));
+    this.add('sunken-colonnade', colonnade(...at('colonnade')));
+    this.add('prism-geode', geode(...at('geode')));
     this.beam = this.makeBeam(...at('lighthouse'));
-    this.group.add(this.beam, ...WONDER_SITES.whales.map(([x, z], p) => this.whales(x * S, z * S, p)));
+    this.group.add(
+      this.beam,
+      ...WONDER_SITES.whales.map(([x, z], p) => whalePod(x * S, z * S, p)),
+      ...WONDER_SITES.dolphins.map(([x, z], p) => dolphinSchool(x * S, z * S, p)),
+    );
   }
 
   private add(name: string, k: Kit): void {
@@ -65,7 +58,11 @@ export class SeaWonders {
     'lotus-atoll': 'lotus',
     'abyssal-dome': 'dome',
     'verdant-pillars': 'stacks',
+    'turtle-isle': 'turtle',
+    'sunken-colonnade': 'colonnade',
+    'prism-geode': 'geode',
     whales: 'whales',
+    dolphins: 'whales',
   };
   /** Wonders rising out of the sea after their discovery: mesh → seconds elapsed. */
   private rising = new Map<Mesh, number>();
@@ -126,60 +123,6 @@ export class SeaWonders {
     mesh.position.set(x, LANTERN_Y, z);
     mesh.name = 'lighthouse-beam';
     mesh.renderOrder = 6;
-    return mesh;
-  }
-
-  /**
-   * A pod of whales gliding in slow circles, surfacing every half minute or so with a spout. Positions are
-   * shader-animated from local geometry, so the pod's bounds are set by hand for culling.
-   */
-  private whales(x: number, z: number, p: number): Mesh {
-    const b = new GeoBuilder({ aOrbit: 4, aWhale: 4 });
-    for (let w = 0; w < 3; w++) {
-      const h = (k: number) => hash2(p * 7 + w, k, 9901);
-      const s = w === 0 ? 1.4 : 0.9 + h(1) * 0.3;
-      const ex = {
-        aOrbit: [x, z, 22 + w * 5, 0.035 * (p ? -1 : 1)],
-        aWhale: [w * 0.5 + h(2) * 0.2, p * 2.1 + w * 0.7, 0, s],
-      };
-      const spout = { ...ex, aWhale: [ex.aWhale[0]!, ex.aWhale[1]!, 1, s] };
-      b.add(BALL, tf(0, 0, 0, 0, 0, 0, 1.6 * s, 1.3 * s, 6 * s), 0x2e5f86, 0.25, ex);
-      b.add(BALL, tf(0, -0.5 * s, 0.6 * s, 0, 0, 0, 1.3 * s, 0.9 * s, 4.8 * s), 0xdde8ea, 0.1, ex);
-      b.add(BALL, tf(0, -0.3 * s, -6.2 * s, 0, 0, 0, 2.6 * s, 0.16 * s, 1.1 * s), 0x2e5f86, 0.25, ex);
-      for (const side of [-1, 1])
-        b.add(
-          BALL,
-          tf(side * 2 * s, -0.6 * s, 1.6 * s, 0, side * 0.5, side * 0.4, 1.6 * s, 0.12 * s, 0.8 * s),
-          0x2e5f86,
-          0.25,
-          ex,
-        );
-      // Glowing spots along the back.
-      for (let k = 0; k < 5; k++)
-        b.add(BALL, tf(0, 1.15 * s, (2.5 - k * 1.4) * s, 0, 0, 0, 0.18 * s), LUMEN, 2.2, ex);
-      // Spout: a column of spray under a puff of mist.
-      b.add(BALL, tf(0, 1.2 * s + 1.6, 3 * s, 0, 0, 0, 0.22, 1.7, 0.22), 0xeefcff, 0.4, spout);
-      b.add(BALL, tf(0, 1.2 * s + 3.3, 3 * s, 0, 0, 0, 0.9, 0.55, 0.9), 0xeefcff, 0.4, spout);
-    }
-    const geo = b.build();
-    const o = attribute('aOrbit', 'vec4');
-    const wh = attribute('aWhale', 'vec4');
-    // Surfacing: mostly below the surface, rising for a few seconds each cycle; the spout grows meanwhile.
-    const surf = smoothstep(0.75, 1, sin(U.clock.mul(0.18).add(wh.y)));
-    const depth = float(-5)
-      .mul(wh.w)
-      .add(surf.mul(float(4.9).mul(wh.w)));
-    const local = positionGeometry.mul(vec3(1, mix(float(1), surf, wh.z), 1));
-    const { pos, rot } = orbit(local as never, o, wh.x, depth);
-    const m = new MeshBasicNodeMaterial();
-    m.positionNode = pos;
-    const col = attribute('color', 'vec3');
-    const glow = col.mul(attribute('aGlow', 'float')).mul(U.night.mul(0.9).add(0.04));
-    m.colorNode = skyShade(col, rot(normalGeometry)).add(glow);
-    bloomMRT(m, mrt({ emissive: glow.mul(0.7) }));
-    const mesh = new Mesh(geo, m);
-    geo.boundingSphere = new Sphere(new Vector3(x, 0, z), 48);
-    mesh.name = 'whales';
     return mesh;
   }
 }

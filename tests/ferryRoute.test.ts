@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeSim } from './helpers';
 import { applyScenario } from '@/sim/scenario';
-import { WONDER_SITES } from '@/modules/scenery/sites';
+import { WONDER_SITES, wonderObstacles } from '@/modules/scenery/sites';
 import { BERTH_ALONG, BERTH_SIDE, Course, findPier, pierPoint, seaMap, seaRoute, voyageCourse, type P2 } from '@/modules/ferry/route';
 
 /** The cruise ferry's courses (D-141): a pier with room, and water under the hull all the way to every wonder. */
@@ -16,9 +16,13 @@ describe('ferry routes', () => {
     ['lighthouse', [WONDER_SITES.lighthouse[0] * S, WONDER_SITES.lighthouse[1] * S], 26],
     ['tideGates', [WONDER_SITES.tideGates[0] * S, WONDER_SITES.tideGates[1] * S], 32],
     ['stacks', [WONDER_SITES.stacks[0] * S, WONDER_SITES.stacks[1] * S], 22],
+    ['colonnade', [WONDER_SITES.colonnade[0] * S, WONDER_SITES.colonnade[1] * S], 28],
+    ['geode', [WONDER_SITES.geode[0] * S, WONDER_SITES.geode[1] * S], 26],
+    ['turtle', [WONDER_SITES.turtle[0] * S, WONDER_SITES.turtle[1] * S], 30],
   ];
   const pier = findPier(g, [296, 436]);
-  const sea = seaMap(g);
+  // Every standing wonder is an obstacle, as in the game (a voyage never sails through another wonder).
+  const sea = seaMap(g, wonderObstacles(S));
 
   it('finds a pier with a deep berth', () => {
     expect(pier).not.toBeNull();

@@ -58,6 +58,9 @@ const WONDER_NOTES: Record<string, string> = {
   lotus: 'Giant lotus flowers, floating lanterns and a tea pavilion, aglow at night',
   dome: 'A glass observatory on stilts, with its own yellow submarine',
   stacks: 'Jungle-crowned sea stacks, a waterfall and rope bridges',
+  turtle: 'A giant sea turtle asleep at the surface, with a garden on its shell',
+  colonnade: 'A drowned marble temple, its columns rising from the sea',
+  geode: 'Giant crystals bursting from a stone geode, aglow at night',
 };
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');

@@ -67,6 +67,7 @@ function createService(ctx: GameContext): InventoryService {
         ctx.bus.emit('selection:changed', { eid: null, road: o.ref.tile, bridge: bridgeAt(ctx.city, o.ref.tile)!.key });
       else if (o.ref.tile !== undefined && ctx.city.grid.road[o.ref.tile])
         ctx.bus.emit('selection:changed', { eid: null, road: o.ref.tile });
+      else if (o.ref.object) ctx.bus.emit('selection:changed', { eid: null, object: o.ref.object });
       return true;
     },
   };

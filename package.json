@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "snap": "node scripts/snap.mjs",
     "showcase": "bun run snap -- --size 1024x1024 --dpr 2 --path '/?quality=ultra&nodynres' --eval @scripts/scenes/showcase-shot.js --eval-out public/assets/showcase-overview.webp --out shots/showcase-overview.png",
-    "trailer": "node scripts/trailer.mjs",
+    "demo": "node scripts/demo.mjs",
     "check": "tsc --noEmit && eslint src tests && bun run test && vite build",
     "perf": "node scripts/perf.mjs",
     "flicker": "node scripts/flicker.mjs",

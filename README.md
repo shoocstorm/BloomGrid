@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://bloomgrid.web.app"><b>▶ Play in your browser</b></a> ·
-  <a href="https://bloomgrid.web.app/assets/trailer.mp4">🎬 Watch the trailer</a> ·
+  <a href="https://youtu.be/yuWb6Y5bW5E">🎬 Watch the demo</a> ·
   <a href="#-run-it-yourself">Run it yourself</a> ·
   <a href="#-how-to-play">How to play</a>
 </p>
@@ -168,6 +168,11 @@ with a readable id such as `LIV-0042` or `HWY-118.204`. Search by name, id or di
 `status:critical`, `district:westbrook`, `is:old`, `is:upgradable`, `is:top` (or the age / level menu, and sort by
 Oldest or Level); pick a row to inspect it and **Locate** to fly there: the camera climbs and comes down over it from above, so it is never hidden behind towers, and a glowing reticle and marker show what is selected. The inspector shows
 the id of whatever you select; click it to open the inventory.
+
+**Sea wonders**: eight wonders stand out at sea (the Tidewatch Lighthouse, Tide Gates, Lotus Atoll, Abyssal Dome,
+Verdant Pillars, Turtle Isle, Sunken Colonnade and Prism Geode), with two pods of glowing humpbacks that blow, breach
+and dive with their flukes up, and two schools of leaping dolphins. Click one (or pick it in the inventory) for its
+story, what to look for and a few facts, then **Locate** it or **Charter ferry** to sail there.
 
 **A planned city:** every area has a purpose: living, work, industry, entertainment, sports, utility, civic and
 parkland. Open the city map (**M**) to see the zones in colour (toggle to per-district colours, or to each district's approval of you); the inspector
