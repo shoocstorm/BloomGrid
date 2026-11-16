@@ -2,6 +2,7 @@ import { Vector3 } from 'three/webgpu';
 import {
   PI,
   TWO_PI,
+  vec2,
   abs,
   atan,
   clamp,
@@ -25,9 +26,11 @@ import type { Node } from 'three/webgpu';
  * must stay in step: change both together). A pod flies A → into the hub ring at V → round the ring → out to B,
  * then back the same way; without a hub (R = 0) it flies the single arc A → B. Every leg is the arc sky-lanes
  * use (`arcY`), so pods ride exactly on their lanes. Per instance: route (A, B), via (V, ring height, R) and
- * info (height at A, height at B, seed + leg-1 lift, speed + 4 × leg-2 lift; see `podInfo`). Each leg's arc is
- * raised by a whole-tile `lift` so it clears the buildings beneath (D-053); the lifts ride in the integer parts
- * because the pod is at WebGPU's eight vertex buffers.
+ * info (height at A, height at B, seed + leg-1 code, speed + 4 × leg-2 code; see `podInfo`). A leg's code packs
+ * its whole-tile `lift` (raising the crest to clear the buildings beneath, D-053) and its `bow`: how far the
+ * ground track swings sideways (a fraction of the leg's length, at its middle) so the lane weaves between towers
+ * instead of climbing over them (D-166). The codes ride in the integer parts because the pod is at WebGPU's eight
+ * vertex buffers.
  */
 
 /** Cruise speed in tiles per second; the ease never stops (min 20% speed) so the heading stays defined. */
@@ -42,10 +45,43 @@ const EPS = 0.08;
  * cruises and descends (1 − (2t − 1)⁴) rather than a parabola's slow ends, so clearing a rooftop near either end
  * takes a modest lift instead of a towering one (D-053).
  */
-export const arcPeak = (len: number) => 1.5 + len * 0.06;
+export const arcPeak = (len: number) => 0.8 + len * 0.025;
 export const arcProfile = (t: number) => 1 - (2 * t - 1) ** 4;
 export const arcY = (y0: number, y1: number, t: number, len: number, lift = 0) =>
   y0 + (y1 - y0) * t + arcProfile(t) * (arcPeak(len) + lift);
+
+/** Bow steps either side of straight (a bow of ±`BOW_MAX` of the leg's length at its middle). */
+const BOW_STEPS = 8;
+export const BOW_MAX = 0.35;
+const BOW_CODES = BOW_STEPS * 2 + 1;
+/** A leg's code: its whole-tile lift and its bow (quantised to `BOW_MAX / BOW_STEPS`). */
+export const legCode = (lift: number, bow: number) =>
+  Math.ceil(lift) * BOW_CODES + Math.round((Math.max(-BOW_MAX, Math.min(BOW_MAX, bow)) / BOW_MAX) * BOW_STEPS) + BOW_STEPS;
+export const legLift = (code: number) => Math.floor(code / BOW_CODES);
+export const legBow = (code: number) => ((code - legLift(code) * BOW_CODES - BOW_STEPS) / BOW_STEPS) * BOW_MAX;
+/** The bows a planner may try, straight first. */
+export const BOWS = [0, ...Array.from({ length: BOW_STEPS }, (_, i) => [(i + 1) / BOW_STEPS, -(i + 1) / BOW_STEPS]).flat()].map((b) => b * BOW_MAX);
+/** Ground track of a leg A → B bowed by `bow` (fraction of its length to the left at its middle). */
+export function legXZ(ax: number, az: number, bx: number, bz: number, bow: number, t: number): [number, number] {
+  const k = bow * 4 * t * (1 - t);
+  return [ax + (bx - ax) * t - (bz - az) * k, az + (bz - az) * t + (bx - ax) * k];
+}
+
+/** Shader twins of `legLift` / `legBow` / `legXZ`. */
+export function legLiftNode(code: Node<'float'>): Node<'float'> {
+  return floor(code.div(BOW_CODES));
+}
+export function legBowNode(code: Node<'float'>): Node<'float'> {
+  return code.sub(legLiftNode(code).mul(BOW_CODES)).sub(BOW_STEPS).div(BOW_STEPS).mul(BOW_MAX);
+}
+export function legXZNode(a: Node<'vec2'>, b: Node<'vec2'>, bow: Node<'float'>, t: Node<'float'>): Node<'vec2'> {
+  const d = b.sub(a);
+  const k = bow.mul(4).mul(t).mul(float(1).sub(t));
+  return mix(a, b, t).add(vec2(d.y.negate(), d.x).mul(k));
+}
+
+/** Shader twin of `arcPeak`. */
+export const arcPeakNode = (len: Node<'float'>): Node<'float'> => len.mul(0.025).add(0.8);
 
 /** Shader twin of `arcProfile`. */
 export function arcProfileNode(t: Node<'float'>): Node<'float'> {
@@ -54,16 +90,16 @@ export function arcProfileNode(t: Node<'float'>): Node<'float'> {
   return float(1).sub(q2.mul(q2));
 }
 
-/** Packs a pod's info vec4: seed in [0, 1) and speed < 4 share their floats with the legs' whole-tile lifts. */
+/** Packs a pod's info vec4: seed in [0, 1) and speed < 4 share their floats with the legs' codes (`legCode`). */
 export function podInfo(
   ya: number,
   yb: number,
   seed: number,
   speed: number,
-  lift1: number,
-  lift2: number,
+  code1: number,
+  code2: number,
 ): number[] {
-  return [ya, yb, (seed % 1) + Math.ceil(lift1), speed + 4 * Math.ceil(lift2)];
+  return [ya, yb, (seed % 1) + code1, speed + 4 * code2];
 }
 
 /** Shader pose: world position and travel direction for one instance. */
@@ -80,9 +116,10 @@ export function podPathNode(
   const R = via.w;
   const ya = info.x;
   const yb = info.y;
-  const lift1 = floor(info.z);
-  const lift2 = floor(info.w.div(4));
-  const speed = info.w.sub(lift2.mul(4));
+  const code1 = floor(info.z);
+  const code2 = floor(info.w.div(4));
+  const speed = info.w.sub(code2.mul(4));
+  const [lift1, bow1, lift2, bow2] = [legLiftNode(code1), legBowNode(code1), legLiftNode(code2), legBowNode(code2)];
   const hasVia = step(0.001, R);
   const dA = A.sub(V);
   const dB = B.sub(V);
@@ -100,7 +137,7 @@ export function podPathNode(
   const Lo = R.mul(abs(delta)).mul(hasVia);
   const L2 = B.sub(E2).length().mul(hasVia);
   const total = L1.add(Lo).add(L2);
-  // The lift in info.z is whole, so it leaves the phase (fract) alone.
+  // The code in info.z is whole, so it leaves the phase (fract) alone.
   const u = fract(clock.mul(speed.mul(POD_SPEED)).div(total.mul(2)).add(info.z));
   const w = float(1).sub(abs(u.mul(2).sub(1)));
   const e = w.sub(sin(w.mul(TWO_PI)).mul(EASE / (2 * Math.PI)));
@@ -113,16 +150,17 @@ export function podPathNode(
     t: Node<'float'>,
     len: Node<'float'>,
     lift: Node<'float'>,
+    bow: Node<'float'>,
   ) => {
-    const f = mix(p0, p1, t);
-    const y = mix(y0, y1n, t).add(arcProfileNode(t).mul(len.mul(0.06).add(1.5).add(lift)));
+    const f = legXZNode(p0, p1, bow, t);
+    const y = mix(y0, y1n, t).add(arcProfileNode(t).mul(arcPeakNode(len).add(lift)));
     return vec3(f.x, y, f.y);
   };
   const at = (dd: Node<'float'>) => {
-    const p1 = arc(A, E1, ya, y1, clamp(dd.div(L1), 0, 1), L1, lift1);
+    const p1 = arc(A, E1, ya, y1, clamp(dd.div(L1), 0, 1), L1, lift1, bow1);
     const ang = th1.add(delta.mul(clamp(dd.sub(L1).div(max(Lo, 0.001)), 0, 1)));
     const po = vec3(V.x.add(cos(ang).mul(R)), vy, V.y.add(sin(ang).mul(R)));
-    const p2 = arc(E2, B, vy, yb, clamp(dd.sub(L1).sub(Lo).div(max(L2, 0.001)), 0, 1), max(L2, 0.01), lift2);
+    const p2 = arc(E2, B, vy, yb, clamp(dd.sub(L1).sub(Lo).div(max(L2, 0.001)), 0, 1), max(L2, 0.01), lift2, bow2);
     return select(dd.lessThanEqual(L1), p1, select(dd.lessThanEqual(L1.add(Lo)), po, p2));
   };
   const pos = at(d);
@@ -153,9 +191,10 @@ export function podPathAt(
   const [ax, az, bx, bz] = [route[o]!, route[o + 1]!, route[o + 2]!, route[o + 3]!];
   const [vx, vz, vy, R] = [via[o]!, via[o + 1]!, via[o + 2]!, via[o + 3]!];
   const [ya, yb, seed] = [info[o]!, info[o + 1]!, info[o + 2]!];
-  const lift1 = Math.floor(seed);
-  const lift2 = Math.floor(info[o + 3]! / 4);
-  const speed = info[o + 3]! - lift2 * 4;
+  const code1 = Math.floor(seed);
+  const code2 = Math.floor(info[o + 3]! / 4);
+  const speed = info[o + 3]! - code2 * 4;
+  const [lift1, bow1, lift2, bow2] = [legLift(code1), legBow(code1), legLift(code2), legBow(code2)];
   const has = R >= 0.001;
   const dAx = ax - vx;
   const dAz = az - vz;
@@ -183,14 +222,16 @@ export function podPathAt(
   const at = (dd: number, v: Vector3) => {
     if (dd <= L1) {
       const t = cl(dd / L1);
-      return v.set(ax + (e1x - ax) * t, arcY(ya, y1, t, L1, lift1), az + (e1z - az) * t);
+      const [x, z] = legXZ(ax, az, e1x, e1z, bow1, t);
+      return v.set(x, arcY(ya, y1, t, L1, lift1), z);
     }
     if (dd <= L1 + Lo) {
       const a = th1 + delta * cl((dd - L1) / Math.max(Lo, 0.001));
       return v.set(vx + Math.cos(a) * R, vy, vz + Math.sin(a) * R);
     }
     const t = cl((dd - L1 - Lo) / Math.max(L2, 0.001));
-    return v.set(e2x + (bx - e2x) * t, arcY(vy, yb, t, Math.max(L2, 0.01), lift2), e2z + (bz - e2z) * t);
+    const [x, z] = legXZ(e2x, e2z, bx, bz, bow2, t);
+    return v.set(x, arcY(vy, yb, t, Math.max(L2, 0.01), lift2), z);
   };
   at(d, out);
   if (ahead) {

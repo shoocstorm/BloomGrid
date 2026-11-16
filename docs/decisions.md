@@ -3043,3 +3043,26 @@ are removed (gigabytes at 4K); `--keep-frames` keeps them for inspection.
   turbines.
 - `tests/explore.test.ts`'s front-steps case now picks a Work Dome whose door faces a street (the first match had
   become one facing a neighbour).
+
+## D-166 — Sky lanes reimagined: the network only, weaving low between towers, no hoops (2026-11-16)
+
+- **Problem:** 240 lane ribbons, 170 of them a dock's short hop to its hub; each lane was a straight arc whose
+  crest grew with its length (`1.5 + 0.06 × len`) and was then lifted whole over every rooftop beneath, so lanes
+  over the downtown towers rose 60–108 tiles (crests averaged 15–23 above the ground; 115 of 240 lifted). Glowing
+  hoops (sky gates, D-147) hung along every long lane.
+- **Decision:**
+  - *Only the network is drawn:* trunks between hubs, hub → job centre, hub → Aeroline platform, and the lane of a
+    dock with no hub. Pods still fly the dock → hub hop as their first leg, planned like a lane. 240 → 70 ribbons.
+  - *Weave, don't climb:* a leg's ground track may bow sideways (`legXZ`: up to `BOW_MAX` = 0.35 of its length at
+    the middle, 8 steps either way). `legOf` tries every bow and keeps the one with the least lift, a bend costing
+    `BOW_COST` = 10 tiles of lift per unit of bow, so lanes curve only where it saves height. The bow and the lift
+    pack into one whole number per leg (`legCode`): the pod's two legs ride the integer parts of its info vec4 as
+    the lifts did (the pod mesh stays at 8 vertex buffers), the lane's in `info.z`; pod shader, lane shader and the
+    ride camera's CPU mirror decode it alike.
+  - *Flatter arch:* crest `0.8 + 0.025 × len`.
+  - *No sky gates:* the hoop mesh and `GATES` / `GATE_MIN` are gone.
+  - The planner samples each track at twice the clearance check's density (more on long bows), so every sample
+    the check makes is one the planner made.
+- **Measured** (founding city): 70 lanes, 41 bowed, 22 lifted; `clearance()` clipped 0, clipped near an end 3 (was
+  17). Mean crest above ground (max): trunks 15.6 (31.8), hub → job centre 11.3 (22.8), dock lanes 10.8 (28.4),
+  platform links 10.1 (11.2); before 22.8 (62.7), 19.2 (108.4), 21.4 (57.0), 12.3 (15.3).

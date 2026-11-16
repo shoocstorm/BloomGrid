@@ -11,9 +11,8 @@ import {
   TorusGeometry,
   Vector3,
 } from 'three/webgpu';
-import { abs, attribute, cameraPosition, clamp, color, cos, dot, float, floor, fract, fwidth, length, max, min, mix, mrt, normalGeometry, normalize, positionGeometry, positionView, positionWorld, reflect, sin, smoothstep, step, time, transformNormalToView, uniform, uv, vec2, vec3 } from 'three/tsl';
+import { abs, attribute, cameraPosition, clamp, color, cos, dot, float, floor, fract, fwidth, length, max, min, mix, mrt, normalGeometry, normalize, positionGeometry, positionView, reflect, sin, smoothstep, step, time, transformNormalToView, uniform, uv, vec2, vec3 } from 'three/tsl';
 import type { Node } from 'three/webgpu';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
 import { skyShade } from '@/render/bake';
@@ -25,7 +24,24 @@ import { Building } from '@/ecs/components';
 import { heightAt, placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { podGeometry } from './podModel';
 import { CAR_HOVER, CAR_MIX, CAR_PART, CAR_TYPE, carGeometry } from './carModel';
-import { arcProfile, arcProfileNode, arcY, orientNode, podInfo as packPodInfo, podPathAt, podPathNode } from './skypath';
+import {
+  arcPeakNode,
+  arcProfile,
+  arcProfileNode,
+  arcY,
+  BOWS,
+  legBow,
+  legBowNode,
+  legCode,
+  legLift,
+  legLiftNode,
+  legXZ,
+  legXZNode,
+  orientNode,
+  podInfo as packPodInfo,
+  podPathAt,
+  podPathNode,
+} from './skypath';
 import { within } from '@/render/hysteresis';
 import { bloomMRT } from '@/render/bloomMRT';
 
@@ -47,18 +63,16 @@ declare module '@/core/Services' {
 const AGENTS = 8192;
 const PODS = 1040;
 const LANES = 1040;
-/** Sky gates per lane (D-147). */
-const GATES = 3;
-/** Lanes shorter than this (a dock's hop to its hub) carry no gates (D-147). */
-const GATE_MIN = 24;
 /** Hub ring instances (rings per hub: 3, or 6 for a central hub) and light shafts. */
 const RINGS = 1040;
 /** Pod and lane heights over the ground: docks launch from their top deck, pods set down at street level. */
 const DOCK_Y = 3.2;
 const STREET_Y = 1.2;
-/** Lane kinds (route info .w on lanes): a dock's own lane, spoke, trunk, hub → job centre, hub → Aeroline station. */
+/**
+ * Lane kinds (route info .w on lanes): a dock's own lane, (1: a dock's spoke to its hub, no longer drawn, D-166),
+ * trunk, hub → job centre, hub → Aeroline station.
+ */
 const LANE_DIRECT = 0;
-const LANE_SPOKE = 1;
 const LANE_TRUNK = 2;
 const LANE_EGRESS = 3;
 const LANE_RAIL = 4;
@@ -71,6 +85,8 @@ const CLEAR_STEP = 0.5;
 const CLEAR_ENDS = 0.07;
 /** Highest a lane is lifted to clear something: enough to arc over the Wellspring Spire. */
 const MAX_LIFT = 90;
+/** Tiles of lift a lane would rather climb than bow by a whole length sideways (D-166): curves only where they save height. */
+const BOW_COST = 10;
 /** Pods set down beside an Aeroline platform this far above its deck (riders change to the trains there). */
 const RAIL_Y = 1.6;
 const MAX_RUN = 8;
@@ -256,14 +272,17 @@ export const mobilityModule: GameModule = {
       const isRail = step(3.5, kind);
       const d = route.zw.sub(route.xy);
       const len = max(d.length(), float(1));
-      const dir = d.div(len);
       const t = positionGeometry.x.add(0.5);
+      // info.z: the leg's code, its whole-tile lift and its sideways bow (same track as the pods, skypath.ts).
+      const bow = legBowNode(info.z);
+      // The ribbon's tangent on the bowed track: its side runs square to it.
+      const tan = d.add(vec2(d.y.negate(), d.x).mul(bow.mul(4).mul(float(1).sub(t.mul(2)))));
+      const dir = tan.div(max(tan.length(), float(0.001)));
       // Trunks are broad express ribbons, spokes slimmer than a dock's own lane.
       const width = mix(mix(mix(float(0.3), float(0.24), isSpoke), float(0.6), isTrunk), float(0.55), isRail).mul(zoom);
       const side = positionGeometry.z.mul(width);
-      const flat = mix(route.xy, route.zw, t);
-      // info.z: whole-tile lift that carries the lane over the buildings beneath (same arc as the pods, skypath.ts).
-      const y = mix(info.x, info.y, t).add(arcProfileNode(t).mul(len.mul(0.06).add(1.5).add(info.z)));
+      const flat = legXZNode(route.xy, route.zw, bow, t);
+      const y = mix(info.x, info.y, t).add(arcProfileNode(t).mul(arcPeakNode(len).add(legLiftNode(info.z))));
       lm.positionNode = vec3(flat.x.add(dir.y.negate().mul(side)), y, flat.y.add(dir.x.mul(side)));
       const flow = mix(mix(float(0.9), float(2.2), isTrunk), float(1.6), isRail);
       // Zoomed out, the running dashes shrink below a pixel and strobe as they move: fade them to their mean (D-064).
@@ -300,62 +319,6 @@ export const mobilityModule: GameModule = {
     lanes.castShadow = lanes.receiveShadow = false;
     lanes.renderOrder = 6;
     lanes.name = 'mobility.lanes';
-
-    // ── Sky gates (D-147): glowing hoops spaced along every lane, which the pods fly through. One instance per
-    // lane (sharing the lanes' route data); each gate's place along its lane is its uv.x. Same arc as the lanes.
-    const gateGeo = (() => {
-      const parts = Array.from({ length: GATES }, (_, k) => {
-        const g = new TorusGeometry(1, 0.06, 3, 14).rotateY(Math.PI / 2);
-        const t = (k + 1) / (GATES + 1);
-        const u = g.attributes.uv!;
-        for (let i = 0; i < u.count; i++) u.setXY(i, t, u.getY(i));
-        return g;
-      });
-      const g = mergeGeometries(parts)!;
-      for (const p of parts) p.dispose();
-      return g;
-    })();
-    gateGeo.setAttribute('aRoute', laneRoute);
-    gateGeo.setAttribute('aRouteInfo', laneInfo);
-    const gm = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: NormalBlending, fog: false });
-    {
-      const route = attribute('aRoute', 'vec4');
-      const info = attribute('aRouteInfo', 'vec4');
-      const kind = info.w;
-      const isSpoke = step(0.5, kind).mul(step(kind, 1.5));
-      const isTrunk = step(1.5, kind).mul(step(kind, 2.5));
-      const isRail = step(3.5, kind);
-      const len = max(route.zw.sub(route.xy).length(), float(1));
-      const t = uv().x;
-      const arcAt = (tt: Node<'float'>) => {
-        const f = mix(route.xy, route.zw, tt);
-        const y = mix(info.x, info.y, tt).add(arcProfileNode(tt).mul(len.mul(0.06).add(1.5).add(info.z)));
-        return vec3(f.x, y, f.y);
-      };
-      const fwd = normalize(arcAt(t.add(0.01)).sub(arcAt(t.sub(0.01))));
-      // Wide enough for a pod (≈0.3 across) with room; express trunks get grand hoops.
-      const size = mix(mix(float(0.42), float(0.38), isSpoke), float(0.72), isTrunk).mul(zoom).mul(step(GATE_MIN, len));
-      gm.positionNode = arcAt(t).add(orientNode(positionGeometry.mul(size), fwd));
-      const n = U.night;
-      const tint = mix(
-        mix(mix(mix(color(0x0fa89a), color(0x3fd9c8), n), mix(color(0x0aa5bd), color(0x47e6d2), n), isSpoke), mix(color(0xff9414), color(0xffd27a), n), isTrunk),
-        mix(color(0xd93a7a), color(0xff7ab8), n),
-        isRail,
-      );
-      // A pulse runs gate to gate along the lane.
-      const pulse = sin(t.mul(18).sub(U.clock.mul(2.4))).mul(0.5).add(0.5);
-      // Thin hoops far away are sub-pixel: fade them by their on-screen size, and out at the lane's ends.
-      const cover = min(float(1), float(0.04).mul(size).div(max(length(fwidth(positionWorld)), float(1e-5))));
-      gm.colorNode = tint.mul(pulse.mul(0.5).add(0.85)).mul(n.mul(0.5).add(1));
-      gm.opacityNode = pulse.mul(0.25).add(0.6).mul(cover).mul(mix(float(0.75), float(1), isTrunk)).mul(n.mul(0.45).add(0.55));
-      bloomMRT(gm, mrt({ emissive: tint.mul(pulse.mul(0.6).add(0.3)).mul(n.mul(0.9).add(0.1)).mul(cover) }));
-    }
-    const gates = new InstancedMesh(gateGeo, gm, LANES);
-    gates.count = 0;
-    gates.frustumCulled = false;
-    gates.castShadow = gates.receiveShadow = false;
-    gates.renderOrder = 6;
-    gates.name = 'mobility.laneGates';
 
     // ── Hubs: holographic rings turning round the transfer ring, and a light shaft ──
     // aRing: centre (x, y, z) and radius; aSpin: tilt (rad), spin speed (rad/s), phase, tint (0 cyan, 1 gold, 2 rose).
@@ -422,7 +385,7 @@ export const mobilityModule: GameModule = {
     shafts.castShadow = shafts.receiveShadow = false;
     shafts.renderOrder = 7;
     shafts.name = 'mobility.hubShafts';
-    scene.add(agents, pods, lanes, gates, rings, shafts);
+    scene.add(agents, pods, lanes, rings, shafts);
 
     const g = city.grid;
     const roadY = (t: number) => (g.road[t] === BRIDGE ? BRIDGE_DECK : g.heightAt((t % g.w) + 0.5, ((t / g.w) | 0) + 0.5)) + 0.035;
@@ -518,34 +481,52 @@ export const mobilityModule: GameModule = {
       }
       topsDirty = false;
     };
+    const tileOf = (x: number, z: number) => (g.inBounds(Math.floor(x), Math.floor(z)) ? Math.floor(z) * g.w + Math.floor(x) : -1);
     /**
-     * Whole tiles to raise the arc from (ax, az, ya) to (bx, bz, yb) so it keeps `CLEARANCE` over every rooftop in
-     * between; the buildings under either end (the dock, the hub) don't count. Symmetric in its ends.
+     * Whole tiles to raise the arc from (ax, az, ya) to (bx, bz, yb), its ground track bowed by `bow`, so it keeps
+     * `CLEARANCE` over every rooftop in between; the buildings under either end (the dock, the hub) don't count.
      */
-    const liftCache = new Map<string, number>();
-    const liftOf = (ax: number, az: number, ya: number, bx: number, bz: number, yb: number) => {
-      const key = ax < bx || (ax === bx && az <= bz) ? `${ax},${az},${ya},${bx},${bz},${yb}` : `${bx},${bz},${yb},${ax},${az},${ya}`;
-      const hit = liftCache.get(key);
-      if (hit !== undefined) return hit;
+    const liftFor = (ax: number, az: number, ya: number, bx: number, bz: number, yb: number, bow: number) => {
       const len = Math.max(0.01, Math.hypot(bx - ax, bz - az));
-      const tileOf = (x: number, z: number) => (g.inBounds(Math.floor(x), Math.floor(z)) ? Math.floor(z) * g.w + Math.floor(x) : -1);
       const ta = tileOf(ax, az);
       const tb = tileOf(bx, bz);
       const skipA = ta >= 0 ? owner[ta]! : -1;
       const skipB = tb >= 0 ? owner[tb]! : -1;
       let need = 0;
-      const steps = Math.ceil(len / CLEAR_STEP);
+      // Twice as fine as `clips` (every one of its samples is one of these) and finer still on a long bow.
+      const steps = 2 * Math.ceil(len / CLEAR_STEP) * Math.ceil(1 + Math.abs(bow) * 2);
       for (let i = 1; i < steps; i++) {
         const t = i / steps;
         if (t < CLEAR_ENDS || t > 1 - CLEAR_ENDS) continue;
-        const k = tileOf(ax + (bx - ax) * t, az + (bz - az) * t);
+        const k = tileOf(...legXZ(ax, az, bx, bz, bow, t));
         if (k < 0 || owner[k]! < 0 || owner[k] === skipA || owner[k] === skipB) continue;
         const gap = tops[k]! + CLEARANCE - arcY(ya, yb, t, len);
         if (gap > 0) need = Math.max(need, gap / arcProfile(t));
       }
-      const lift = Math.min(MAX_LIFT, Math.ceil(need));
-      liftCache.set(key, lift);
-      return lift;
+      return Math.min(MAX_LIFT, Math.ceil(need));
+    };
+    /**
+     * A leg's code (`legCode`): the bow that keeps it lowest, weaving between towers rather than climbing over them
+     * (D-166); a bend costs `BOW_COST` tiles of lift per unit of bow, so a lane only curves when it saves height.
+     * Symmetric in its ends (the reverse leg bows the other way, the same track).
+     */
+    const legCache = new Map<string, number>();
+    const legOf = (ax: number, az: number, ya: number, bx: number, bz: number, yb: number) => {
+      const flip = !(ax < bx || (ax === bx && az <= bz));
+      const key = flip ? `${bx},${bz},${yb},${ax},${az},${ya}` : `${ax},${az},${ya},${bx},${bz},${yb}`;
+      let best = legCache.get(key);
+      if (best === undefined) {
+        const [px, pz, py, qx, qz, qy] = flip ? [bx, bz, yb, ax, az, ya] : [ax, az, ya, bx, bz, yb];
+        let score = Infinity;
+        for (const bow of BOWS) {
+          const lift = liftFor(px, pz, py, qx, qz, qy, bow);
+          const sc = lift + Math.abs(bow) * BOW_COST;
+          if (sc < score - 1e-6) [score, best] = [sc, legCode(lift, bow)];
+          if (lift === 0) break;
+        }
+        legCache.set(key, best!);
+      }
+      return flip ? legCode(legLift(best!), -legBow(best!)) : best!;
     };
     /**
      * Where a pod sets down at a job centre (x, z) arriving from (fx, fz): street level, or, when the last stretch
@@ -567,16 +548,16 @@ export const mobilityModule: GameModule = {
     };
     const ground = (x: number, z: number) => Math.max(0, g.heightAt(x, z));
     /** Diagnostic: does the lifted arc still pass under a rooftop, in the middle or in its end approaches? */
-    const clips = (ax: number, az: number, ya: number, bx: number, bz: number, yb: number, lift: number) => {
+    const clips = (ax: number, az: number, ya: number, bx: number, bz: number, yb: number, code: number) => {
+      const [lift, bow] = [legLift(code), legBow(code)];
       const len = Math.max(0.01, Math.hypot(bx - ax, bz - az));
-      const tileOf = (x: number, z: number) => (g.inBounds(Math.floor(x), Math.floor(z)) ? Math.floor(z) * g.w + Math.floor(x) : -1);
       const own = [tileOf(ax, az), tileOf(bx, bz)].map((k) => (k >= 0 ? owner[k]! : -1));
       let mid = false;
       let ends = false;
       const steps = Math.ceil(len / CLEAR_STEP);
       for (let i = 1; i < steps; i++) {
         const t = i / steps;
-        const k = tileOf(ax + (bx - ax) * t, az + (bz - az) * t);
+        const k = tileOf(...legXZ(ax, az, bx, bz, bow, t));
         if (k < 0 || owner[k]! < 0 || own.includes(owner[k]!)) continue;
         if (arcY(ya, yb, t, len, lift) >= tops[k]!) continue;
         if (t < CLEAR_ENDS || t > 1 - CLEAR_ENDS) ends = true;
@@ -584,15 +565,15 @@ export const mobilityModule: GameModule = {
       }
       return { mid, ends };
     };
-    const stats = { lanes: 0, lifted: 0, clipped: 0, clippedEnds: 0 };
+    const stats = { lanes: 0, lifted: 0, bowed: 0, clipped: 0, clippedEnds: 0 };
 
     /** Aeroline deck height the lanes were last built with (0 = line not built yet). */
     let railDeck = 0;
     /** Lanes, pods, rings and shafts from the latest network and pod routes. */
     const buildSkylanes = () => {
       if (topsDirty) refreshTops();
-      liftCache.clear();
-      Object.assign(stats, { lanes: 0, lifted: 0, clipped: 0, clippedEnds: 0 });
+      legCache.clear();
+      Object.assign(stats, { lanes: 0, lifted: 0, bowed: 0, clipped: 0, clippedEnds: 0 });
       const pr = podRoute.array as Float32Array;
       const pv = podVia.array as Float32Array;
       const pi = podInfo.array as Float32Array;
@@ -602,13 +583,14 @@ export const mobilityModule: GameModule = {
       let nl = 0;
       const lane = (ax: number, az: number, ya: number, bx: number, bz: number, yb: number, kind: number) => {
         if (nl >= LANES) return;
-        const lift = liftOf(ax, az, ya, bx, bz, yb);
+        const code = legOf(ax, az, ya, bx, bz, yb);
         lr.set([ax, az, bx, bz], nl * 4);
-        li.set([ya, yb, lift, kind], nl * 4);
+        li.set([ya, yb, code, kind], nl * 4);
         nl++;
-        const c = clips(ax, az, ya, bx, bz, yb, lift);
+        const c = clips(ax, az, ya, bx, bz, yb, code);
         stats.lanes++;
-        if (lift > 0) stats.lifted++;
+        if (legLift(code) > 0) stats.lifted++;
+        if (legBow(code) !== 0) stats.bowed++;
         if (c.mid) stats.clipped++;
         if (c.ends) stats.clippedEnds++;
       };
@@ -617,7 +599,7 @@ export const mobilityModule: GameModule = {
       const pod = (A: readonly number[], B: readonly number[], via: number[], ya: number, yb: number, seed: number, speed: number) => {
         if (np >= PODS) return;
         let lift1: number;
-        let lift2 = 0;
+        let lift2 = legCode(0, 0);
         if (via[3]! > 0) {
           const [vx, vz, vy, r] = via as [number, number, number, number];
           const toRing = (x: number, z: number) => {
@@ -626,9 +608,9 @@ export const mobilityModule: GameModule = {
           };
           const [e1x, e1z] = toRing(A[0]!, A[1]!);
           const [e2x, e2z] = toRing(B[0]!, B[1]!);
-          lift1 = liftOf(A[0]!, A[1]!, ya, e1x, e1z, vy);
-          lift2 = liftOf(e2x, e2z, vy, B[0]!, B[1]!, yb);
-        } else lift1 = liftOf(A[0]!, A[1]!, ya, B[0]!, B[1]!, yb);
+          lift1 = legOf(A[0]!, A[1]!, ya, e1x, e1z, vy);
+          lift2 = legOf(e2x, e2z, vy, B[0]!, B[1]!, yb);
+        } else lift1 = legOf(A[0]!, A[1]!, ya, B[0]!, B[1]!, yb);
         pr.set([A[0]!, A[1]!, B[0]!, B[1]!], np * 4);
         pv.set(via, np * 4);
         pi.set(packPodInfo(ya, yb, seed, speed, lift1, lift2), np * 4);
@@ -665,8 +647,8 @@ export const mobilityModule: GameModule = {
         } else if (l.kind === 'spoke') {
           stationsOf[l.b]!.push([l.ax, l.az]);
           hubOfStation.set(`${l.ax},${l.az}`, l.b);
-          const [ex, ez] = ringAt(l.b, l.ax, l.az);
-          lane(l.ax, l.az, ground(l.ax, l.az) + DOCK_Y, ex, ez, hubs[l.b]!.y, LANE_SPOKE);
+          // No ribbon for a dock's hop up to its hub (D-166): the network drawn is hubs, trunks and the lanes
+          // out to the job centres and the trains; pods still fly the hop (their first leg, planned like a lane).
         } else {
           nbrs[l.a]!.push(l.b);
           nbrs[l.b]!.push(l.a);
@@ -761,7 +743,7 @@ export const mobilityModule: GameModule = {
         }
       });
       pods.count = np;
-      lanes.count = gates.count = nl;
+      lanes.count = nl;
       rings.count = nr;
       shafts.count = ns;
       podRoute.needsUpdate = podVia.needsUpdate = podInfo.needsUpdate = laneRoute.needsUpdate = laneInfo.needsUpdate = true;
@@ -777,7 +759,7 @@ export const mobilityModule: GameModule = {
     });
     ctx.bus.on('mobility:updated', rebuild);
     ctx.bus.on('city:reset', () => {
-      agents.count = pods.count = lanes.count = gates.count = rings.count = shafts.count = 0;
+      agents.count = pods.count = lanes.count = rings.count = shafts.count = 0;
     });
     // Saved / bulk-loaded cities already have a mobility pass once the first pulses run; render
     // whatever exists now (D-007).
@@ -799,7 +781,7 @@ export const mobilityModule: GameModule = {
         agentsNear = within(agentsNear, c.cameraCtl.distance, 240);
         agents.visible = agents.count > 0 && agentsNear;
         pods.visible = pods.count > 0;
-        lanes.visible = gates.visible = lanes.count > 0;
+        lanes.visible = lanes.count > 0;
         rings.visible = rings.count > 0;
         // The Aeroline builds after this module: re-land the transfer lanes once its deck height is known.
         if ((ctx.services.tryGet('aeroline')?.deck ?? 0) !== railDeck) buildSkylanes();
