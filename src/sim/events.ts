@@ -69,6 +69,14 @@ declare module '@/core/EventBus' {
     'city:named': { name: string };
     /** Steward milestones and residents' tips (D-118): a reward claimed; a tip bubble popped (`eid` paid it). */
     'milestone:claimed': { id: string; reward: number };
+    /** Charters and eras (plan v5, Phase 28): a tier reached / claimed, one taken up or dropped, a new era. */
+    'charter:reached': { id: string; tier: number };
+    'charter:claimed': { id: string; tier: number; reward: number; title: string | null; perk: string | null };
+    'charter:changed': { id: string; on: boolean };
+    'era:advanced': { era: number; id: string; name: string };
+    /** A challenge scenario was won or lost (the city plays on). */
+    'objective:won': { scenario: string; seconds: number };
+    'objective:lost': { scenario: string; reason: string };
     /** Happenings (D-123): one began; a request was met (claimable); it ended (claimed, missed or run its course). */
     'happening:start': { happening: Happening };
     /** An ordinance came into force or was repealed (plan v5, Phase 25). */

@@ -1,5 +1,6 @@
 import { Building } from '@/ecs/components';
 import { buildings } from '@/content';
+import { isHero } from '@/content/heroes';
 import { CATEGORY_LABELS, type BuildingCategory } from '@/content/types';
 import type { CommandStack } from '@/core/Commands';
 import type { City } from './City';
@@ -24,7 +25,8 @@ import { getPolicy, isActive, policyBlock } from './policies';
  * - a **festival** (harmony Stable or better): visitors and a harmony lift for a while, and a free fireworks
  *   show when a factory has shells;
  * - a **bumper catch** (a fishing dock): the fishing haul runs half again higher;
- * - a **cruise visit** (a waterfront): visitors spend for a while.
+ * - a **cruise visit** (a waterfront): visitors spend for a while;
+ * - the **Bloom Expo** (from the Canopy era, a landmark): many visitors and a harmony lift (plan v5, Phase 28).
  * Effects go through the consequence modifiers (`applyHappenings`), so visitor credits land in `stats.tourism`
  * and `netIncome`. Randomness only from `city.rng`, and only while `auto` is on (tests switch it off).
  */
@@ -42,6 +44,7 @@ export const HAPPENING_SECONDS: Record<HappeningKind, number> = {
   petition: 300,
   protest: 300,
   praise: 120,
+  expo: 150,
 };
 /** District approval points after a petition answered (+) or ignored (−), praise, and a protest left to fester. */
 export const DISTRICT_MOOD = { petition: 5, ignored: -4, praise: 3, festered: -3 } as const;
@@ -58,7 +61,10 @@ export const MOOD = { claimed: 2.5, missed: -1.5, seconds: 180 };
 /** Request reward: a base, plus credits per resident up to a cap. */
 export const REQUEST_REWARD = { base: 250, perResident: 0.04, cap: 1500 };
 /** Visitor credits per second during a boon: a flat part plus a share of tax income. */
-export const VISITORS = { festival: { flat: 2, share: 0.12 }, cruise: { flat: 3, share: 0.1 } };
+export const VISITORS = { festival: { flat: 2, share: 0.12 }, cruise: { flat: 3, share: 0.1 }, expo: { flat: 6, share: 0.2 } };
+/** Harmony points while the Bloom Expo runs, and the era it comes from. */
+export const EXPO_HARMONY = 1;
+export const EXPO_ERA = 2;
 /** Fishing haul multiplier during a bumper catch; Harmony points during a festival. */
 export const CATCH_MUL = 1.5;
 export const FESTIVAL_HARMONY = 2;
@@ -73,6 +79,7 @@ export const HAPPENING_NAMES: Record<HappeningKind, string> = {
   petition: 'District petition',
   protest: 'District protest',
   praise: 'District thanks',
+  expo: 'Bloom Expo',
 };
 
 /** The ordinance that answers a district's complaint, when there is one the city could enact now. */
@@ -240,6 +247,14 @@ function propose(
         reward: Math.round(requestReward(city) / 20) * 10,
       };
     }
+    case 'expo': {
+      if (city.charters.era < EXPO_ERA) return null;
+      const halls = ents.filter((e) => isHero(city.buildingDef(e)));
+      const at = pick(halls.length ? halls : ents.filter((e) => city.buildingDef(e).category === 'sports'));
+      if (at === undefined) return null;
+      const [x, z] = centre(at);
+      return { kind, x, z, place: placeName(city, x, z), reward: 0 };
+    }
     case 'cruise': {
       if (city.stats.population < 400) return null;
       const quays = ents.filter((e) => city.buildingDef(e).placement?.nearWater);
@@ -382,6 +397,7 @@ export function updateHappenings(city: City): void {
     ['festival', 1.2],
     ['bumper-catch', 1],
     ['cruise', 0.8],
+    ['expo', 0.8],
   ];
   const total = kinds.reduce((a, [, w]) => a + w, 0);
   let r = city.rng.next() * total;
@@ -409,6 +425,10 @@ export function applyHappenings(city: City, mods: ConsequenceMods): void {
     mods.harmony += FESTIVAL_HARMONY;
     visitors = VISITORS.festival.flat + s.income * VISITORS.festival.share;
   } else if (h.kind === 'cruise') visitors = VISITORS.cruise.flat + s.income * VISITORS.cruise.share;
+  else if (h.kind === 'expo') {
+    mods.harmony += EXPO_HARMONY;
+    visitors = VISITORS.expo.flat + s.income * VISITORS.expo.share;
+  }
   else if (h.kind === 'bumper-catch') mods.fishing *= CATCH_MUL;
   mods.tourism += visitors;
   h.earned += visitors;
@@ -471,6 +491,8 @@ export function describeHappening(city: City, h: Happening): string {
       return `A bumper catch off ${h.place}: the haul runs half again higher (${time})`;
     case 'cruise':
       return `A cruise ship calls at ${h.place}: visitors are spending (${time})`;
+    case 'expo':
+      return `The Bloom Expo opens at ${h.place}: visitors from across the sea (${time})`;
     case 'petition': {
       const what = h.policy ? `the ${getPolicy(h.policy)?.name ?? h.policy} ordinance` : `approval of ${h.target} (now ${Math.round(moodOf(city, h.district!).approval)})`;
       return h.status === 'met'

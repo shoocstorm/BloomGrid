@@ -49,7 +49,10 @@ it as a one-click lever.
 
 - An ordinance can change only once a minute, so it cannot be flipped back and forth.
 - Some need something first. The fishing quota needs a fishing dock, and free sky-pods need the Sky-lane charter.
-- On a fresh island the council hears ordinances from 500 residents.
+- On a fresh island the council hears ordinances from 500 residents, and the era sets how many can be in force at
+  once (Seedling 2, Grove 3, Canopy 4, Bloom all; see [Charters and eras](kb:systems-charters)).
+- The **Emergency reserve** (crisis and fire damage 30% lower, a twentieth of tax income held back) is earned by
+  the Resilient Isle charter's Silver tier.
 - Enacting needs the fee in the treasury.
 
 The card says which reason applies.

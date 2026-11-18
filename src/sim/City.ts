@@ -20,6 +20,8 @@ import { FIREWORK_KINDS, createFireworksState, type FireworksState } from './fir
 import { limitReason, limitStatus } from './limits';
 import { UNLOCK_NAMES, createGrowthState, isOpen, type GrowthState } from './growthState';
 import { createHappeningState, type HappeningState } from './happeningState';
+import { createCharterState, type CharterState } from './charterState';
+import { charterHash } from './charters';
 import { createConsequenceState, type ConsequenceState } from './consequenceState';
 import { createSoil, initSoilLand, soilChecksum, type SoilState } from './floranet';
 import type { SkyBridge } from './weaver';
@@ -136,6 +138,8 @@ export class City {
   consequences!: ConsequenceState;
   /** Happenings: residents' requests and good surprises (D-123). */
   happenings!: HappeningState;
+  /** Charters, the era and a challenge's objectives (plan v5, Phase 28; saved v23, hashed). */
+  charters!: CharterState;
   /** Ordinances, sector budgets and the business tax (plan v5, Phase 25). */
   policies!: PolicyState;
   /** District approval, streaks and moods (plan v5, Phase 26). */
@@ -195,6 +199,7 @@ export class City {
     this.growth = createGrowthState();
     this.consequences = createConsequenceState();
     this.happenings = createHappeningState();
+    this.charters = createCharterState();
     this.policies = createPolicyState();
     this.approval = createApprovalState();
     this.roadCount = 0;
@@ -515,7 +520,7 @@ export class City {
       (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0},${r.tier ?? 0},${Math.round(r.age ?? 0)},${Math.round(r.thrive ?? 0)},${(r.scorch ?? 0).toFixed(3)},${r.off ? 1 : 0},${r.by ?? 'system'},${Math.round(r.spent ?? 0)}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}|${policyHash(this)}|${approvalHash(this)}|${this.directorHash()}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}|${policyHash(this)}|${approvalHash(this)}|${this.directorHash()}|${charterHash(this)}`,
     );
   }
 }

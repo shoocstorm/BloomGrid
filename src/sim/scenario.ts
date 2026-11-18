@@ -2,6 +2,7 @@ import { syncBridges } from './bridges';
 import { seawardScore } from './orient';
 import { roadLevels } from './roads';
 import { startWonders } from './wonders';
+import { setupChallenge } from './objectives';
 import { buildings, scenarios } from '@/content';
 import type { ScenarioBuilder } from '@/content/types';
 import { Building, Service } from '@/ecs/components';
@@ -187,6 +188,8 @@ export function applyScenario(city: City, id: string): { buildings: number; road
   // Grade every lot to its street and cut back banks that would leave a building in a hollow (D-099).
   setCorners(city, gradeLots(city, allLots(city), (c) => leveled.has(c)));
   city.credits = def.credits;
+  // A challenge (plan v5, Phase 28) breaks something and starts its clock.
+  if (def.challenge) setupChallenge(city, def.id, def.challenge);
   if (def.progression) {
     city.growth.progression = true;
     city.growth.wonders = startWonders();

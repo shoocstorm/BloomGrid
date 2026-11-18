@@ -17,6 +17,9 @@ import { updateWonders, wonderHarmony } from './wonders';
 import { ageWear, size, updateLevels, upkeepMul, use } from './levels';
 import { updateConsequences } from './consequences';
 import { updateDirector } from './director';
+import { updateCharters } from './charters';
+import { updateEras } from './eras';
+import { updateObjectives } from './objectives';
 import { updateHappenings } from './happenings';
 import { netIncome, taxSplit, updateFinance } from './finance';
 import { sectorOf } from './policies';
@@ -397,6 +400,10 @@ export const pulseSystem: System<SimCtx> = {
     updateWonders(city);
     updateHappenings(city);
     updateConsequences(city);
+    // Charters, eras and a challenge's objectives (plan v5, Phase 28).
+    updateCharters(city);
+    updateEras(city);
+    updateObjectives(city);
     // The director reads this pulse's settled state; the crisis step reads its dials on the next (Phase 27).
     updateDirector(city);
 

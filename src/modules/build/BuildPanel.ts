@@ -449,7 +449,7 @@ export class BuildPanel {
     setText(
       this.hint,
       this.tab !== 'build'
-        ? 'Unlock projects, milestones and sea wonders'
+        ? 'Charters, era, unlocks and milestones'
         : holding
         ? touch
           ? tool === 'build'

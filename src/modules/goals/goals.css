@@ -209,3 +209,95 @@
   background: linear-gradient(180deg, #ffd77a, #ffad3a);
   color: #2b1a00;
 }
+
+/* Long-term goals (plan v5, Phase 28): challenge objectives, era and legacy, charters with medal pips. */
+.gl-obj {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.gl-obj div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.gl-obj b {
+  color: var(--ink);
+  font-size: 12px;
+}
+.gl-obj.ok .ico {
+  color: var(--accent-2);
+}
+.gl-obj-time {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--warn);
+}
+.gl-challenge.won {
+  border-color: var(--accent-2);
+}
+.gl-challenge.lost {
+  border-color: var(--crit);
+}
+.gl-legacy {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.gl-legacy b {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--ink);
+}
+.gl-legacy em {
+  grid-column: 1 / -1;
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.gl-stars {
+  display: flex;
+  gap: 3px;
+  justify-self: end;
+}
+.gl-stars i,
+.gl-medals i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.gl-stars i.on {
+  background: var(--accent);
+}
+.gl-medals {
+  display: flex;
+  gap: 4px;
+}
+.gl-medals i.got {
+  box-shadow: inset 0 0 0 1.5px var(--ink-soft);
+  background: transparent;
+}
+.gl-medals i.m0.won {
+  background: #c98a54;
+}
+.gl-medals i.m1.won {
+  background: #c9d3dc;
+}
+.gl-medals i.m2.won {
+  background: #f2c14e;
+}
+.gl-charter.running {
+  border-color: var(--accent-2);
+}

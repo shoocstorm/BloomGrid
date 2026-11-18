@@ -35,6 +35,7 @@ they asked but forgot to claim, it pays out on its own shortly after the deadlin
   Fireworks Factory has shells, the city puts on a free show.
 - **Cruise visit** (a waterfront): visitors spend in town; it shows under Visitors in the credit flow.
 - **Bumper catch** (a fishing dock): the fishing haul runs half again higher.
+- **Bloom Expo** (from the Canopy era, at a landmark): many visitors spend in town and Harmony rises a little.
 
 Nothing to press: just enjoy them. A happy, safe city gets more festivals.
 

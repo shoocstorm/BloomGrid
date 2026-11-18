@@ -50,12 +50,23 @@ export interface ChapterOptions {
   /** Loads the saved city; resolves false when it could not (the dialog stays, with a note). `close` drops the dialog. */
   resume(close: () => void): Promise<boolean>;
   found(name: string, seed: number, difficulty: DifficultyId, guide: boolean): void;
-  showcase(): void;
+  /** Opens the founding city, as free play (`founding-city`) or as one of its `CHALLENGES`. */
+  showcase(scenario: string): void;
   /** The dialog closed (any way). */
   onClose?(): void;
   /** The path or island on show changed (the welcome screen's island follows it). */
   onView?(path: Path, seed: number): void;
 }
+
+/**
+ * The founding city's challenge scenarios (plan v5, Phase 28; `content/scenarios/*.ts` with a `challenge`). Listed
+ * here, not read from content, so the welcome chunk stays light (D-148).
+ */
+export const CHALLENGES = [
+  { id: 'founding-city', icon: 'city', name: 'Free play', line: 'Explore it, or run it as its steward' },
+  { id: 'water-crisis', icon: 'water', name: 'Water Crisis Rescue', line: 'Water works shut: Stable again within 20 min' },
+  { id: 'debt-island', icon: 'credits', name: 'Debt Island', line: 'Repay ◈30,000, no system below Strained' },
+] as const;
 
 /** A saved city drawn as a map; loads the building registry lazily (the welcome chunk stays light, D-148). */
 export async function drawSave(canvas: HTMLCanvasElement, data: SaveData | null | undefined, seed: number, size: number): Promise<void> {
@@ -74,6 +85,7 @@ export async function drawSave(canvas: HTMLCanvasElement, data: SaveData | null 
 export function openChapter(o: ChapterOptions): { close(): void } {
   const info = o.info;
   let path: Path = info ? 'resume' : 'new';
+  let mode: string = CHALLENGES[0].id;
   let difficulty: DifficultyId = o.difficulty;
   let seed = o.seed;
   const size = o.size;
@@ -199,7 +211,14 @@ export function openChapter(o: ChapterOptions): { close(): void } {
     ),
   );
 
-  // ── Showcase ──
+  // ── Showcase ── free play or a challenge (plan v5, Phase 28).
+  const modes = h(
+    'div',
+    { class: 'ch-diffs ch-modes', role: 'radiogroup', 'aria-label': 'How to play it' },
+    ...CHALLENGES.map((c) =>
+      h('button', { class: 'ch-diff', role: 'radio', 'data-mode': c.id, onClick: () => setMode(c.id) }, icon(c.icon), h('b', {}, c.name), h('span', {}, c.line)),
+    ),
+  );
   // A rendered overview of the real showcase (scripts/scenes/showcase-shot.js); the bare island if it is missing.
   const showMap = h('img', { class: 'ch-map', alt: 'The showcase city seen from above', src: '/assets/showcase-overview.webp', draggable: 'false' }) as HTMLImageElement;
   showMap.addEventListener('error', () => {
@@ -219,11 +238,10 @@ export function openChapter(o: ChapterOptions): { close(): void } {
       h(
         'ul',
         { class: 'ch-list' },
-        h('li', {}, icon('city'), 'About 2,000 buildings and 25,000 residents across named towns'),
-        h('li', {}, icon('train'), 'The Aeroline maglev, sky-lane pods and Flora, all unlocked'),
-        h('li', {}, icon('sparkle'), 'The Aurora Gemini twin towers, Bloomtopia park, a wind farm and sea wonders'),
-        h('li', {}, icon('eye'), 'Explore it on foot, by drone or by train, or run it as its steward'),
+        h('li', {}, icon('city'), 'About 2,500 buildings and 50,000 residents across named towns'),
+        h('li', {}, icon('train'), 'The Aeroline, sky-lane pods, Flora and sea wonders, all unlocked'),
       ),
+      modes,
       h('p', { class: 'ch-note' }, o.first ? 'Your saved city stays saved.' : 'Replaces the city on screen.'),
     ),
   );
@@ -267,6 +285,16 @@ export function openChapter(o: ChapterOptions): { close(): void } {
     }
   }
 
+  function setMode(id: string): void {
+    mode = id;
+    for (const b of modes.children) {
+      const on = (b as HTMLElement).dataset.mode === id;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', String(on));
+    }
+    if (path === 'showcase') choose('showcase');
+  }
+
   function choose(p: Path): void {
     path = p;
     for (const b of paths.children) {
@@ -277,7 +305,7 @@ export function openChapter(o: ChapterOptions): { close(): void } {
     for (const [k, el] of Object.entries(panes)) el.classList.toggle('on', k === p);
     go.replaceChildren(
       icon(p === 'resume' ? 'play' : p === 'new' ? 'sparkle' : 'city'),
-      p === 'resume' ? `Resume ${info?.name || 'my city'}` : p === 'new' ? 'Found the city' : 'Open the showcase',
+      p === 'resume' ? `Resume ${info?.name || 'my city'}` : p === 'new' ? 'Found the city' : mode === 'founding-city' ? 'Open the showcase' : 'Start the challenge',
     );
     if (p === 'new' && !o.first) setTimeout(() => nameInput.focus(), 30);
     o.onView?.(p, p === 'resume' ? (info?.seed ?? SHOWCASE_SEED) : p === 'new' ? seed : SHOWCASE_SEED);
@@ -299,7 +327,7 @@ export function openChapter(o: ChapterOptions): { close(): void } {
       o.found(nameInput.value.trim() || cityName(), seed, difficulty, guide.checked);
     } else {
       close();
-      o.showcase();
+      o.showcase(mode);
     }
   }
 
@@ -317,6 +345,7 @@ export function openChapter(o: ChapterOptions): { close(): void } {
   window.addEventListener('keydown', onKey, true);
 
   setDifficulty(difficulty);
+  setMode(mode);
   choose(path);
   rise(paths.children);
   o.host.append(scrim);

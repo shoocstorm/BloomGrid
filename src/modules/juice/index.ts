@@ -203,6 +203,8 @@ class Juice {
         this.ready = new Set(claimableMilestones(ctx.city).map((m) => m.id));
       });
     bus.on('milestone:claimed', ({ reward }) => this.claimed(reward));
+    // Charter tiers (plan v5, Phase 28) pour coins too; a perk-only tier still gets the burst.
+    bus.on('charter:claimed', ({ reward }) => this.claimed(reward));
     this.ready = new Set(claimableMilestones(ctx.city).map((m) => m.id));
   }
 

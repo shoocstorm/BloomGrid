@@ -7,6 +7,8 @@ import { DAY_LENGTH } from '@/sim/pulseConst';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { isCompact } from '@/platform/device';
+import { CHARTERS, claimable } from '@/sim/charters';
+import { longTermGoals } from './charters';
 import './goals.css';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -26,6 +28,8 @@ export const goalsModule: GameModule = {
     const el = h('div', { class: 'goals' });
     const tab = ctx.services.get('build').addTab('goals', 'Goals', 'star', el);
     let key = '';
+    // Charters, era, legacy and a challenge (plan v5, Phase 28): every city, the showcase included.
+    const long = longTermGoals(ctx);
     /** Read by the 1 Hz refresh: only while its tab is open. */
     const shown = () => tab.selected;
 
@@ -35,7 +39,7 @@ export const goalsModule: GameModule = {
      */
     const signature = () => {
       const g = city.growth;
-      const parts: (string | number)[] = [g.milestones.length, g.wonders.join(), Math.round(g.fish * 100), city.stats.fishing.toFixed(1), Math.round(g.fishIncome)];
+      const parts: (string | number)[] = [long.signature(), g.milestones.length, g.wonders.join(), Math.round(g.fish * 100), city.stats.fishing.toFixed(1), Math.round(g.fishIncome)];
       for (const id of PROJECT_IDS) {
         const st = projectStatus(city, id);
         parts.push(st);
@@ -53,12 +57,14 @@ export const goalsModule: GameModule = {
     const render = (force = false) => {
       const g = city.growth;
       el.classList.toggle('gl-open', !g.progression);
+      if (!force && el.querySelector('button:hover')) return;
       if (!g.progression) {
-        const k = 'open';
+        const k = `open|${long.signature()}`;
         if (k === key) return;
         key = k;
         el.replaceChildren(
-          h('div', { class: 'pulse-title' }, 'Goals'),
+          ...long.render(),
+          h('div', { class: 'pulse-title' }, 'Unlocks'),
           h(
             'p',
             { class: 'gl-note' },
@@ -67,7 +73,6 @@ export const goalsModule: GameModule = {
         );
         return;
       }
-      if (!force && el.querySelector('button:hover')) return;
       const sig = signature();
       if (sig === key) return;
       key = sig;
@@ -201,6 +206,7 @@ export const goalsModule: GameModule = {
         });
       const s = city.stats;
       el.replaceChildren(
+        ...long.render(),
         h('div', { class: 'pulse-title' }, `Milestones · ${g.milestones.length} / ${MILESTONES.length}`),
         ...(milestones.length ? milestones : [h('p', { class: 'gl-note' }, 'Every milestone claimed. The island is in good hands.')]),
         h('div', { class: 'pulse-title' }, 'Unlock projects'),
@@ -231,9 +237,10 @@ export const goalsModule: GameModule = {
 
     const badge = () => {
       const g = city.growth;
-      const ready = g.progression
-        ? PROJECT_IDS.filter((id) => projectStatus(city, id) === 'ready').length + claimableMilestones(city).length
-        : 0;
+      const ready =
+        (g.progression
+          ? PROJECT_IDS.filter((id) => projectStatus(city, id) === 'ready').length + claimableMilestones(city).length
+          : 0) + CHARTERS.reduce((a, c) => a + (claimable(city, c.id) > 0 ? 1 : 0), 0);
       tab.setBadge(ready ? String(ready) : '', ready ? 'warn' : '');
       // Phones keep the console folded over the city: say once when a project becomes ready to start.
       if (!g.progression) return;
@@ -269,6 +276,12 @@ export const goalsModule: GameModule = {
       'project:done',
       'wonder:discovered',
       'milestone:claimed',
+      'charter:changed',
+      'charter:claimed',
+      'charter:reached',
+      'era:advanced',
+      'objective:won',
+      'objective:lost',
       'city:reset',
       'load:done',
     ] as const)

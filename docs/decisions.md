@@ -3099,3 +3099,36 @@ rules tilted the odds but never caused anything, and the founding city ran itsel
   reports it: `pressure`, `risks`).
 - **Import cycle:** `crises.ts` → `director.ts` → `forecast.ts` → `consequences.ts` → … → `hazards.ts` called
   `registerCrisis` before `crises.ts` finished. What the scheduler and the rules need lives in `directorCore.ts`.
+
+## D-168 — Charters, eras, a live legacy and challenge scenarios (2026-11-18)
+
+Plan v5, Phase 28. The fresh island ran out of goals at the last milestone and unlock; the showcase had none.
+
+- **Charters** (`sim/charters.ts`, data like `MILESTONES`): seven civic goals with Bronze / Silver / Gold tiers
+  (Carbon-zero, Ten Thousand Voices, Resilient Isle, Ocean Steward, Transit City, Night Bloom, Debt-free Decade).
+  Up to `MAX_ACTIVE` (3) under way; only those make progress, and dropping one resets its running measure (`acc`), so
+  the choice matters. Measures are a streak (seconds a condition holds), an event count (crises with no ruins,
+  festivals and shows, read from the incident / happening logs and the fireworks counter by id, `seen`) or a share
+  smoothed over a minute. A reached tier is **sticky** (`reached`): a broken streak keeps what it earned, and is
+  claimed by hand (`claimCharter`, undoable = false, juice coins). Bronze pays credits; Silver a perk; Gold a perk
+  and a title, and frees its slot. Perks write consequence mods (`applyCharters` after `applyPolicies`); one unlocks
+  the **Emergency reserve** ordinance (the Phase 25 deferral) through a new `damage` mod read by `damageBuilding`.
+  `setCharter` is an undoable command (a choice).
+- **Eras** (`sim/eras.ts`): Seedling → Grove (1k residents, 1 tier) → Canopy (10k, 4) → Bloom (30k, 8 incl. a Gold),
+  never back; a grand moment each. Each raises the director's band (+0.02 per era) and sets ordinance slots (2 / 3 /
+  4 / all) **on a growing island only**: Phase 25 promised the showcase every ordinance, so slots don't bind there.
+  Canopy brings the **Bloom Expo** happening (a landmark; visitors 6 + 20% of income per second, +1 harmony).
+- **Live legacy**: `stewardLegacy` adds charter tiers (300) and eras (500) and shows in Goals → Era and legacy with
+  its stars and the latest title.
+- **Challenges**: `ScenarioDef.challenge` is data (content can't import sim): `setup` (`remove` a share of a
+  resource's producers, spread by uid; an inherited `loan`) and `objectives` (`reach-tier` with a deadline,
+  `clear-debt`, `keep-tiers`), checked each pulse in `sim/objectives.ts`. A goal must hold 20 s to win; a breach must
+  last 15 s to lose (a moment's dip is not a loss). Losing doesn't end the game. Both challenge scenarios call
+  `founding.build`, so they never drift from the showcase. **Water Crisis Rescue** removes 30% of water producers
+  (50% collapsed water, food and jobs and drained ◈15k in a minute; 30% leaves water Critical and about five minutes
+  of credits). **Debt Island**: ◈1,500 and a ◈30,000 loan at ◈12/s; the unattended city nets ≈ +70/s, so the danger
+  is crises pushing water (Strained at start) to Critical. The New Chapter dialog's Showcase path picks free play or
+  a challenge (`CHALLENGES` in `Chapter.ts`, a static list so the welcome chunk stays light, D-148).
+- **State** `city.charters` (`charterState.ts`): active, reached, claimed, acc, seen, era, challenge. Save v23; hashed.
+- **Flora**: `goals_status` now reports era, next era, legacy, charters and challenge objectives (in every city).
+- **Not done**: cosmetic rewards (wonder variants, building looks), only one new happening kind (the Expo).

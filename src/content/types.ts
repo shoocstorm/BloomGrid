@@ -307,6 +307,31 @@ export interface ScenarioDef {
   /** Level of the scenario's highways (D-096): 0 raw tracks, 1 Living Highways (default), 2 boulevards. */
   roadLevel?: number;
   build(b: ScenarioBuilder): void;
+  /** A challenge (plan v5, Phase 28): what goes wrong at the start, and how to win or lose (`sim/objectives.ts`). */
+  challenge?: ChallengeDef;
+}
+
+/** System ids a challenge objective can name (`SYSTEMS` in `sim/pulseState.ts`). */
+export type ChallengeSystem = 'energy' | 'water' | 'food' | 'jobs' | 'mobility' | 'ecology' | 'harmony' | 'budget';
+
+export type ObjectiveSpec =
+  /** Win: bring a system to `tier` or better (0 Thriving … 4 Collapse) and hold it 20 s; lose when `within` sim seconds pass. */
+  | { kind: 'reach-tier'; system: ChallengeSystem; tier: number; within: number; label: string }
+  /** Win: no loans outstanding and credits at zero or above. */
+  | { kind: 'clear-debt'; label: string }
+  /** Lose: any system (ecology aside) worse than `worst` for 15 s in a row. */
+  | { kind: 'keep-tiers'; worst: number; label: string };
+
+export interface ChallengeDef {
+  /** One line for the New Chapter dialog. */
+  pitch: string;
+  objectives: ObjectiveSpec[];
+  setup: {
+    /** Producers of a resource taken away (the share of them, spread across the island). */
+    remove?: { resource: 'water' | 'energy'; share: number };
+    /** A loan already owed: amount, and repayment per sim second. */
+    loan?: { amount: number; payment: number };
+  };
 }
 
 export const defineScenario = (def: ScenarioDef): ScenarioDef => def;

@@ -502,3 +502,9 @@ body.chapter-open .pulse {
   width: auto;
   bottom: calc(var(--bot) + 70px);
 }
+
+/* Showcase: free play or a challenge (plan v5, Phase 28), one tile per row. */
+.ch-modes {
+  grid-template-columns: 1fr;
+  margin-top: 8px;
+}

@@ -3,11 +3,14 @@ import { MILESTONES } from './milestones';
 import { PROJECTS } from './projects';
 import { FAIL_SECONDS } from './steward';
 import { WONDERS, startWonders } from './wonders';
+import { tierCount, titles } from './charters';
+import { ERAS } from './eras';
 
 /**
  * The steward's legacy: what a city amounted to when the council replaced its steward. The game-over screen turns it
  * into a chronicle (rank, record tiles, highlights, what tipped it over and what to try next), so losing reads as the
- * end of a chapter worth beating rather than a dead end. Pure: reads the city, changes nothing.
+ * end of a chapter worth beating rather than a dead end. The same score shows live in the Goals tab (plan v5, Phase
+ * 28), so play has a visible score. Pure: reads the city, changes nothing.
  */
 export interface LegacyRank {
   title: string;
@@ -29,6 +32,9 @@ export interface Legacy {
   /** Sea wonders that rose beyond the ones there from the start. */
   wonders: number;
   unlocks: number;
+  /** Charter tiers claimed and the era reached (plan v5, Phase 28). */
+  charterTiers: number;
+  era: number;
   score: number;
   /** 1..5. */
   stars: number;
@@ -77,7 +83,9 @@ export function scoreLegacy(l: Omit<Legacy, 'score' | 'stars' | 'rank' | 'cause'
       l.crises * 50 +
       l.milestones * 80 +
       l.wonders * 150 +
-      l.unlocks * 250,
+      l.unlocks * 250 +
+      l.charterTiers * 300 +
+      l.era * 500,
   );
 }
 
@@ -109,6 +117,8 @@ export function stewardLegacy(city: City, seed = 0): Legacy {
     milestones: g.milestones.length,
     wonders: wonderIds.length,
     unlocks: g.progression ? g.unlocked.length : 0,
+    charterTiers: tierCount(city).tiers,
+    era: city.charters.era,
   };
   const score = scoreLegacy(base);
   const { stars, rank } = rankFor(score);
@@ -123,6 +133,8 @@ export function stewardLegacy(city: City, seed = 0): Legacy {
     const w = WONDERS.find((d) => d.id === id);
     if (w) highlights.push(`Saw the ${w.name} rise`);
   }
+  for (const t of titles(city)) highlights.push(`Earned the title ${t}`);
+  if (city.charters.era > 0) highlights.push(`Led the city into the ${ERAS[city.charters.era]!.name} era`);
   if (crises) highlights.push(`Weathered ${crises} crisis${crises === 1 ? '' : 'es'}`);
   const lastMilestone = MILESTONES.find((m) => m.id === g.milestones[g.milestones.length - 1]);
   if (lastMilestone) highlights.push(`Reached “${lastMilestone.title}”`);

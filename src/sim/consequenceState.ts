@@ -58,6 +58,8 @@ export interface ConsequenceMods {
   fishEffort: number;
   reputationDrift: number;
   natureEco: number;
+  /** Damage crises and fires do to buildings (Emergency reserve, the Hardened city perk; plan v5 Phase 28). */
+  damage: number;
 }
 
 export const neutralMods = (): ConsequenceMods => ({
@@ -83,6 +85,7 @@ export const neutralMods = (): ConsequenceMods => ({
   fishEffort: 1,
   reputationDrift: 0,
   natureEco: 1,
+  damage: 1,
 });
 
 export interface ConsequenceState {

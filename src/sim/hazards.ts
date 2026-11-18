@@ -76,7 +76,7 @@ export function damageBuilding(
   crisis?: CrisisInstance,
 ): number {
   const before = Service.condition[eid]!;
-  const after = Math.max(0, before - amount);
+  const after = Math.max(0, before - amount * city.consequences.mods.damage);
   Service.condition[eid] = after;
   const cost = (before - after) * city.buildingDef(eid).stats.cost * LOSS;
   city.credits -= cost;

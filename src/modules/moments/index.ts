@@ -2,6 +2,8 @@ import type { GameContext, GameModule } from '@/game/context';
 import { Building } from '@/ecs/components';
 import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { PROJECTS } from '@/sim/projects';
+import { CHARTERS } from '@/sim/charters';
+import { ERAS } from '@/sim/eras';
 import { WONDER_SITES } from '@/modules/scenery/sites';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { SYSTEM_ORDER } from '@/sim/indicators';
@@ -24,6 +26,8 @@ export type { MomentSpec } from './Ceremony';
  * | Word spreads, a transit city | minor | those consequence rules come into force |
  * | A disaster weathered | minor | an earthquake, tornado or tsunami ends |
  * | Top level | minor | the city's first building reaches level 3 |
+ * | A new era | grand | `era:advanced` (Grove, Canopy, Bloom; plan v5 Phase 28) |
+ * | A Gold charter, a challenge won or lost | minor | `charter:claimed` at Gold, `objective:won` / `objective:lost` |
  *
  * One plays at a time (a queue, deduped by id, minor ones dropped when it backs up), none while a city loads or
  * settles (baselines are taken a few seconds after a city change, so loading a big city celebrates nothing) or while
@@ -134,6 +138,47 @@ export const momentsModule: GameModule = {
     };
 
     // ── Triggers ──
+    // Long-term goals (plan v5, Phase 28).
+    ctx.bus.on('era:advanced', ({ era, name }) => {
+      if (ctx.loading || !armed()) return;
+      const e = ERAS[era]!;
+      const prev = ERAS[era - 1];
+      play({
+        id: `era:${e.id}`,
+        scale: 'grand',
+        tone: era >= 3 ? 'gold' : 'bloom',
+        emblem: e.icon,
+        eyebrow: `A new era · ${prev ? `${prev.name} → ` : ''}${name}`,
+        title: `The ${name} era`,
+        lines: [e.line, `${e.slots === 8 ? 'Every' : e.slots} ordinance slot${e.slots === 1 ? '' : 's'} on a growing island`, era >= 2 ? 'The Bloom Expo may come calling' : 'The island expects more of you now'],
+        sub: 'Crises come a little harder in a greater city. Take up a new charter from Build → Goals.',
+        at: heart(ctx),
+        sound: 'triumph',
+      });
+    });
+    ctx.bus.on('charter:claimed', ({ id, tier, title, perk }) => {
+      if (ctx.loading || tier < 3 || !armed()) return;
+      const d = CHARTERS.find((c) => c.id === id);
+      play({
+        id: `charter:${id}`,
+        scale: 'minor',
+        tone: 'gold',
+        emblem: d?.icon ?? 'star',
+        eyebrow: 'Charter · Gold',
+        title: title ?? d?.name ?? id,
+        lines: [`${d?.name ?? id} complete`, ...(perk ? [perk] : [])],
+        sub: 'The title is yours for good, and your legacy grows.',
+        sound: 'milestone',
+      });
+    });
+    ctx.bus.on('objective:won', ({ scenario, seconds }) => {
+      if (ctx.loading) return;
+      play({ id: 'challenge', scale: 'minor', tone: 'gold', emblem: 'star', eyebrow: 'Challenge · won', title: scenario, lines: [`Done in ${Math.round(seconds / 60)} minutes`], sub: 'The city plays on. Take up a charter next.', sound: 'triumph' });
+    });
+    ctx.bus.on('objective:lost', ({ scenario, reason }) => {
+      if (ctx.loading) return;
+      play({ id: 'challenge', scale: 'minor', tone: 'storm', emblem: 'st-warn', eyebrow: 'Challenge · lost', title: scenario, lines: [reason], sub: 'The city plays on as free play, or try again from the New Chapter dialog.', sound: 'weathered' });
+    });
     ctx.bus.on('project:done', ({ id }) => {
       if (ctx.loading || id === 'flora') return;
       const p = PROJECTS[id];

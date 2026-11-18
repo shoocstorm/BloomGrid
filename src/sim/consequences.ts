@@ -4,6 +4,7 @@ import { DAY_LENGTH } from './pulseConst';
 import { seasonAt } from './seasons';
 import { applyHappenings } from './happenings';
 import { applyPolicies } from './policies';
+import { applyCharters } from './charters';
 import { neutralMods, type ConsequenceMods, type FeedEntry } from './consequenceState';
 import { DIFFICULTIES } from './difficulty';
 import { DRIFT, directing, driftNow, MIN_GAP, queueCrisis } from './directorCore';
@@ -375,6 +376,8 @@ export function updateConsequences(city: City): void {
   applyHappenings(city, mods);
   // Ordinances and sector budgets (plan v5, Phase 25); their running cost is charged here.
   applyPolicies(city, mods);
+  // Charter perks (plan v5, Phase 28).
+  applyCharters(city, mods);
   mods.tourism *= mods.tourismMul;
   st.mods = mods;
   city.credits += mods.tourism - mods.insurance;

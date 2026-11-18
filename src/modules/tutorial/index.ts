@@ -3,7 +3,8 @@ import { SHOWCASE_SEED, foundCityStaged } from '@/game/newCity';
 import type { SaveData } from '@/sim/save';
 import { openingView } from '@/game/opening';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
-import { TUTORIAL_KEY, guideWanted, openChapter } from './Chapter';
+import { CHALLENGES, TUTORIAL_KEY, guideWanted, openChapter } from './Chapter';
+import { challengeOf } from '@/sim/objectives';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { rise } from '@/ui/holo';
@@ -201,13 +202,13 @@ export const tutorialModule: GameModule = {
 
     /** Founds the city behind the loading screen; the opening fly-in starts as it lifts. */
     const found = (
-      scenario: 'fresh-island' | 'founding-city',
+      scenario: string,
       seed: number,
       difficulty: DifficultyId,
       name?: string,
     ): Promise<void> =>
       ctx.services.get('loader').run(
-        scenario === 'founding-city' ? 'Opening the showcase city' : `Founding ${name ?? 'a new island'}`,
+        scenario === 'fresh-island' ? `Founding ${name ?? 'a new island'}` : scenario === 'founding-city' ? 'Opening the showcase city' : `Opening ${CHALLENGES.find((c) => c.id === scenario)?.name ?? 'the challenge'}`,
         async (stage) => {
           await foundCityStaged(ctx, seed, difficulty, scenario, stage);
           if (name) ctx.commands.execute('nameCity', { name }, false);
@@ -241,8 +242,14 @@ export const tutorialModule: GameModule = {
       };
       setTimeout(poll, 250);
     };
-    const showcaseToast = () =>
-      ctx.bus.emit('toast', { text: 'The showcase city: everything built and unlocked. Explore, or manage it.', tone: 'ok' });
+    const showcaseToast = () => {
+      // A challenge (plan v5, Phase 28) says what to do; free play says what is here.
+      const ch = challengeOf(ctx.city);
+      ctx.bus.emit('toast', {
+        text: ch ? `Challenge: ${ch.pitch} (Build → Goals)` : 'The showcase city: everything built and unlocked. Explore, or manage it.',
+        tone: ch ? 'info' : 'ok',
+      });
+    };
 
     /** The in-game New Chapter dialog (Settings, the steward's "new city"): it replaces the running city. */
     const open = async () => {
@@ -276,8 +283,8 @@ export const tutorialModule: GameModule = {
         found(name, seed, difficulty, guide) {
           void found('fresh-island', seed, difficulty, name).then(() => founded(name, difficulty, guide));
         },
-        showcase() {
-          void found('founding-city', SHOWCASE_SEED, ctx.city.steward.difficulty).then(showcaseToast);
+        showcase(scenario) {
+          void found(scenario, SHOWCASE_SEED, ctx.city.steward.difficulty).then(showcaseToast);
         },
       });
     };
@@ -295,7 +302,7 @@ export const tutorialModule: GameModule = {
     if (s?.kind === 'scenario' && s.chosen) {
       const greet = () => {
         if (!document.body.classList.contains('booted')) return void setTimeout(greet, 200);
-        if (s.scenario === 'founding-city') showcaseToast();
+        if (s.scenario !== 'fresh-island') showcaseToast();
         else founded(ctx.city.growth.name || s.name || 'Your city', s.difficulty, !!s.guide);
       };
       setTimeout(greet, 200);

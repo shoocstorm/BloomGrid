@@ -11,7 +11,9 @@ export type HappeningKind =
   /** District voices (plan v5, Phase 26): a district asks for a fix, takes to the streets, or says thank you. */
   | 'petition'
   | 'protest'
-  | 'praise';
+  | 'praise'
+  /** The Bloom Expo (plan v5, Phase 28): from the Canopy era, the world comes to a landmark. */
+  | 'expo';
 export type HappeningStatus = 'active' | 'met' | 'done' | 'missed';
 
 export interface Happening {

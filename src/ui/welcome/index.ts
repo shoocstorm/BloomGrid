@@ -5,7 +5,7 @@ import { SHOWCASE_SEED, preferredDifficulty, type GameStart } from '@/game/start
 import type { SaveInfo } from '@/game/SaveManager';
 import type { SaveData } from '@/sim/save';
 import { MAP_SIZE } from '@/sim/mapSize';
-import { guideWanted, openChapter, type ChapterPath } from '@/modules/tutorial/Chapter';
+import { CHALLENGES, guideWanted, openChapter, type ChapterPath } from '@/modules/tutorial/Chapter';
 import { h, setText } from '@/ui/dom';
 import { Hologram, type HoloCity } from './Hologram';
 import './welcome.css';
@@ -114,7 +114,7 @@ export async function runWelcome(el: HTMLElement, subtitle: string, params: URLS
         return true;
       },
       found: (name, s, difficulty, guide) => resolve({ kind: 'scenario', scenario: 'fresh-island', seed: s, difficulty, name, guide, chosen: true }),
-      showcase: () => resolve({ kind: 'scenario', scenario: 'founding-city', seed: SHOWCASE_SEED, difficulty: preferredDifficulty(params), chosen: true }),
+      showcase: (scenario) => resolve({ kind: 'scenario', scenario, seed: SHOWCASE_SEED, difficulty: preferredDifficulty(params), chosen: true }),
     });
     layout();
     // Once more after the dialog's entrance (fonts and its maps settle its size).
@@ -126,7 +126,7 @@ export async function runWelcome(el: HTMLElement, subtitle: string, params: URLS
   el.classList.add('wl-chosen');
   holo.setSpin(0.16);
   const settled = holo.glide(...centre());
-  setText(caption, start.kind === 'save' ? `${info?.name || 'Your city'} · restoring` : start.scenario === 'founding-city' ? 'The founding city · opening' : `${start.name ?? 'A new island'} · founding`);
+  setText(caption, start.kind === 'save' ? `${info?.name || 'Your city'} · restoring` : start.scenario === 'founding-city' ? 'The founding city · opening' : start.scenario === 'fresh-island' ? `${start.name ?? 'A new island'} · founding` : `${CHALLENGES.find((c) => c.id === start.scenario)?.name ?? 'The founding city'} · opening`);
   return {
     start,
     screen,

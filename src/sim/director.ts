@@ -5,6 +5,7 @@ import { warnings } from './forecast';
 import { PULSE_TICKS } from './pulseConst';
 import { SYSTEMS } from './pulseState';
 import { FAIL_SECONDS } from './steward';
+import { eraOf } from './eras';
 import type { QueuedCrisis } from './stewardState';
 import { CALM_MAX, DRIFT_IN, DRIFT_OUT, PACE, directing } from './directorCore';
 
@@ -60,7 +61,8 @@ export const rawTension = (p: TensionParts) => clamp01(p.tiers + p.crises + p.fo
 export function band(city: City): [number, number] | null {
   const b = DIFFICULTIES[city.steward.difficulty].tension;
   if (!b) return null;
-  const shift = (city.steward.director.mastery - 0.5) * 0.12;
+  // A fast-recovering steward, and a later era (plan v5, Phase 28), are pressed harder.
+  const shift = (city.steward.director.mastery - 0.5) * 0.12 + eraOf(city).band;
   return [b[0] + shift, b[1] + shift];
 }
 

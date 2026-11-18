@@ -2,6 +2,8 @@ import type { CommandStack } from '@/core/Commands';
 import type { City } from './City';
 import type { ConsequenceMods } from './consequenceState';
 import { isOpen } from './growthState';
+import { hasPerk } from './charters';
+import { eraOf, policySlots } from './eras';
 import { BUDGET_MAX, BUDGET_MIN, BUDGET_SECTORS, type BudgetSector } from './policyState';
 import { PULSE_TICKS } from './pulseConst';
 import { TAX_MAX, TAX_MIN } from './pulseState';
@@ -22,7 +24,8 @@ export type PolicyId =
   | 'four-day-week'
   | 'tourist-levy'
   | 'rainwater-code'
-  | 'free-transit';
+  | 'free-transit'
+  | 'emergency-reserve';
 
 export interface PolicyDef {
   id: PolicyId;
@@ -153,6 +156,20 @@ export const POLICIES: PolicyDef[] = [
       m.harmony += 1.5;
     },
   },
+  {
+    // Earned, not bought (plan v5, Phase 28): the Resilient Isle charter's Silver tier.
+    id: 'emergency-reserve',
+    name: 'Emergency reserve',
+    icon: 'storm',
+    upside: 'Repair crews and materials stand ready: crises and fires do 30% less damage.',
+    downside: 'A twentieth of tax income is held in the reserve (credits per second).',
+    enact: 1000,
+    perSec: (c) => Math.max(0, c.stats.income) * 0.05,
+    requires: (c) => (hasPerk(c, 'reserve') ? null : 'Earned by the Resilient Isle charter (Silver).'),
+    apply(m) {
+      m.damage *= 0.7;
+    },
+  },
 ];
 
 export const POLICY_IDS = POLICIES.map((p) => p.id);
@@ -182,6 +199,10 @@ export function policyBlock(city: City, id: string, on = !isActive(city, id)): s
   if (!on) return null;
   const locked = policiesLocked(city);
   if (locked) return locked;
+  // Eras (plan v5, Phase 28) open ordinance slots on a growing island.
+  const slots = policySlots(city);
+  if (Object.keys(city.policies.active).length >= slots)
+    return `The ${eraOf(city).name} era allows ${slots} ordinances at once: repeal one, or grow into the next era.`;
   const req = p.requires?.(city);
   if (req) return req;
   if (city.credits < p.enact)

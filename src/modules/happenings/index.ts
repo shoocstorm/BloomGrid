@@ -28,6 +28,7 @@ const ICON: Record<HappeningKind, string> = {
   petition: 'pen',
   protest: 'st-warn',
   praise: 'star',
+  expo: 'gem',
 };
 /** Kinds whose card leads with the district (plan v5, Phase 26). */
 const DISTRICT_KINDS: HappeningKind[] = ['petition', 'protest', 'praise'];
@@ -51,6 +52,7 @@ function cardHint(hp: Happening, approval: number): string {
   if (hp.kind === 'festival') return `Visitors and good cheer in ${hp.place} while it lasts.`;
   if (hp.kind === 'bumper-catch')
     return `The shoals are in off ${hp.place}: the fishing haul runs half again higher.`;
+  if (hp.kind === 'expo') return `The world comes to ${hp.place}: visitors spend freely and the city glows with pride.`;
   return `A cruise ship calls at ${hp.place}: visitors are spending in town.`;
 }
 
@@ -313,7 +315,7 @@ export const happeningsModule: GameModule = {
   deps: ['hud', 'construction', 'moments', 'juice'],
   init(ctx) {
     const card = new HappeningsCard(ctx);
-    // Drill: ?happening=request|festival|bumper-catch|cruise|petition|protest|praise starts one as soon as the city is up (like ?drill=).
+    // Drill: ?happening=request|festival|bumper-catch|cruise|petition|protest|praise|expo starts one as soon as the city is up (like ?drill=).
     let drill = new URLSearchParams(location.search).get('happening') as HappeningKind | null;
     ctx.systems.add({
       id: 'happenings.card',

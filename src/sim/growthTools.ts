@@ -4,6 +4,44 @@ import { PROJECTS, PROJECT_IDS, projectProgress, projectStatus } from './project
 import { WONDERS } from './wonders';
 import { CATCH_VALUE } from './fishing';
 import type { UnlockId } from './growthState';
+import type { City } from './City';
+import { CHARTERS, MAX_ACTIVE, TIER_NAMES, charterValue, claimable, fmtValue, titles } from './charters';
+import { eraOf, nextEra } from './eras';
+import { stewardLegacy } from './legacy';
+import { objectiveViews } from './objectives';
+
+/** Long-term goals (plan v5, Phase 28): the era, the live legacy score, charters and a challenge's objectives. */
+function longTerm(city: City) {
+  const st = city.charters;
+  const l = stewardLegacy(city);
+  const n = nextEra(city);
+  const objectives = objectiveViews(city);
+  return {
+    era: eraOf(city).name,
+    nextEra: n ? { name: n.era.name, needs: n.needs.map((x) => `${Math.min(x.have, x.need)} / ${x.need} ${x.label}`) } : 'Bloom is the last era',
+    legacy: { score: l.score, rank: l.rank.title, stars: l.stars, titles: titles(city) },
+    charters: {
+      note: `Take up to ${MAX_ACTIVE} at a time (Build → Goals); only those under way make progress, and dropping one resets it.`,
+      list: CHARTERS.map((d) => {
+        const reached = st.reached[d.id] ?? 0;
+        const next = d.tiers[Math.min(2, reached)]!;
+        return {
+          name: d.name,
+          goal: d.description,
+          underWay: st.active.includes(d.id),
+          reached: reached ? TIER_NAMES[reached - 1] : 'none',
+          ...(claimable(city, d.id) > 0 ? { readyToClaim: true } : {}),
+          ...(reached < 3
+            ? { next: `${TIER_NAMES[reached]}: ${st.active.includes(d.id) ? `${fmtValue(d, charterValue(city, d))} of ` : ''}${fmtValue(d, next.need)}`, how: d.lever }
+            : {}),
+        };
+      }),
+    },
+    ...(objectives.length
+      ? { challenge: { status: st.challenge!.status, objectives: objectives.map((o) => `${o.done ? '✓' : '✗'} ${o.spec.label}: ${o.status}${o.left !== null ? ` (${Math.round(o.left / 60)} min left)` : ''}`) } }
+      : {}),
+  };
+}
 
 /**
  * Progression for the city assistant (Phase 22): what the steward is growing toward on a fresh island (unlock
@@ -15,7 +53,7 @@ export const growthTools: AgentTool<ActionCtx, never>[] = [
     name: 'goals_status',
     option: 'What to grow toward: unlock projects, the fish stock, undiscovered wonders',
     description:
-      'The city\'s goals: each unlock project (Sky-lane charter, Aeroline, Flora) with its status (open, running with progress, ready to start, blocked), cost and criteria met or not; the fish stock and fishing income; the sea wonders discovered and what reveals the rest. Use for "what should I aim for", "how do I unlock the Aeroline", "is the fishing OK".',
+      'The city\'s goals: the era and what the next needs, the live legacy score and rank, the civic charters (Carbon-zero, Ten Thousand Voices, Resilient Isle…: under way, tiers reached, how to progress) and a challenge scenario\'s objectives; then each unlock project (Sky-lane charter, Aeroline, Flora) with its status (open, running with progress, ready to start, blocked), cost and criteria met or not; the fish stock and fishing income; the sea wonders discovered and what reveals the rest. Use for "what should I aim for", "how do I unlock the Aeroline", "is the fishing OK".',
     keywords: [
       'goal',
       'goals',
@@ -29,6 +67,11 @@ export const growthTools: AgentTool<ActionCtx, never>[] = [
       'wonder',
       'progress',
       'next',
+      'era',
+      'legacy',
+      'score',
+      'title',
+      'challenge',
     ],
     input: { type: 'object', properties: {} },
     effect: 'read',
@@ -38,9 +81,11 @@ export const growthTools: AgentTool<ActionCtx, never>[] = [
         return {
           progression: false,
           note: 'This city has everything unlocked (showcase); there are no projects to earn.',
+          ...longTerm(city),
         };
       return {
         city: g.name,
+        ...longTerm(city),
         projects: PROJECT_IDS.map((id) => {
           const def = PROJECTS[id];
           const status = projectStatus(city, id);
