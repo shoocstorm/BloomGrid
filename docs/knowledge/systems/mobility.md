@@ -37,6 +37,9 @@ Flow: 0.9+ Thriving, 0.75+ Stable, 0.6–0.75 Strained, 0.45–0.6 Critical. Jam
 - **Pod Interchanges** and the **Skylane Nexus** are hubs: they link nearby docks into one network, and docks on the
   network carry more riders.
 - **Aeroline** stations link to the nearest hub so riders change to the trains, lifting the whole network.
+- **Upgrade the Aeroline** (click a train, or **Upgrade line** in a station's inspector): the whole line rises a level
+  at once, like a building. Level 2 *Zephyr* (9,000 credits) carries ×1.35 riders per station, level 3 *Aurora Halo*
+  (20,000) ×1.75, with faster, longer trains. Undo returns the credits.
 - A city where many commuters ride transit earns the *transit city* consequence: land near stations is worth more and
   residents are happier.
 

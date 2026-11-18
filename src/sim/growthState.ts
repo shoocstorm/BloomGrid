@@ -44,6 +44,8 @@ export interface GrowthState {
   /** Residents' tips popped, and what they paid (`sim/tips.ts`, D-118). */
   tips: number;
   tipIncome: number;
+  /** Aeroline line level 1..3 (`sim/aeroline.ts`, D-170). */
+  aerolineLevel: number;
 }
 
 export function createGrowthState(): GrowthState {
@@ -60,6 +62,7 @@ export function createGrowthState(): GrowthState {
     milestones: [],
     tips: 0,
     tipIncome: 0,
+    aerolineLevel: 1,
   };
 }
 

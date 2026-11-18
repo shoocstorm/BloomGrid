@@ -56,7 +56,8 @@ reclaim or defend — from the Tidewatch Lighthouse and glowing whale pods to a 
 </tr>
 <tr>
 <td><b>Ride the Aeroline.</b> A solar maglev loop on a viaduct of bloom pylons circles the island above the
-streets, its sleek trains stopping at glass-vaulted stations in every town.</td>
+streets, its sleek trains stopping at glass-vaulted stations in every town. Upgrade the whole line to level 3:
+longer, faster sets with glass roofs, solar-sailed stations and halo spires.</td>
 <td><b>Fireworks you design.</b> Build a Fireworks Factory and light the night: peony, willow and palm shells,
 hearts, rings and butterflies — even a message written in the sky.</td>
 <td><b>Walk your streets.</b> Every district is real at street level: stroll the avenues, ride a commuter pod

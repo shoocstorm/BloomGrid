@@ -245,6 +245,8 @@ export class Guideway {
     private deck: number,
     stations: StationSite[],
     ground: (x: number, z: number) => number,
+    /** Line level 1..3 (D-170): longer station decks, then solar sails and screen doors, then halo spires. */
+    private level = 1,
   ) {
     const L = path.length;
     const b = new GeoBuilder();
@@ -428,26 +430,32 @@ export class Guideway {
     const F = this.frame(st.s, this.deck).clone().multiply(SCALE);
     const put = (geo: BufferGeometry, m: Matrix4, col: number, glow = 0) =>
       b.add(geo, _l.multiplyMatrices(F, m), col, glow);
-    const len = 30;
+    const lv = this.level;
+    // Longer decks for the longer sets of a higher line level.
+    const len = STATION_LEN[lv - 1]!;
+    const half = len / 2;
     put(box, tf(0, -0.95, 0, 0, 0, 0, 8.6, 0.55, len), 0xe9e6de);
     for (const k of [-1, 1]) {
       put(box, tf(k * 2.95, -0.4, 0, 0, 0, 0, 2.7, 0.68, len), 0xf3efe6);
       put(box, tf(k * 1.6, 0.27, 0, 0, 0, 0, 0.07, 0.03, len), 0x7ff7e6, 1.6);
       // Planters and benches down the platform.
-      for (let t = -11; t <= 11; t += 5.5) {
+      for (let t = -half + 4; t <= half - 4; t += 5.5) {
         put(box, tf(k * 3.75, 0.28, t, 0, 0, 0, 0.6, 0.32, 1.3), 0x9a7552);
         put(blob, tf(k * 3.75, 0.6, t, 0, t, 0, 0.42, 0.4, 0.8), 0x6fbf4a);
         put(box, tf(k * 3.0, 0.28, t + 2.6, 0, 0, 0, 0.35, 0.18, 1.0), 0xc8a57c);
       }
     }
     // Canopy: elliptical ribs, a lit spine, and a halo crown over the middle.
-    for (let t = -14.4; t <= 14.5; t += 2.5) put(arch, tf(0, 0.28, t, 0, 0, 0, 1, 0.85, 1), 0xf2f6f4, 0.15);
+    const ribs = Math.round((len - 1.2) / 2.5);
+    for (let i = 0; i <= ribs; i++)
+      put(arch, tf(0, 0.28, -half + 0.6 + (i * (len - 1.2)) / ribs, 0, 0, 0, 1, 0.85, 1), lv === 3 ? 0xffe6a8 : 0xf2f6f4, lv === 1 ? 0.15 : 0.45);
     const apex = 0.28 + 4.3 * 0.85;
     put(box, tf(0, apex - 0.05, 0, 0, 0, 0, 0.32, 0.22, len), 0xf2f6f4);
     put(box, tf(0, apex - 0.12, 0, 0, 0, 0, 0.12, 0.04, len), GLOW, 1.4);
     put(new TorusGeometry(1.5, 0.13, 8, 40), tf(0, apex + 1.6, 0), GLOW, 0.9);
     put(new TorusGeometry(1.0, 0.06, 6, 32), tf(0, apex + 1.6, 0, 0, Math.PI / 2, 0), 0xffe08a, 0.7);
     put(cyl(0.12, 0.2, 8), tf(0, apex, 0, 0, 0, 0, 1, 0.3, 1), 0xf2f6f4);
+    if (lv >= 2) this.stationUpgrades(put, glass, F, len, apex);
     // Supports: three wide pylons.
     for (const t of [-10, 0, 10]) this.pylon(b, st.s, t * K, ground, 2.3);
     // Bloom Helix towers over the concourse: the way up from the street (D-041).
@@ -550,6 +558,67 @@ export class Guideway {
     }
     put(new TorusGeometry(0.8, 0.06, 6, 32), tf(0, top + 0.34, 0, Math.PI / 2, 0, 0), GLOW, 1.6);
     put(blob, tf(0, top + 0.6, 0, 0, 0, 0, 0.32), 0xffd36e, 1.0);
+    // Higher line levels (D-170): a lit mast from the bud, and on the top level a floating halo and a gold finial.
+    if (this.level >= 2) {
+      put(cyl(0.05, 0.1, 8), tf(0, top + 0.8, 0, 0, 0, 0, 1, 1.6, 1), PEARL);
+      put(new TorusGeometry(0.5, 0.04, 6, 28), tf(0, top + 1.5, 0, Math.PI / 2, 0, 0), GLOW, 2);
+    }
+    if (this.level >= 3) {
+      put(new TorusGeometry(1.15, 0.05, 6, 40), tf(0, top + 2.3, 0, Math.PI / 2, 0, 0), 0xffe08a, 1.6);
+      put(gem, tf(0, top + 2.6, 0, 0, 0, 0, 0.22, 0.42, 0.22), 0xffd36e, 1.8);
+    }
+  }
+
+  /**
+   * Level 2 and 3 of a station (D-170), in the line's own language: level 2 spreads two solar sails over the vault,
+   * puts glass screen doors along both platform edges and doubles the halo; level 3 raises a halo spire (stacked
+   * light rings round a needle with a gold prism), lights the vault's spine in gold and hangs gardens under the deck.
+   */
+  private stationUpgrades(
+    put: (geo: BufferGeometry, m: Matrix4, col: number, glow?: number) => void,
+    glass: BufferGeometry[],
+    F: Matrix4,
+    len: number,
+    apex: number,
+  ): void {
+    const half = len / 2;
+    // Solar sails: two long leaves rising from the spine like wings, a light along each outer edge, on slim masts.
+    for (const k of [-1, 1]) {
+      put(box, tf(k * 2.0, apex + 0.4, 0, 0, 0, k * 0.3, 3.4, 0.07, len * 0.72), 0x24456e, 0.12);
+      put(box, tf(k * 2.0, apex + 0.37, 0, 0, 0, k * 0.3, 3.5, 0.035, len * 0.74), 0xd8c58a);
+      put(box, tf(k * 3.62, apex + 0.88, 0, 0, 0, k * 0.3, 0.08, 0.06, len * 0.72), GLOW, 1.6);
+      // Pearl frame ribs dividing each sail into panels.
+      const n = Math.round((len * 0.72) / 2.2);
+      for (let i = 0; i <= n; i++)
+        put(box, tf(k * 2.0, apex + 0.45, -len * 0.36 + (i * len * 0.72) / n, 0, 0, k * 0.3, 3.45, 0.05, 0.1), PEARL);
+      put(box, tf(k * 2.0, apex + 0.45, 0, 0, 0, k * 0.3, 0.1, 0.05, len * 0.72), PEARL);
+      for (const t of [-half * 0.5, half * 0.5]) put(cyl(0.06, 0.08, 6), tf(k * 1.4, apex - 0.3, t, 0, 0, 0, 1, 0.55, 1), PEARL);
+    }
+    // Platform screen doors: glass panes with lit tops along both edges.
+    for (const k of [-1, 1]) {
+      const n = Math.round((len - 2) / 2.2);
+      for (let i = 0; i < n; i++) {
+        const t = -half + 1 + ((i + 0.5) * (len - 2)) / n;
+        glass.push(new BoxGeometry(0.04, 1.3, 1.9).translate(0, 0.65, 0).applyMatrix4(_l2.multiplyMatrices(F, tf(k * 1.62, 0.28, t))));
+        put(box, tf(k * 1.62, 1.58, t, 0, 0, 0, 0.08, 0.06, 2.05), 0xf3efe6);
+        put(box, tf(k * 1.62, 1.64, t, 0, 0, 0, 0.09, 0.025, 1.6), this.level >= 3 ? 0xffe08a : 0x7ff7e6, 1.6);
+      }
+    }
+    // A second, wider halo round the first.
+    put(new TorusGeometry(2.2, 0.07, 6, 48), tf(0, apex + 1.6, 0, Math.PI / 2, 0, 0), GLOW, 1.2);
+    if (this.level < 3) return;
+    // Halo spire: a needle through three stacked rings, a gold prism on top.
+    put(cyl(0.08, 0.22, 10), tf(0, apex + 0.1, 0, 0, 0, 0, 1, 7.2, 1), PEARL);
+    [
+      [3.6, 1.3, GLOW],
+      [4.8, 0.95, 0xffe08a],
+      [5.9, 0.6, GLOW],
+    ].forEach(([y, r, c]) => put(new TorusGeometry(r!, 0.06, 6, 36), tf(0, apex + y!, 0, Math.PI / 2, 0, 0), c!, 2));
+    put(gem, tf(0, apex + 7.5, 0, 0, 0, 0, 0.42, 0.8, 0.42), 0xffd36e, 2.2);
+    put(box, tf(0, apex - 0.12, 0, 0, 0, 0, 0.14, 0.05, len), 0xffe08a, 1.8);
+    // Hanging gardens under the deck's edges.
+    for (const k of [-1, 1])
+      for (let t = -half + 2; t <= half - 2; t += 3.2) put(blob, tf(k * 4.1, -1.35, t, 0, t, 0, 0.35, 0.55, 0.7), t % 2 ? 0x5f9f4a : 0x7fbf5a);
   }
 }
 
@@ -563,6 +632,9 @@ function cyl(top: number, bottom: number, seg: number): BufferGeometry {
 }
 const ring = new TorusGeometry(1, 0.1, 6, 28);
 const blob = new IcosahedronGeometry(1, 1);
+const gem = new IcosahedronGeometry(1, 0);
+/** Station deck length (design units) per line level: room for the five, six and seven-car sets. */
+const STATION_LEN = [30, 32, 34] as const;
 const arch = new TorusGeometry(4.3, 0.1, 6, 28, Math.PI);
 
 /** Sweeps a (radius, height) section along a helix round local y, from (th0, y0) to (th1, y1). */

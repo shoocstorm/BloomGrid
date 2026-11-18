@@ -15,7 +15,7 @@ import { createHappeningState, type HappeningState } from './happeningState';
 import { builderCode, builderFromCode } from './builders';
 import { loadBridges, saveBridges, type BridgeSave } from './bridges';
 
-export const SAVE_VERSION = 24;
+export const SAVE_VERSION = 25;
 
 export interface SaveData {
   version: number;
@@ -203,6 +203,11 @@ export function migrateSave(data: SaveData): SaveData {
     // Living stories (v24, plan v5 Phase 29): none told yet; the first comes a few minutes after loading.
     data.stories = createStoryState();
     data.version = 24;
+  }
+  if (data.version === 24) {
+    // Aeroline line levels (v25, D-170): every line starts at level 1.
+    data.growth.aerolineLevel ??= 1;
+    data.version = 25;
   }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;

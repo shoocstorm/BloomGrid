@@ -1,8 +1,12 @@
-import { Vector3, type Material, type Mesh } from 'three/webgpu';
+import { Box3, Object3D, Vector3, type Material, type Mesh } from 'three/webgpu';
 import type { GameModule } from '@/game/context';
 import { aerolineRoute } from '@/content/scenarios/founding-city';
 import { U } from '@/render/uniforms';
 import { projectProgress } from '@/sim/projects';
+import { AEROLINE_LEVELS, MAX_AEROLINE_LEVEL, aerolineBlock, aerolineLevel, aerolineLevelDef, aerolineStations, aerolineUpgradeCost } from '@/sim/aeroline';
+import { registerPickable } from '@/modules/construction/pick';
+import { h } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import { ConstructionLook } from './construction';
 import { Guideway, type StationSite } from './Guideway';
 import { Movers } from './Movers';
@@ -14,6 +18,7 @@ const CLEARANCE = 4.6;
 const MIN_DECK = 6;
 const STATION = 'aeroline-station';
 const _mid = new Vector3();
+const _fwd = new Vector3();
 
 /**
  * The Aeroline (D-041): an elevated solar maglev loop above the founding city's streets, with trains stopping at
@@ -62,7 +67,7 @@ export const aerolineModule: GameModule = {
         const inner = Math.sign(-p.tz * (centre[0] - p.x) + p.tx * (centre[1] - p.z)) || 1;
         return { name: st.name, s: (s + L) % L, inner };
       });
-      guide = new Guideway(path, deck, stations, ground);
+      guide = new Guideway(path, deck, stations, ground, aerolineLevel(city));
       ctx.scene.add(guide.group);
       shadows();
     };
@@ -72,10 +77,13 @@ export const aerolineModule: GameModule = {
       raise();
       finishSite();
       if (trains) return;
+      const lv = aerolineLevelDef(city);
       trains = new Trains(
         path,
         deckY,
         stations.map((s) => s.s),
+        aerolineLevel(city),
+        lv.vmax,
       );
       movers = new Movers(guide!.towers);
       ctx.scene.add(trains.noses, trains.mids, movers.cabins, movers.walkers);
@@ -111,7 +119,8 @@ export const aerolineModule: GameModule = {
       finishSite();
       guide?.dispose();
       guide = null;
-      for (const m of [trains?.noses, trains?.mids, movers?.cabins, movers?.walkers]) {
+      trains?.dispose();
+      for (const m of [movers?.cabins, movers?.walkers]) {
         if (!m) continue;
         m.removeFromParent();
         m.geometry.dispose();
@@ -140,14 +149,47 @@ export const aerolineModule: GameModule = {
     // undoing the start takes the works down again.
     ctx.bus.on('project:start', ({ id }) => id === 'aeroline' && startSite());
     ctx.bus.on('project:done', ({ id }) => id === 'aeroline' && open());
+    // A new line level (or its undo) rebuilds the stations and swaps the rolling stock (D-170).
+    ctx.bus.on('aeroline:level', ({ level }) => {
+      if (!trains) return;
+      teardown();
+      sync();
+      if (level > 1) {
+        const d = AEROLINE_LEVELS[level - 1]!;
+        const at = firstStation();
+        ctx.bus.emit('toast', { text: `Aeroline upgraded: ${d.name} sets now run the loop`, tone: 'ok', ...(at ? { at } : {}) });
+      }
+    });
     ctx.bus.on('city:reset', teardown);
     ctx.bus.on('load:done', () => (teardown(), sync()));
+
+    // Clicking a train opens the line's inspector: one proxy per set follows its middle car (D-170).
+    const proxies = Array.from({ length: 6 }, () => {
+      const o = new Object3D();
+      o.name = 'aeroline.pick';
+      o.visible = false;
+      ctx.scene.add(o);
+      registerPickable({ object: 'aeroline', node: o, box: new Box3(new Vector3(-0.6, -0.4, -9), new Vector3(0.6, 1.0, 9)), pad: 0.6 });
+      return o;
+    });
+    const placeProxies = () => {
+      proxies.forEach((o, i) => {
+        o.visible = !!trains && i < trains.count;
+        if (!trains || !o.visible) return;
+        const { u, dir } = trains.head(i, U.clock.value);
+        trains.point(dir, u - trains.length / 2, 0, o.position, _fwd);
+        o.rotation.set(0, Math.atan2(_fwd.x, _fwd.z), 0);
+        o.scale.set(1, 1, trains.length / 18);
+        o.updateMatrixWorld();
+      });
+    };
 
     ctx.systems.add({
       id: 'aeroline.update',
       phase: 'sync',
       update(_c, f) {
         trains?.update(U.clock.value);
+        placeProxies();
         movers?.update(U.clock.value);
         if (!site) return;
         const run = running();
@@ -170,6 +212,89 @@ export const aerolineModule: GameModule = {
       },
     });
 
+    // ── Line level: inspector (a train, or a station's button) and the upgrade (D-170) ────────────────────
+    const firstStation = () => {
+      for (const eid of city.buildingEntities())
+        if (city.buildingRecord(eid).def === STATION) {
+          const r = city.buildingRecord(eid);
+          return { x: r.x + 3, z: r.z + 2 };
+        }
+      return null;
+    };
+    const upgrade = () => ctx.commands.execute('upgradeAeroline', {});
+    const hud = ctx.services.get('hud');
+    const btn = (glyph: string, label: string, title: string, run: () => void, disabled = false) =>
+      h(
+        'button',
+        { class: 'tool', title, onClick: run, ...(disabled ? { disabled: true } : {}) },
+        h('span', { class: 'g' }, icon(glyph)),
+        label,
+      );
+    const upgradeButton = () => {
+      const lv = aerolineLevel(city);
+      if (lv >= MAX_AEROLINE_LEVEL) return null;
+      const next = AEROLINE_LEVELS[lv]!;
+      const block = aerolineBlock(city);
+      return btn(
+        'up',
+        `Upgrade line · ${aerolineUpgradeCost(city).toLocaleString()}`,
+        block ? block.reason : `Level ${lv + 1}: ${next.name}. ${next.blurb}`,
+        upgrade,
+        !!block,
+      );
+    };
+    hud.objectInspector('aeroline', () => {
+      if (!trains) return null;
+      const lv = aerolineLevel(city);
+      const d = aerolineLevelDef(city);
+      const next = lv < MAX_AEROLINE_LEVEL ? AEROLINE_LEVELS[lv]! : null;
+      const pips = h(
+        'div',
+        { class: 'ix-group', title: 'Line level: trains and stations upgrade together' },
+        h('span', { class: 'ix-more' }, 'Level:'),
+        ...AEROLINE_LEVELS.map((l, i) => h('span', { class: `ix-chip ${i < lv ? 'on' : ''}` }, `${i + 1} · ${l.name}`)),
+      );
+      const up = upgradeButton();
+      const at = firstStation();
+      return {
+        glyph: 'train',
+        code: `AEROLINE · L${lv}`,
+        place: `${aerolineStations(city)} stations`,
+        title: `Aeroline · ${d.name}`,
+        desc: d.blurb,
+        vitals: [
+          ['up', 'Level', `${lv} / ${MAX_AEROLINE_LEVEL}`, lv === MAX_AEROLINE_LEVEL ? 'good' : ''],
+          ['fast', 'Top speed', `${d.kmh} km/h`],
+          ['train', 'Sets', `${trains.count} × ${Math.round(trains.length / (4.55 * 0.55))} cars`],
+          ['people', 'Riders', `×${d.riders.toFixed(2)}`],
+        ],
+        body: [pips],
+        rows: next
+          ? [
+              ['Next', `${next.name}: ${next.blurb}`],
+              ['Brings', `${next.kmh} km/h, ×${next.riders.toFixed(2)} riders per station`],
+            ]
+          : [['Line', 'Top level: the Aurora Halo runs the loop']],
+        note: 'The whole line upgrades as one: every train and every station deck. Undo returns the credits.',
+        actions: [
+          ...(up ? [up] : []),
+          btn('train', 'Ride', 'Ride a train round the loop (drag to look, Esc back)', () => ctx.services.get('explore').setMode('train')),
+          ...(at ? [btn('locate', 'Locate', 'Fly the camera to a station', () => ctx.cameraCtl.locate(at.x, at.z, { size: 30, height: 8 }))] : []),
+        ],
+      };
+    });
+    // A station's inspector offers the line upgrade too, and opens the line's card.
+    hud.buildingActions((eid) => {
+      if (city.buildingRecord(eid).def !== STATION || !trains) return [];
+      const up = upgradeButton();
+      return [
+        ...(up ? [up] : []),
+        btn('train', 'Line', 'The Aeroline: level, trains and upgrade', () =>
+          ctx.bus.emit('selection:changed', { eid: null, object: 'aeroline' }),
+        ),
+      ];
+    });
+
     ctx.services.provide('aeroline', {
       get trains() {
         return trains?.count ?? 0;
@@ -177,6 +302,10 @@ export const aerolineModule: GameModule = {
       get deck() {
         return trains ? deckY : 0;
       },
+      get level() {
+        return aerolineLevel(city);
+      },
+      upgrade,
       get building() {
         return site ? site.shown : -1;
       },
@@ -189,7 +318,7 @@ export const aerolineModule: GameModule = {
         for (let i = 0; i < trains.count; i++) {
           const { u, v, dir } = trains.head(i, U.clock.value);
           // The middle of the five-car set.
-          const d = trains.point(dir, u - 6, 0.5, _mid).distanceTo(p);
+          const d = trains.point(dir, u - trains.length / 2, 0.5, _mid).distanceTo(p);
           if (d < best.d) best = { d, v };
         }
         return best;
@@ -198,7 +327,7 @@ export const aerolineModule: GameModule = {
         if (!trains) return;
         const { u, dir } = trains.head(i % trains.count, U.clock.value);
         // Chase view: behind and above the train, so the whole set sweeps along the viaduct ahead.
-        trains.point(dir, u - 18, 3.2, eye);
+        trains.point(dir, u - trains.length - 5.5, 3.2, eye);
         trains.point(dir, u + 8, 0.3, look);
       },
     });
@@ -212,6 +341,10 @@ declare module '@/core/Services' {
       readonly trains: number;
       /** Platform deck height (0 until the line is open): sky-lane pods land beside it (D-052). */
       readonly deck: number;
+      /** Line level 1..3 (D-170). */
+      readonly level: number;
+      /** Raises the line a level (the `upgradeAeroline` command); false when blocked. */
+      upgrade(): boolean;
       /** Construction progress 0..1 while the Aeroline project runs, else -1. */
       readonly building: number;
       /** Where the viaduct's pylons stand (x, z), once it is raised: the cruise ferry steers clear (D-141). */

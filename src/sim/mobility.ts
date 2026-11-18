@@ -5,6 +5,7 @@ import type { City } from './City';
 import { LABOUR_SHARE } from './pulseConst';
 import { buildSkyNet } from './skylanes';
 import { isOpen } from './growthState';
+import { aerolineRiders } from './aeroline';
 import { size } from './levels';
 import { roadCapacity } from './roads';
 import { ROAD_REACH } from './networks';
@@ -159,7 +160,9 @@ export function computeMobility(city: City): void {
     // Pods fly only once the Sky-lane charter is done; trains once the Aeroline is built (fresh islands, D-072).
     if (def.transit && isOpen(city.growth, def.transit.rail ? 'aeroline' : 'skylanes')) {
       // A dock carries riders in proportion to its level (more berths, D-155), its power and its crew.
-      const cap = def.transit.riders * size(eid) * Service.power[eid]! * Math.max(0.3, Service.occupancy[eid]!);
+      // Rail stations also carry more on a higher Aeroline level (D-170).
+      const line = def.transit.rail ? aerolineRiders(city) : 1;
+      const cap = def.transit.riders * line * size(eid) * Service.power[eid]! * Math.max(0.3, Service.occupancy[eid]!);
       docks.push({ eid, cap, left: cap, x: Building.x[eid]! + Building.w[eid]! / 2, z: Building.z[eid]! + Building.d[eid]! / 2 });
     }
     if (st.jobs <= 0 || st.population > 0 || Service.occupancy[eid]! <= 0.05) continue;

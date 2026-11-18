@@ -3164,3 +3164,28 @@ Plan v5, Phase 29, the last of the plan.
   rectangles.
 - **Flora**: `happenings_status` reports the running story (choices, goal, time left, lasting outcomes).
 - **Not measured:** `ai-probe` ("make the city carbon-zero" → `propose_plan`) needs a downloaded model.
+
+## D-170 — Aeroline line levels (2026-11-18)
+
+The Aeroline levels up to 3 like a building, but **as one line**: every train and every station deck together.
+
+- **Sim** `src/sim/aeroline.ts`: `AEROLINE_LEVELS` as data (name, blurb, cost 0 / 9,000 / 20,000, rail riders ×1 /
+  ×1.35 / ×1.75, km/h for the inspector, render `vmax`), level in `city.growth.aerolineLevel` (saved v25 with a
+  migration to 1, hashed in `growthHash`); command `upgradeAeroline` (undoable: level and credits back), blocked by
+  `aerolineBlock` (top level, line not built, no station, credits short); event `aeroline:level`. Mobility multiplies
+  a rail dock's capacity by `aerolineRiders`.
+- **Why one level for the line** rather than per station: the trains run the whole loop, so a per-station level would
+  have no train to show it; stations (buildings) keep their own street-level levels (D-100) as before.
+- **Look**, each level in the line's own language: trains (`Trains.ts`) 5 / 6 / 7 cars (`CARS_AT`): Bloomline
+  (pearl, teal livery, solar roof), Zephyr (panoramic glass roof with ribs, waist light, faired skirts, glass doors
+  framed in light, longer visor nose and dorsal fin), Aurora Halo (chrome and gold, taller glazing with gold ribs, a
+  dorsal light fin, end fins, a needle nose through a glowing halo ring with gold canards). Stations (`Guideway`)
+  lengthen (30 / 32 / 34 design units) for the longer sets; level 2 adds butterfly solar sails over the vault, glass
+  platform screen doors and a wider halo; level 3 adds a halo spire (three rings, gold prism), gold-lit vault ribs and
+  hanging gardens; Bloom Helix crowns gain a lit mast, then a floating halo. A level change rebuilds the baked line
+  and swaps the train meshes (no new draw calls).
+- **UI**: trains are clickable (six invisible pick proxies follow the sets) and open `hud.objectInspector('aeroline')`
+  (level chips, speed, sets, riders, next level, Upgrade line / Ride / Locate); a station's inspector gets Upgrade
+  line and Line. Service `aeroline.level` / `upgrade()`.
+- **Deferred**: no Flora tool for the upgrade yet; no ceremony beyond a toast.
+

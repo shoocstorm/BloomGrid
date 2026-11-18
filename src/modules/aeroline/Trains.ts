@@ -17,11 +17,11 @@ import { BALL, Kit, SURF } from '@/modules/scenery/wonderKit';
 import { K, TRACK } from './Guideway';
 import type { LoopPath, PathPoint } from './path';
 
-const CARS = 5;
 const CAR = 4.55 * K;
+/** Cars per set at line levels 1..3 (D-170): longer sets on a higher level (the station decks lengthen to match). */
+export const CARS_AT = [5, 6, 7] as const;
 const PER_TRACK = 3;
-/** Cruise speed (world units per second), acceleration, and station dwell. */
-const VMAX = 22;
+/** Acceleration and station dwell; cruise speed comes with the line level. */
 const ACC = 4;
 const DWELL = 7;
 
@@ -32,7 +32,7 @@ interface Leg {
 }
 
 /**
- * Aeroline trains: five-car maglev sets, three per track, running opposite ways round the loop and stopping at
+ * Aeroline trains: maglev sets (five, six or seven cars by line level, D-170), three per track, running opposite ways round the loop and stopping at
  * every station. Motion is a pure function of the clock (accelerate, cruise, brake, dwell), so the ride camera
  * and the cars agree. Two instanced meshes (nose cars, middle cars), placed on the CPU each frame: 30 matrices.
  */
@@ -40,13 +40,20 @@ export class Trains {
   readonly noses: InstancedMesh;
   readonly mids: InstancedMesh;
   private tracks: { dir: 1 | -1; legs: Leg[]; cycle: number }[];
+  private cars: number;
+  private vmax: number;
 
   constructor(
     private path: LoopPath,
     private deck: number,
     stationS: number[],
+    /** Line level 1..3: the rolling stock and its speed. */
+    readonly level = 1,
+    vmax = 22,
   ) {
     const L = path.length;
+    const CARS = (this.cars = CARS_AT[Math.min(3, Math.max(1, level)) - 1]!);
+    this.vmax = vmax;
     // Each track stops with the train's middle at the platform centre; a track's own arc length u runs its way.
     const half = (CARS * CAR) / 2;
     this.tracks = ([1, -1] as const).map((dir) => {
@@ -55,13 +62,13 @@ export class Trains {
         .sort((a, b) => a - b);
       const legs = stops.map((from, i) => {
         const dist = ((stops[(i + 1) % stops.length]! - from + L - 1e-6) % L) + 1e-6;
-        return { from, dist, time: travelTime(dist) };
+        return { from, dist, time: travelTime(dist, vmax) };
       });
       return { dir, legs, cycle: legs.reduce((a, l) => a + l.time + DWELL, 0) };
     });
     const mat = getMaterial('wonder');
-    this.noses = new InstancedMesh(noseCar(), mat, PER_TRACK * 2 * 2);
-    this.mids = new InstancedMesh(midCar(), mat, PER_TRACK * 2 * (CARS - 2));
+    this.noses = new InstancedMesh(noseCar(level), mat, PER_TRACK * 2 * 2);
+    this.mids = new InstancedMesh(midCar(level), mat, PER_TRACK * 2 * (CARS - 2));
     for (const m of [this.noses, this.mids]) {
       m.frustumCulled = false;
       m.receiveShadow = true;
@@ -73,6 +80,20 @@ export class Trains {
     return PER_TRACK * 2;
   }
 
+  /** Length of a set (world units). */
+  get length(): number {
+    return this.cars * CAR;
+  }
+
+  /** Frees both car meshes. */
+  dispose(): void {
+    for (const m of [this.noses, this.mids]) {
+      m.removeFromParent();
+      m.geometry.dispose();
+      m.dispose();
+    }
+  }
+
   /** Head of train `i` at time t: its own-track arc length u, speed, and direction. */
   head(i: number, t: number): { u: number; v: number; dir: 1 | -1 } {
     const tr = this.tracks[i % 2]!;
@@ -81,7 +102,7 @@ export class Trains {
       if (k < DWELL) return { u: leg.from, v: 0, dir: tr.dir };
       k -= DWELL;
       if (k < leg.time) {
-        const [d, v] = along(leg.dist, leg.time, k);
+        const [d, v] = along(leg.dist, leg.time, k, this.vmax);
         return { u: leg.from + d, v, dir: tr.dir };
       }
       k -= leg.time;
@@ -105,6 +126,7 @@ export class Trains {
     let mi = 0;
     for (let i = 0; i < this.count; i++) {
       const { u, v, dir } = this.head(i, t);
+      const CARS = this.cars;
       for (let c = 0; c < CARS; c++) {
         const uc = u - CAR / 2 - c * CAR;
         this.point(dir, uc, 0.02, _pos, _fwd);
@@ -133,13 +155,13 @@ const _e = new Euler();
 const _m = new Matrix4();
 const ONE = new Vector3(1, 1, 1);
 
-function travelTime(d: number): number {
+function travelTime(d: number, VMAX: number): number {
   const da = (VMAX * VMAX) / ACC;
   return d >= da ? d / VMAX + VMAX / ACC : 2 * Math.sqrt(d / ACC);
 }
 
 /** Distance and speed after time k on a leg of length d taking time T (trapezoidal speed profile). */
-function along(d: number, T: number, k: number): [number, number] {
+function along(d: number, T: number, k: number, VMAX: number): [number, number] {
   const ta = Math.min(VMAX / ACC, T / 2);
   const vt = ACC * ta;
   if (k < ta) return [0.5 * ACC * k * k, ACC * k];
@@ -150,77 +172,152 @@ function along(d: number, T: number, k: number): [number, number] {
   return [0.5 * ACC * ta * ta + vt * (k - ta), vt];
 }
 
+
 // ── Car geometry (local: +z forward, y up from the guide beam's top, origin at the car's centre) ─────────
 // Surfaces come from the sea wonders' kit (D-147): gloss paint, glass that mirrors the sky, brushed metal.
+// Each line level is its own rolling stock (D-170): 1 Bloomline (pearl, teal livery, solar roof), 2 Zephyr (panoramic
+// glass roof, a continuous waist light, faired skirts, a longer visor nose), 3 Aurora Halo (chrome and gold, glass
+// upper body with a dorsal light fin, light fins, a needle nose through a glowing halo ring).
 const PEARL = 0xf4f7f5;
 const TEAL = 0x2fd3b0;
 const CORAL = 0xff7a6a;
 const GLASS = 0x2e5866;
 const SKIRT = 0xaab6bb;
+const CYAN = 0x7ff7e6;
+const ICE = 0xbff7ff;
+const GOLD = 0xffcf6a;
+const CHROME = 0xdfe7ec;
 const GLOSS = [0.32, 0.08, SURF.paint[2]] as const;
+const MIRROR = [0.16, 0.86, SURF.paint[2]] as const;
 const capsule = (len: number, cap = 18) => new CapsuleGeometry(0.5, len, 6, cap).rotateX(Math.PI / 2);
 
-/** Body, window band with mullions, livery stripes, doors, solar roof with aero domes, maglev skirts. */
-function shell(k: Kit, len: number, z: number, doors: number[]): void {
-  k.part(capsule(len), tf(0, 0.64, z, 0, 0, 0, 0.98, 1, 1), PEARL, GLOSS);
-  // Wraparound window band, lit from inside at night, with pearl mullions between the panes.
-  k.part(capsule(len - 0.25, 14), tf(0, 0.8, z, 0, 0, 0, 1.0, 0.3, 1.005), GLASS, SURF.glass, 2.4);
-  const panes = Math.round((len - 0.4) / 0.62);
-  for (let p = 0; p <= panes; p++) {
-    const pz = z - (len - 0.4) / 2 + (p * (len - 0.4)) / panes;
-    for (const s of [-1, 1]) k.part(BOX, tf(s * 0.488, 0.68, pz, 0, 0, 0, 0.03, 0.24, 0.05), PEARL, GLOSS);
+/** Body, glazing, livery, doors, roof and maglev skirts of one car body at level `lv`. */
+function shell(k: Kit, len: number, z: number, doors: number[], lv: number): void {
+  const body = lv === 3 ? CHROME : PEARL;
+  const paint = lv === 3 ? MIRROR : GLOSS;
+  k.part(capsule(len), tf(0, 0.64, z, 0, 0, 0, 0.98, 1, 1), body, paint);
+  if (lv === 1) {
+    // Wraparound window band, lit from inside at night, with pearl mullions between the panes.
+    k.part(capsule(len - 0.25, 14), tf(0, 0.8, z, 0, 0, 0, 1.0, 0.3, 1.005), GLASS, SURF.glass, 2.4);
+    const panes = Math.round((len - 0.4) / 0.62);
+    for (let p = 0; p <= panes; p++) {
+      const pz = z - (len - 0.4) / 2 + (p * (len - 0.4)) / panes;
+      for (const s of [-1, 1]) k.part(BOX, tf(s * 0.488, 0.68, pz, 0, 0, 0, 0.03, 0.24, 0.05), PEARL, GLOSS);
+    }
+    // Livery: a teal stripe and a thin coral line under the windows.
+    k.part(capsule(len - 0.1, 14), tf(0, 0.53, z, 0, 0, 0, 1.0, 0.05, 1.01), TEAL, GLOSS, 1.8);
+    k.part(capsule(len - 0.2, 14), tf(0, 0.46, z, 0, 0, 0, 1.0, 0.018, 1.012), CORAL, GLOSS, 1.2);
+  } else {
+    // Panoramic glazing: tall side windows that run up into a glass roof (lit from inside at night).
+    const tall = lv === 3 ? 0.56 : 0.44;
+    k.part(capsule(len - 0.2, 16), tf(0, 0.86, z, 0, 0, 0, 1.0, tall, 1.004), lv === 3 ? 0x24485a : GLASS, SURF.glass, 2.6);
+    // Slim roof ribs over the glass: pearl on the Zephyr, gold on the Aurora Halo.
+    const ribs = Math.round((len - 0.3) / 0.7);
+    for (let p = 0; p <= ribs; p++) {
+      const pz = z - (len - 0.3) / 2 + (p * (len - 0.3)) / ribs;
+      k.part(new TorusGeometry(0.5, 0.022, 4, 14, Math.PI), tf(0, 0.86, pz, 0, 0, 0, 1.0, tall * 1.02, 1), lv === 3 ? GOLD : PEARL, lv === 3 ? SURF.brass : GLOSS);
+    }
+    // A continuous waist light under the glass and the livery below it.
+    k.part(capsule(len - 0.05, 16), tf(0, 0.6, z, 0, 0, 0, 1.006, 0.022, 1.008), lv === 3 ? ICE : CYAN, GLOSS, 2.4);
+    k.part(capsule(len - 0.1, 14), tf(0, 0.5, z, 0, 0, 0, 1.004, 0.07, 1.01), lv === 3 ? GOLD : 0x168f8c, lv === 3 ? SURF.brass : GLOSS, lv === 3 ? 0.6 : 0.4);
+    if (lv === 3) {
+      // Dorsal light fin along the roof's crown and short swept light fins at the car ends.
+      k.part(BOX, tf(0, 1.12, z, 0, 0, 0, 0.05, 0.08, len - 0.2), ICE, GLOSS, 2.2);
+      for (const e of [-1, 1])
+        for (const s of [-1, 1])
+          k.part(BOX, tf(s * 0.47, 0.32, z + e * (len / 2 - 0.1), 0, 0, s * 0.5, 0.03, 0.22, 0.4), GOLD, SURF.brass, 1.2);
+    }
   }
-  // Livery: a teal stripe and a thin coral line under the windows.
-  k.part(capsule(len - 0.1, 14), tf(0, 0.53, z, 0, 0, 0, 1.0, 0.05, 1.01), TEAL, GLOSS, 1.8);
-  k.part(capsule(len - 0.2, 14), tf(0, 0.46, z, 0, 0, 0, 1.0, 0.018, 1.012), CORAL, GLOSS, 1.2);
-  // Doors: dark leaves on the body's flat-enough band (it curves away below the stripe), a lit lintel above.
+  // Doors: dark leaves on the body's flat-enough band, a lit lintel above (level 1); glass leaves reaching up into
+  // the glazing, framed by light, above it.
   for (const dz of doors)
     for (const s of [-1, 1]) {
-      k.part(BOX, tf(s * 0.474, 0.47, z + dz, 0, 0, 0, 0.04, 0.4, 0.42), 0x2f4650, SURF.glass, 0.25);
-      k.part(BOX, tf(s * 0.47, 0.94, z + dz, 0, 0, 0, 0.03, 0.025, 0.42), 0x9ff6ff, GLOSS, 1.6);
+      if (lv === 1) {
+        k.part(BOX, tf(s * 0.474, 0.47, z + dz, 0, 0, 0, 0.04, 0.4, 0.42), 0x2f4650, SURF.glass, 0.25);
+        k.part(BOX, tf(s * 0.47, 0.94, z + dz, 0, 0, 0, 0.03, 0.025, 0.42), 0x9ff6ff, GLOSS, 1.6);
+        continue;
+      }
+      const edge = lv === 3 ? GOLD : CYAN;
+      k.part(BOX, tf(s * 0.48, 0.3, z + dz, 0, 0, 0, 0.035, 0.46, 0.44), lv === 3 ? 0x2a5568 : 0x2f5a66, SURF.glass, 0.6);
+      for (const e of [-1, 1]) k.part(BOX, tf(s * 0.484, 0.3, z + dz + e * 0.23, 0, 0, 0, 0.03, 0.46, 0.025), edge, GLOSS, 2);
     }
-  // Solar roof in a frame, two aero domes.
-  k.part(BOX, tf(0, 1.11, z, 0, 0, 0, 0.5, 0.04, len), 0x2c4a7a, SURF.solar, 0.1);
-  for (const s of [-1, 1]) k.part(BOX, tf(s * 0.26, 1.1, z, 0, 0, 0, 0.03, 0.06, len), 0xc9d3d6, SURF.metal);
-  for (const dz of [-len * 0.3, len * 0.3]) k.part(BALL, tf(0, 1.15, z + dz, 0, 0, 0, 0.16, 0.08, 0.28), PEARL, GLOSS);
-  // Maglev skirts either side of the guide beam, with a levitation glow underneath.
-  for (const s of [-1, 1]) {
-    k.part(BOX, tf(s * 0.4, -0.45, z, 0, 0, 0, 0.12, 0.6, len + 0.6), SKIRT, SURF.metal);
-    k.part(BOX, tf(s * 0.4, -0.47, z, 0, 0, 0, 0.125, 0.03, len), 0x7ff7e6, GLOSS, 1.2);
+  if (lv === 1) {
+    // Solar roof in a frame, two aero domes.
+    k.part(BOX, tf(0, 1.11, z, 0, 0, 0, 0.5, 0.04, len), 0x2c4a7a, SURF.solar, 0.1);
+    for (const s of [-1, 1]) k.part(BOX, tf(s * 0.26, 1.1, z, 0, 0, 0, 0.03, 0.06, len), 0xc9d3d6, SURF.metal);
+    for (const dz of [-len * 0.3, len * 0.3]) k.part(BALL, tf(0, 1.15, z + dz, 0, 0, 0, 0.16, 0.08, 0.28), PEARL, GLOSS);
   }
-  k.part(BOX, tf(0, 0.0, z, 0, 0, 0, 0.92, 0.18, len + 0.5), SKIRT, SURF.metal);
+  // Maglev skirts either side of the guide beam, with a levitation glow underneath (faired into the body above level 1).
+  const skirt = lv === 1 ? SKIRT : body;
+  for (const s of [-1, 1]) {
+    k.part(BOX, tf(s * 0.4, -0.45, z, 0, 0, 0, 0.12, 0.6, len + 0.6), skirt, lv === 1 ? SURF.metal : paint);
+    k.part(BOX, tf(s * 0.4, -0.47, z, 0, 0, 0, 0.125, 0.03, len), lv === 3 ? ICE : CYAN, GLOSS, lv === 1 ? 1.2 : 2.2);
+  }
+  k.part(BOX, tf(0, 0.0, z, 0, 0, 0, 0.92, 0.18, len + 0.5), skirt, lv === 1 ? SURF.metal : paint);
+  if (lv > 1) k.part(BOX, tf(0, -0.02, z, 0, 0, 0, 0.7, 0.02, len), lv === 3 ? ICE : CYAN, GLOSS, 1.6);
 }
 
 /** A gangway bellows at the end `z` of a car. */
-function gangway(k: Kit, z: number): void {
-  k.part(new CylinderGeometry(0.36, 0.36, 0.22, 12).rotateX(Math.PI / 2), tf(0, 0.64, z), 0x3b464d, SURF.matte);
-  for (const d of [-0.06, 0.06]) k.part(new TorusGeometry(0.37, 0.025, 4, 14), tf(0, 0.64, z + d), 0x2b343a, SURF.matte);
+function gangway(k: Kit, z: number, lv: number): void {
+  const c = lv === 1 ? 0x3b464d : lv === 2 ? 0x56646a : 0x8d969c;
+  k.part(new CylinderGeometry(0.36, 0.36, 0.22, 12).rotateX(Math.PI / 2), tf(0, 0.64, z), c, lv === 3 ? SURF.metal : SURF.matte);
+  for (const d of [-0.06, 0.06])
+    k.part(new TorusGeometry(0.37, 0.025, 4, 14), tf(0, 0.64, z + d), lv === 3 ? GOLD : 0x2b343a, lv === 3 ? SURF.brass : SURF.matte);
 }
 
-function midCar(): BufferGeometry {
+function midCar(lv: number): BufferGeometry {
   const k = new Kit();
-  shell(k, 3.4, 0, [-1.05, 1.05]);
-  for (const z of [-2.2, 2.2]) gangway(k, z);
+  shell(k, 3.4, 0, [-1.05, 1.05], lv);
+  for (const z of [-2.2, 2.2]) gangway(k, z, lv);
   return k.b.build().scale(K, K, K);
 }
 
-function noseCar(): BufferGeometry {
+function noseCar(lv: number): BufferGeometry {
   const k = new Kit();
-  shell(k, 2.2, -0.6, [-0.9]);
-  gangway(k, -2.2);
-  // Long duck-bill nose with the livery sweeping onto it, a dark wraparound windshield, LED light bars.
-  k.part(new SphereGeometry(0.5, 20, 12), tf(0, 0.56, 0.85, 0, 0, 0, 0.98, 0.86, 3.3), PEARL, GLOSS);
-  k.part(new SphereGeometry(0.5, 20, 10), tf(0, 0.86, 0.9, 0.12, 0, 0, 0.82, 0.36, 1.9), 0x1d3340, SURF.glass, 0.5);
-  k.part(new SphereGeometry(0.5, 16, 6), tf(0, 0.5, 1.3, 0, 0, 0, 1.0, 0.05, 2.6), TEAL, GLOSS, 1.8);
-  k.part(new SphereGeometry(0.5, 16, 5), tf(0, 0.44, 1.25, 0, 0, 0, 1.006, 0.018, 2.5), CORAL, GLOSS, 1.2);
-  for (const s of [-1, 1]) {
-    k.part(new SphereGeometry(0.5, 10, 4), tf(s * 0.22, 0.38, 2.12, 0, s * 0.35, 0, 0.26, 0.05, 0.12), 0xeaffff, GLOSS, 4);
-    k.part(new SphereGeometry(0.5, 8, 4), tf(s * 0.36, 0.35, 1.85, 0, s * 0.6, 0, 0.1, 0.05, 0.08), 0xff4a4a, GLOSS, 2.5);
+  shell(k, 2.2, -0.6, [-0.9], lv);
+  gangway(k, -2.2, lv);
+  const body = lv === 3 ? CHROME : PEARL;
+  const paint = lv === 3 ? MIRROR : GLOSS;
+  if (lv === 1) {
+    // Long duck-bill nose with the livery sweeping onto it, a dark wraparound windshield, LED light bars.
+    k.part(new SphereGeometry(0.5, 20, 12), tf(0, 0.56, 0.85, 0, 0, 0, 0.98, 0.86, 3.3), PEARL, GLOSS);
+    k.part(new SphereGeometry(0.5, 20, 10), tf(0, 0.86, 0.9, 0.12, 0, 0, 0.82, 0.36, 1.9), 0x1d3340, SURF.glass, 0.5);
+    k.part(new SphereGeometry(0.5, 16, 6), tf(0, 0.5, 1.3, 0, 0, 0, 1.0, 0.05, 2.6), TEAL, GLOSS, 1.8);
+    k.part(new SphereGeometry(0.5, 16, 5), tf(0, 0.44, 1.25, 0, 0, 0, 1.006, 0.018, 2.5), CORAL, GLOSS, 1.2);
+    for (const s of [-1, 1]) {
+      k.part(new SphereGeometry(0.5, 10, 4), tf(s * 0.22, 0.38, 2.12, 0, s * 0.35, 0, 0.26, 0.05, 0.12), 0xeaffff, GLOSS, 4);
+      k.part(new SphereGeometry(0.5, 8, 4), tf(s * 0.36, 0.35, 1.85, 0, s * 0.6, 0, 0.1, 0.05, 0.08), 0xff4a4a, GLOSS, 2.5);
+    }
+  } else {
+    // A longer, lower nose (a needle on the Aurora Halo), a full-width glass visor and a light blade across the tip.
+    const long = lv === 2 ? 3.9 : 4.6;
+    const tall = lv === 2 ? 0.8 : 0.7;
+    k.part(new SphereGeometry(0.5, 24, 14), tf(0, 0.54, 0.95, 0, 0, 0, 0.98, tall, long), body, paint);
+    k.part(new SphereGeometry(0.5, 24, 12), tf(0, 0.8, 0.95, 0.1, 0, 0, 0.86, 0.34, long * 0.62), lv === 3 ? 0x1a3a4c : 0x1d3340, SURF.glass, 0.8);
+    k.part(new SphereGeometry(0.5, 18, 5), tf(0, 0.5, 1.2, 0, 0, 0, 1.005, 0.022, long * 0.86), lv === 3 ? ICE : CYAN, GLOSS, 2.6);
+    k.part(new SphereGeometry(0.5, 18, 6), tf(0, 0.44, 1.15, 0, 0, 0, 1.0, 0.06, long * 0.8), lv === 3 ? GOLD : 0x168f8c, lv === 3 ? SURF.brass : GLOSS, 0.5);
+    const tip = 0.95 + long / 2 - 0.08;
+    k.part(BOX, tf(0, 0.36, tip - 0.12, 0, 0, 0, 0.42, 0.03, 0.08), 0xeaffff, GLOSS, 4);
+    for (const s of [-1, 1]) k.part(new SphereGeometry(0.5, 8, 4), tf(s * 0.3, 0.33, tip - 0.6, 0, s * 0.5, 0, 0.1, 0.04, 0.12), 0xff4a4a, GLOSS, 2.5);
+    if (lv === 2) {
+      // A small dorsal fin with a light edge.
+      k.part(BOX, tf(0, 1.0, -0.2, -0.25, 0, 0, 0.04, 0.22, 0.9), PEARL, GLOSS);
+      k.part(BOX, tf(0, 1.2, -0.2, -0.25, 0, 0, 0.045, 0.03, 0.9), CYAN, GLOSS, 2);
+    } else {
+      // The halo: a glowing ring round the nose behind the visor, held by two gold struts, and gold canards.
+      k.part(new TorusGeometry(0.62, 0.035, 6, 36), tf(0, 0.6, 0.15), ICE, GLOSS, 2.6);
+      for (const s of [-1, 1]) {
+        k.part(BOX, tf(s * 0.52, 0.55, 0.15, 0, 0, s * 0.3, 0.12, 0.04, 0.05), GOLD, SURF.brass, 0.8);
+        k.part(BOX, tf(s * 0.5, 0.3, 1.6, 0, s * 0.35, 0, 0.36, 0.025, 0.5), GOLD, SURF.brass, 0.6);
+      }
+    }
   }
   // The line's emblem: a small glowing bloom on the nose.
+  const ez = lv === 1 ? 1.55 : 1.9;
+  const ey = lv === 1 ? 0.98 : 0.88;
   for (let p = 0; p < 5; p++) {
     const a = (p / 5) * Math.PI * 2;
-    k.part(BALL, tf(Math.cos(a) * 0.07, 0.98, 1.55 + Math.sin(a) * 0.07, 0.35, 0, 0, 0.05, 0.015, 0.05), 0xffd36e, GLOSS, 1.6);
+    k.part(BALL, tf(Math.cos(a) * 0.07, ey, ez + Math.sin(a) * 0.07, 0.35, 0, 0, 0.05, 0.015, 0.05), 0xffd36e, GLOSS, 1.6);
   }
   return k.b.build().scale(K, K, K);
 }

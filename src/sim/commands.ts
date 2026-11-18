@@ -1,4 +1,5 @@
 import type { Builder } from './builders';
+import { registerAerolineCommands } from './aeroline';
 import { registerBridgeCommands, restoreBridges, type BridgeRecord } from './bridges';
 import { registerRoadCommands, roadLevels, setRoadLevels } from './roads';
 import type { CommandStack } from '@/core/Commands';
@@ -97,6 +98,7 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerWeaver(stack);
   registerRoadCommands(stack);
   registerBridgeCommands(stack);
+  registerAerolineCommands(stack);
   stack.register<BuildPayload, { corners: [number, number][]; edits: [number, number | undefined][] }>('build', {
     apply({ city }, p) {
       const def = buildings.get(p.def);

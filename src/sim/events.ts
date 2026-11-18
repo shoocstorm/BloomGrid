@@ -25,6 +25,8 @@ declare module '@/core/EventBus' {
     'bridge:opened': { key: string; by: Builder };
     /** A bridge was raised a level (D-128). */
     'bridge:upgraded': { key: string; level: number };
+    /** The Aeroline line changed level (upgrade or its undo, D-170). */
+    'aeroline:level': { level: number };
     'loan:repaid': { id: number };
     'season:changed': { index: number };
     /** The bloom field was recomputed (renderers re-upload it). */
