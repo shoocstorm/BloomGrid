@@ -212,6 +212,60 @@ function runRecipe(
   return { pieces, ranged, height, bounds };
 }
 
+/**
+ * A moving piece's local matrix after `t` seconds of motion (D-139): turned round its pivot, carried upright (a
+ * gondola), lifted (a drop tower) or set to the clock (`timeOfDay` in [0, 1)). Shared by the city and the gallery.
+ */
+export function spinPose(p: TemplatePiece, t: number, timeOfDay: number, out: Matrix4): Matrix4 {
+  const s = p.spin!;
+  if (s.lift) {
+    const u = (((t * Math.abs(s.speed)) / (Math.PI * 2)) % 1 + 1) % 1;
+    return out.makeTranslation(0, -s.lift * (1 - liftAt(u)), 0).multiply(p.local);
+  }
+  let angle = s.speed * t;
+  if (s.clock) {
+    const hours = timeOfDay * 24;
+    const frac = s.clock === 'hour' ? (hours % 12) / 12 : hours % 1;
+    angle = Math.sign(s.speed) * frac * Math.PI * 2;
+  }
+  _pv.set(s.at[0], s.at[1], s.at[2]);
+  _mp.makeRotationAxis(_ax.copy(AXES[s.axis ?? 'y']), angle);
+  if (s.upright) {
+    // Travels round the pivot, but keeps its own orientation (a gondola).
+    _mpos.setFromMatrixPosition(p.local);
+    const to = _mto.copy(_mpos).sub(_pv).applyMatrix4(_mp).add(_pv);
+    return out.makeTranslation(to.x - _mpos.x, to.y - _mpos.y, to.z - _mpos.z).multiply(p.local);
+  }
+  return out.makeTranslation(_pv.x, _pv.y, _pv.z).multiply(_mp).multiply(_m2.makeTranslation(-_pv.x, -_pv.y, -_pv.z)).multiply(p.local);
+}
+
+/** One piece of a building type as a design preview draws it (local to the footprint centre), styled and lit. */
+export interface DesignPiece {
+  piece: string;
+  /** The template piece (its local matrix, and `spin` for a moving part). */
+  src: TemplatePiece;
+  color: Color;
+  params: number[];
+}
+
+/**
+ * Every piece a building type shows at `tier` (0 = level 1) in its procedural look (variant 0, fully grown and
+ * lit): the base plus its designed level pieces, or the generic level overlay. The Build preview and the gallery.
+ */
+export function designPieces(def: BuildingDef, tier = 0): DesignPiece[] {
+  const t = buildingTemplate(def, 0);
+  const style = def.style ?? 'classic';
+  return [...t.pieces, ...tierPieces(t, tier)].map((p) => {
+    const styled = isStyled(p.piece);
+    return {
+      piece: p.piece,
+      src: p,
+      color: new Color(styled ? restyle(p.piece, p.tint, STYLES[style], 1) : p.tint),
+      params: [1, styled ? styleIndex(style) + p.seed * 0.999 : p.seed, p.glow, 1],
+    };
+  });
+}
+
 /** Top of the tallest piece a building shows at `tier` (0 = level 1): sky-lanes clear it, alert markers float over it. */
 export function heightAt(t: BuildingTemplate, tier: number): number {
   let h = t.height;
@@ -686,26 +740,7 @@ export class BuildingRenderer {
 
   /** A moving part's local matrix (recipe space) at the entry's motion time and the city's time of day (D-139). */
   private posed(p: TemplatePiece, entry: Entry, out: Matrix4): Matrix4 {
-    const s = p.spin!;
-    if (s.lift) {
-      const u = (((entry.motionT * Math.abs(s.speed)) / (Math.PI * 2)) % 1 + 1) % 1;
-      return out.makeTranslation(0, -s.lift * (1 - liftAt(u)), 0).multiply(p.local);
-    }
-    let angle = s.speed * entry.motionT;
-    if (s.clock) {
-      const hours = this.ctx.city.timeOfDay * 24;
-      const frac = s.clock === 'hour' ? (hours % 12) / 12 : hours % 1;
-      angle = Math.sign(s.speed) * frac * Math.PI * 2;
-    }
-    _pv.set(s.at[0], s.at[1], s.at[2]);
-    _mp.makeRotationAxis(_ax.copy(AXES[s.axis ?? 'y']), angle);
-    if (s.upright) {
-      // Travels round the pivot, but keeps its own orientation (a gondola).
-      _mpos.setFromMatrixPosition(p.local);
-      const to = _mto.copy(_mpos).sub(_pv).applyMatrix4(_mp).add(_pv);
-      return out.makeTranslation(to.x - _mpos.x, to.y - _mpos.y, to.z - _mpos.z).multiply(p.local);
-    }
-    return out.makeTranslation(_pv.x, _pv.y, _pv.z).multiply(_mp).multiply(_m2.makeTranslation(-_pv.x, -_pv.y, -_pv.z)).multiply(p.local);
+    return spinPose(p, entry.motionT, this.ctx.city.timeOfDay, out);
   }
 
   /** Has the building parts the steward can stop and start (wheels, rides, rotors)? */
@@ -846,16 +881,7 @@ export class BuildingRenderer {
       }
       if (!recipe.fallback) return out;
     }
-    const style = def.style ?? 'classic';
-    for (const p of piecesAt(buildingTemplate(def, 0), 0)) {
-      const styled = isStyled(p.piece);
-      out.push({
-        piece: p.piece,
-        matrix: new Matrix4().multiplyMatrices(base, p.local),
-        color: new Color(styled ? restyle(p.piece, p.tint, STYLES[style], 1) : p.tint),
-        params: [1, styled ? styleIndex(style) + p.seed * 0.999 : p.seed, p.glow, 1],
-      });
-    }
+    for (const p of designPieces(def, 0)) out.push({ piece: p.piece, matrix: new Matrix4().multiplyMatrices(base, p.src.local), color: p.color, params: p.params });
     return out;
   }
 

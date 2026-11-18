@@ -136,6 +136,20 @@ export const skyguardModule: GameModule = {
     jet.name = 'skyguard.jet';
     jet.castShadow = jet.receiveShadow = false;
     jet.matrixAutoUpdate = false;
+    // The model gallery: the jet parked on the stage (its material poses only the flames, in its own frame).
+    ctx.services.tryGet('gallery')?.add({
+      id: 'jet',
+      name: 'BloomGrid Sky Guard',
+      group: 'Sky & sea',
+      blurb:
+        'A three-engine delta-wing jet in the island\'s livery, flying sharp banked figure-eights over the city with victory rolls, contrails and an afterburner on request.',
+      facts: [['Engines', '3'], ['Unlocked by', 'Sky Guard air wing']],
+      build: () => {
+        const m = new Mesh(jetGeo, mat);
+        m.castShadow = m.receiveShadow = true;
+        return { object: m };
+      },
+    });
 
     // ── Contrails: three ribbons, one per engine, along the track the jet has just flown ─────────────────────
     const trailGeo = new BufferGeometry();

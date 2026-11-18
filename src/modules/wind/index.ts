@@ -2,7 +2,9 @@ import {
   BoxGeometry,
   ConeGeometry,
   CylinderGeometry,
+  Group,
   InstancedMesh,
+  Mesh,
   Matrix4,
   Quaternion,
   SphereGeometry,
@@ -84,6 +86,16 @@ export const windModule: GameModule = {
       m.name = 'wind-turbines';
     }
     ctx.scene.add(nacelles, rotors);
+    // The model gallery: the turbine's nacelle and turning rotor on its tower.
+    ctx.services.tryGet('gallery')?.dress('wind-turbine', () => {
+      const head = new Group();
+      head.position.y = 0.02 + TURBINE_TOP;
+      head.rotation.y = WIND_YAW;
+      const rotor = new Mesh(rotorGeometry(), mat);
+      rotor.position.copy(HUB);
+      head.add(new Mesh(nacelleGeometry(), mat), rotor);
+      return { object: head, update: (t) => (rotor.rotation.z = t * SPIN[1]) };
+    });
 
     const turbines: Turbine[] = [];
     const facing = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), WIND_YAW);

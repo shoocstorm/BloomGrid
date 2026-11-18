@@ -1,4 +1,6 @@
 import {
+  Group,
+  Mesh,
   BoxGeometry,
   CapsuleGeometry,
   CylinderGeometry,
@@ -145,6 +147,28 @@ export class Trains {
     this.noses.instanceMatrix.needsUpdate = true;
     this.mids.instanceMatrix.needsUpdate = true;
   }
+}
+
+/**
+ * A whole set at line level `lv` standing still on its beam (the model gallery): nose car leading toward +z, middle
+ * cars, and the tail car turned round, spaced as they run.
+ */
+export function trainSet(lv: number): Group {
+  const level = Math.min(3, Math.max(1, lv));
+  const cars = CARS_AT[level - 1]!;
+  const mat = getMaterial('wonder');
+  const nose = noseCar(level);
+  const mid = midCar(level);
+  const g = new Group();
+  for (let c = 0; c < cars; c++) {
+    const back = c === cars - 1;
+    const m = new Mesh(c === 0 || back ? nose : mid, mat);
+    m.position.z = ((cars - 1) / 2 - c) * CAR;
+    if (back) m.rotation.y = Math.PI;
+    m.castShadow = m.receiveShadow = true;
+    g.add(m);
+  }
+  return g;
 }
 
 const _p: PathPoint = { x: 0, z: 0, tx: 0, tz: 0, curv: 0 };

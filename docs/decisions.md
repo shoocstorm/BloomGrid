@@ -3189,3 +3189,29 @@ The Aeroline levels up to 3 like a building, but **as one line**: every train an
   line and Line. Service `aeroline.level` / `upgrade()`.
 - **Deferred**: no Flora tool for the upgrade yet; no ceremony beyond a toast.
 
+## D-171 — Model gallery (2026-11-18)
+
+A full-screen showroom for every model in the game (**G**, the top bar's gallery button, or **Gallery** in a
+building's inspector), one at a time on a lit studio stage: 80 building types (each designed level, rides and rotors
+turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patrol drone, the Sky Guard jet, the
+*Tidesong*, the eight sea wonders, whales and dolphins (96 exhibits).
+
+- **Drawn in place of the city, not over it.** The studio has its own scene and its own `PostFX` (bloom, TRAA, grade)
+  and is set as `render.stage`, which `core.render` draws instead of the city's pipeline. A scissored second draw over
+  the city (the inspector preview's way, D-067) would pay for the whole city every frame under a full-screen view.
+  The city keeps its state; the clock holds (as dialogs do: `gallery-open` counts as a hold in the pause module), its
+  tools and camera rest, and the HUD hides.
+- **The city's own materials and pieces**, so a model looks exactly as it does on the island. The shared `U`
+  uniforms (night, sun, sky, grade, lenses, weather, `eye`) are set to the studio's lighting (day / dusk / night)
+  for its draw and put back after.
+- **Modules own their exhibits**: `gallery.add` in each module's `init` (the gallery registers early in `MODULES`);
+  `dress(defId, fn)` adds parts a module draws onto a building type (turbine nacelle and rotor). Jet and ferry share
+  their live materials (they pose only in their own frame). The drone, car and pod shaders posed the model in the
+  world inside one block, so their surfaces moved into `droneSurface` / `carSurface` / `podSurface` in the model
+  files, used by both the city and the gallery (no change in the city's look).
+- **Building pieces** come from `designPieces(def, tier)` (base + designed level pieces, or the generic overlay; the
+  Build preview now shows a level-1 roof plant it used to omit) and moving parts from `spinPose`, both shared with the
+  city's renderer.
+- **Not done**: the lighthouse beam, Aurora searchlights and parked police drones (module effects on top of models)
+  are not on stage; no thumbnails in the list (each would need a render); no screenshot button (photo mode has one).
+

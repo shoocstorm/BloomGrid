@@ -11,7 +11,7 @@ import { ConstructionLook } from './construction';
 import { Guideway, type StationSite } from './Guideway';
 import { Movers } from './Movers';
 import { LoopPath } from './path';
-import { Trains } from './Trains';
+import { CARS_AT, Trains, trainSet } from './Trains';
 
 /** Rail-top clearance over the highest ground along the loop: clears every town building beneath. */
 const CLEARANCE = 4.6;
@@ -293,6 +293,18 @@ export const aerolineModule: GameModule = {
           ctx.bus.emit('selection:changed', { eid: null, object: 'aeroline' }),
         ),
       ];
+    });
+
+    // The model gallery: each line level's rolling stock.
+    ctx.services.tryGet('gallery')?.add({
+      id: 'train',
+      name: 'Aeroline maglev',
+      group: 'Transit',
+      blurb:
+        'The island loop: maglev sets gliding on a viaduct round the towns, stopping at every station. The whole line levels up together, trains and stations alike.',
+      facts: AEROLINE_LEVELS.map((l, i) => [l.name, `${CARS_AT[i]} cars · ${l.kmh} km/h`] as [string, string]),
+      levels: AEROLINE_LEVELS.map((l) => l.name),
+      build: (lv) => ({ object: trainSet(lv + 1) }),
     });
 
     ctx.services.provide('aeroline', {

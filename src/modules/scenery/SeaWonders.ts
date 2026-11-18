@@ -9,6 +9,18 @@ import { colonnade, geode, turtle } from './laterWonders';
 import { dolphinSchool, whalePod } from './SeaLife';
 import type { Kit } from './wonderKit';
 
+/** Each sea wonder's model at the origin, by its lore key (the model gallery). `S` = map size (the Tide Gates face the island). */
+export const WONDER_MODELS: Record<string, (S: number) => Kit> = {
+  lighthouse: () => lighthouse(0, 0),
+  tideGates: (S) => tideGates(0, 0, S),
+  lotus: () => lotus(0, 0),
+  dome: () => dome(0, 0),
+  stacks: () => stacks(0, 0),
+  turtle: () => turtle(0, 0),
+  colonnade: () => colonnade(0, 0),
+  geode: () => geode(0, 0),
+};
+
 /**
  * Wonders of the sea, pure decoration out in the deep water off the coast (no sim state, so nothing
  * to save): the Tidewatch Lighthouse with its night beam, the Tide Gates (three giant pearl rings rising

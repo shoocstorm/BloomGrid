@@ -36,6 +36,11 @@ export interface RenderService {
   postfx: PostFX;
   dynamicResolution: DynamicResolution;
   setQuality(tier: QualityTier): void;
+  /**
+   * A full-screen stage that replaces the city frame while it is set (the model gallery): `core.render` draws it
+   * instead of the city's post pipeline. The city keeps its state; nothing of it is drawn.
+   */
+  stage: { render(): void } | null;
 }
 
 declare module '@/core/Services' {
@@ -197,7 +202,8 @@ export async function createGame(
     dynRes.scale = 1;
     applySize();
   };
-  ctx.services.provide('render', { postfx, dynamicResolution: dynRes, setQuality, power });
+  const renderService: RenderService = { postfx, dynamicResolution: dynRes, setQuality, power, stage: null };
+  ctx.services.provide('render', renderService);
   ctx.services.provide('save', new SaveManager(ctx));
   ctx.services.provide('agent', new AgentToolRegistry<GameContext>(ctx));
   onViewportChange(applySize);
@@ -212,7 +218,8 @@ export async function createGame(
     update(c, f) {
       if (dynRes.update(f.dt, power.targetFps())) applySize();
       U.eye.value.copy(c.camera.position);
-      postfx.render();
+      if (renderService.stage) renderService.stage.render();
+      else postfx.render();
       c.input.endFrame();
       // Optional GPU timing (?gputime). three reports the *total* GPU time of all frames since
       // the previous resolve, so divide by the number of frames in that window.

@@ -4,8 +4,13 @@ import {
   SphereGeometry,
   TorusGeometry,
   type BufferGeometry,
+  type MeshBasicNodeMaterial,
+  type Node,
 } from 'three/webgpu';
-import { GeoBuilder, tf } from '@/render/bake';
+import { attribute, cameraPosition, color, dot, float, floor, fract, max, mix, mrt, normalize, reflect, step } from 'three/tsl';
+import { GeoBuilder, skyShade, tf } from '@/render/bake';
+import { U } from '@/render/uniforms';
+import { bloomMRT } from '@/render/bloomMRT';
 
 /**
  * The commuter pod (D-051, detailed in D-147): a pearl teardrop hull, about 0.66 tiles nose to tail along +X, with a
@@ -86,4 +91,38 @@ export function podGeometry(): BufferGeometry {
   // Hover pad.
   b.add(hull(0.14, 0.008, 0.07, 0, 8, 3), tf(0.01, -0.118, 0), CYAN, 1.2);
   return b.build();
+}
+
+/**
+ * The pod's livery, glazing, cabin light and glow on `pm` (D-147), lit by the sky (`skyShade`): `info` is the pod's
+ * route info (`z` seeds its colour, `w` marks express pods in gold), `n` its world normal and `world` its world
+ * position. The sky-lane shader and the model gallery share it.
+ */
+export function podSurface(pm: MeshBasicNodeMaterial, info: Node<'vec4'>, n: Node<'vec3'>, world: Node<'vec3'>): void {
+  const lum = attribute('aGlow', 'float');
+  // aGlow −1 marks glazing, −2 the livery (D-147): a colour per pod from its seed, gold for express pods.
+  const livery = step(lum, -1.5);
+  const glass = step(lum, -0.5).mul(float(1).sub(livery));
+  const seed = fract(info.z);
+  const express = step(1.25, info.w.sub(floor(info.w.div(4)).mul(4)));
+  const pick = floor(seed.mul(4));
+  const palette = mix(
+    mix(color(0x13a89a), color(0xe2587a), step(0.5, pick)),
+    mix(color(0x3f7fe0), color(0x8a5cf0), step(2.5, pick)),
+    step(1.5, pick),
+  );
+  const col = mix(attribute('color', 'vec3'), mix(palette, color(0xe8a530), express), livery);
+  const lit = skyShade(col, n);
+  // Glazing: dark smoked glass mirroring the sky at grazing angles, a sun glint, a warm cabin at night.
+  const view = normalize(cameraPosition.sub(world));
+  const facing = max(dot(n, view), 0);
+  const fresnel = float(1).sub(facing).pow(3);
+  const sky = mix(U.horizon, U.zenith, n.y.mul(0.5).add(0.5));
+  const glint = max(dot(reflect(view.negate(), n), U.sunDir), 0).pow(60).mul(float(1).sub(U.night)).mul(2.5);
+  const pane = col.mul(0.5).add(sky.mul(fresnel.mul(0.75).add(0.12)).mul(float(1).sub(U.night.mul(0.7)))).add(glint);
+  const cabin = color(0xffb45e).mul(U.night.mul(0.16).add(0.02)).mul(facing.mul(facing).mul(0.7).add(0.3)).mul(glass);
+  const glow = col.mul(max(lum, 0)).mul(U.night.mul(0.9).add(0.35));
+  // A little city light on the hull at night, so pods don't turn into silhouettes.
+  pm.colorNode = mix(lit.add(col.mul(U.night.mul(0.12))), pane, glass).add(cabin).add(glow);
+  bloomMRT(pm, mrt({ emissive: glow.mul(0.6).add(cabin.mul(0.4)) }));
 }

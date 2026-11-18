@@ -1,4 +1,6 @@
-import { BoxGeometry, BufferAttribute, SphereGeometry, type BufferGeometry } from 'three/webgpu';
+import { BoxGeometry, BufferAttribute, SphereGeometry, type BufferGeometry, type MeshStandardNodeMaterial, type Node } from 'three/webgpu';
+import { abs, attribute, color, dot, float, fract, fwidth, length, max, min, mix, normalGeometry, positionGeometry, positionView, sin, smoothstep, step, transformNormalToView } from 'three/tsl';
+import { U } from '@/render/uniforms';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
@@ -113,4 +115,65 @@ function bus(): BufferGeometry[] {
  */
 export function carGeometry(): BufferGeometry {
   return mergeGeometries([...car(), ...micro(), ...van(), ...bus()])!;
+}
+
+/**
+ * A hover vehicle's paint, glass, solar roof, lights and night glow on `am` (D-096, D-134): `seed` picks its pastel,
+ * `kind` its type (`CAR_TYPE`: buses wear transit teal, vans a cream cargo box), `cong` (0..1.5) tints its lights as
+ * lanes jam, and `turn` rotates local vectors to its heading. The street shader and the model gallery share it.
+ */
+export function carSurface(
+  am: MeshStandardNodeMaterial,
+  seed: Node<'float'>,
+  kind: Node<'float'>,
+  cong: Node<'float'>,
+  turn: (v: Node<'vec3'>) => Node<'vec3'>,
+): void {
+  const isPart = (id: number) => step(abs(attribute('aPart', 'float').sub(id)), 0.5);
+  // Warm headlights (distinct from the cyan guidelines) turning amber, then coral, as lanes jam.
+  const tint = mix(mix(color(0xfff1c9), color(0xffb347), smoothstep(0.5, 1.0, cong)), color(0xff5f6d), smoothstep(1.0, 1.5, cong));
+  // A pastel body per car (D-096), smoked glass, a dark solar roof with gold busbars, dark sill and skids.
+  const pick = fract(seed.mul(17.31)).mul(6).floor();
+  const paint = mix(
+    mix(mix(color(0xf4f1e8), color(0x7fd1c7), step(0.5, pick)), mix(color(0xffc58a), color(0x9ec5ff), step(2.5, pick)), step(1.5, pick)),
+    mix(color(0xf7d36b), color(0xe79bb4), step(4.5, pick)),
+    step(3.5, pick),
+  );
+  const glass = isPart(CAR_PART.glass);
+  const solar = isPart(CAR_PART.solar);
+  const head = isPart(CAR_PART.head);
+  const tail = isPart(CAR_PART.tail);
+  const skid = isPart(CAR_PART.skid);
+  const trim = isPart(CAR_PART.trim);
+  const leaf = isPart(CAR_PART.leaf);
+  // Liveries: shuttle buses wear the transit teal, vans a cream cargo box over their own colour.
+  const isBus = step(CAR_TYPE.bus - 0.5, kind);
+  const isVan = step(CAR_TYPE.van - 0.5, kind).mul(float(1).sub(isBus));
+  const cargo = isVan.mul(step(0.075, positionGeometry.y)).mul(step(positionGeometry.x, 0.06));
+  const livery = mix(mix(paint, color(0xf2ecdc), cargo), color(0x2fa39a), isBus);
+  const g = positionGeometry;
+  const busbar = smoothstep(0.0016, 0.0006, abs(fract(g.z.mul(32).add(0.5)).sub(0.5)).div(32)).mul(solar);
+  const fresnel = float(1).sub(max(dot(transformNormalToView(turn(normalGeometry)).normalize(), positionView.normalize().negate()), 0)).pow(3);
+  const pane = mix(color(0x16232a), mix(U.horizon, U.zenith, 0.5), fresnel.mul(0.45).add(0.05));
+  let body = mix(livery, pane, glass);
+  body = mix(body, mix(color(0x23305e), color(0xd6b25a), busbar), solar);
+  body = mix(body, color(0x2b3136), trim.add(skid).min(1));
+  body = mix(body, color(0xfff6e0), head);
+  body = mix(body, color(0xb3202e), tail);
+  const sprig = sin(positionGeometry.z.mul(150)).mul(0.5).add(0.5);
+  body = mix(body, mix(color(0x4f8f3a), color(0x7fbf4a), sprig), leaf);
+  // Up close the parts read; once a car is a few pixels across its detail would shimmer, so it turns into a
+  // single soft swatch of its traffic tint at night, as before (D-064).
+  const pxw = length(fwidth(positionGeometry));
+  const near = smoothstep(0.05, 0.022, pxw);
+  const cover = min(float(1), float(0.08).div(max(pxw, float(1e-5))));
+  am.colorNode = mix(mix(livery, tint, U.night.mul(0.6)), body, near);
+  am.roughnessNode = mix(float(0.35), float(0.08), glass.add(solar).min(1).mul(near));
+  // Lights: the nose bar and the skids carry the traffic tint, tail bars glow red, cabins warm after dark.
+  const lights = tint
+    .mul(head.mul(2.2).add(skid.mul(0.9)))
+    .mul(U.night.mul(1.4).add(0.25))
+    .add(color(0xff3b3b).mul(tail).mul(U.night.mul(1.6).add(0.35)))
+    .add(color(0xffb45e).mul(glass).mul(U.night.mul(0.25)));
+  am.emissiveNode = mix(tint.mul(U.night.mul(1.6).add(0.05)), lights, near).mul(cover);
 }

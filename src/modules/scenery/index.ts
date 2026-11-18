@@ -1,11 +1,12 @@
 import type { GameModule } from '@/game/context';
 import { Clouds } from './Clouds';
 import { SkyLife } from './SkyLife';
-import { SeaWonders } from './SeaWonders';
+import { SeaWonders, WONDER_MODELS } from './SeaWonders';
 import { WONDER_SITES, type WonderSite } from './sites';
 import { registerInventoryKind, type CityObject } from '@/sim/inventory';
 import { wonderVisible } from '@/sim/wonders';
-import { Box3, Vector3, type Mesh } from 'three/webgpu';
+import { Box3, Mesh, Vector3 } from 'three/webgpu';
+import { getMaterial } from '@/render/materials/library';
 import type { GameContext } from '@/game/context';
 import type { ObjectSheet } from '@/ui/Hud';
 import { h } from '@/ui/dom';
@@ -13,7 +14,7 @@ import { icon } from '@/ui/icons';
 import { U } from '@/render/uniforms';
 import { registerPickable } from '@/modules/construction/pick';
 import { LORE } from './lore';
-import { dolphinsLeaping, whalesNow } from './SeaLife';
+import { dolphinSchool, dolphinsLeaping, whalePod, whalesNow } from './SeaLife';
 import './wonder.css';
 
 const WONDERS: [WonderSite, string, string, string][] = [
@@ -94,6 +95,7 @@ export const sceneryModule: GameModule = {
     const refresh = (rise: boolean) => sea.sync(visible, rise) && ctx.services.tryGet('world')?.atmosphere.invalidateShadows();
     refresh(false);
     wonderInspector(ctx, sea.group.children as Mesh[]);
+    galleryExhibits(ctx, S);
     for (const ev of ['city:reset', 'load:done', 'stats:updated'] as const) ctx.bus.on(ev, () => refresh(false));
     ctx.bus.on('wonder:discovered', ({ id, name }) => {
       refresh(true);
@@ -225,4 +227,44 @@ function sheet(ctx: GameContext, key: string): ObjectSheet | null {
         : []),
     ],
   };
+}
+
+/** The model gallery's sea halls: every wonder (whether or not this island has found it yet) and the sea life. */
+function galleryExhibits(ctx: GameContext, S: number): void {
+  const gallery = ctx.services.tryGet('gallery');
+  if (!gallery) return;
+  const facts = (k: string): [string, string][] => [...LORE[k]!.facts, ['Best seen', LORE[k]!.bestSeen]];
+  for (const [k, model] of Object.entries(WONDER_MODELS)) {
+    const lore = LORE[k]!;
+    gallery.add({
+      id: `wonder:${k}`,
+      name: lore.name,
+      group: 'Sea wonders',
+      blurb: `${lore.tagline} ${lore.story[0] ?? ''}`,
+      facts: facts(k),
+      water: true,
+      build: () => {
+        const mesh = new Mesh(model(S).b.build(), getMaterial('wonder'));
+        mesh.castShadow = mesh.receiveShadow = true;
+        return { object: mesh };
+      },
+    });
+  }
+  // Sea life swims in the shader round its pod's centre: frame the circle it swims, not its rest geometry.
+  const life: [string, () => Mesh, number][] = [
+    ['whales', () => whalePod(0, 0, 0), 40],
+    ['dolphins', () => dolphinSchool(0, 0, 0), 36],
+  ];
+  for (const [k, make, radius] of life) {
+    const lore = LORE[k]!;
+    gallery.add({
+      id: k,
+      name: lore.name,
+      group: 'Sea life',
+      blurb: `${lore.tagline} ${lore.story[0] ?? ''}`,
+      facts: facts(k),
+      water: true,
+      build: () => ({ object: make(), frame: { center: new Vector3(0, 0, 0), radius } }),
+    });
+  }
 }

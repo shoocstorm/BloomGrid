@@ -307,6 +307,21 @@ export const ferryModule: GameModule = {
     ship.castShadow = false;
     ship.receiveShadow = true;
     ship.name = 'ferry.ship';
+    // The model gallery: the ship afloat on the stage's sea (its material poses only the wheel and the tourists).
+    ctx.services.tryGet('gallery')?.add({
+      id: 'ferry',
+      name: 'Tidesong cruise ferry',
+      group: 'Sky & sea',
+      blurb:
+        'A multi-deck solar-sail cruise ferry that sails from Tidesong Pier to the sea wonders on a timetable: a sky wheel, a pool and slide, a helideck and a deck show after dark.',
+      facts: [['Home port', 'Tidesong Pier'], ['Unlocked by', 'Tidesong cruise line']],
+      water: true,
+      build: () => {
+        const m = new Mesh(geo, mat);
+        m.castShadow = m.receiveShadow = true;
+        return { object: m };
+      },
+    });
 
     // Wake: a V of churned foam spreading behind the stern, stronger with speed.
     const wakeGeo = new BufferGeometry();

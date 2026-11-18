@@ -80,7 +80,7 @@ Desktop: `src-tauri/src/{llm,models}/`, `mlx.rs` (`llm_*` commands; Apple Silico
 1. `input` phase: tools hover/pick, camera update (mouse, keys, and touch: one finger = left button, two = pinch/twist/pan/tilt gesture that cancels the tool's press, D-045).
 2. `sim` phase: 0..N fixed ticks (`clock → greenery → economy …`). **Only this phase mutates sim state**, besides commands.
 3. `sync` phase: renderers mirror sim (building growth staging, atmosphere, instancer flush/LOD).
-4. `render` phase: PostFX render, HUD, debug overlays.
+4. `render` phase: PostFX render (or `render.stage` when a full-screen stage replaces the city frame: the model gallery, D-171), HUD, debug overlays.
 
 ## Data flow
 
@@ -96,6 +96,7 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | Building                 | `src/content/buildings/<id>.ts` with `defineBuilding`                                                             |
 | Kit piece / material     | `registerPiece` (`assets/kit/pieces.ts`), `define` (`render/materials/library.ts`)                                |
+| Model gallery exhibit    | `services.get('gallery').add({ id, name, group, blurb, facts, levels, water, build })` in the module that owns the model; parts drawn onto a building type: `gallery.dress(defId, fn)` (D-171) |
 | Anti-aliasing            | TRAA + depth-reprojected camera velocity in `render/PostFX.ts` (`taa` quality flag, D-161)                       |
 | Distance switches        | `within` (`render/hysteresis.ts`); LOD dissolve `fade` in `define` + instancer `fadeAt` (D-162)                   |
 | Surface relief / rooms   | `bumped`, `reliefFade`, `roomInterior` (`render/materials/surface.ts`, D-160)                                       |

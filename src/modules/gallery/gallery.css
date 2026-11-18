@@ -1,0 +1,434 @@
+/*
+ * Model gallery: a full-screen showroom over the studio frame (the canvas draws the studio while it is open). Hall
+ * list on the left, the exhibit card on the right, a control bar at the bottom; the stage between them orbits.
+ * Instrument-theme tokens from ui/theme.css; no backdrop-filter, animations on transform / opacity only (§7½).
+ * Phone layout in ui/mobile.css.
+ */
+body.gallery-open #hud {
+  visibility: hidden;
+}
+.gallery {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  color: var(--ink);
+  font-family: var(--ui);
+}
+.gallery.hidden {
+  display: none;
+}
+.gallery > * {
+  pointer-events: auto;
+}
+.gal-stage {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  touch-action: none;
+  /* A soft vignette frames the model under the panels. */
+  background: radial-gradient(ellipse at 50% 55%, transparent 55%, rgba(2, 8, 10, 0.35));
+}
+.gal-stage.dragging {
+  cursor: grabbing;
+}
+
+/* ── Hall list ── */
+.gal-rail {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  bottom: 16px;
+  width: 292px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 12px 10px;
+  animation: gal-in-l 0.4s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.gal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gal-emblem {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: radial-gradient(circle, rgba(95, 242, 218, 0.22), transparent 70%);
+  color: var(--accent);
+}
+.gal-emblem .ico {
+  width: 20px;
+  height: 20px;
+}
+.gal-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 10px/1.2 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.gal-title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.gal-find {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+  color: var(--ink-soft);
+}
+.gal-find .ico {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.gal-search {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+.gal-search:focus {
+  outline: none;
+}
+.gal-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.gal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  background: none;
+  color: var(--ink-soft);
+  font: 500 11px/1.4 var(--ui);
+  cursor: var(--cur-pointer, pointer);
+}
+.gal-chip span {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+.gal-chip:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+.gal-chip.on {
+  border-color: var(--line-strong);
+  background: rgba(95, 242, 218, 0.16);
+  color: var(--ink);
+}
+.gal-chip.on span {
+  color: var(--accent);
+}
+.gal-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -4px;
+  padding: 0 4px;
+  scrollbar-width: thin;
+}
+.gal-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 6px 4px;
+  font: 600 10px/1.2 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--bg-strong);
+}
+.gal-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  background: none;
+  color: var(--ink);
+  font: 500 13px/1.3 var(--ui);
+  text-align: left;
+  cursor: var(--cur-pointer, pointer);
+}
+.gal-item:hover {
+  background: var(--bg-hover);
+}
+.gal-item.on {
+  border-color: var(--line-strong);
+  background: rgba(95, 242, 218, 0.14);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.gal-iname {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gal-star {
+  display: inline-flex;
+  color: var(--warn);
+}
+.gal-star .ico {
+  width: 13px;
+  height: 13px;
+}
+.gal-empty {
+  padding: 18px 8px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.gal-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font: 10px/1.3 var(--mono);
+  color: var(--ink-faint);
+}
+
+/* ── Exhibit card ── */
+.gal-card {
+  position: absolute;
+  right: 16px;
+  top: 64px;
+  width: 340px;
+  max-height: calc(100% - 170px);
+  overflow-y: auto;
+  padding: 16px 18px;
+  animation: gal-in-r 0.4s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.gal-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+}
+.gal-name .ico {
+  width: 18px;
+  height: 18px;
+}
+.gal-lvname {
+  font: 600 11px/1.4 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.gal-blurb {
+  margin: 10px 0 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.gal-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 14px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+}
+.gal-facts dt {
+  color: var(--ink-faint);
+}
+.gal-facts dd {
+  margin: 0;
+  font-family: var(--mono);
+  text-align: right;
+  color: var(--ink);
+}
+
+/* ── Control bar ── */
+.gal-bar {
+  position: absolute;
+  /* Centred in the space right of the list. */
+  left: calc(50% + 162px);
+  bottom: 16px;
+  max-width: calc(100% - 356px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--pill);
+  white-space: nowrap;
+  animation: gal-in-b 0.4s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.gal-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+}
+.gal-seg.hidden {
+  display: none;
+}
+.gal-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--pill);
+  background: none;
+  color: var(--ink-soft);
+  font: 500 12px/1 var(--ui);
+  cursor: var(--cur-pointer, pointer);
+}
+.gal-opt .ico {
+  width: 15px;
+  height: 15px;
+}
+.gal-opt b {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.gal-opt:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+}
+.gal-opt.on {
+  background: rgba(95, 242, 218, 0.18);
+  color: var(--ink);
+}
+.gal-hide {
+  border: 1px solid var(--line);
+}
+.gal-nav {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+.gallery .gal-close.pop-x {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--bg-strong);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  opacity: 1;
+}
+.gallery .gal-close.pop-x .ico {
+  width: 18px;
+  height: 18px;
+}
+.gallery .gal-close.pop-x:hover {
+  background: var(--bg-hover);
+}
+.gal-lv b {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  font-size: 10px;
+}
+.gal-lv.on b {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.gal-listbtn {
+  display: none;
+}
+
+/* ── Clean view: only the model ── */
+.gal-bare-hint {
+  display: none;
+}
+.gallery.bare > :not(.gal-stage):not(.gal-bare-hint) {
+  display: none;
+}
+.gallery.bare .gal-bare-hint {
+  display: block;
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font: 11px/1 var(--mono);
+  letter-spacing: 0.1em;
+  color: rgba(220, 245, 238, 0.45);
+  animation: gal-fade 4s ease-out both;
+}
+
+@keyframes gal-in-l {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+@keyframes gal-in-r {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@keyframes gal-in-b {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+}
+@keyframes gal-fade {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Narrow desktops: the card gives way to the list. */
+@media (max-width: 1280px) {
+  .gal-opt span {
+    display: none;
+  }
+}
+@media (max-width: 1080px) {
+  .gal-card {
+    width: 280px;
+  }
+}

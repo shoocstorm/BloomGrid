@@ -5,25 +5,26 @@ import {
   DoubleSide,
   InstancedBufferAttribute,
   InstancedMesh,
+  Matrix4,
+  Mesh,
   MeshBasicNodeMaterial,
   MeshStandardNodeMaterial,
   PlaneGeometry,
   TorusGeometry,
   Vector3,
 } from 'three/webgpu';
-import { abs, attribute, cameraPosition, clamp, color, cos, dot, float, floor, fract, fwidth, length, max, min, mix, mrt, normalGeometry, normalize, positionGeometry, positionView, reflect, sin, smoothstep, step, time, transformNormalToView, uniform, uv, vec2, vec3 } from 'three/tsl';
+import { abs, attribute, clamp, color, cos, float, fract, fwidth, max, min, mix, mrt, normalGeometry, normalWorld, positionGeometry, positionWorld, sin, smoothstep, step, time, transformNormalToView, uniform, uv, vec2, vec3 } from 'three/tsl';
 import type { Node } from 'three/webgpu';
 import type { GameModule } from '@/game/context';
 import { U } from '@/render/uniforms';
-import { skyShade } from '@/render/bake';
 import { buildings } from '@/content';
 import { BRIDGE, BRIDGE_DECK } from '@/sim/City';
 import { mobilityLayers } from '@/sim/mobility';
 import { hash2 } from '@/sim/random';
 import { Building } from '@/ecs/components';
 import { heightAt, placeBuilding } from '@/modules/construction/BuildingRenderer';
-import { podGeometry } from './podModel';
-import { CAR_HOVER, CAR_MIX, CAR_PART, CAR_TYPE, carGeometry } from './carModel';
+import { podGeometry, podSurface } from './podModel';
+import { CAR_HOVER, CAR_MIX, carGeometry, carSurface } from './carModel';
 import {
   arcPeakNode,
   arcProfile,
@@ -123,8 +124,6 @@ export const mobilityModule: GameModule = {
     {
       const seg = attribute('aSeg', 'vec4');
       const info = attribute('aInfo', 'vec4');
-      const partId = attribute('aPart', 'float');
-      const isPart = (id: number) => step(abs(partId.sub(id)), 0.5);
       const seed = info.z;
       const cong = info.w;
       const a = seg.xy;
@@ -150,52 +149,7 @@ export const mobilityModule: GameModule = {
       const keep = step(abs(attribute('aType', 'float').sub(kind)), 0.5);
       am.positionNode = vec3(flat.x, y, flat.y).add(turn(positionGeometry).mul(shown.mul(keep)));
       am.normalNode = transformNormalToView(turn(normalGeometry));
-      // Warm headlights (distinct from the cyan guidelines) turning amber, then coral, as lanes jam.
-      const tint = mix(mix(color(0xfff1c9), color(0xffb347), smoothstep(0.5, 1.0, cong)), color(0xff5f6d), smoothstep(1.0, 1.5, cong));
-      // A pastel body per car (D-096), smoked glass, a dark solar roof with gold busbars, dark sill and skids.
-      const pick = fract(seed.mul(17.31)).mul(6).floor();
-      const paint = mix(
-        mix(mix(color(0xf4f1e8), color(0x7fd1c7), step(0.5, pick)), mix(color(0xffc58a), color(0x9ec5ff), step(2.5, pick)), step(1.5, pick)),
-        mix(color(0xf7d36b), color(0xe79bb4), step(4.5, pick)),
-        step(3.5, pick),
-      );
-      const glass = isPart(CAR_PART.glass);
-      const solar = isPart(CAR_PART.solar);
-      const head = isPart(CAR_PART.head);
-      const tail = isPart(CAR_PART.tail);
-      const skid = isPart(CAR_PART.skid);
-      const trim = isPart(CAR_PART.trim);
-      const leaf = isPart(CAR_PART.leaf);
-      // Liveries: shuttle buses wear the transit teal, vans a cream cargo box over their own colour.
-      const isBus = step(CAR_TYPE.bus - 0.5, kind);
-      const isVan = step(CAR_TYPE.van - 0.5, kind).mul(float(1).sub(isBus));
-      const cargo = isVan.mul(step(0.075, positionGeometry.y)).mul(step(positionGeometry.x, 0.06));
-      const livery = mix(mix(paint, color(0xf2ecdc), cargo), color(0x2fa39a), isBus);
-      const g = positionGeometry;
-      const busbar = smoothstep(0.0016, 0.0006, abs(fract(g.z.mul(32).add(0.5)).sub(0.5)).div(32)).mul(solar);
-      const fresnel = float(1).sub(max(dot(transformNormalToView(turn(normalGeometry)).normalize(), positionView.normalize().negate()), 0)).pow(3);
-      const pane = mix(color(0x16232a), mix(U.horizon, U.zenith, 0.5), fresnel.mul(0.45).add(0.05));
-      let body = mix(livery, pane, glass);
-      body = mix(body, mix(color(0x23305e), color(0xd6b25a), busbar), solar);
-      body = mix(body, color(0x2b3136), trim.add(skid).min(1));
-      body = mix(body, color(0xfff6e0), head);
-      body = mix(body, color(0xb3202e), tail);
-      const sprig = sin(positionGeometry.z.mul(150)).mul(0.5).add(0.5);
-      body = mix(body, mix(color(0x4f8f3a), color(0x7fbf4a), sprig), leaf);
-      // Up close the parts read; once a car is a few pixels across its detail would shimmer, so it turns into a
-      // single soft swatch of its traffic tint at night, as before (D-064).
-      const pxw = length(fwidth(positionGeometry));
-      const near = smoothstep(0.05, 0.022, pxw);
-      const cover = min(float(1), float(0.08).div(max(pxw, float(1e-5))));
-      am.colorNode = mix(mix(livery, tint, U.night.mul(0.6)), body, near);
-      am.roughnessNode = mix(float(0.35), float(0.08), glass.add(solar).min(1).mul(near));
-      // Lights: the nose bar and the skids carry the traffic tint, tail bars glow red, cabins warm after dark.
-      const lights = tint
-        .mul(head.mul(2.2).add(skid.mul(0.9)))
-        .mul(U.night.mul(1.4).add(0.25))
-        .add(color(0xff3b3b).mul(tail).mul(U.night.mul(1.6).add(0.35)))
-        .add(color(0xffb45e).mul(glass).mul(U.night.mul(0.25)));
-      am.emissiveNode = mix(tint.mul(U.night.mul(1.6).add(0.05)), lights, near).mul(cover);
+      carSurface(am, seed, kind, cong, turn);
     }
     const agents = new InstancedMesh(agentGeo, am, AGENTS);
     agents.count = 0;
@@ -222,40 +176,60 @@ export const mobilityModule: GameModule = {
       );
       const world = pos.add(orientNode(positionGeometry, fwd));
       pm.positionNode = world;
-      const lum = attribute('aGlow', 'float');
-      // aGlow −1 marks glazing, −2 the livery (D-147): a colour per pod from its seed, gold for express pods.
-      const livery = step(lum, -1.5);
-      const glass = step(lum, -0.5).mul(float(1).sub(livery));
-      const info = attribute('aRouteInfo', 'vec4');
-      const seed = fract(info.z);
-      const express = step(1.25, info.w.sub(floor(info.w.div(4)).mul(4)));
-      const pick = floor(seed.mul(4));
-      const palette = mix(
-        mix(color(0x13a89a), color(0xe2587a), step(0.5, pick)),
-        mix(color(0x3f7fe0), color(0x8a5cf0), step(2.5, pick)),
-        step(1.5, pick),
-      );
-      const col = mix(attribute('color', 'vec3'), mix(palette, color(0xe8a530), express), livery);
-      const n = orientNode(normalGeometry, fwd);
-      const lit = skyShade(col, n);
-      // Glazing: dark smoked glass mirroring the sky at grazing angles, a sun glint, a warm cabin at night.
-      const view = normalize(cameraPosition.sub(world));
-      const facing = max(dot(n, view), 0);
-      const fresnel = float(1).sub(facing).pow(3);
-      const sky = mix(U.horizon, U.zenith, n.y.mul(0.5).add(0.5));
-      const glint = max(dot(reflect(view.negate(), n), U.sunDir), 0).pow(60).mul(float(1).sub(U.night)).mul(2.5);
-      const pane = col.mul(0.5).add(sky.mul(fresnel.mul(0.75).add(0.12)).mul(float(1).sub(U.night.mul(0.7)))).add(glint);
-      const cabin = color(0xffb45e).mul(U.night.mul(0.16).add(0.02)).mul(facing.mul(facing).mul(0.7).add(0.3)).mul(glass);
-      const glow = col.mul(max(lum, 0)).mul(U.night.mul(0.9).add(0.35));
-      // A little city light on the hull at night, so pods don't turn into silhouettes.
-      pm.colorNode = mix(lit.add(col.mul(U.night.mul(0.12))), pane, glass).add(cabin).add(glow);
-      bloomMRT(pm, mrt({ emissive: glow.mul(0.6).add(cabin.mul(0.4)) }));
+      podSurface(pm, attribute('aRouteInfo', 'vec4'), orientNode(normalGeometry, fwd), world);
     }
     const pods = new InstancedMesh(podGeo, pm, PODS);
     pods.count = 0;
     pods.frustumCulled = false;
     pods.castShadow = pods.receiveShadow = false;
     pods.name = 'mobility.pods';
+
+    // The model gallery: the four hover-vehicle kinds side by side, and a row of sky pods in their liveries.
+    const gallery = ctx.services.tryGet('gallery');
+    gallery?.add({
+      id: 'cars',
+      name: 'Hover traffic',
+      group: 'Transit',
+      blurb:
+        'The street fleet, gliding a hand above eco-paved carriageways: a compact, a micro bubble-car, a green-roof van and a solar shuttle bus. Headlights warm to amber and coral as lanes jam.',
+      facts: [['Kinds', '4'], ['Mix', 'compact 56% · micro 22% · van 14% · bus 8%']],
+      build: () => {
+        const m = new MeshStandardNodeMaterial({ roughness: 0.35, metalness: 0.15 });
+        const kind = attribute('aType', 'float');
+        // Side by side across the street, each kind in its own pastel.
+        m.positionNode = positionGeometry.add(vec3(0, 0, kind.sub(1.5).mul(0.32)));
+        carSurface(m, kind.mul(0.19).add(0.07), kind, float(0), (v) => v);
+        const mesh = new Mesh(carGeometry(), m);
+        mesh.castShadow = mesh.receiveShadow = true;
+        return { object: mesh };
+      },
+    });
+    gallery?.add({
+      id: 'pod',
+      name: 'Sky pods',
+      group: 'Transit',
+      blurb:
+        'Commuter pods flying the sky-lanes between hubs and rooftop docks: a pearl teardrop hull with a panoramic canopy, ducted fans on stub wings and a ring thruster. Four liveries; express pods wear gold.',
+      facts: [['Liveries', '4 + express gold'], ['Network', 'Sky-lane hubs and docks']],
+      build: () => {
+        const n = 5;
+        const geo = podGeometry();
+        const info = new InstancedBufferAttribute(new Float32Array(n * 4), 4);
+        const m = new MeshBasicNodeMaterial();
+        podSurface(m, attribute('aRouteInfo', 'vec4'), normalWorld, positionWorld);
+        geo.setAttribute('aRouteInfo', info);
+        const mesh = new InstancedMesh(geo, m, n);
+        const at = new Matrix4();
+        for (let i = 0; i < n; i++) {
+          // Four liveries, then an express pod (w = 2) in front, in a gentle echelon.
+          info.setXYZW(i, 0, 0, i < 4 ? 0.1 + i * 0.25 : 0.1, i < 4 ? 0 : 2);
+          at.makeTranslation((i - 2) * -0.35, Math.abs(i - 2) * 0.12, (i - 2) * 0.62);
+          mesh.setMatrixAt(i, at);
+        }
+        mesh.castShadow = mesh.receiveShadow = true;
+        return { object: mesh };
+      },
+    });
 
     const laneRoute = new InstancedBufferAttribute(new Float32Array(LANES * 4), 4);
     const laneInfo = new InstancedBufferAttribute(new Float32Array(LANES * 4), 4);
