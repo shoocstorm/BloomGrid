@@ -1,4 +1,5 @@
 import { createCharterState, type CharterState } from './charterState';
+import { createStoryState, type StoryState } from './storyState';
 import { createPolicyState, type PolicyState } from './policyState';
 import type { ApprovalState } from './approvalState';
 import { roadLevels, roadWear } from './roads';
@@ -14,7 +15,7 @@ import { createHappeningState, type HappeningState } from './happeningState';
 import { builderCode, builderFromCode } from './builders';
 import { loadBridges, saveBridges, type BridgeSave } from './bridges';
 
-export const SAVE_VERSION = 23;
+export const SAVE_VERSION = 24;
 
 export interface SaveData {
   version: number;
@@ -56,6 +57,8 @@ export interface SaveData {
   happenings: HappeningState;
   /** Charters, era and a challenge's objectives (v23+, plan v5 Phase 28). */
   charters: CharterState;
+  /** Resident stories (v24+, plan v5 Phase 29). */
+  stories: StoryState;
   /** Named highway bridges as [key, name, built tick, builder code] (v19+, D-128). */
   roadBridges: BridgeSave[];
   /** Ordinances, sector budgets and the business tax (v20+, plan v5 Phase 25). */
@@ -196,6 +199,11 @@ export function migrateSave(data: SaveData): SaveData {
     data.charters = createCharterState();
     data.version = 23;
   }
+  if (data.version === 23) {
+    // Living stories (v24, plan v5 Phase 29): none told yet; the first comes a few minutes after loading.
+    data.stories = createStoryState();
+    data.version = 24;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -232,6 +240,7 @@ export function serializeCity(city: City): SaveData {
     consequences: (({ mods, ...rest }) => (void mods, structuredClone(rest)))(city.consequences),
     happenings: structuredClone(city.happenings),
     charters: structuredClone(city.charters),
+    stories: structuredClone(city.stories),
     policies: structuredClone(city.policies),
     approval: structuredClone(city.approval.districts),
     roadBridges: saveBridges(city),
@@ -259,6 +268,7 @@ export function deserializeCity(city: City, input: SaveData): void {
   Object.assign(city.consequences, structuredClone(data.consequences), { mods: neutralMods() });
   Object.assign(city.happenings, structuredClone(data.happenings));
   Object.assign(city.charters, structuredClone(data.charters));
+  Object.assign(city.stories, structuredClone(data.stories));
   city.policies = structuredClone(data.policies);
   city.approval.districts = structuredClone(data.approval);
   // Terrain first: highways, channels and buildings sit on the edited ground.

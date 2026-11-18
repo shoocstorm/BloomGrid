@@ -1,3 +1,4 @@
+import type { StoryRun } from './storyState';
 import type { Happening } from './happeningState';
 import type { BuildingRecord } from './City';
 import type { SystemKey, Tier } from './pulseState';
@@ -74,6 +75,11 @@ declare module '@/core/EventBus' {
     'charter:claimed': { id: string; tier: number; reward: number; title: string | null; perk: string | null };
     'charter:changed': { id: string; on: boolean };
     'era:advanced': { era: number; id: string; name: string };
+    /** Living stories (plan v5, Phase 29): a beat waits for a choice, a choice was made, a goal met, a story ended. */
+    'story:beat': { run: StoryRun };
+    'story:choice': { run: StoryRun; label: string };
+    'story:resolved': { run: StoryRun; told: string };
+    'story:end': { run: StoryRun; outcome: 'happy' | 'let down' | 'moved away' | 'faded' };
     /** A challenge scenario was won or lost (the city plays on). */
     'objective:won': { scenario: string; seconds: number };
     'objective:lost': { scenario: string; reason: string };

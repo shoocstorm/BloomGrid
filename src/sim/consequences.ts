@@ -5,6 +5,7 @@ import { seasonAt } from './seasons';
 import { applyHappenings } from './happenings';
 import { applyPolicies } from './policies';
 import { applyCharters } from './charters';
+import { applyStories } from './stories';
 import { neutralMods, type ConsequenceMods, type FeedEntry } from './consequenceState';
 import { DIFFICULTIES } from './difficulty';
 import { DRIFT, directing, driftNow, MIN_GAP, queueCrisis } from './directorCore';
@@ -378,6 +379,8 @@ export function updateConsequences(city: City): void {
   applyPolicies(city, mods);
   // Charter perks (plan v5, Phase 28).
   applyCharters(city, mods);
+  // Living stories (plan v5, Phase 29): the mood of the last turn and lasting outcomes.
+  applyStories(city, mods);
   mods.tourism *= mods.tourismMul;
   st.mods = mods;
   city.credits += mods.tourism - mods.insurance;

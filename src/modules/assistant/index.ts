@@ -1,3 +1,5 @@
+import { FloraMemory } from './memory';
+import { PLAN_GOALS, proposePlan, type Plan, type PlanGoal } from '@/sim/plans';
 import type { GameContext, GameModule } from '@/game/context';
 import type { AgentTool, JsonSchema } from '@/core/AgentTools';
 import { buildings } from '@/content';
@@ -54,6 +56,8 @@ export interface AssistantService {
   readonly engine: LlmEngine;
   /** How readily she warns about forecast trouble (plan v5): Quiet, Normal (soon and sure) or Eager (all of it). */
   foresight: Foresight;
+  /** Posts a plan toward `goal` as a card in the console (no model needed; plan v5, Phase 29). False when empty. */
+  plan(goal: PlanGoal): boolean;
 }
 
 export type Foresight = 'quiet' | 'normal' | 'eager';
@@ -84,6 +88,8 @@ class Assistant {
   /** Forecast topics last mentioned (sim tick), and pulses since this city began (trends need history). */
   private foreseen = new Map<string, number>();
   private pulses = 0;
+  /** Advice taken up or declined (plan v5, Phase 29). */
+  readonly memory: FloraMemory;
 
   constructor(private ctx: GameContext) {
     try {
@@ -93,6 +99,7 @@ class Assistant {
     } catch {
       /* ignore */
     }
+    this.memory = new FloraMemory(ctx);
     this.panel = new AssistantPanel(ctx, this.engine, {
       send: (text) => void this.ask(text),
       stop: () => this.busy?.abort(),
@@ -101,6 +108,7 @@ class Assistant {
       autoApprove: () => this.autoApprove,
       wake: () => this.startWaking(),
     });
+    this.panel.memory = this.memory;
     this.watch();
     // A new or loaded city starts a new conversation: the last city's history, ids and notices mean nothing here,
     // and the undo stack they pointed at is gone. A turn in flight is stopped.
@@ -135,13 +143,13 @@ class Assistant {
   /** Notices from the city's own events: no model needed, throttled per topic. */
   private watch(): void {
     const { bus } = this.ctx;
-    const notice = (topic: string, text: string, ask?: string, proposals?: ProposalCard[]) => {
+    const notice = (topic: string, text: string, ask?: string, proposals?: ProposalCard[], plan?: Plan) => {
       // Asleep, she says nothing (D-092): the City Pulse toasts carry the news until she is woken.
       if (floraLocked(this.ctx.city)) return;
       const now = performance.now();
       if (now - (this.lastNotice.get(topic) ?? -Infinity) < 30_000) return;
       this.lastNotice.set(topic, now);
-      this.panel.notice(text, ask, proposals);
+      this.panel.notice(text, ask, proposals, plan);
     };
     // A failing system comes with what to build about it (D-089): worked out by the planner, no model needed.
     // Only once Flora is awake on a fresh island (she is an unlock).
@@ -149,7 +157,11 @@ class Assistant {
     const proposalsFor = (system: string): ProposalCard[] | undefined => {
       const focus = FOCUS[system];
       if (!focus || floraLocked(this.ctx.city)) return undefined;
-      return proposeBuilds(this.ctx.city, { focus, limit: 2 }).map((p) => ({ build: `${p.count}× ${p.name}`, type: p.type, count: p.count, where: p.district, why: p.why, gain: p.gain, cost: p.cost, site: p.site }));
+      // Not what the steward turned down lately (her memory, plan v5 Phase 29).
+      const declined = this.memory.declined();
+      return proposeBuilds(this.ctx.city, { focus, limit: 2 })
+        .filter((p) => !declined.has(`build:${p.type}`))
+        .map((p) => ({ build: `${p.count}× ${p.name}`, type: p.type, count: p.count, where: p.district, why: p.why, gain: p.gain, cost: p.cost, site: p.site }));
     };
     bus.on('pulse:tier', ({ system, tier, prev }) => {
       if (tier <= prev || tier < 2 || !this.ctx.city.pulse.primed) return;
@@ -180,11 +192,14 @@ class Assistant {
       });
       if (!f) return;
       this.foreseen.set(`${f.metric}:${f.level}`, city.tick);
+      // Trouble on its way to Critical gets a whole plan (one approval) when there is more than one step to take.
+      const plan = f.level === 'critical' ? proposePlan(city, f.metric === 'harmony' ? 'harmony' : f.metric === 'budget' ? 'budget' : 'fix', this.memory.declined()) : null;
       notice(
         `forecast:${f.metric}`,
         `Heads-up: ${f.text}`,
         `What's coming for ${f.label.toLowerCase()}, and what should we do before it runs short?`,
         proposalsFor(f.metric === 'harmony' ? 'harmony' : f.metric),
+        plan && plan.steps.length >= 2 ? plan : undefined,
       );
     });
     bus.on('crisis:forecast', ({ crisis }) => {
@@ -669,6 +684,44 @@ function gameTools(): AgentTool<GameContext, never>[] {
   ];
 }
 
+/**
+ * `propose_plan` (plan v5, Phase 29): a whole plan toward a goal that the steward approves with one click (one
+ * batch, one undo). Read only: it changes nothing. Here, not in `sim/`, because it reads Flora's memory (declined
+ * steps stay out). The plan itself rides on the result as `card`, not enumerable, so the console draws it while
+ * the model reads only the summary.
+ */
+function planTool(memory: FloraMemory): AgentTool<GameContext, never> {
+  return {
+    name: 'propose_plan',
+    option: 'Plan several steps toward a goal (carbon-zero, harmony, budget, fix) for one approval',
+    description:
+      'A multi-step plan toward a goal: `fix` (what is failing now), `carbon-zero` (replace polluting power with clean, start the charter), `harmony` or `budget`. Each step is a build, an ordinance, a budget, tax or a switch, within the treasury; steps the steward declined recently are left out. Shown to the steward as one card with a single Approve that runs it all (one undo). Nothing changes until they approve.',
+    keywords: ['plan', 'carbon', 'zero', 'clean', 'green', 'strategy', 'steps', 'make the city', 'fix everything', 'budget', 'harmony'],
+    input: {
+      type: 'object',
+      properties: { goal: { type: 'string', enum: PLAN_GOALS, description: 'What the plan is for' } },
+    },
+    llmArgs: ['goal'],
+    effect: 'read',
+    run({ city }, a: { goal?: PlanGoal }) {
+      const plan = proposePlan(city, a.goal ?? 'fix', memory.declined());
+      const out = {
+        plan: plan.title,
+        summary: plan.summary,
+        steps: plan.steps.map((s, i) => `${i + 1}. ${s.label}${s.cost ? ` (◈${Math.round(s.cost).toLocaleString('en-US')})` : ''}: ${s.why}`),
+        cost: Math.round(plan.cost),
+        credits: Math.round(city.credits),
+        ...(plan.skipped.length ? { leftOut: plan.skipped } : {}),
+        note: plan.steps.length
+          ? 'Shown to the steward as one plan card with Approve (one undo reverts it): describe it in a sentence or two and let them approve.'
+          : 'Nothing to do toward this goal right now.',
+      };
+      Object.defineProperty(out, 'card', { value: plan, enumerable: false });
+      return out;
+    },
+  };
+}
+
 export const assistantModule: GameModule = {
   id: 'assistant',
   deps: ['inventory', 'pulse', 'hud'],
@@ -676,6 +729,8 @@ export const assistantModule: GameModule = {
     const agent = ctx.services.get('agent');
     for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...happeningTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...bulkTools, ...roadTools, ...gameTools(), ...foresightTools, ...policyTools, ...districtTools]) agent.register(t);
     const a = new Assistant(ctx);
+    // Registered last (menus keep their letters on a tie, as with foresight).
+    agent.register(planTool(a.memory));
     ctx.services.provide('assistant', {
       toggle: (open) => a.panel.toggle(open),
       maximize: (on) => a.panel.setMax(on),
@@ -687,6 +742,13 @@ export const assistantModule: GameModule = {
       },
       set foresight(f: Foresight) {
         a.setForesight(f);
+      },
+      plan(goal) {
+        const p = proposePlan(ctx.city, goal, a.memory.declined());
+        if (!p.steps.length) return false;
+        a.panel.notice(`${p.title}: ${p.summary}`, undefined, undefined, p);
+        a.panel.toggle(true);
+        return true;
       },
     });
     ctx.input.onKey((e) => {

@@ -793,3 +793,14 @@ body.compact.flora-open #hud > :not(.ai) {
 .compact .pol-sw[aria-checked='true']::after {
   transform: translateX(20px);
 }
+
+/* Story card (plan v5, Phase 29): the happenings card's phone frame; choices stay side by side, the words clamp. */
+.compact .jc-m.st .st-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+.compact .st-choice {
+  min-height: 40px;
+}

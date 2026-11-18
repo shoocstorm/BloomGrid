@@ -517,6 +517,7 @@ await page.evaluate(() => {
   // No random crises: the demo is a movie set, weather must stay pinned clear.
   g.city.steward.autoCrises = false;
   g.city.steward.autoDirector = false;
+  if (g.city.stories) g.city.stories.auto = false;
   if (g.city.happenings) g.city.happenings.auto = false;
   // The demo frames the city, not the console: City Pulse stays folded for the whole capture.
   g.services.get('pulse').fold(true);

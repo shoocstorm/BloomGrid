@@ -135,7 +135,7 @@ export function countNear(city: City, category: string, x: number, z: number, r:
   return n;
 }
 
-const placeName = (city: City, x: number, z: number): string =>
+export const placeName = (city: City, x: number, z: number): string =>
   city.districtAt(Math.floor(x), Math.floor(z)) ?? 'the neighbourhood';
 
 /** Can the city build something of this category now (unlocked, affordable within reason)? */

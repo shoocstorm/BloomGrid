@@ -68,6 +68,15 @@ export interface ConsequenceEntry {
   good: boolean;
 }
 
+/** Flora's advice the steward took up or turned down (plan v5, Phase 29). */
+export interface AdviceEntry {
+  at: number;
+  city: string;
+  clock: string;
+  advice: string;
+  accepted: boolean;
+}
+
 export interface NoteInput {
   title: string;
   body: string;
@@ -352,6 +361,43 @@ export class KnowledgeBase {
       await this.persist(this.consequenceLog(id, entries), entries);
       return this.journal.get(id)!;
     });
+  }
+
+  /** Logs Flora's advice taken up or declined (her memory, plan v5 Phase 29). */
+  recordAdvice(entry: Omit<AdviceEntry, 'at'>): Promise<KnowledgeDoc> {
+    return this.write(async () => {
+      const id = 'field-log-advice';
+      const entries = [...((this.data.get(id) as AdviceEntry[] | undefined) ?? []), { at: this.now(), ...entry }].slice(-FIELD_MAX);
+      await this.persist(this.adviceLog(id, entries), entries);
+      return this.journal.get(id)!;
+    });
+  }
+
+  private adviceLog(id: string, e: AdviceEntry[]): KnowledgeDoc {
+    const taken = e.filter((x) => x.accepted).length;
+    const declined = tally(e.filter((x) => !x.accepted).map((x) => x.advice.replace(/\d+× /, '')));
+    const body = [
+      `Flora's proposals and plans the steward approved or turned down. ${taken} of ${e.length} taken up. Declined advice stays out of her plans for a while.`,
+      '',
+      '## Turned down most',
+      '',
+      ...(declined.length ? declined.slice(0, 8).map(([a, n]) => `- ${a}: ${n}×`) : ['- Nothing declined yet.']),
+      '',
+      '## Recent',
+      '',
+      ...[...e]
+        .reverse()
+        .slice(0, 15)
+        .map((x) => `- ${x.accepted ? '✓ Approved' : '✗ Declined'} · ${cell(x.advice)} · ${x.city}, ${x.clock} (${date(x.at)})`),
+    ].join('\n');
+    return this.logDoc(
+      id,
+      'Field log · Advice',
+      `${taken} of ${e.length} proposals taken up; turned down most: ${declined[0]?.[0] ?? 'nothing'}.`,
+      body,
+      ['field log', 'advice', 'plan', 'proposal', 'declined', 'approved', 'memory'],
+      ['systems-flora-plans'],
+    );
   }
 
   private logDoc(

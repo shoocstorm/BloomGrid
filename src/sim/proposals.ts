@@ -63,7 +63,7 @@ const usable = (city: City) => buildings.all().filter((d) => !d.landmark && !una
  * Ways to cover `need` units of `stat` with at most 3 buildings of one type, best first: ones that cover it
  * before ones that don't, affordable first, then the cheapest total (or, short of covering, the most output).
  */
-function sizeFor(city: City, defs: BuildingDef[], stat: (d: BuildingDef) => number, need: number): { def: BuildingDef; count: number }[] {
+export function sizeFor(city: City, defs: BuildingDef[], stat: (d: BuildingDef) => number, need: number): { def: BuildingDef; count: number }[] {
   const options = defs
     .filter((d) => stat(d) > 0)
     .map((d) => {
@@ -79,7 +79,7 @@ function sizeFor(city: City, defs: BuildingDef[], stat: (d: BuildingDef) => numb
 }
 
 /** Centre of the district with the most buildings (where city-wide supply is most useful). */
-function busiest(city: City): { x: number; z: number } {
+export function busiest(city: City): { x: number; z: number } {
   const n = new Map<string, number>();
   for (const e of query(city.world, [Building])) {
     const d = city.districtAt(Building.x[e]!, Building.z[e]!);

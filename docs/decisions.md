@@ -3132,3 +3132,35 @@ Plan v5, Phase 28. The fresh island ran out of goals at the last milestone and u
 - **State** `city.charters` (`charterState.ts`): active, reached, claimed, acc, seen, era, challenge. Save v23; hashed.
 - **Flora**: `goals_status` now reports era, next era, legacy, charters and challenge objectives (in every city).
 - **Not done**: cosmetic rewards (wonder variants, building looks), only one new happening kind (the Expo).
+
+## D-169 — Resident stories, one-approval plans, Flora remembers (2026-11-18)
+
+Plan v5, Phase 29, the last of the plan.
+
+- **Stories** (`sim/stories.ts`, data in `ARCS`): three arcs (a fisher, a start-up founder, a flooded family), each
+  two beats about a resident named from `city.rng` and tied to a home by its serial. A beat triggers from the city's
+  state (fish stock, population, sea rise / a bare coast / a recent flood) and offers two choices: pay now (credits),
+  or a **goal** (an ordinance, or a kind of building within N tiles of the home) with a deadline, measured as a count
+  that must rise above where it stood when chosen. Endings pay a reward, leave a mood for three minutes and some a
+  **lasting outcome** (`LASTING`: a mod for good). A missed goal, "not now" or five minutes unanswered lets the
+  resident down; a demolished home ends it ("moved away"). One story at a time, 6–10 min apart, never in a crisis;
+  `stories.auto` off in tests and the trailer. `storyChoice` runs with undoable = false (a decision made in front of
+  someone, like claims). State `city.stories` (`storyState.ts`), save v24, hashed (in `City`, since `stories.ts`
+  imports widely). Card `modules/stories` (milestone-card frame, choices with costs, Visit opens the home, Walk there
+  explores the street on foot: residents are not individual agents, so "follow" is the street, not the person).
+- **Plans** (`sim/plans.ts`): `proposePlan(city, goal, avoid)` for `fix`, `carbon-zero`, `harmony`, `budget`: ordered
+  steps (build, policy, budget, tax, switch, charter), each with why, cost and its command records; kept within the
+  treasury (the rest listed as left out). Builds take non-overlapping lots (`lotsFor`: one tile of air) so a batch
+  never refuses its own second build. The console's plan card runs every record as **one `batch`**, so one undo
+  reverts the plan. Tool `propose_plan` (registered last) returns a readable summary for the model and the plan as
+  a **non-enumerable `card`** property: `observe` (JSON) skips it, the console reads it. Flora's forecast heads-up
+  attaches a plan (2+ steps) when a supply is heading for Critical; `assistant.plan(goal)` posts one without a model.
+- **Memory** (`modules/assistant/memory.ts`): **Not now** on a plan or a build proposal declines its step keys for
+  30 sim minutes in that city (per viewer, local storage: how this steward plays is not city state, so not saved or
+  hashed); approving clears them. Plans and proactive proposals leave declined steps out. Each decision is logged to
+  the journal's **Field log · Advice** (`recordAdvice`).
+- **Found on the way:** on desktops the milestone card lives in the right column (D-130), so the happenings card's
+  `#hud > .jc-m` lookup never found it and the two overlapped on fresh islands; both cards now stack by screen
+  rectangles.
+- **Flora**: `happenings_status` reports the running story (choices, goal, time left, lasting outcomes).
+- **Not measured:** `ai-probe` ("make the city carbon-zero" → `propose_plan`) needs a downloaded model.

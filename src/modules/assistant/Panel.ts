@@ -1,3 +1,6 @@
+import type { Plan, PlanStep } from '@/sim/plans';
+import { buildingId } from '@/sim/inventory';
+import type { FloraMemory } from './memory';
 import { netIncome } from '@/sim/finance';
 import { INDICATOR_NAMES as N, SYSTEM_ORDER } from '@/sim/indicators';
 import type { GameContext } from '@/game/context';
@@ -201,6 +204,9 @@ export class AssistantPanel {
   private wake: FloraWake | null = null;
   private orbRing!: SVGCircleElement;
   private callout = h('span', { class: 'ai-callout hidden' }, icon('sparkle'), 'Ready to wake');
+
+  /** Flora's memory of advice taken up or declined (plan v5, Phase 29); set by the assistant. */
+  memory: FloraMemory | null = null;
 
   constructor(
     private ctx: GameContext,
@@ -798,7 +804,7 @@ export class AssistantPanel {
   }
 
   /** A city notice from the monitor, with a button to ask about it. */
-  notice(text: string, ask?: string, proposals?: readonly ProposalCard[]): void {
+  notice(text: string, ask?: string, proposals?: readonly ProposalCard[], plan?: Plan): void {
     this.push(
       h(
         'div',
@@ -810,9 +816,90 @@ export class AssistantPanel {
           h('span', {}, text),
           ask ? h('button', { class: 'ai-chip', onClick: () => this.actions.send(ask) }, 'Analyse') : null,
         ),
-        proposals?.length ? this.proposals(proposals) : null,
+        plan?.steps.length ? this.planCard(plan) : proposals?.length ? this.proposals(proposals) : null,
       ),
     );
+  }
+
+  /**
+   * A plan as one card (plan v5, Phase 29): its steps in order with why and cost, what was left out, and one Approve
+   * that runs every step as one `batch` (one ⌘Z reverts it all), or Not now (Flora remembers, `memory.ts`).
+   */
+  planCard(plan: Plan): HTMLElement {
+    const city = this.ctx.city;
+    const KIND_ICON: Record<PlanStep['kind'], string> = { build: 'build', policy: 'pen', budget: 'credits', tax: 'credits', switch: 'energy', charter: 'star' };
+    const label = `${plan.title}: ${plan.steps.map((s) => s.label).join('; ')}`;
+    const go = h('button', { class: 'ai-auth yes ai-prop-go' }, icon('st-ok'), `Approve${plan.cost ? ` ◈${fmt(plan.cost)}` : ''}`) as HTMLButtonElement;
+    const no = h('button', { class: 'ai-chip', title: "Flora won't suggest these steps again for a while" }, icon('close'), 'Not now');
+    const foot = h('div', { class: 'ai-prop-btns' }, go, no);
+    const el = h(
+      'div',
+      { class: 'ai-prop ai-plan' },
+      h('div', { class: 'ai-prop-h' }, h('span', { class: 'ai-prop-i' }, icon('sparkle')), h('b', {}, plan.title), h('span', { class: 'ai-prop-w' }, `${plan.steps.length} step${plan.steps.length === 1 ? '' : 's'}`)),
+      h('div', { class: 'ai-prop-why' }, plan.summary),
+      h(
+        'ol',
+        { class: 'ai-plan-steps' },
+        ...plan.steps.map((s) =>
+          h(
+            'li',
+            {},
+            icon(KIND_ICON[s.kind]),
+            h('div', {}, h('b', {}, s.label), h('span', {}, s.why)),
+            s.cost ? h('span', { class: 'ai-plan-cost' }, `◈${fmt(s.cost)}`) : null,
+            s.at ? h('button', { class: 'ai-chip ai-plan-loc', title: 'Fly there', onClick: () => this.ctx.cameraCtl.locate(s.at!.x, s.at!.z, { size: 8 }) }, icon('locate')) : null,
+          ),
+        ),
+      ),
+      plan.skipped.length ? h('div', { class: 'ai-plan-skip' }, `Left out: ${plan.skipped.join('; ')}`) : null,
+      foot,
+    );
+    const sync = () => {
+      const short = city.credits < plan.cost;
+      go.disabled = short;
+      go.title = short ? `Needs ◈${fmt(plan.cost)}; you have ◈${fmt(city.credits)}` : 'Run every step now (one undo reverts the plan)';
+    };
+    sync();
+    el.addEventListener('pointerenter', sync);
+    go.onclick = () => {
+      go.disabled = true;
+      const records = plan.steps.flatMap((s) => s.records);
+      const ok = this.ctx.commands.execute('batch', records);
+      const applied = ok ? this.ctx.commands.lastBatch.length : 0;
+      if (!applied) {
+        foot.replaceChildren(h('span', { class: 'ai-verdict bad' }, '✗ The city refused every step (it changed since the plan was made).'));
+        return;
+      }
+      this.memory?.accept(plan.steps.map((s) => s.key), label);
+      // Readable ids of what the plan built, for Locate chips.
+      const ids = plan.steps
+        .flatMap((s) => s.records)
+        .filter((r) => r.type === 'build')
+        .map((r) => {
+          const p = r.payload as { x: number; z: number };
+          const e = city.buildingAt(p.x, p.z);
+          return e >= 0 ? buildingId(city, e) : '';
+        })
+        .filter(Boolean);
+      el.classList.add('done');
+      foot.replaceChildren(
+        ...(ids.length ? [this.locateRow(ids, applied < records.length ? `Done ${applied} of ${records.length}` : 'Done')] : [h('span', { class: 'ai-built-l' }, `✓ ${applied} of ${records.length} done`)]),
+        h('button', { class: 'ai-chip', title: 'Undo the whole plan (⌘Z)', onClick: () => {
+          this.ctx.commands.undo();
+          el.classList.remove('done');
+          foot.replaceChildren(h('span', { class: 'ai-verdict' }, 'Plan undone'));
+        } }, icon('undo'), 'Undo plan'),
+      );
+      this.actionsRun.push({ at: stamp(), text: `plan ${plan.goal}: ${applied} steps` });
+      this.timer = 99;
+      this.ctx.bus.emit('toast', { text: `${plan.title}: ${applied} step${applied === 1 ? '' : 's'} done (one undo reverts it)`, tone: 'ok' });
+    };
+    no.onclick = () => {
+      this.memory?.decline(plan.steps.map((s) => s.key), label);
+      el.classList.add('declined');
+      foot.replaceChildren(h('span', { class: 'ai-verdict' }, "Noted. I won't suggest these again for a while."));
+    };
+    return el;
   }
 
   /** Chips that fly to each built object and open it (and one undo for the lot). */
@@ -844,6 +931,12 @@ export class AssistantPanel {
         { class: 'ai-prop-btns' },
         btn,
         h('button', { class: 'ai-chip', title: 'Fly to the proposed lot', onClick: () => this.ctx.cameraCtl.locate(p.site.x, p.site.z, { size: buildings.has(p.type) ? Math.max(...buildings.get(p.type).footprint) : 6 }) }, icon('locate'), 'Lot'),
+        // Flora remembers a turned-down proposal (plan v5, Phase 29).
+        h('button', { class: 'ai-chip', title: "Flora won't propose this again for a while", onClick: () => {
+          this.memory?.decline([`build:${p.type}`], `Build ${p.build} in ${p.where}`);
+          el.classList.add('declined');
+          foot.replaceChildren(h('span', { class: 'ai-verdict' }, "Noted. I won't propose it again for a while."));
+        } }, icon('close'), 'Not now'),
       );
       const el = h(
         'div',
@@ -877,6 +970,7 @@ export class AssistantPanel {
           return;
         }
         el.classList.add('done');
+        this.memory?.accept([`build:${p.type}`], `Build ${p.build} in ${p.where}`);
         foot.replaceChildren(this.locateRow(ids, ids.length < p.count ? `Built ${ids.length} of ${p.count}` : 'Built'), h('button', { class: 'ai-chip', title: 'Undo these builds (⌘Z)', onClick: () => {
           for (let i = 0; i < ids.length; i++) this.ctx.commands.undo();
           el.classList.remove('done');
@@ -930,6 +1024,9 @@ export class AssistantPanel {
         );
         const props = (r.result as { proposals?: ProposalCard[] } | undefined)?.proposals;
         if (r.ok && props?.length) steps.append(this.proposals(props));
+        // A plan (plan v5, Phase 29) rides on the result unseen by the model (`card`, not enumerable).
+        const plan = (r.result as { card?: Plan } | undefined)?.card;
+        if (r.ok && plan?.steps.length) steps.append(this.planCard(plan));
         const built = r.ok && r.call.effect === 'mutate' ? builtIds(r.result) : [];
         if (built.length) steps.append(this.locateRow(built, (r.result as { built?: unknown }).built ? 'Built' : 'Done'));
         if (r.ok && r.call.effect === 'mutate') {

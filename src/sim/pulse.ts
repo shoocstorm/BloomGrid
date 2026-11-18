@@ -18,6 +18,7 @@ import { ageWear, size, updateLevels, upkeepMul, use } from './levels';
 import { updateConsequences } from './consequences';
 import { updateDirector } from './director';
 import { updateCharters } from './charters';
+import { updateStories } from './stories';
 import { updateEras } from './eras';
 import { updateObjectives } from './objectives';
 import { updateHappenings } from './happenings';
@@ -399,6 +400,7 @@ export const pulseSystem: System<SimCtx> = {
     updateProjects(city);
     updateWonders(city);
     updateHappenings(city);
+    updateStories(city);
     updateConsequences(city);
     // Charters, eras and a challenge's objectives (plan v5, Phase 28).
     updateCharters(city);

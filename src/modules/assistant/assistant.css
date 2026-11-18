@@ -2967,3 +2967,56 @@ body.flora-open:not(.compact) .ai.panel:not(.max) {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ── Flora's plans (plan v5, Phase 29): one card, numbered steps, one Approve ── */
+.ai-plan-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.ai-plan-steps li {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: start;
+  gap: 7px;
+}
+.ai-plan-steps li > .ico {
+  width: 13px;
+  height: 13px;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.ai-plan-steps li div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.ai-plan-steps b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.ai-plan-steps span {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.ai-plan-cost {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.ai-plan-loc {
+  padding: 2px 5px;
+}
+.ai-plan-skip {
+  font-size: 11px;
+  color: var(--warn);
+}
+.ai-prop.declined {
+  opacity: 0.6;
+  border-left-color: var(--line-strong);
+}

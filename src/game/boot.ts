@@ -33,6 +33,7 @@ import { bloomModule } from '@/modules/bloom';
 import { mobilityModule } from '@/modules/mobility';
 import { walkersModule } from '@/modules/walkers';
 import { happeningsModule } from '@/modules/happenings';
+import { storiesModule } from '@/modules/stories';
 import { floranetModule } from '@/modules/floranet';
 import { weaverModule } from '@/modules/weaver';
 import { sceneryModule } from '@/modules/scenery';
@@ -57,7 +58,7 @@ import { policeModule } from '@/modules/police';
  * Feature modules. New gameplay layers (city pulse, overlays, crises, bloom engine, mobility,
  * Flora-Net, Green Weaver, explore modes…) are added here as self-contained modules.
  */
-const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, roadworksModule, juiceModule, happeningsModule, pulseModule, buildModule, overlaysModule, advisorModule, policiesModule, goalsModule, viewsModule, inventoryModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, walkersModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, interactModule, signsModule, auroraModule, policeModule, ferryModule, skyguardModule, debugModule];
+const MODULES = [worldModule, constructionModule, hudModule, loaderModule, previewModule, selectionModule, momentsModule, risingModule, roadworksModule, juiceModule, happeningsModule, pulseModule, buildModule, overlaysModule, advisorModule, policiesModule, goalsModule, viewsModule, inventoryModule, storiesModule, dashboardModule, cityMapModule, aboutModule, assistantModule, knowledgeModule, statInfoModule, audioModule, settingsModule, crisesModule, bloomModule, mobilityModule, walkersModule, floranetModule, weaverModule, sceneryModule, aerolineModule, windModule, hazardsModule, disastersModule, fireworksModule, fishingModule, tutorialModule, pauseModule, exploreModule, interactModule, signsModule, auroraModule, policeModule, ferryModule, skyguardModule, debugModule];
 
 export { prepareCore };
 

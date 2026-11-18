@@ -314,7 +314,7 @@ Design and checklists in [`plan-v4.md`](plan-v4.md); tick here as phases land.
 - [x] Walkers faster and clear of the car lanes (D-125); fish, rabbits and birds in explore modes (D-126)
 - **Accept:** ✅ snaps WebGPU + WebGL, `tests/happenings.test.ts`, `placementPreview`, `zoomPivot`; perf within noise (D-120), `tests/roadPlan.test.ts`
 
-## 🚧 Phases 24–29: Plan v5, a city that thinks back (designed 2026-11-13)
+## ✅ Phases 24–29: Plan v5, a city that thinks back (designed 2026-11-13)
 
 Design and checklists in [`plan-v5.md`](plan-v5.md); tick here as phases land.
 
@@ -323,7 +323,7 @@ Design and checklists in [`plan-v5.md`](plan-v5.md); tick here as phases land.
 - [x] Phase 26: Living demand and districts: district approval (city harmony is its resident-weighted mean), homes fill toward it and migrate faster in or out, level-ups need local demand, commute length and job types (service / industry / creative / ecology) with matched commuting, petitions / protests / praise, district voices on tip bubbles, City map Approval mode, inspector district card, `district_report` (D-159)
 - [x] Phase 27: The Director: neglect escalates into crises (polluted coast → algal bloom, heat island → heatwave, long debt → workers' strike, strained grid → grid failure; low approval → protest stays with the Phase 26 happenings), crisis chains (monsoon → landslide on bare slopes, heatwave → industrial fire, quake → grid failure), a tension / mastery director pacing crisis odds, happenings and calm gaps to the difficulty's band, structural drift so the showcase no longer runs itself, Risk lines in Coming up, save v22 (D-167; deferred: request size, a Settings toggle, a City Pulse tension readout)
 - [x] Phase 28: Charters and eras: seven civic charters (Bronze / Silver / Gold: credits, perks, titles; three at a time), eras Seedling → Grove → Canopy → Bloom (ordinance slots on a growing island, a higher director band, the Bloom Expo), the Emergency reserve ordinance, a live legacy score in Goals, Water Crisis Rescue and Debt Island challenges in the New Chapter dialog, save v23 (D-168; deferred: cosmetic rewards)
-- [ ] Phase 29: Living stories and Flora plans: resident story arcs, one-approval multi-action plans, Flora memory
+- [x] Phase 29: Living stories and Flora plans: three resident story arcs (fisher, founder, flooded family) with choices, goals and lasting outcomes, a story card with Visit / Walk there, `propose_plan` with one-approval plan cards (one undo), plans on Flora's critical heads-ups, Not now and Flora's memory of declined advice (advice field log), save v24 (D-169)
 
 ---
 

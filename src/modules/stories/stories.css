@@ -1,0 +1,53 @@
+/* Story card (plan v5, Phase 29): the happenings card's frame (.jc-m.hp) with a warm kicker, the beat's words in
+   full, two choices side by side and Visit / Walk there under them. */
+.jc-m.st .st-head {
+  color: var(--warn);
+}
+.jc-m.st .st-text {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
+  font-style: italic;
+}
+.st-act {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.st-choices,
+.st-row {
+  display: flex;
+  gap: 6px;
+}
+.st-choices > .jc-do,
+.st-row > .jc-do {
+  flex: 1 1 0;
+  width: auto;
+  margin-top: 0;
+}
+.st-choice {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  white-space: normal;
+  line-height: 1.2;
+}
+.st-choice.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.st-choice:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.st-cost {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+.st-row > .st-visit {
+  flex: 0 0 auto;
+}

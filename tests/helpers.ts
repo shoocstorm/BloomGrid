@@ -15,6 +15,8 @@ export function makeSim(seed = 42) {
   city.happenings.auto = false;
   // The director (plan v5, Phase 27) paces and drifts the city: off unless a test opts in.
   city.steward.autoDirector = false;
+  // Resident stories (plan v5, Phase 29) draw names and arcs from the rng: off unless a test opts in.
+  city.stories.auto = false;
   const ctx: SimCtx = { city };
   const commands = new CommandStack(ctx);
   registerSimCommands(commands);

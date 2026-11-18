@@ -13,6 +13,7 @@ import { registerFireworksCommands } from './fireworks';
 import { registerProjectCommands } from './projects';
 import { registerMilestoneCommands } from './milestones';
 import { registerCharterCommands } from './charters';
+import { registerStoryCommands } from './stories';
 import { registerHappeningCommands } from './happenings';
 import { registerTipCommands } from './tips';
 import { registerFloraCommands } from './flora';
@@ -83,6 +84,7 @@ export function registerSimCommands(stack: CommandStack<SimCtx>): void {
   registerProjectCommands(stack);
   registerMilestoneCommands(stack);
   registerCharterCommands(stack);
+  registerStoryCommands(stack);
   registerHappeningCommands(stack);
   registerTipCommands(stack);
   registerFloraCommands(stack);

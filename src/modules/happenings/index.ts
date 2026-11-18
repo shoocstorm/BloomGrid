@@ -199,13 +199,16 @@ class HappeningsCard {
     this.card.classList.toggle('hidden', !hp || !live || closed);
     if (!hp || !live || closed) return;
     // Sit under the milestone card when it shows.
-    const above = document.querySelector<HTMLElement>('#hud > .jc-m:not(.hp):not(.hidden)');
+    // On desktops it may sit in the right column (D-130), not in the HUD itself: compare screen rectangles.
+    const above = document.querySelector<HTMLElement>('.jc-m:not(.hp):not(.hidden)');
+    const r = above?.getBoundingClientRect();
+    const parent = this.card.parentElement;
+    const box = parent?.getBoundingClientRect();
     // Desktops: under it. Portrait phones: stacked above it (landscape sets the two side by side, ui/mobile.css).
     const compact = isCompact();
-    this.card.style.top = above && !compact ? `${above.offsetTop + above.offsetHeight + 8}px` : '';
-    const parent = this.card.parentElement;
-    const stack = above && parent && compact && innerHeight > innerWidth;
-    this.card.style.bottom = stack ? `${parent.clientHeight - above.offsetTop + 8}px` : '';
+    this.card.style.top = r && r.height > 0 && box && !compact ? `${r.bottom - box.top + 8}px` : '';
+    const stack = r && r.height > 0 && box && compact && innerHeight > innerWidth;
+    this.card.style.bottom = stack ? `${box!.bottom - r!.top + 8}px` : '';
     const total = HAPPENING_SECONDS[hp.kind] * PULSE_TICKS;
     const remain = Math.max(0, hp.endTick - c.city.tick);
     const secs = Math.ceil(remain / PULSE_TICKS);
