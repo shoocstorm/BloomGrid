@@ -8,6 +8,8 @@
 export interface RuleState {
   level: number;
   since: number;
+  /** Its escalation has boiled over and not re-armed yet (plan v5, Phase 27). */
+  fired?: boolean;
 }
 
 export interface FeedEntry {
@@ -16,7 +18,7 @@ export interface FeedEntry {
   tick: number;
   day: number;
   /** A rule came into force or eased off. */
-  kind: 'start' | 'end';
+  kind: 'start' | 'end' | 'escalate';
   text: string;
   x?: number;
   z?: number;

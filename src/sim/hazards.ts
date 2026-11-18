@@ -339,6 +339,7 @@ registerCrisis({
   lead: 8,
   duration: 30,
   weight: () => 0.45,
+  followUps: [{ crisis: 'grid-failure', chance: 0.35, why: 'the shaking cracked a power line' }],
   begin(city, c) {
     hotspot(city, c, 30 + 18 * c.severity);
     if (c.x !== undefined) shock(city, c, 1, false);

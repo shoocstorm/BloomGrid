@@ -191,7 +191,7 @@ class Assistant {
       const def = getCrisis(crisis.def);
       notice(
         `crisis:${crisis.id}`,
-        `Forecast: ${def.name} ahead. ${def.prep}`,
+        `Forecast: ${def.name} ahead${crisis.cause ? `, brought on by ${crisis.cause.charAt(0).toLowerCase()}${crisis.cause.slice(1)}` : ''}. ${def.prep}`,
         `A ${def.name} is forecast. How should we prepare?`,
       );
     });

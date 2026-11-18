@@ -3,7 +3,7 @@ import { MATCH_DETOUR } from './mobility';
 import { buildings } from '@/content';
 import { CATEGORY_CODES, CATEGORY_LABELS, type BuildingCategory, type BuildingDef } from '@/content/types';
 import type { KnowledgeDoc } from '@/content/knowledge';
-import { allCrises } from './crises';
+import { allCrises, getCrisis } from './crises';
 // Side effects: every crisis, hazard and disaster registers itself on import.
 import './hazards';
 import './disasters';
@@ -72,7 +72,17 @@ function crisesDoc(): KnowledgeDoc {
       list.map((c) => [`${c.icon} ${c.name} (\`${c.id}\`)`, `${c.lead} s`, `${c.duration} s`, c.description]),
     ),
     '',
-    ...list.flatMap((c) => [`## ${c.name}`, '', c.description, '', `**Prepare:** ${c.prep}`, '']),
+    ...list.flatMap((c) => [
+      `## ${c.name}`,
+      '',
+      c.description,
+      '',
+      `**Prepare:** ${c.prep}`,
+      ...(c.followUps?.length
+        ? ['', `**Can lead to:** ${c.followUps.map((f) => `${getCrisis(f.crisis).name} (${Math.round(f.chance * 100)}% at full severity: ${f.why})`).join('; ')}.`]
+        : []),
+      '',
+    ]),
   ].join('\n');
   return ref({
     id: 'reference-crises',

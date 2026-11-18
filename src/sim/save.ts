@@ -5,7 +5,7 @@ import type { ZoneKind } from '@/content/types';
 import { Service } from '@/ecs/components';
 import type { BuildingRecord, City } from './City';
 import { createPulseState, type PulseState } from './pulseState';
-import { createStewardState, type StewardState } from './stewardState';
+import { createStewardState, createDirectorState, type StewardState } from './stewardState';
 import { createFireworksState, type FireworksState } from './fireworksState';
 import { createGrowthState, type GrowthState } from './growthState';
 import { createConsequenceState, neutralMods, type ConsequenceState } from './consequenceState';
@@ -13,7 +13,7 @@ import { createHappeningState, type HappeningState } from './happeningState';
 import { builderCode, builderFromCode } from './builders';
 import { loadBridges, saveBridges, type BridgeSave } from './bridges';
 
-export const SAVE_VERSION = 21;
+export const SAVE_VERSION = 22;
 
 export interface SaveData {
   version: number;
@@ -181,6 +181,12 @@ export function migrateSave(data: SaveData): SaveData {
     // District approval (v21, D-159): every district starts at the city's harmony on the first pulse.
     data.approval = {};
     data.version = 21;
+  }
+  if (data.version === 21) {
+    // The director (v22, plan v5 Phase 27): on, neutral dials, nothing owed yet.
+    data.steward.autoDirector ??= true;
+    data.steward.director ??= createDirectorState();
+    data.version = 22;
   }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;

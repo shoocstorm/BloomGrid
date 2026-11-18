@@ -6,7 +6,7 @@ import { h } from '@/ui/dom';
 import { holoHead } from '@/ui/holo';
 import { icon } from '@/ui/icons';
 import { spawnStressCity } from './stress';
-import { allCrises, forecastCrisis } from '@/sim/crises';
+import { allCrises, forecastCrisis, getCrisis } from '@/sim/crises';
 
 /**
  * Tweakpane inspector, split into its own chunk: the debug module imports it on first use so
@@ -58,7 +58,8 @@ export function createInspector(ctx: GameContext): { container: HTMLElement; ref
   const drills = pane.addFolder({ title: 'Crisis drills', expanded: false });
   for (const c of allCrises())
     drills
-      .addButton({ title: `${c.icon} ${c.name}` })
+      // Chains (plan v5, Phase 27): what may follow, so a drill can be run as a chain.
+      .addButton({ title: `${c.icon} ${c.name}${c.followUps?.length ? ` → ${c.followUps.map((f) => getCrisis(f.crisis).name.toLowerCase()).join(', ')}` : ''}` })
       .on('click', () => forecastCrisis(ctx.city, c.id, 1.2, 5));
   drills.addButton({ title: 'Bankrupt the city' }).on('click', () => (ctx.city.credits = -8000));
   pane.addButton({ title: 'Skip to night' }).on('click', () => (ctx.city.timeOfDay = 0.85));

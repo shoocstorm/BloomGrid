@@ -355,7 +355,7 @@ export class PulsePanel {
     const key = ahead.map((c) => c.kind + (c.metric ?? '')).join();
     if (key !== this.comingKey) {
       this.comingKey = key;
-      ahead.forEach((c, i) => this.coming[i]!.ic.replaceChildren(icon(c.kind === 'season' ? 'calendar' : c.kind === 'crisis' ? 'storm' : c.metric === 'budget' ? 'credits' : c.metric === 'harmony' ? 'happy' : (c.metric ?? 'pulse'))));
+      ahead.forEach((c, i) => this.coming[i]!.ic.replaceChildren(icon(c.kind === 'season' ? 'calendar' : c.kind === 'crisis' ? 'storm' : c.kind === 'risk' ? 'eye' : c.metric === 'budget' ? 'credits' : c.metric === 'harmony' ? 'happy' : (c.metric ?? 'pulse'))));
     }
     const bar = (id: string, v: number) => {
       const el = this.demand.get(id)!;

@@ -5,6 +5,9 @@ import { seasonAt } from './seasons';
 import { applyHappenings } from './happenings';
 import { applyPolicies } from './policies';
 import { neutralMods, type ConsequenceMods, type FeedEntry } from './consequenceState';
+import { DIFFICULTIES } from './difficulty';
+import { DRIFT, directing, driftNow, MIN_GAP, queueCrisis } from './directorCore';
+import { getCrisis } from './crises';
 
 /**
  * Logic and consequences (Phase 20, D-074): the city's choices ripple. Each rule measures a cause (a bare coast,
@@ -40,7 +43,16 @@ export interface ConsequenceRule {
   apply(mods: ConsequenceMods, l: number, city: City): void;
   /** Where to point the camera, if anywhere in particular. */
   at?(city: City): { x: number; z: number } | null;
+  /**
+   * Neglect boils over (plan v5, Phase 27): when the rule's intensity reaches `at`, the director queues `crisis`
+   * (forecast after the usual calm gap). It re-arms once the intensity falls `REARM` below. `measure` and `lever`
+   * name the cause and the fix for the Coming up strip's "Risk building" line.
+   */
+  escalate?: { at: number; crisis: string; measure(city: City): string; lever: string };
 }
+
+/** How far below its threshold a rule must fall before it can boil over again. */
+export const REARM = 0.3;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -67,6 +79,12 @@ export const RULES: ConsequenceRule[] = [
       `Coastal pollution at ${Math.round(c.pulse.coastalPollution * 100)}% (factories and runoff near the sea)`,
     effect: 'Algal blooms become likelier, the catch shrinks and beach visitors stay away.',
     target: (c) => clamp01((c.pulse.coastalPollution - 0.2) / 0.3),
+    escalate: {
+      at: 0.7,
+      crisis: 'algal-bloom',
+      measure: (c) => `coast pollution ${Math.round(c.pulse.coastalPollution * 100)}%`,
+      lever: 'move factories back from the sea or plant parks and mangroves along the shore',
+    },
     apply(mods, l) {
       mods.crisis['algal-bloom'] = (mods.crisis['algal-bloom'] ?? 1) * (1 + 2 * l);
       mods.fishing *= 1 - 0.3 * l;
@@ -91,6 +109,12 @@ export const RULES: ConsequenceRule[] = [
     cause: (_c, m) => `${m.towers} towers and only ${m.parks} parks and gardens to cool them`,
     effect: 'Heatwaves come more often and start more fires; residents swelter (harmony down).',
     target: (_c, m) => (m.towers >= 8 ? clamp01((m.towers / (m.parks + 1) - 1.5) / 3) : 0),
+    escalate: {
+      at: 0.8,
+      crisis: 'heatwave',
+      measure: () => 'towers far outnumber parks',
+      lever: 'build parks and gardens among the towers (or enact Green roofs)',
+    },
     apply(mods, l) {
       mods.crisis.heatwave = (mods.crisis.heatwave ?? 1) * (1 + l);
       mods.heatFire *= 1 + l;
@@ -146,6 +170,24 @@ export const RULES: ConsequenceRule[] = [
     },
   },
   {
+    id: 'grid-strain',
+    name: 'Strained grid',
+    icon: '⚡',
+    cause: (c) => `Power supply at ${Math.round(c.pulse.energyRatio * 100)}% of demand (little or no margin)`,
+    effect: 'Plants run flat out: grid failures become likelier, and a long strain trips the largest plant.',
+    target: (c, m) =>
+      m.buildings >= 30 && c.stats.energyUsed > 0 ? clamp01((1.08 - c.pulse.energyRatio) / 0.15) : 0,
+    escalate: {
+      at: 0.8,
+      crisis: 'grid-failure',
+      measure: (c) => `power margin ${Math.round((c.pulse.energyRatio - 1) * 100)}%`,
+      lever: 'build power plants (or wind turbines) for a margin of 15% or more',
+    },
+    apply(mods, l) {
+      mods.crisis['grid-failure'] = (mods.crisis['grid-failure'] ?? 1) * (1 + 2 * l);
+    },
+  },
+  {
     id: 'harmony-streak',
     name: 'A city people love',
     icon: '☺',
@@ -165,6 +207,12 @@ export const RULES: ConsequenceRule[] = [
       `In debt long enough that the credit rating fell to ${Math.round(c.consequences.credit * 100)}%`,
     effect: 'New loans cost more, and residents lose faith (harmony down; some leave).',
     target: (c) => clamp01((0.6 - c.consequences.credit) / 0.4),
+    escalate: {
+      at: 0.6,
+      crisis: 'strike',
+      measure: (c) => `credit rating ${Math.round(c.consequences.credit * 100)}%`,
+      lever: 'get credits above zero and repay loans (raise tax a little, cut costly ordinances)',
+    },
     apply(mods, l, city) {
       mods.interest += 0.03 * (1 - city.consequences.credit);
       mods.harmony -= 4 * l;
@@ -292,6 +340,16 @@ export function updateConsequences(city: City): void {
         rs.since = city.tick;
         log(city, r, 'start', `${r.name}: ${r.cause(city, m)}. ${r.effect}`);
       } else if (was >= 0.1 && rs.level < 0.1) log(city, r, 'end', `${r.name} eased off.`);
+      // Neglect boils over (plan v5, Phase 27): the director queues the crisis this rule has been breeding.
+      const esc = r.escalate;
+      if (esc) {
+        if (!rs.fired && rs.level >= esc.at) {
+          rs.fired = true;
+          const sev = DIFFICULTIES[city.steward.difficulty].severity * (0.7 + 0.5 * rs.level);
+          if (queueCrisis(city, { crisis: esc.crisis, gap: MIN_GAP, severity: sev, cause: r.name, kind: 'escalation' }))
+            log(city, r, 'escalate', `${r.name} boiled over: a ${getCrisis(esc.crisis).name.toLowerCase()} is coming (${esc.measure(city)}).`);
+        } else if (rs.fired && rs.level < esc.at - REARM) rs.fired = false;
+      }
     }
     // Vandals in neglected blocks: a run-down building takes a knock now and then.
     const neglect = st.rules['neglect']?.level ?? 0;
@@ -310,6 +368,8 @@ export function updateConsequences(city: City): void {
     const l = st.rules[r.id]?.level ?? 0;
     if (l > 0.01) r.apply(mods, l, city);
   }
+  // Structural drift (plan v5, Phase 27): a city left to run itself ages faster.
+  if (directing(city)) mods.ageing *= 1 + DRIFT.ageing * driftNow(city);
   mods.tourism = Math.max(0, s.income * 0.2 * (st.reputation - 0.3));
   // Happenings (D-123): festival and cruise visitors, a bumper catch, the mood after a request.
   applyHappenings(city, mods);
@@ -345,6 +405,7 @@ export function rulesFor(city: City, eid: number): string[] {
       rule.id === 'neglect' ||
       rule.id === 'long-debt' ||
       rule.id === 'harmony-streak' ||
+      rule.id === 'grid-strain' ||
       rule.id === 'transit-city'
         ? true
         : rule.id === 'bare-coast' || rule.id === 'dirty-coast' || rule.id === 'overfishing'
@@ -365,4 +426,38 @@ export function activeRules(city: City): { rule: ConsequenceRule; level: number;
   return RULES.map((rule) => ({ rule, ...(city.consequences.rules[rule.id] ?? { level: 0, since: 0 }) }))
     .filter((r) => r.level >= 0.1)
     .sort((a, b) => b.level - a.level);
+}
+
+export interface Risk {
+  rule: ConsequenceRule;
+  crisis: string;
+  level: number;
+  at: number;
+  /** Seconds until it boils over if the cause holds (the intensity ramps at `UP` per second). */
+  eta: number;
+  text: string;
+}
+
+/**
+ * Neglect building toward a crisis (plan v5, Phase 27): rules with an escalation at 40%+ of the way that have not
+ * boiled over yet, nearest first. Read by the Coming up strip, the stat cards and Flora.
+ */
+export function risksBuilding(city: City): Risk[] {
+  const out: Risk[] = [];
+  for (const r of RULES) {
+    const esc = r.escalate;
+    const rs = city.consequences.rules[r.id];
+    if (!esc || !rs || rs.fired || rs.level < esc.at * 0.4) continue;
+    // A rule past the mark whose crisis could not be queued yet (one already waiting) is imminent.
+    const eta = Math.max(0, esc.at - rs.level) / UP;
+    out.push({
+      rule: r,
+      crisis: esc.crisis,
+      level: rs.level,
+      at: esc.at,
+      eta,
+      text: `${r.name} ${Math.round((rs.level / esc.at) * 100)}% of the way to a ${getCrisis(esc.crisis).name.toLowerCase()} (${esc.measure(city)}): ${esc.lever}.`,
+    });
+  }
+  return out.sort((a, b) => a.eta - b.eta);
 }

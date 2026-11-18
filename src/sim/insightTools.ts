@@ -10,6 +10,8 @@ import { HISTORY_METRICS, type HistoryMetric } from './pulseState';
 import { DAY_LENGTH } from './pulseConst';
 import { buildingId } from './inventory';
 import { comingUp, forecastCity, HORIZON } from './forecast';
+import { risksBuilding } from './consequences';
+import { directorReport } from './director';
 
 /**
  * Read-only agent tools that explain the city rather than list it: the advisor's advice, trends over time,
@@ -237,6 +239,27 @@ export const insightTools: AgentTool<SimCtx, never>[] = [
   },
 ];
 
+/** The director's read for Flora: how hard-pressed the city is and what it is doing about it. */
+function pressureOf(city: SimCtx['city']) {
+  const d = directorReport(city);
+  if (!d.on) return { director: 'off (Sandbox or switched off)', tension: r2(d.tension) };
+  return {
+    tension: r2(d.tension),
+    band: d.band!.map(r2),
+    mood: d.mood,
+    meaning:
+      d.mood === 'calm'
+        ? 'The city is running itself: crises come a little more often and demand slowly rises (drift) until it is tested again.'
+        : d.mood === 'spiralling'
+          ? 'The city is in trouble: crises are held back and spaced out to give it room to recover.'
+          : 'The challenge is about right.',
+    crisisPace: r2(d.pace),
+    drift: r2(d.drift),
+    stewardRecovery: r2(d.mastery),
+    queued: d.queued.map((q) => `${q.name} (${q.cause})`),
+  };
+}
+
 /**
  * Foresight (plan v5, Phase 24). Registered after every other tool: menus keep registry order on a tie, so a
  * request that is not about the future keeps its long-standing tools (and their letters).
@@ -245,7 +268,7 @@ export const foresightTools: AgentTool<SimCtx, never>[] = [
   {
     name: 'whats_coming',
     option: 'Forecast: what will run short or change in the next few minutes',
-    description: `Foresight: each supply's trend (fitted over the last 5 sim-minutes) and when it would cross into Strained or Critical within the next ${HORIZON / 60} sim-minutes, with the season change folded in; plus forecast crises and the next season. Use for "what's coming", "will we run out", "forecast".`,
+    description: `Foresight: each supply's trend (fitted over the last 5 sim-minutes) and when it would cross into Strained or Critical within the next ${HORIZON / 60} sim-minutes, with the season change folded in; plus forecast crises, neglect building toward a crisis (risks: a polluted coast breeding an algal bloom, debt toward a strike) and the next season, and how hard the director is pressing the city. Use for "what's coming", "will we run out", "forecast", "what crisis is next".`,
     input: { type: 'object', properties: {} },
     effect: 'read',
     // Trouble ahead ends in a plan: sized proposals for the projected gap.
@@ -259,6 +282,9 @@ export const foresightTools: AgentTool<SimCtx, never>[] = [
           .map((f) => ({ metric: f.metric, level: f.level, inSimMinutes: r2(f.eta! / 60), cause: f.season ? `${f.season} season` : 'trend', text: f.text })),
         trends: all.map((f) => ({ metric: f.metric, now: r2(f.now), perSimMinute: r2(f.perMin), confidence: r2(f.confidence), text: f.text })),
         ahead: comingUp(city, 5).map((c) => ({ kind: c.kind, inSimMinutes: r2(c.in / 60), title: c.title, detail: c.detail })),
+        // Neglect building toward a crisis, and the director's read of the pressure (plan v5, Phase 27).
+        risks: risksBuilding(city).map((r) => ({ crisis: r.crisis, cause: r.rule.name, progress: r2(r.level / r.at), inSimMinutes: r2(r.eta / 60), text: r.text })),
+        pressure: pressureOf(city),
       };
     },
   },

@@ -8,6 +8,7 @@ import { forecastCrisis, leadFor, registerCrisis } from './crises';
 import { damageBuilding, ignite, isRuined } from './hazards';
 import { defenceList, isProtected } from './coast';
 import { wonderVisible } from './wonders';
+import { slopeRisk, slopeSites } from './slopes';
 
 /**
  * Tornadoes and tsunamis, and what the steward can do about them (Phase 21, D-076).
@@ -234,3 +235,52 @@ export function registerDisasterCommands(stack: CommandStack<SimCtx>): void {
     },
   });
 }
+
+// ── Escalations and chains (plan v5, Phase 27) ───────────────────────────────
+
+registerCrisis({
+  id: 'strike',
+  name: 'Workers\' strike',
+  icon: '✊',
+  description:
+    'Unpaid suppliers, frozen wages and a falling credit rating: workers walk out. Workplaces run short-staffed and residents take sides.',
+  prep: 'Get credits above zero and pay down loans: the credit rating recovers and the next strike grows less likely. Keep jobs-critical services (water, power) well over 100% so a short-staffed week does not tip them.',
+  lead: 30,
+  duration: 60,
+  // Only a city deep in debt strikes (the long-debt escalation queues it directly).
+  weight: (city) => (city.consequences.credit < 0.4 ? 0.3 : 0),
+  apply(city, c, env, m) {
+    // A city that has cleared its debt settles the strike faster.
+    const settled = city.credits > 0 && city.steward.loans.length === 0 ? 0.5 : 1;
+    m.staffing *= 1 - 0.35 * c.severity * env * settled;
+    m.harmony -= 2 * c.severity * env * settled;
+  },
+});
+
+/** Damage at the landslide's heart (condition lost), falling off to nothing at its edge. */
+const SLIDE_DAMAGE = 0.6;
+
+registerCrisis({
+  id: 'landslide',
+  name: 'Landslide',
+  icon: '⛰',
+  description:
+    'A sodden bank gives way above or under buildings on bare, steep ground: the nearest are damaged or brought down.',
+  prep: 'Plant the slopes: parks, gardens and wild land hold the soil (the Ecology lens shows bare ground). Avoid building on steep banks, and keep credits for repairs.',
+  lead: 20,
+  duration: 25,
+  weight: (city) => Math.min(0.3, 0.08 * slopeRisk(city)),
+  begin(city, c) {
+    const site = slopeSites(city)[0];
+    if (!site) return;
+    [c.x, c.z, c.radius] = [site.x, site.z, 5];
+    for (const e of within(city, site.x, site.z, 5)) {
+      const [cx, cz] = centreOf(e);
+      const k = 1 - Math.hypot(cx - site.x, cz - site.z) / 6;
+      if (k > 0) damageBuilding(city, e, SLIDE_DAMAGE * c.severity * k, 'landslide', c);
+    }
+  },
+  apply(_city, c, env, m) {
+    m.harmony -= 2 * c.severity * env;
+  },
+});

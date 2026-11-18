@@ -13,6 +13,8 @@ export function makeSim(seed = 42) {
   city.steward.autoCrises = false;
   // Happenings draw on the rng too (D-123): off unless a test opts in.
   city.happenings.auto = false;
+  // The director (plan v5, Phase 27) paces and drifts the city: off unless a test opts in.
+  city.steward.autoDirector = false;
   const ctx: SimCtx = { city };
   const commands = new CommandStack(ctx);
   registerSimCommands(commands);

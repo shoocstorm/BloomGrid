@@ -91,7 +91,11 @@ tell it what to do — it looks things up, proposes builds as cards, and asks be
 - **Living soil (Flora-Net).** Gardens dry out and farms exhaust their soil. Mist dry zones, dig channels, or build a
   **Drone Hive** whose hummingbird drones pollinate, harvest and trim the jungle back.
 - **Crises.** Monsoons, king tides, heatwaves, algal blooms, grid failures and blight are forecast before they hit,
-  so you have time to prepare. Debt leads to austerity, and austerity to decay.
+  so you have time to prepare. Debt leads to austerity, and austerity to decay. Neglect boils over: a polluted coast
+  brings an algal bloom, a heat island a heatwave, long debt a **workers' strike**, a strained grid a grid failure
+  (City Pulse → Coming up warns *Risk: …* with the fix first). Crises chain (a monsoon can bring a **landslide** on
+  bare slopes), and the challenge adapts: a city that runs itself gets more crises and slowly rising demand, a
+  spiralling one gets a breather (Sandbox has none of this).
 - **A rising sea.** From day 3 the water creeps up. Plant **Mangrove Seawalls**, reclaim the shallows as new land,
   or let the coast go.
 - **The Green Weaver.** Grow flowering sky-bridges between towers, or merge a tower with a giant banyan.
@@ -262,7 +266,7 @@ packages it. Saves are JSON files in the app data folder, and ⚙ → Display �
 
 `?quality=low|medium|high|ultra` · `?renderer=webgl` (force the WebGL2 fallback) · `?scenario=empty` (a blank island
 instead of the founding city) · `?difficulty=sandbox|relaxed|steward|hard` · `?seed=123` (a different island) ·
-`?drill=monsoon|king-tide|heatwave|algal-bloom|grid-failure|blight` (start a crisis) · `?happening=request|festival|bumper-catch|cruise|petition|protest|praise` (start a happening) · `?perf` (performance overlay,
+`?drill=monsoon|king-tide|heatwave|algal-bloom|grid-failure|blight|strike|landslide` (start a crisis) · `?happening=request|festival|bumper-catch|cruise|petition|protest|praise` (start a happening) · `?perf` (performance overlay,
 also **F3**) · `?stress=2000` (add a stress city) · `?nodynres` · `?taa=0` (MSAA instead of temporal anti-aliasing) · `?gputime` · `?pr=1 ?msaa=0 ?shadows=0 ?bloom=0`
 (quality overrides).
 

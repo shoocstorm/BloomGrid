@@ -49,6 +49,10 @@ const CASES: Record<string, { on: (c: City, m: Measures) => void; off: (c: City,
     off: (c) => (c.consequences.harmonyStreak = 0),
   },
   'long-debt': { on: (c) => (c.consequences.credit = 0.1), off: (c) => (c.consequences.credit = 1) },
+  'grid-strain': {
+    on: (c) => ((c.stats.energyUsed = 100), (c.pulse.energyRatio = 0.95)),
+    off: (c) => ((c.stats.energyUsed = 100), (c.pulse.energyRatio = 1.3)),
+  },
   'transit-city': {
     on: (c) => ((c.pulse.commuters = 1000), (c.pulse.podRiders = 700)),
     off: (c) => ((c.pulse.commuters = 1000), (c.pulse.podRiders = 100)),

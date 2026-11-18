@@ -9,6 +9,7 @@ import { launchBlocker, startShow, SHOW_FEE } from './fireworks';
 import { isOpen } from './growthState';
 import type { Happening, HappeningKind } from './happeningState';
 import { PULSE_TICKS } from './pulseConst';
+import { directing } from './directorCore';
 import { APPROVAL, COMPLAINT_TEXT, complaints, districtLabel, moodOf, setDistrictMood } from './approval';
 import { OUTSKIRTS_KEY } from './approvalState';
 import { getPolicy, isActive, policyBlock } from './policies';
@@ -305,7 +306,9 @@ function finish(city: City, h: Happening, outcome: 'claimed' | 'missed' | 'done'
   if (st.history.length > 20) st.history.shift();
   st.current = null;
   const [lo, hi] = HAPPENING_GAP;
-  st.nextTick = city.tick + Math.round((lo + (hi - lo) * (st.auto ? city.rng.next() : 0.5)) * PULSE_TICKS);
+  // The director (plan v5, Phase 27) brings them sooner to a city that runs itself, later to one in trouble.
+  const pace = directing(city) ? city.steward.director.pace : 1;
+  st.nextTick = city.tick + Math.round(((lo + (hi - lo) * (st.auto ? city.rng.next() : 0.5)) / pace) * PULSE_TICKS);
   city.bus.emit('happening:end', { happening: h, outcome });
 }
 

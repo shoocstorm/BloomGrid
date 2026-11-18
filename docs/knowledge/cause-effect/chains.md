@@ -44,4 +44,10 @@ for less, *Neglected* issues) → harmony falls → fewer residents and taxes �
 
 Few Ember Watch stations for a large city → *fire cover* consequence → fires spread further and insurance rises.
 
+## Neglect → crisis
+
+Left strong, a consequence boils over into a crisis of its own: a polluted coast into an algal bloom, a heat island
+into a heatwave, long debt into a workers' strike, a strained grid into a grid failure. Crises chain too (a monsoon
+into a landslide on bare slopes). See [The director](kb:systems-director).
+
 > **Tip:** Ask Flora *"why is harmony falling?"*: her `why` tool reads the harmony breakdown and the rules in force.

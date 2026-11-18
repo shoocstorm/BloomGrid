@@ -56,6 +56,8 @@ declare module '@/core/EventBus' {
     'lightning:strike': { x: number; z: number; y: number; eid: number; fire: boolean };
     /** A crisis or fire was added to the incident log. */
     'incident:logged': { record: IncidentRecord };
+    /** The director owes the city a crisis (plan v5, Phase 27): neglect boiled over, or a chain's next link. */
+    'director:queued': { crisis: string; cause: string; kind: 'escalation' | 'chain' };
     /** Fireworks (D-068): a show started; shells went up this pulse (renderers launch them); a show ended. */
     'fireworks:start': { show: FireworkShow };
     'fireworks:volley': { show: FireworkShow; kinds: FireworkKind[]; finale: boolean };
@@ -81,7 +83,7 @@ declare module '@/core/EventBus' {
     'building:repaired': { eid: number; ruined: boolean };
     'building:switched': { eid: number; off: boolean };
     /** A consequence rule came into force or eased off (D-074). */
-    consequence: { rule: string; kind: 'start' | 'end'; text: string };
+    consequence: { rule: string; kind: 'start' | 'end' | 'escalate'; text: string };
   }
 }
 export {};

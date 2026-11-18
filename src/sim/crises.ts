@@ -3,9 +3,11 @@ import { Building, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import { DAY_LENGTH, type City } from './City';
 import { DIFFICULTIES } from './difficulty';
+import { slopeRisk } from './slopes';
 import { neutralModifiers, type CrisisInstance, type IncidentRecord, type Modifiers } from './stewardState';
 import { PULSE_TICKS } from './pulseConst';
 import { seasonAt } from './seasons';
+import { CHAIN_GAP, DRIFT, MIN_GAP, directing, driftNow, queueCrisis } from './directorCore';
 
 /**
  * Crises: forecast → active → over. Definitions are data plus pure functions; scheduling uses
@@ -29,6 +31,12 @@ export interface CrisisDef {
   begin?(city: City, c: CrisisInstance): void;
   /** Adds this crisis' effects; `env` ramps 0→1→0 over the active period. */
   apply(city: City, c: CrisisInstance, env: number, m: Modifiers): void;
+  /**
+   * Chains (plan v5, Phase 27): what may follow when it ends. `chance` is scaled by the crisis' severity; `when`
+   * holds the link back unless the city is exposed (bare slopes for a landslide). `why` reads "the quake cracked
+   * the grid" in the forecast and the almanac.
+   */
+  followUps?: { crisis: string; chance: number; why: string; when?(city: City): boolean }[];
 }
 
 const defs = new Map<string, CrisisDef>();
@@ -64,8 +72,6 @@ export function leadFor(city: City, id: string): number {
   return d.lead * (radar ? 2 : 1);
 }
 
-/** Minimum calm between crises (seconds). */
-const MIN_GAP = 75;
 
 /** Smooth rise over the first 15% and fall over the last 25% of the active window. */
 export function envelope(t: number): number {
@@ -77,7 +83,13 @@ export function envelope(t: number): number {
 }
 
 /** Schedules a crisis now (forecast phase). Used by the scheduler, drills and tests. */
-export function forecastCrisis(city: City, defId: string, severity?: number, leadOverride?: number): CrisisInstance {
+export function forecastCrisis(
+  city: City,
+  defId: string,
+  severity?: number,
+  leadOverride?: number,
+  cause?: string,
+): CrisisInstance {
   const d = getCrisis(defId);
   const st = city.steward;
   const start = city.tick + Math.round((leadOverride ?? d.lead) * PULSE_TICKS);
@@ -88,6 +100,7 @@ export function forecastCrisis(city: City, defId: string, severity?: number, lea
     startTick: start,
     endTick: start + Math.round(d.duration * PULSE_TICKS),
     severity: severity ?? DIFFICULTIES[st.difficulty].severity * (0.8 + 0.4 * city.rng.next()),
+    ...(cause ? { cause } : {}),
   };
   st.crises.push(c);
   city.bus.emit('crisis:forecast', { crisis: c });
@@ -134,8 +147,16 @@ export function updateCrises(city: City): Modifiers {
                 : 'weathered',
         objects: c.objects ?? [],
         ...(c.prevented?.length ? { prevented: c.prevented } : {}),
+        ...(c.cause ? { cause: c.cause } : {}),
       });
       city.bus.emit('crisis:end', { crisis: c });
+      // Chains: one link may follow, drawn while crises run on their own (drills in tests stay single).
+      if (st.autoCrises)
+        for (const f of d.followUps ?? [])
+          if (city.rng.next() < f.chance * Math.min(1.5, c.severity) && (f.when?.(city) ?? true)) {
+            queueCrisis(city, { crisis: f.crisis, gap: CHAIN_GAP, severity: c.severity * 0.8, cause: `${d.name}: ${f.why}`, kind: 'chain' });
+            break;
+          }
     }
   }
   for (const c of st.crises) {
@@ -144,23 +165,40 @@ export function updateCrises(city: City): Modifiers {
     getCrisis(c.def).apply(city, c, envelope(t), m);
   }
 
-  // Scheduler: at most one crisis forecast or active at a time, with a calm gap between them.
-  if (st.autoCrises && st.crises.length === 0 && city.tick - st.lastCrisisEndTick > MIN_GAP * PULSE_TICKS) {
-    const rate = DIFFICULTIES[st.difficulty].eventRate / DAY_LENGTH; // per second
-    if (city.rng.next() < rate) {
-      const season = seasonAt(city.tick).season;
-      // Consequences (D-074) tilt the odds: a dirty coast breeds algal blooms, a heat island heatwaves.
-      const tilt = city.consequences.mods.crisis;
-      const pool = allCrises().map((d) => [d, Math.max(0, d.weight(city)) * (season.crisis[d.id] ?? 1) * (tilt[d.id] ?? 1)] as const);
-      const total = pool.reduce((a, [, w]) => a + w, 0);
-      let r = city.rng.next() * total;
-      for (const [d, w] of pool) {
-        if ((r -= w) <= 0) {
-          forecastCrisis(city, d.id, undefined, leadFor(city, d.id));
-          break;
+  // Scheduler: at most one crisis forecast or active at a time, with a calm gap between them. What the director
+  // owes the city (escalations, chain links) comes first; otherwise the odds roll, paced by the director.
+  const dir = st.director;
+  if (st.autoCrises && st.crises.length === 0) {
+    const calm = (city.tick - st.lastCrisisEndTick) / PULSE_TICKS;
+    const next = dir.queue[0];
+    if (next) {
+      if (calm >= next.gap) {
+        dir.queue.shift();
+        forecastCrisis(city, next.crisis, next.severity, leadFor(city, next.crisis), next.cause);
+      }
+    } else if (calm > MIN_GAP * dir.calm) {
+      const rate = (DIFFICULTIES[st.difficulty].eventRate * dir.pace) / DAY_LENGTH; // per second
+      if (city.rng.next() < rate) {
+        const season = seasonAt(city.tick).season;
+        // Consequences (D-074) tilt the odds: a dirty coast breeds algal blooms, a heat island heatwaves.
+        const tilt = city.consequences.mods.crisis;
+        const pool = allCrises().map((d) => [d, Math.max(0, d.weight(city)) * (season.crisis[d.id] ?? 1) * (tilt[d.id] ?? 1)] as const);
+        const total = pool.reduce((a, [, w]) => a + w, 0);
+        let r = city.rng.next() * total;
+        for (const [d, w] of pool) {
+          if ((r -= w) <= 0) {
+            forecastCrisis(city, d.id, undefined, leadFor(city, d.id));
+            break;
+          }
         }
       }
     }
+  }
+  // Structural drift (the director pulling a self-running city up): homes and shops want more power and water.
+  if (directing(city)) {
+    const k = driftNow(city);
+    m.energyDemand *= 1 + DRIFT.energyDemand * k;
+    m.waterDemand *= 1 + DRIFT.waterDemand * k;
   }
   // Tides and floods stack on top of the risen sea.
   m.floodLevel += st.seaRise;
@@ -179,6 +217,7 @@ registerCrisis({
   lead: 45,
   duration: 80,
   weight: () => 1,
+  followUps: [{ crisis: 'landslide', chance: 0.5, why: 'sodden, bare hillsides give way', when: (city) => slopeRisk(city) > 0 }],
   apply(_city, c, env, m) {
     m.floodLevel = Math.max(m.floodLevel, 0.45 * c.severity * env);
     m.waterSupply *= 1 + 0.4 * env;
@@ -209,6 +248,7 @@ registerCrisis({
   lead: 60,
   duration: 90,
   weight: () => 1,
+  followUps: [{ crisis: 'industrial-fire', chance: 0.3, why: 'the heat left the works tinder-dry' }],
   apply(city, c, env, m) {
     m.energyDemand *= 1 + 0.35 * c.severity * env;
     m.waterDemand *= 1 + 0.3 * c.severity * env;

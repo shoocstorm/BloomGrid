@@ -42,6 +42,8 @@ export interface CrisisInstance {
   rolled?: boolean;
   /** What prevention did, in sentences, for the incident log. */
   prevented?: string[];
+  /** Why it came (plan v5, Phase 27): the neglect that boiled over or the crisis it followed ("Polluted coast"). */
+  cause?: string;
 }
 
 /** A fire burning in one building (D-050). Grows unless crews, a station or rain beat it back; spreads when fierce. */
@@ -113,6 +115,8 @@ export interface Modifiers {
   rain: number;
   /** Tsunami surge height on the waterfront (D-076): floods the coast only, not every low tile like `floodLevel`. */
   surge: number;
+  /** Workplace staffing multiplier (a strike walks people out, plan v5 Phase 27). */
+  staffing: number;
 }
 
 export const neutralModifiers = (): Modifiers => ({
@@ -128,6 +132,51 @@ export const neutralModifiers = (): Modifiers => ({
   shake: 0,
   rain: 0,
   surge: 0,
+  staffing: 1,
+});
+
+/** A crisis the director owes the city (plan v5, Phase 27): neglect that boiled over, or the next link of a chain. */
+export interface QueuedCrisis {
+  crisis: string;
+  /** Seconds of calm needed after the last crisis before it is forecast. */
+  gap: number;
+  severity: number;
+  /** Rule name or crisis name it grew out of (shown in the forecast and the log). */
+  cause: string;
+  kind: 'escalation' | 'chain';
+  /** Dropped if still waiting at this tick (the moment passed). */
+  until: number;
+}
+
+/**
+ * The director (plan v5, Phase 27): reads how hard-pressed the city is (tension) and how quickly the steward gets
+ * out of trouble (mastery), and paces the challenge toward the difficulty's band. Saved with the steward; hashed.
+ */
+export interface DirectorState {
+  /** 0..1, smoothed: tiers in trouble, crises and fires, forecasts, unhappy residents, the fail clock. */
+  tension: number;
+  /** 0..1 EWMA of how fast the steward recovers from trouble (0.5 = unknown). */
+  mastery: number;
+  /** Multiplier on crisis odds and happening frequency (pulls a calm city up). */
+  pace: number;
+  /** Multiplier on the calm gap between crises (≥ 1: lets a spiralling city breathe). */
+  calm: number;
+  /** 0..1 structural pressure: rising demand and faster ageing that build while the city runs itself. */
+  drift: number;
+  /** Tick trouble began, or -1. */
+  troubleSince: number;
+  /** Escalations and chain links waiting for a calm gap (first = next). */
+  queue: QueuedCrisis[];
+}
+
+export const createDirectorState = (): DirectorState => ({
+  tension: 0,
+  mastery: 0.5,
+  pace: 1,
+  calm: 1,
+  drift: 0,
+  troubleSince: -1,
+  queue: [],
 });
 
 /**
@@ -138,6 +187,9 @@ export interface StewardState {
   difficulty: DifficultyId;
   /** Automatic crisis scheduling (tests and drills switch it off). */
   autoCrises: boolean;
+  /** Adaptive pacing (plan v5, Phase 27): off in tests, the trailer and on Sandbox. */
+  autoDirector: boolean;
+  director: DirectorState;
   loans: Loan[];
   nextLoanId: number;
   /** Fraction of upkeep the city can actually pay: 1 normally, lower when in debt (austerity). */
@@ -165,6 +217,8 @@ export function createStewardState(difficulty: DifficultyId = 'steward'): Stewar
   return {
     difficulty,
     autoCrises: true,
+    autoDirector: true,
+    director: createDirectorState(),
     loans: [],
     nextLoanId: 1,
     funding: 1,

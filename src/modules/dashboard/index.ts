@@ -280,7 +280,10 @@ export const dashboardModule: GameModule = {
     });
     // A rule coming into force is news (D-074): a toast that names it; good ones in green.
     ctx.bus.on('consequence', ({ rule, kind, text }) => {
-      if (kind !== 'start' || ctx.loading) return;
+      if (ctx.loading) return;
+      // Neglect boiling over (plan v5, Phase 27) names the crisis it is bringing.
+      if (kind === 'escalate') return void ctx.bus.emit('toast', { text: `⚠ ${text}`, tone: 'bad' });
+      if (kind !== 'start') return;
       const good = rule === 'harmony-streak' || rule === 'transit-city';
       ctx.bus.emit('toast', { text: `⚖ ${text.split('. ')[0]} (Dashboard → Causes)`, tone: good ? 'ok' : 'bad' });
     });

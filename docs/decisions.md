@@ -3066,3 +3066,36 @@ are removed (gigabytes at 4K); `--keep-frames` keeps them for inspection.
 - **Measured** (founding city): 70 lanes, 41 bowed, 22 lifted; `clearance()` clipped 0, clipped near an end 3 (was
   17). Mean crest above ground (max): trunks 15.6 (31.8), hub → job centre 11.3 (22.8), dock lanes 10.8 (28.4),
   platform links 10.1 (11.2); before 22.8 (62.7), 19.2 (108.4), 21.4 (57.0), 12.3 (15.3).
+
+## D-167 — The director: neglect escalates, crises chain, the challenge adapts (2026-11-18)
+
+Plan v5, Phase 27. Before it, crises were a dice roll against the difficulty's `eventRate`; the eleven consequence
+rules tilted the odds but never caused anything, and the founding city ran itself once water was fixed.
+
+- **Escalation** (`escalate` on a `ConsequenceRule`: `at`, `crisis`, `measure`, `lever`): when a rule's intensity
+  reaches `at` it queues its crisis and logs an `escalate` feed entry (toast); it re-arms only once the intensity
+  falls `REARM` (0.3) below (`RuleState.fired`, hashed). Polluted coast 0.7 → algal bloom, heat island 0.8 →
+  heatwave, long debt 0.6 → **workers' strike** (new crisis: workplace `staffing` modifier, half as hard once the
+  city is out of debt), new rule **Strained grid** (power margin under ≈8%, 30+ buildings) 0.8 → grid failure.
+  Low approval → protest was already causal in Phase 26's happenings, so it stays there (and counts in tension).
+- **Chains** (`followUps` on a `CrisisDef`, rolled when it ends, only while `autoCrises`): monsoon → **landslide**
+  (new crisis; needs bare slopes: lot + 3-tile ring spanning ≥ 3 height units with ecology < 0.55, `sim/slopes.ts`;
+  2.5× in Monsoon), heatwave → industrial fire, earthquake → grid failure. The quake → tsunami roll stays in
+  `disasters.ts` (it fires at the quake's start, not its end).
+- **One queue** (`steward.director.queue`, ≤ 3, one per crisis, 10-min expiry): escalations wait `MIN_GAP` (75 s) of
+  calm, chain links `CHAIN_GAP` (15 s) and jump the queue. The scheduler forecasts the queue head before it rolls the
+  odds, so "one crisis at a time" holds; the forecast carries a `cause` (toast, Flora's notice, incident log).
+- **Director** (`updateDirector`, end of the pulse): tension = systems Strained+ (≤ 0.6) + crisis / fires + forecast
+  warnings + unhappy residents + fail clock, smoothed (EWMA 0.05/s); mastery = EWMA of how fast each spell of
+  trouble (Critical tier, active crisis, fire) clears (≤ 30 s → 1, ≥ 270 s → 0). Band per difficulty (Relaxed
+  0.10–0.30, Steward 0.18–0.42, Hard 0.28–0.55, Sandbox none), shifted by up to ±0.06 with mastery. Below: pace
+  (crisis odds; happening gaps divide by it) climbs to 1.8, drift builds over 30 min. Above: pace falls to 0.5, the
+  calm gap stretches to 2.5× `MIN_GAP` (never below it), drift clears in 5 min. In band: dials ease back to 1.
+- **Drift** (the showcase's pressure): up to +25% power and +20% water demand on consumers and 1.5× ageing, ×1.5 in
+  the Haze. Measured on the founding city (seed 20261024): the producers' level-ups outgrow +12% / +10%, so the
+  first numbers were too gentle to matter.
+- **Off** in tests (`makeSim`), the trailer and Sandbox (`steward.autoDirector`, saved, default on). Save v22.
+- **Not done:** request size by pace, a Settings toggle, a tension readout in City Pulse (Flora's `whats_coming`
+  reports it: `pressure`, `risks`).
+- **Import cycle:** `crises.ts` → `director.ts` → `forecast.ts` → `consequences.ts` → … → `hazards.ts` called
+  `registerCrisis` before `crises.ts` finished. What the scheduler and the rules need lives in `directorCore.ts`.

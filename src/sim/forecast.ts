@@ -1,6 +1,7 @@
 import type { City } from './City';
 import { netIncome } from './finance';
-import { getCrisis } from './crises';
+import { getCrisis, leadFor } from './crises';
+import { risksBuilding } from './consequences';
 import { PULSE_TICKS } from './pulseConst';
 import { INDICATOR_NAMES as N } from './indicators';
 import { SEASONS, SEASON_SECONDS, seasonAt } from './seasons';
@@ -319,7 +320,7 @@ export function forecastFor(city: City, metric: ForecastMetric): Forecast {
 }
 
 export interface ComingUp {
-  kind: 'forecast' | 'season' | 'crisis';
+  kind: 'forecast' | 'season' | 'crisis' | 'risk';
   /** Sim seconds from now. */
   in: number;
   title: string;
@@ -354,6 +355,23 @@ export function comingUp(city: City, limit = 3): ComingUp[] {
       detail: 'Forecast by the island watch: prepare now.',
       tone: 'bad',
     });
+  }
+  // What the director owes the city (plan v5, Phase 27): an escalation or chain link waiting for its calm gap.
+  const calm = (city.tick - city.steward.lastCrisisEndTick) / PULSE_TICKS;
+  for (const q of city.steward.director.queue) {
+    const busy = city.steward.crises.length > 0;
+    out.push({
+      kind: 'crisis',
+      in: (busy ? 60 : Math.max(0, q.gap - calm)) + leadFor(city, q.crisis),
+      title: `${getCrisis(q.crisis).name} brewing`,
+      detail: `Brought on by ${q.cause.charAt(0).toLowerCase()}${q.cause.slice(1)}. ${getCrisis(q.crisis).prep}`,
+      tone: 'bad',
+    });
+  }
+  // Neglect building toward a crisis: the lever is in the detail.
+  for (const r of risksBuilding(city)) {
+    if (r.eta > HORIZON) continue;
+    out.push({ kind: 'risk', in: r.eta, title: `Risk: ${getCrisis(r.crisis).name.toLowerCase()}`, detail: r.text, tone: 'warn' });
   }
   const { index, progress } = seasonAt(city.tick);
   const next = SEASONS[(index + 1) % SEASONS.length]!;

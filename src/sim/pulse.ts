@@ -16,6 +16,7 @@ import { updateProjects } from './projects';
 import { updateWonders, wonderHarmony } from './wonders';
 import { ageWear, size, updateLevels, upkeepMul, use } from './levels';
 import { updateConsequences } from './consequences';
+import { updateDirector } from './director';
 import { updateHappenings } from './happenings';
 import { netIncome, taxSplit, updateFinance } from './finance';
 import { sectorOf } from './policies';
@@ -291,7 +292,8 @@ export const pulseSystem: System<SimCtx> = {
         // A steep business tax squeezes shops and works (plan v5): above 15% they hire less.
         const squeeze =
           (def.category === 'commercial' || def.category === 'industry' ? businessSqueeze : 1) *
-          (protest > -2 && districtIndexOf(city, eid) === protest ? APPROVAL.protestStaffing : 1);
+          (protest > -2 && districtIndexOf(city, eid) === protest ? APPROVAL.protestStaffing : 1) *
+          mod.staffing;
         const target = isFlooded || isOffline || Service.off[eid] ? 0 : staffing * clamp(service + 0.2, 0, 1) * squeeze;
         Service.occupancy[eid] = approach(occ, target, 0.03, 0.02);
         if (Service.occupancy[eid]! < 0.5 && !Service.off[eid]) p |= Problem.UNSTAFFED;
@@ -395,6 +397,8 @@ export const pulseSystem: System<SimCtx> = {
     updateWonders(city);
     updateHappenings(city);
     updateConsequences(city);
+    // The director reads this pulse's settled state; the crisis step reads its dials on the next (Phase 27).
+    updateDirector(city);
 
     // History.
     if ((city.tick / PULSE_TICKS) % HISTORY_EVERY === 0) {
