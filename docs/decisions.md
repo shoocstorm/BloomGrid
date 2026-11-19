@@ -3215,3 +3215,23 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
 - **Not done**: the lighthouse beam, Aurora searchlights and parked police drones (module effects on top of models)
   are not on stage; no thumbnails in the list (each would need a render); no screenshot button (photo mode has one).
 
+
+## D-172 — Juice that pulls: golden tips, showers, a combo meter, "almost there" (2026-11-18)
+
+- **Why**: D-118's tips were all the same, and combos almost never happened (bubbles float 20–35 s apart, the combo
+  window is 7 s), so the combo was a mechanic players never found. Nothing marked the last stretch of a milestone.
+- **Golden tips**: once 3 tips were popped, each bubble has a 1-in-10 chance to be golden (rolled cosmetically in
+  the module, like where bubbles float). `collectTip` takes `golden`, and the sim pays `GOLDEN_TIP` (×4) on top of
+  combo and Harmony, so a replayed log pays the same; no new saved state. A golden bubble lasts 18 s instead of 32
+  (a reason to look now, not a timer to dread), has a breathing halo (opacity on a pseudo-element) and a quiet
+  `shimmer` cue on appearing; popping it plays `golden`.
+- **Showers**: after 2 tips, a spawn has a 1-in-5 chance to fill up to `MAX_BUBBLES`, the extra bubbles rising
+  0.35 s apart (CSS `--in` delay; their age starts negative to match), so a combo is actually reachable.
+- **Combo meter**: a chip under the top bar (under the chips on phones) after a pop while another bubble floats:
+  the combo, the next pop's value (from `tipValue`), and a bar draining over `COMBO_WINDOW` (one CSS animation,
+  restarted per pop). Hidden when the window closes or nothing is left to pop.
+- **Almost there**: the milestone card gets `.near` at ≥ 80% of a counted goal: a highlight sweeps the bar, the
+  count reads "· almost there", the pill "Almost: …".
+- **Rejected**: daily login streaks and loss-framed timers (they fight the steward role and the "bonus, not income"
+  rule of D-118); golden odds in `city.rng` (cosmetic spawning stays out of the hash).
+- Measured: DOM only, a few extra elements at most; draw calls unchanged.

@@ -10,7 +10,7 @@ import {
   nextMilestone,
   type MilestoneDef,
 } from '@/sim/milestones';
-import { tipValue } from '@/sim/tips';
+import { GOLDEN_TIP, TIP_COMBO_MAX, tipValue } from '@/sim/tips';
 import { isRuined } from '@/sim/hazards';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
@@ -26,10 +26,14 @@ import './juice.css';
  *
  * - **Tip bubbles**: every 20–35 s of running time a happy building in view floats a bubble. Popping it pays a tip
  *   (`collectTip`, valued by the sim), shows what the resident said (`quotes.ts`), and quick pops in a row build
- *   a combo (up to ×5). Bubbles left alone drift away after half a minute.
+ *   a combo (up to ×5). Bubbles left alone drift away after half a minute. Now and then several float at once
+ *   (a *shower*), so a combo is there to be had, and a live meter under the top bar shows the combo draining and
+ *   what the next pop is worth. Once the player has popped a few, about one bubble in ten is *golden*: it pays
+ *   ×4 (the sim's `GOLDEN_TIP`) but leaves after 18 s (D-172).
  * - **Milestone tracker**: a card under the top bar shows the next steward milestone (`sim/milestones.ts`) with
  *   its progress, a Build shortcut and, once reached, a glowing Claim button. Claiming throws confetti, flies
- *   coins into the credits counter and turns the card to the next one. It folds to a pill.
+ *   coins into the credits counter and turns the card to the next one. It folds to a pill. Past 80% it reads
+ *   "Almost there" and its bar shimmers, so the last stretch pulls (D-172).
  * - **Build ready**: when a new building's last piece lands (`building:ready`), a burst of petals and what it adds
  *   ("+24 residents", "+30 energy") float off its roof; quick builds in a row step the chime up.
  * - **Coins**: tips and claims fly coins on an arc into the top bar's credits, which bump when they arrive.
@@ -38,13 +42,13 @@ import './juice.css';
  * at once), everything else runs on CSS. Sounds hang off the `juice` event in the audio module. Ambient motion
  * stays small (a gentle bob), per the subtle-motion rule.
  */
-export type JuiceSound = 'tip' | 'coin' | 'ready' | 'claimable' | 'claim';
+export type JuiceSound = 'tip' | 'golden' | 'shimmer' | 'coin' | 'ready' | 'claimable' | 'claim';
 
 export interface JuiceService {
   /** Tip bubbles on or off (per viewer). */
   tips: boolean;
-  /** Spawns a tip bubble now (scripts and scenes). */
-  spawnTip(): boolean;
+  /** Spawns a tip bubble now (scripts and scenes); `golden` forces a golden one. */
+  spawnTip(golden?: boolean): boolean;
 }
 
 declare module '@/core/Services' {
@@ -69,6 +73,14 @@ const FIRST_TIP = 10;
 const TIP_GAP: [number, number] = [20, 35];
 /** Pops this close together (real seconds) build a combo. */
 const COMBO_WINDOW = 7;
+/** Golden bubbles (D-172): the chance per bubble once this many tips were popped, and their shorter life. */
+const GOLDEN_CHANCE = 0.1;
+const GOLDEN_AFTER = 3;
+const GOLDEN_LIFE = 18;
+/** The chance that a spawn turns into a shower (fills up to `MAX_BUBBLES`), once two tips were popped. */
+const SHOWER_CHANCE = 0.2;
+/** The milestone card reads "Almost there" from here. */
+const NEAR = 0.8;
 /** Buildings ready this close together step the chime up. */
 const STREAK_WINDOW = 12;
 const TIP_CATEGORIES = new Set(Object.keys(TIP_ICONS));
@@ -105,8 +117,10 @@ interface Bubble extends Anchored {
   uid: number;
   eid: number;
   category: string;
-  /** Running-time age (holds while paused). */
+  golden: boolean;
+  /** Running-time age (holds while paused) and lifetime. */
   age: number;
+  life: number;
 }
 
 class Juice {
@@ -122,6 +136,12 @@ class Juice {
   private lastReady = -1e9;
   private timer = 0;
   tips = store.get(TIPS_KEY) !== 'off';
+
+  // Combo meter (D-172): shown while a combo can still grow.
+  private meter = h('div', { class: 'jc-meter hidden', role: 'status' });
+  private mCombo = h('b', { class: 'jc-meter-x' });
+  private mNext = h('span', { class: 'jc-meter-next' });
+  private mBar = h('i');
 
   // Milestone tracker.
   private card: HTMLElement;
@@ -142,6 +162,9 @@ class Juice {
   constructor(private ctx: GameContext) {
     ctx.hud.append(this.world);
     document.body.append(this.top);
+    this.meter.append(this.mCombo, this.mNext, h('span', { class: 'jc-meter-bar' }, this.mBar));
+    this.top.append(this.meter);
+    this.meter.style.setProperty('--win', `${COMBO_WINDOW}s`);
     this.card = h(
       'section',
       { class: 'jc-m panel holo hidden', 'aria-label': 'Next milestone' },
@@ -173,7 +196,8 @@ class Juice {
           title: 'Show the next milestone',
           onClick: () => {
             // Inspecting something: the card waits as a pill beside the inspector, so showing it closes that.
-            if (this.card.parentElement?.querySelector(':scope > .info:not(.hidden)')) ctx.bus.emit('selection:changed', { eid: null });
+            if (this.card.parentElement?.querySelector(':scope > .info:not(.hidden)'))
+              ctx.bus.emit('selection:changed', { eid: null });
             this.fold(false);
           },
         },
@@ -256,23 +280,42 @@ class Juice {
     return { eid: pick.eid, x: e[12]!, y: e[13]! + Math.min(22, p.template.height) + 2.2, z: e[14]! };
   }
 
-  spawnTip(): boolean {
+  spawnTip(golden?: boolean, delay = 0): boolean {
     if (this.bubbles.length >= MAX_BUBBLES) return false;
     const spot = this.pickTipSpot();
     if (!spot) return false;
     const { city } = this.ctx;
     const category = city.buildingDef(spot.eid).category;
+    golden ??= city.growth.tips >= GOLDEN_AFTER && Math.random() < GOLDEN_CHANCE;
+    const life = golden ? GOLDEN_LIFE : BUBBLE_LIFE;
     const el = h(
       'button',
-      { class: 'jc-bubble', title: 'A resident left a tip: click to collect', 'aria-label': 'Collect a tip' },
+      {
+        class: golden ? 'jc-bubble golden' : 'jc-bubble',
+        style: delay ? `--in:${delay.toFixed(2)}s` : undefined,
+        title: golden
+          ? `A golden tip, worth ×${GOLDEN_TIP}: catch it before it floats away`
+          : 'A resident left a tip: click to collect',
+        'aria-label': golden ? 'Collect a golden tip' : 'Collect a tip',
+      },
       h(
         'span',
         { class: 'jc-bubble-in' },
-        icon(TIP_ICONS[category] ?? 'happy'),
-        h('span', { class: 'jc-bubble-v' }, `◈${tipValue(city, 1)}`),
+        icon(golden ? 'sparkle' : (TIP_ICONS[category] ?? 'happy')),
+        h('span', { class: 'jc-bubble-v' }, `◈${tipValue(city, 1, golden)}`),
       ),
     );
-    const b: Bubble = { el, ...spot, uid: Building.uid[spot.eid]!, category, left: BUBBLE_LIFE + 1, age: 0 };
+    if (golden) this.ctx.bus.emit('juice', { sound: 'shimmer' });
+    const b: Bubble = {
+      el,
+      ...spot,
+      uid: Building.uid[spot.eid]!,
+      category,
+      golden,
+      left: life + 1,
+      age: -delay,
+      life,
+    };
     el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
     el.addEventListener('click', (ev) => {
       ev.stopPropagation();
@@ -291,13 +334,24 @@ class Juice {
     const city = this.ctx.city;
     const before = city.credits;
     // A tip is a receipt, not an edit: off the undo stack, so ⌘Z still undoes the last build.
-    if (!this.ctx.commands.execute('collectTip', { uid: b.uid, combo: this.combo }, false)) return;
+    if (!this.ctx.commands.execute('collectTip', { uid: b.uid, combo: this.combo, golden: b.golden }, false))
+      return;
     const amount = Math.round(city.credits - before);
     b.el.classList.add('popped');
     b.left = 0.45;
-    this.ctx.bus.emit('juice', { sound: 'tip', step: this.combo - 1 });
+    this.ctx.bus.emit('juice', { sound: b.golden ? 'golden' : 'tip', step: this.combo - 1 });
     // The burst, what was said, and the amount, over the building.
-    this.anchor(h('div', { class: 'jc-burst tone-tip' }, ...petals(8)), b.x, b.y, b.z, 0.9);
+    this.anchor(
+      h(
+        'div',
+        { class: b.golden ? 'jc-burst tone-golden' : 'jc-burst tone-tip' },
+        ...petals(b.golden ? 14 : 8),
+      ),
+      b.x,
+      b.y,
+      b.z,
+      0.9,
+    );
     const voice = voiceFor(city, b.category, Math.random(), b.x, b.z);
     this.anchor(
       h(
@@ -305,6 +359,9 @@ class Juice {
         { class: 'jc-say' },
         h('q', {}, voice.text),
         h('cite', {}, voice.by),
+        b.golden
+          ? h('span', { class: 'jc-combo jc-gold' }, icon('sparkle'), `Golden tip ×${GOLDEN_TIP}`)
+          : null,
         this.combo > 1 ? h('span', { class: 'jc-combo' }, `Combo ×${this.combo}`) : null,
       ),
       b.x,
@@ -313,7 +370,42 @@ class Juice {
       2.8,
     );
     const r = b.el.getBoundingClientRect();
-    this.coins(r.left + r.width / 2, r.top + r.height / 2, amount, Math.min(6, 2 + this.combo));
+    this.coins(
+      r.left + r.width / 2,
+      r.top + r.height / 2,
+      amount,
+      b.golden ? 9 : Math.min(6, 2 + this.combo),
+    );
+    this.showMeter();
+  }
+
+  /** The combo meter: while another bubble floats, the combo is there to grow; the bar drains with the window. */
+  private showMeter(): void {
+    const left = this.bubbles.filter((o) => !o.el.classList.contains('popped'));
+    if (!left.length) {
+      this.meter.classList.add('hidden');
+      return;
+    }
+    const next = Math.min(TIP_COMBO_MAX, this.combo + 1);
+    setText(
+      this.mCombo,
+      this.combo >= TIP_COMBO_MAX ? `Max combo ×${TIP_COMBO_MAX}` : `Combo ×${this.combo}`,
+    );
+    setText(
+      this.mNext,
+      `next pop ◈${fmt(
+        tipValue(
+          this.ctx.city,
+          next,
+          left.some((o) => o.golden),
+        ),
+      )}`,
+    );
+    this.meter.classList.remove('hidden');
+    // Restart the drain.
+    this.mBar.classList.remove('run');
+    void this.mBar.offsetWidth;
+    this.mBar.classList.add('run');
   }
 
   // ── Build ready ──
@@ -457,6 +549,9 @@ class Juice {
     if (block) setText(this.cWhy, block.reason);
     const key = `${m.id}|${done}|${claimable}|${build ?? ''}|${block?.kind ?? ''}|${block?.steps.find((s) => s.act)?.act?.label ?? ''}`;
     this.card.classList.toggle('ready', done);
+    const near = !done && p.need > 1 && k >= NEAR;
+    this.card.classList.toggle('near', near);
+    if (near) setText(this.cPill, `Almost: ${m.title} · ${Math.round(k * 100)}%`);
     if (key === this.shown) return;
     this.shown = key;
     setText(this.cTitle, m.title);
@@ -481,12 +576,24 @@ class Juice {
         parts.push(
           h(
             'button',
-            { class: 'jc-do', title: `Build a ${name}`, onClick: () => this.ctx.services.get('construction').startBuilding(build) },
+            {
+              class: 'jc-do',
+              title: `Build a ${name}`,
+              onClick: () => this.ctx.services.get('construction').startBuilding(build),
+            },
             icon('build'),
             `Build ${name}`,
           ),
         );
-      if (step) parts.push(h('button', { class: 'jc-do jc-next', onClick: () => runGate(this.ctx, step.action) }, icon('next'), step.label));
+      if (step)
+        parts.push(
+          h(
+            'button',
+            { class: 'jc-do jc-next', onClick: () => runGate(this.ctx, step.action) },
+            icon('next'),
+            step.label,
+          ),
+        );
       this.cAct.replaceChildren(...parts);
     } else this.cAct.replaceChildren();
   }
@@ -544,8 +651,8 @@ class Juice {
     // Bubbles age only while time runs; they drift away at the end of their life.
     for (const b of this.bubbles) {
       if (running && !b.el.classList.contains('popped')) b.age += dt;
-      if (b.age > BUBBLE_LIFE - 4) b.el.classList.add('fading');
-      if (b.age >= BUBBLE_LIFE) b.left = Math.min(b.left, 0.01);
+      if (b.age > b.life - 4) b.el.classList.add('fading');
+      if (b.age >= b.life) b.left = Math.min(b.left, 0.01);
       if (b.el.classList.contains('popped')) b.left -= dt;
     }
     for (const a of this.fx) a.left -= dt;
@@ -557,8 +664,21 @@ class Juice {
     }
     if (running && this.tips && (this.nextTip -= dt * Math.min(2, this.ctx.engine.speed)) <= 0) {
       // Nothing in view: try again shortly.
-      this.nextTip = this.spawnTip() ? TIP_GAP[0] + Math.random() * (TIP_GAP[1] - TIP_GAP[0]) : 5;
+      const ok = this.spawnTip();
+      // A shower: the rest float up one after another, so a combo is there for the taking.
+      if (ok && this.ctx.city.growth.tips >= 2 && Math.random() < SHOWER_CHANCE)
+        for (let i = 1; this.bubbles.length < MAX_BUBBLES && i < MAX_BUBBLES; i++)
+          this.spawnTip(undefined, i * 0.35);
+      this.nextTip = ok ? TIP_GAP[0] + Math.random() * (TIP_GAP[1] - TIP_GAP[0]) : 5;
     }
+    // The meter goes when the window closes or nothing is left to pop.
+    if (
+      !this.meter.classList.contains('hidden') &&
+      (!live ||
+        performance.now() / 1000 - this.lastPop > COMBO_WINDOW ||
+        !this.bubbles.some((b) => !b.el.classList.contains('popped')))
+    )
+      this.meter.classList.add('hidden');
     if ((this.timer += dt) < 0.25) return;
     this.timer = 0;
     if (!this.ctx.loading) this.watchReady();
@@ -614,7 +734,7 @@ export const juiceModule: GameModule = {
         juice.tips = on;
         store.set(TIPS_KEY, on ? 'on' : 'off');
       },
-      spawnTip: () => juice.spawnTip(),
+      spawnTip: (golden?: boolean) => juice.spawnTip(golden),
     });
   },
 };

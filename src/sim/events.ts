@@ -91,7 +91,7 @@ declare module '@/core/EventBus' {
     'policy:changed': { id: string; on: boolean };
     'happening:met': { happening: Happening };
     'happening:end': { happening: Happening; outcome: 'claimed' | 'missed' | 'done' };
-    'tip:collected': { eid: number; amount: number; combo: number };
+    'tip:collected': { eid: number; amount: number; combo: number; golden: boolean };
     /** Levels and ageing (D-073): a building changed level (grew, was upgraded, or an upgrade was undone); renovated. */
     'building:tier': { eid: number; tier: number; paid: boolean };
     'building:renovated': { eid: number };

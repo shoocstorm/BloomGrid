@@ -9,7 +9,7 @@ import {
   nextMilestone,
   openMilestones,
 } from '@/sim/milestones';
-import { tipValue } from '@/sim/tips';
+import { GOLDEN_TIP, tipValue } from '@/sim/tips';
 import { deserializeCity, migrateSave, serializeCity, type SaveData } from '@/sim/save';
 import { makeSim } from './helpers';
 
@@ -96,6 +96,19 @@ describe("residents' tips (D-118)", () => {
     commands.undo();
     expect(city.hash()).toBe(before);
     expect(commands.execute('collectTip', { uid: 999999, combo: 1 })).toBe(false);
+  });
+
+  it('a golden tip (D-172) pays GOLDEN_TIP times as much, and replays the same', () => {
+    const s = fresh();
+    const { city, commands } = s;
+    const uid = city.buildingRecord(firstHome(s)).uid!;
+    expect(tipValue(city, 1, true)).toBeGreaterThanOrEqual(tipValue(city, 1) * GOLDEN_TIP - 2);
+    const c0 = city.credits;
+    let golden: boolean | undefined;
+    city.bus.on('tip:collected', (e) => (golden = e.golden));
+    expect(commands.execute('collectTip', { uid, combo: 1, golden: true }, false)).toBe(true);
+    expect(golden).toBe(true);
+    expect(city.credits - c0).toBeCloseTo(tipValue(city, 1, true));
   });
 
   it('tip and milestone state round-trips through a save, and v16 saves migrate', () => {

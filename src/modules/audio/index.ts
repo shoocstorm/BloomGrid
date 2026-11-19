@@ -473,6 +473,15 @@ export const audioModule: GameModule = {
         s.burst(0.07, 0.12, 'highpass', 2400);
         s.tone(up(660, step), 0.16, 0.09, 'sine', up(1320, step));
         s.tone(up(1320, step), 0.25, 0.035, 'triangle', undefined, 0.06);
+      } else if (sound === 'golden') {
+        // Golden tip (D-172): the tip's pop with a bright arpeggio on top.
+        s.burst(0.09, 0.12, 'highpass', 2400);
+        s.tone(up(880, step), 0.18, 0.09, 'sine', up(1760, step));
+        [1319, 1568, 2093].forEach((f, i) => s.tone(f, 0.4, 0.045, 'triangle', undefined, 0.08 + i * 0.06));
+      } else if (sound === 'shimmer') {
+        // A golden bubble appears: two soft, high notes, quiet enough not to nag.
+        s.tone(2093, 0.5, 0.02, 'sine', undefined);
+        s.tone(2637, 0.6, 0.018, 'sine', undefined, 0.1);
       } else if (sound === 'coin') {
         s.tone(1568, 0.12, 0.05, 'triangle');
         s.tone(2093, 0.3, 0.05, 'triangle', undefined, 0.07);

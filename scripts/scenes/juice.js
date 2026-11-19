@@ -1,6 +1,6 @@
 // Juice drill (D-118) on `?scenario=fresh-island&nowizard`: frames the hamlet, floats tip bubbles, places a home
 // (its ready burst), and makes the next milestone claimable. `window.POP = 1` pops a bubble mid-capture (coins,
-// quote, combo); `window.CLAIM = 1` claims the milestone (confetti, coins). Evaluated by scripts/snap.mjs.
+// quote, combo meter); `window.GOLD = 1` makes the first bubble golden (D-172); `window.CLAIM = 1` claims the milestone (confetti, coins). Evaluated by scripts/snap.mjs.
 (async () => {
   const g = window.bloomgrid;
   const c = g.city;
@@ -11,7 +11,7 @@
   g.cameraCtl.lookAt(r0.x + 4, r0.z + 4, window.NEAR ?? 55, true);
   await wait(600);
   const juice = g.services.get('juice');
-  const tips = [juice.spawnTip(), juice.spawnTip(), juice.spawnTip()].filter(Boolean).length;
+  const tips = [juice.spawnTip(!!window.GOLD), juice.spawnTip(false), juice.spawnTip(false)].filter(Boolean).length;
   const def = 'garden-residence';
   const defs = (await import('/src/content/index.ts')).buildings;
   let built = false;
@@ -33,6 +33,8 @@
     built,
     bubbles: document.querySelectorAll('.jc-bubble').length,
     card: document.querySelector('.jc-m')?.className,
+    golden: document.querySelectorAll('.jc-bubble.golden').length,
+    meter: document.querySelector('.jc-meter')?.textContent,
     credits: Math.round(c.credits),
     ms: c.growth.milestones,
   };
