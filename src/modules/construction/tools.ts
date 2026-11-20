@@ -32,6 +32,11 @@ declare module '@/core/EventBus' {
     'selection:changed': { eid: number | null; road?: number; eids?: number[]; bridge?: string; object?: string };
     /** With `at` (tile coordinates), the toast is a button that flies the camera there. */
     toast: { text: string; tone?: 'ok' | 'bad' | 'info'; at?: { x: number; z: number } };
+    /**
+     * The Build tool placed a building (D-174): build mode reads it to put the tool down after one placement,
+     * unless `shift` was held (place several) or the steward chose to keep placing.
+     */
+    'build:placed': { def: string; x: number; z: number; shift: boolean; touch: boolean };
   }
 }
 
@@ -356,7 +361,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
     } else ghost.hideAll();
     ctx.bus.emit('tool:tooltip', {
       text: res.ok
-        ? `${def.name} · ${fmt(def.stats.cost)} ◈${pv ? previewText(pv) : ''} · ${pinned() ? 'tap a lot to build' : 'R to rotate'}${res.warning ? ` · ⚠ ${res.warning}` : ''}`
+        ? `${def.name} · ${fmt(def.stats.cost)} ◈${pv ? previewText(pv) : ''} · ${pinned() ? 'tap a lot to build' : 'R rotate · Shift-click places several'}${res.warning ? ` · ⚠ ${res.warning}` : ''}`
         : `${def.name} — ${blockedText(ctx, def.id, res.reason!)}`,
       tone: res.ok && !res.warning ? 'ok' : 'bad',
     });
@@ -415,6 +420,8 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
           const [w, d] = ctx.city.footprint(def, build.rot);
           spot = suggestLot(ctx, Math.floor(x + w / 2), Math.floor(z + d / 2));
         }
+        // Last: build mode may put the tool down (one placement, D-174).
+        ctx.bus.emit('build:placed', { def: def.id, x, z, shift: e.shift, touch: e.touch });
       } else {
         // Say why, and for a lock, limit or empty purse what to do next (the Build panel's card lists the steps).
         const res = ctx.city.checkPlacement(def, x, z, build.rot);

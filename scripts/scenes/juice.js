@@ -1,6 +1,7 @@
 // Juice drill (D-118) on `?scenario=fresh-island&nowizard`: frames the hamlet, floats tip bubbles, places a home
 // (its ready burst), and makes the next milestone claimable. `window.POP = 1` pops a bubble mid-capture (coins,
-// quote, combo meter); `window.GOLD = 1` makes the first bubble golden (D-172); `window.CLAIM = 1` claims the milestone (confetti, coins). Evaluated by scripts/snap.mjs.
+// quote, combo meter); `window.GOLD = 1` makes the first bubble golden (D-172); `window.CLAIM = 1` claims the milestone (confetti, coins);
+// `window.EARLY = 1` (D-173) lands a catch at the first dock and shows the Day recap (a First badge follows a pop). Evaluated by scripts/snap.mjs.
 (async () => {
   const g = window.bloomgrid;
   const c = g.city;
@@ -27,7 +28,15 @@
   if (window.POP) document.querySelector('.jc-bubble')?.click();
   if (window.POP) setTimeout(() => document.querySelectorAll('.jc-bubble:not(.popped)')[0]?.click(), 500);
   if (window.CLAIM) document.querySelector('.jc-claim')?.click();
-  await wait(window.POP || window.CLAIM ? 450 : 0);
+  if (window.EARLY) {
+    const dock = c.buildingEntities().find((e) => c.buildingDef(e).fishing);
+    if (dock) {
+      const d = c.buildingRecord(dock);
+      g.bus.emit('fishing:landed', { eid: dock, x: d.x + 1, z: d.z + 4, amount: 24 });
+    }
+    juice.recap();
+  }
+  await wait(window.POP || window.CLAIM || window.EARLY ? 450 : 0);
   return {
     tips,
     built,
@@ -35,6 +44,7 @@
     card: document.querySelector('.jc-m')?.className,
     golden: document.querySelectorAll('.jc-bubble.golden').length,
     meter: document.querySelector('.jc-meter')?.textContent,
+    firsts: juice.firsts().filter((f) => f.earned).map((f) => f.id),
     credits: Math.round(c.credits),
     ms: c.growth.milestones,
   };

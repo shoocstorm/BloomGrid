@@ -3,7 +3,7 @@ id: basics-first-hour
 title: The first hour on a fresh island
 category: basics
 summary: A practical opening for a new island: fishing income, the first homes and utilities, and what to unlock first.
-tags: [start, new game, fresh island, fishing, opening, early game, move building, relocate]
+tags: [start, new game, fresh island, fishing, opening, early game, move building, relocate, place several, keep placing, build mode closes, shift click]
 related: [playbooks-fresh-island, systems-budget, systems-power]
 order: 3
 ---
@@ -38,6 +38,13 @@ harmony. See [Jobs and housing](kb:systems-jobs-housing).
 The Goals tab of the Build panel (B, then Goals) lists the unlock projects (the Sky-lane charter, the Aeroline, Wake Flora) and their
 conditions. Waking Flora early makes her advice available, but every request costs credits. See
 [Fresh island playbook](kb:playbooks-fresh-island).
+
+## Place one building, or several in a row
+
+Placing a building closes build mode, since most builds are one building for a purpose. An **Another …** button
+then waits beside **Build** for a few seconds to pick the same one up again. To place several in a row, hold
+**Shift** while clicking, or switch on **Keep placing** at the top of the Build panel: the building stays in hand
+until you press **Done** (or **Esc**), or until you can't afford or fit another, and the panel says why.
 
 ## 6. Move a building to a better lot
 

@@ -301,3 +301,35 @@
 .gl-charter.running {
   border-color: var(--accent-2);
 }
+
+/* Firsts (D-173): earned badges in gold, the rest dimmed. */
+.gl-firsts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+.gl-first {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 6px;
+  border: 1px dashed var(--line);
+  border-radius: var(--pill);
+  color: var(--ink-faint);
+  font: 500 11.5px/16px var(--ui);
+}
+.gl-first svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0.6;
+}
+.gl-first.got {
+  border: 1px solid rgba(255, 207, 106, 0.55);
+  background: rgba(255, 207, 106, 0.1);
+  color: #ffdf94;
+}
+.gl-first.got svg {
+  opacity: 1;
+  color: #ffcf6a;
+}

@@ -2,6 +2,8 @@ import type { GameModule } from '@/game/context';
 import type { BuildingCategory } from '@/content/types';
 import { isCompact } from '@/platform/device';
 import { BuildPanel, type BuildTab } from './BuildPanel';
+import { buildings } from '@/content';
+import { buildBlock } from '@/sim/buildGate';
 import './build.css';
 
 export interface BuildService {
@@ -30,6 +32,11 @@ declare module '@/core/Services' {
  * button (or B, or any build hotkey) and left with Done, Esc or B. City Pulse stays a monitoring console; on
  * desktops it folds while build mode is open and comes back as it was. Goals (unlock projects, milestones) are a
  * tab of this panel (D-153): goals are met by building.
+ *
+ * One placement, then out (D-174): placing a building closes build mode, since most placements are one building
+ * for a purpose (a milestone, a shortage, Flora's advice). Shift-click, or "Keep placing" in the panel's header,
+ * keeps it in hand; then build mode still closes, saying why, once another can't be placed (credits, limit). After
+ * closing, an "Another …" pill above the launcher picks the same building up again in one click.
  */
 export const buildModule: GameModule = {
   id: 'build',
@@ -86,7 +93,20 @@ export const buildModule: GameModule = {
     });
     // The inspector takes the 3D stage; a new city starts outside build mode.
     ctx.bus.on('selection:changed', ({ eid, road, eids }) => (eid != null || road !== undefined || eids?.length) && panel.dropFloat());
-    ctx.bus.on('city:reset', () => setOpen(false));
+    ctx.bus.on('city:reset', () => {
+      setOpen(false);
+      panel.hideAgain();
+    });
+    ctx.bus.on('build:placed', ({ def, shift }) => {
+      if (!panel.open || ctx.tools.active?.id !== 'build') return;
+      const block = buildBlock(ctx.city, def);
+      if (shift || panel.keepPlacing) {
+        if (!block) return;
+        ctx.bus.emit('toast', { text: `No more ${buildings.get(def).name} for now: ${block.reason}`, tone: 'info' });
+      }
+      setOpen(false);
+      if (!block) panel.offerAgain(def);
+    });
 
     ctx.input.onKey((e) => {
       if (ctx.tools.suspended || e.metaKey || e.ctrlKey || e.altKey) return false;

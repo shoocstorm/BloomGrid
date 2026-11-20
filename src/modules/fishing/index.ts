@@ -5,6 +5,17 @@ import { buildings } from '@/content';
 import { getMaterial } from '@/render/materials/library';
 import { longlinerGeometry, trawlerGeometry, wakeGeometry } from './boat';
 import { U } from '@/render/uniforms';
+import { CATCH_VALUE, cleanSea } from '@/sim/fishing';
+
+declare module '@/core/EventBus' {
+  interface GameEvents {
+    /**
+     * A boat is home with its catch (D-173): the juice module floats the haul over the dock. `amount` is what the
+     * boat's trip earned at today's stock, staffing and sea (cosmetic: the sim pays the catch continuously).
+     */
+    'fishing:landed': { eid: number; x: number; z: number; amount: number };
+  }
+}
 
 /** Seconds for a boat's round trip: out, a slow circle over the fishing ground, home. */
 const TRIP = 70;
@@ -21,6 +32,8 @@ interface Route {
   reach: number;
   boats: number;
   phase: number;
+  /** Each boat's trip phase last frame (an arrival is the wrap from ~1 to ~0). */
+  last: number[];
 }
 
 const _m = new Matrix4();
@@ -51,6 +64,8 @@ export const fishingModule: GameModule = {
       ctx.scene.add(m);
     }
     const routes = new Map<number, Route>();
+    /** Last frame's clock: a jump (boot, a city change, a pinned clock) is not a boat coming home. */
+    let lastT = -1;
 
     const plan = (eid: number): Route | null => {
       const f = buildings.at(Building.def[eid]!).fishing;
@@ -84,6 +99,7 @@ export const fishingModule: GameModule = {
         reach: Math.min(30, best.run - 2),
         boats: f.boats,
         phase: (Building.uid[eid]! * 0.618) % 1,
+        last: [],
       };
     };
     const sync = () => {
@@ -106,6 +122,8 @@ export const fishingModule: GameModule = {
       phase: 'sync',
       update() {
         const t = U.clock.value;
+        const steady = lastT >= 0 && t >= lastT && t - lastT < 1;
+        lastT = t;
         const n = [0, 0];
         let nw = 0;
         for (const r of routes.values()) {
@@ -121,6 +139,21 @@ export const fishingModule: GameModule = {
             if (working) {
               // 0–0.35 out, 0.35–0.65 a slow circle on the ground, 0.65–1 home.
               const u = (t / TRIP + r.phase + i * 0.17) % 1;
+              const was = r.last[i];
+              r.last[i] = u;
+              if (steady && was !== undefined && was > 0.9 && u < 0.1 && !ctx.loading) {
+                const g = city.growth;
+                const mods = city.consequences.mods;
+                const amount =
+                  CATCH_VALUE *
+                  Service.occupancy[r.eid]! *
+                  g.fish *
+                  cleanSea(city) *
+                  mods.fishing *
+                  mods.fishEffort *
+                  TRIP;
+                ctx.bus.emit('fishing:landed', { eid: r.eid, x: r.x, z: r.z, amount });
+              }
               const out = u < 0.35 ? u / 0.35 : u < 0.65 ? 1 : 1 - (u - 0.65) / 0.35;
               const d = r.reach * (out * out * (3 - 2 * out));
               x = r.x + r.dx * d + px * lane;

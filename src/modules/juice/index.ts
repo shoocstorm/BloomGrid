@@ -18,6 +18,9 @@ import { isCompact, onCompactChange } from '@/platform/device';
 import { buildBlock } from '@/sim/buildGate';
 import { runGate } from '@/ui/gateSteps';
 import { TIP_ICONS, voiceFor } from './quotes';
+import { FIRSTS, FIRST_IDS } from './firsts';
+import { size } from '@/sim/levels';
+import { closeX } from '@/ui/closeX';
 import './juice.css';
 
 /**
@@ -38,17 +41,37 @@ import './juice.css';
  *   ("+24 residents", "+30 energy") float off its roof; quick builds in a row step the chime up.
  * - **Coins**: tips and claims fly coins on an arc into the top bar's credits, which bump when they arrive.
  *
+ * - **Early-game life (D-173)**: boats coming home float their haul over the dock (`fishing:landed`); homes
+ *   filling up float "+N" residents; the milestone card ticks "+1" as a counted goal moves; *Firsts* (`firsts.ts`)
+ *   badge sixteen discoveries of a fresh island once each (saved per city, listed in Build → Goals); and each dawn
+ *   a Day recap card sums up the day just ended (residents, treasury, builds, tips, catch, firsts).
+ *
  * DOM only, animated with transform / opacity keyframes (§7½); world-anchored pieces re-project each frame (≤ ~12
  * at once), everything else runs on CSS. Sounds hang off the `juice` event in the audio module. Ambient motion
  * stays small (a gentle bob), per the subtle-motion rule.
  */
-export type JuiceSound = 'tip' | 'golden' | 'shimmer' | 'coin' | 'ready' | 'claimable' | 'claim';
+export type JuiceSound =
+  | 'tip'
+  | 'golden'
+  | 'shimmer'
+  | 'coin'
+  | 'ready'
+  | 'claimable'
+  | 'claim'
+  | 'catch'
+  | 'first'
+  | 'day'
+  | 'tick';
 
 export interface JuiceService {
   /** Tip bubbles on or off (per viewer). */
   tips: boolean;
   /** Spawns a tip bubble now (scripts and scenes); `golden` forces a golden one. */
   spawnTip(golden?: boolean): boolean;
+  /** Every First (D-173) with whether this city has earned it, in catalogue order. */
+  firsts(): { id: string; title: string; line: string; icon: string; earned: boolean }[];
+  /** Shows the Day recap now for the day so far (scripts and scenes). */
+  recap(): void;
 }
 
 declare module '@/core/Services' {
@@ -81,6 +104,12 @@ const GOLDEN_LIFE = 18;
 const SHOWER_CHANCE = 0.2;
 /** The milestone card reads "Almost there" from here. */
 const NEAR = 0.8;
+/** Move-in chips (D-173): only while the city is small (or progressing), at most this many per scan. */
+const MOVE_IN_POP = 2500;
+const MOVE_IN_MAX = 3;
+/** Seconds a First badge or the Day recap stays up. */
+const FIRST_SHOW = 4.2;
+const RECAP_SHOW = 14;
 /** Buildings ready this close together step the chime up. */
 const STREAK_WINDOW = 12;
 const TIP_CATEGORIES = new Set(Object.keys(TIP_ICONS));
@@ -135,8 +164,28 @@ class Juice {
   private streak = 0;
   private lastReady = -1e9;
   private timer = 0;
+  private slow = 0;
   tips = store.get(TIPS_KEY) !== 'off';
 
+  // The screen stack under the top bar (D-173): combo meter, First badges, Day recap.
+  private stack = h('div', { class: 'jc-stack' });
+  // Firsts (D-173): earned ids, badges waiting to show, and a quiet pass after a city change.
+  private firstSet = new Set<string>();
+  private firstQueue: string[] = [];
+  private firstUp = 0;
+  private prime = true;
+  // Move-in chips: residents last shown per home.
+  private homes = new Map<number, number>();
+  // Day recap: the day's start and what happened since.
+  private day = 0;
+  private dayStart = { pop: 0, credits: 0, tips: 0, tipIncome: 0, fish: 0, firsts: 0 };
+  private dayBuilt = 0;
+  private bestGrowth = 0;
+  private recapEl: HTMLElement | null = null;
+  private recapLeft = 0;
+  // Milestone "+1" ticks.
+  private tickId = '';
+  private tickHave = 0;
   // Combo meter (D-172): shown while a combo can still grow.
   private meter = h('div', { class: 'jc-meter hidden', role: 'status' });
   private mCombo = h('b', { class: 'jc-meter-x' });
@@ -163,7 +212,8 @@ class Juice {
     ctx.hud.append(this.world);
     document.body.append(this.top);
     this.meter.append(this.mCombo, this.mNext, h('span', { class: 'jc-meter-bar' }, this.mBar));
-    this.top.append(this.meter);
+    this.stack.append(this.meter);
+    this.top.append(this.stack);
     this.meter.style.setProperty('--win', `${COMBO_WINDOW}s`);
     this.card = h(
       'section',
@@ -215,6 +265,23 @@ class Juice {
 
     const { bus } = ctx;
     bus.on('building:ready', ({ eid }) => this.built(eid));
+    bus.on('fishing:landed', (e) => this.landed(e.x, e.z, e.amount));
+    bus.on('building:tier', ({ tier }) => tier > 1 && !ctx.loading && this.earn('level'));
+    bus.on('happening:start', () => !ctx.loading && this.earn('festival'));
+    bus.on('bridge:opened', ({ by }) => by !== 'system' && !ctx.loading && this.earn('bridge'));
+    bus.on('project:done', () => !ctx.loading && this.earn('project'));
+    bus.on('milestone:claimed', () => this.earn('claim'));
+    ctx.services.get('save').addHook({
+      id: 'juice',
+      save: () => ({ firsts: [...this.firstSet], best: this.bestGrowth }),
+      load: (_c, data) => {
+        const d = (data ?? {}) as { firsts?: unknown; best?: unknown };
+        this.firstSet = new Set(
+          Array.isArray(d.firsts) ? d.firsts.filter((id): id is string => FIRST_IDS.has(id as string)) : [],
+        );
+        this.bestGrowth = typeof d.best === 'number' && Number.isFinite(d.best) ? d.best : 0;
+      },
+    });
     bus.on('building:removed', ({ eid }) => {
       for (const b of this.bubbles) if (b.eid === eid) b.left = Math.min(b.left, 0.01);
     });
@@ -223,6 +290,16 @@ class Juice {
         this.clear();
         this.nextTip = FIRST_TIP;
         this.shown = '';
+        if (ev === 'city:reset') {
+          this.firstSet.clear();
+          this.bestGrowth = 0;
+        }
+        // What is already true of a new or loaded city is marked quietly on the next check; badges waiting for
+        // the old city are dropped.
+        this.prime = true;
+        this.firstQueue = [];
+        this.homes.clear();
+        this.newDay();
         // A loaded or new city's finished milestones are not news: only ones reached from here on chime.
         this.ready = new Set(claimableMilestones(ctx.city).map((m) => m.id));
       });
@@ -230,6 +307,7 @@ class Juice {
     // Charter tiers (plan v5, Phase 28) pour coins too; a perk-only tier still gets the burst.
     bus.on('charter:claimed', ({ reward }) => this.claimed(reward));
     this.ready = new Set(claimableMilestones(ctx.city).map((m) => m.id));
+    this.newDay();
   }
 
   private get live(): boolean {
@@ -377,6 +455,9 @@ class Juice {
       b.golden ? 9 : Math.min(6, 2 + this.combo),
     );
     this.showMeter();
+    this.earn('tip');
+    if (b.golden) this.earn('golden');
+    if (this.combo >= 3) this.earn('combo');
   }
 
   /** The combo meter: while another bubble floats, the combo is there to grow; the bar drains with the window. */
@@ -389,7 +470,11 @@ class Juice {
     const next = Math.min(TIP_COMBO_MAX, this.combo + 1);
     setText(
       this.mCombo,
-      this.combo >= TIP_COMBO_MAX ? `Max combo ×${TIP_COMBO_MAX}` : `Combo ×${this.combo}`,
+      this.combo >= TIP_COMBO_MAX
+        ? `Max combo ×${TIP_COMBO_MAX}`
+        : this.combo < 2
+          ? 'Pop another for a combo'
+          : `Combo ×${this.combo}`,
     );
     setText(
       this.mNext,
@@ -421,6 +506,9 @@ class Juice {
     const now = performance.now() / 1000;
     this.streak = now - this.lastReady < STREAK_WINDOW ? Math.min(6, this.streak + 1) : 0;
     this.lastReady = now;
+    this.dayBuilt++;
+    if (def.category === 'residential') this.earn('home');
+    if (this.streak >= 2) this.earn('streak');
     this.ctx.bus.emit('juice', { sound: 'ready', step: this.streak });
     this.anchor(
       h('div', { class: 'jc-burst tone-ready' }, h('i', { class: 'jc-ring' }), ...petals(10)),
@@ -445,6 +533,166 @@ class Juice {
         z,
         2.6,
       );
+  }
+
+  // ── Early-game life (D-173) ──
+
+  /** A boat is home: its haul floats off the dock (only in view, so the sea doesn't chatter off screen). */
+  private landed(x: number, z: number, amount: number): void {
+    if (!this.live || amount < 1) return;
+    this.earn('catch');
+    this.ndc.set(x, 1.5, z).project(this.ctx.camera);
+    if (this.ndc.z > 1 || Math.abs(this.ndc.x) > 1 || Math.abs(this.ndc.y) > 1) return;
+    this.ctx.bus.emit('juice', { sound: 'catch' });
+    this.anchor(
+      h('div', { class: 'jc-catch' }, h('i', { class: 'jc-splash' }), icon('wave'), `+◈${fmt(amount)}`),
+      x,
+      1.5,
+      z,
+      2.4,
+    );
+  }
+
+  /** Homes that gained whole residents since the last scan float "+N" (a few at a time, in view only). */
+  private moveIns(): void {
+    const { city, camera } = this.ctx;
+    if (!this.live || !(city.growth.progression || city.stats.population < MOVE_IN_POP)) return;
+    // Screen spots taken this scan (px): neighbouring homes don't pile their chips up.
+    const taken: [number, number][] = [];
+    for (const eid of city.buildingEntities()) {
+      const def = city.buildingDef(eid);
+      if (def.category !== 'residential' || def.stats.population <= 0) continue;
+      const now = Math.floor(def.stats.population * size(eid) * (Service.occupancy[eid] ?? 0));
+      const was = this.homes.get(eid);
+      this.homes.set(eid, now);
+      if (was === undefined || now <= was || taken.length >= MOVE_IN_MAX) continue;
+      const cx = Building.x[eid]! + Building.w[eid]! / 2;
+      const cz = Building.z[eid]! + Building.d[eid]! / 2;
+      const y = city.grid.heightAt(cx, cz) + 3;
+      this.ndc.set(cx, y, cz).project(camera);
+      if (this.ndc.z > 1 || Math.abs(this.ndc.x) > 0.9 || Math.abs(this.ndc.y) > 0.9) continue;
+      const sx = ((this.ndc.x + 1) * innerWidth) / 2;
+      const sy = ((1 - this.ndc.y) * innerHeight) / 2;
+      if (taken.some(([x, y]) => Math.abs(x - sx) < 64 && Math.abs(y - sy) < 28)) continue;
+      taken.push([sx, sy]);
+      this.anchor(h('div', { class: 'jc-movein' }, icon('people'), `+${now - was}`), cx, y, cz, 2);
+    }
+  }
+
+  /** Marks a First (progression cities only); `quiet` marks it without a badge. */
+  private earn(id: string, quiet = false): void {
+    if (!this.ctx.city.growth.progression || this.firstSet.has(id) || !FIRST_IDS.has(id)) return;
+    this.firstSet.add(id);
+    if (!quiet && !this.ctx.loading) this.firstQueue.push(id);
+  }
+
+  /** The city's own Firsts (population, treasury…): the first pass after a city change marks what is already true quietly. */
+  private checkFirsts(): void {
+    if (!this.ctx.city.growth.progression) return;
+    for (const f of FIRSTS) if (f.check?.(this.ctx.city)) this.earn(f.id, this.prime);
+    this.prime = false;
+  }
+
+  /** One First badge at a time, in the stack under the top bar. */
+  private showFirsts(dt: number): void {
+    if (this.firstUp > 0) this.firstUp -= dt;
+    if (this.firstUp > 0 || !this.firstQueue.length || !this.live) return;
+    const id = this.firstQueue.shift();
+    const f = FIRSTS.find((d) => d.id === id);
+    if (!f) return;
+    const el = h(
+      'div',
+      { class: 'jc-first', role: 'status' },
+      h('span', { class: 'jc-first-ico' }, icon(f.icon)),
+      h(
+        'div',
+        { class: 'jc-first-text' },
+        h('small', {}, `First! · ${FIRSTS.filter((d) => this.firstSet.has(d.id)).length} / ${FIRSTS.length}`),
+        h('b', {}, f.title),
+        h('span', {}, f.line),
+      ),
+    );
+    el.style.setProperty('--show', `${FIRST_SHOW}s`);
+    el.addEventListener('animationend', (e) => e.target === el && el.remove());
+    this.stack.append(el);
+    this.firstUp = FIRST_SHOW + 0.3;
+    this.ctx.bus.emit('juice', { sound: 'first' });
+  }
+
+  private newDay(): void {
+    const { city } = this.ctx;
+    const g = city.growth;
+    this.day = city.day;
+    this.dayStart = {
+      pop: city.stats.population,
+      credits: city.credits,
+      tips: g.tips,
+      tipIncome: g.tipIncome,
+      fish: g.fishIncome,
+      firsts: this.firstSet.size,
+    };
+    this.dayBuilt = 0;
+  }
+
+  /** The Day recap (D-173): what the day just ended brought, with a nod to a record. */
+  recap(ended = this.ctx.city.day): void {
+    const { city } = this.ctx;
+    const g = city.growth;
+    const s = this.dayStart;
+    const grew = Math.round(city.stats.population - s.pop);
+    const record = grew > 0 && grew > this.bestGrowth && this.bestGrowth > 0;
+    if (grew > this.bestGrowth) this.bestGrowth = grew;
+    const money = Math.round(city.credits - s.credits);
+    const sign = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '');
+    const tone = (n: number) => (n > 0 ? 'up' : n < 0 ? 'down' : '');
+    const row = (ico: string, label: string, value: string, cls = '') =>
+      h('li', { class: cls }, icon(ico), h('span', {}, label), h('b', {}, value));
+    const rows = [
+      row(
+        'people',
+        'Residents',
+        `${sign(grew)}${fmt(Math.abs(grew))} → ${fmt(city.stats.population)}`,
+        tone(grew),
+      ),
+      row('credits', 'Treasury', `${sign(money)}◈${fmt(Math.abs(money))}`, tone(money)),
+      row('build', 'Finished', `${this.dayBuilt} building${this.dayBuilt === 1 ? '' : 's'}`),
+    ];
+    const tips = g.tips - s.tips;
+    if (tips > 0) rows.push(row('happy', 'Tips', `${tips} · ◈${fmt(g.tipIncome - s.tipIncome)}`));
+    const fish = g.fishIncome - s.fish;
+    if (fish >= 1) rows.push(row('wave', 'Catch', `◈${fmt(fish)}`));
+    const firsts = this.firstSet.size - s.firsts;
+    if (firsts > 0)
+      rows.push(row('sparkle', 'Firsts', `+${firsts} · ${this.firstSet.size} / ${FIRSTS.length}`));
+    this.recapEl?.remove();
+    const el: HTMLElement = h(
+      'section',
+      { class: 'jc-recap panel holo', 'aria-label': `Day ${ended} recap` },
+      closeX('the day recap', () => this.closeRecap()),
+      h(
+        'header',
+        {},
+        icon('sun'),
+        h('b', {}, `Day ${ended} complete`),
+        h('span', {}, g.name || 'Your island'),
+      ),
+      h('ul', {}, ...rows),
+      record
+        ? h('p', { class: 'jc-record' }, icon('star'), `Best day yet: ${fmt(grew)} new residents`)
+        : null,
+    );
+    this.recapEl = el;
+    this.recapLeft = RECAP_SHOW;
+    this.stack.append(el);
+    this.ctx.bus.emit('juice', { sound: 'day' });
+  }
+
+  private closeRecap(): void {
+    const el = this.recapEl;
+    if (!el) return;
+    this.recapEl = null;
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 350);
   }
 
   // ── Coins into the credits counter ──
@@ -534,6 +782,22 @@ class Juice {
     const claimable = claimableMilestones(city).length;
     const got = city.growth.milestones.length;
     const k = Math.min(1, p.have / p.need);
+    // A counted goal moved: "+N" off the count (D-173).
+    const whole = Math.floor(Math.min(p.have, p.need));
+    if (
+      m.id === this.tickId &&
+      whole > this.tickHave &&
+      (m.unit ?? 'count') === 'count' &&
+      p.need > 1 &&
+      p.need <= 100
+    ) {
+      const t = h('span', { class: 'jc-tick' }, `+${whole - this.tickHave}`);
+      t.addEventListener('animationend', () => t.remove());
+      this.cHave.parentElement?.append(t);
+      this.ctx.bus.emit('juice', { sound: 'tick' });
+    }
+    this.tickId = m.id;
+    this.tickHave = whole;
     this.cBar.style.transform = `scaleX(${k.toFixed(3)})`;
     const unit = (v: number) =>
       m.unit === 'pct' ? `${fmt(v)}%` : m.unit === 'credits' ? `◈${fmt(v)}` : fmt(v);
@@ -679,10 +943,38 @@ class Juice {
         !this.bubbles.some((b) => !b.el.classList.contains('popped')))
     )
       this.meter.classList.add('hidden');
+    this.stack.classList.toggle('hidden', !live);
+    this.showFirsts(dt);
+    if (this.recapEl && live && (this.recapLeft -= dt) <= 0) this.closeRecap();
+    // A new day: the recap of the one that ended (fresh islands only), then a new count.
+    const { city } = this.ctx;
+    if (city.day !== this.day && !this.ctx.loading) {
+      if (city.day === this.day + 1 && city.growth.progression) {
+        this.recap(this.day);
+        this.earn('dawn');
+      }
+      this.newDay();
+    }
     if ((this.timer += dt) < 0.25) return;
     this.timer = 0;
     if (!this.ctx.loading) this.watchReady();
     this.renderCard();
+    if ((this.slow += 1) < 4) return;
+    this.slow = 0;
+    if (this.ctx.loading) return;
+    this.checkFirsts();
+    this.moveIns();
+  }
+
+  /** Every First with whether this city has it. */
+  firsts(): ReturnType<JuiceService['firsts']> {
+    return FIRSTS.map((f) => ({
+      id: f.id,
+      title: f.title,
+      line: f.line,
+      icon: f.icon,
+      earned: this.firstSet.has(f.id),
+    }));
   }
 }
 
@@ -735,6 +1027,8 @@ export const juiceModule: GameModule = {
         store.set(TIPS_KEY, on ? 'on' : 'off');
       },
       spawnTip: (golden?: boolean) => juice.spawnTip(golden),
+      firsts: () => juice.firsts(),
+      recap: () => juice.recap(),
     });
   },
 };

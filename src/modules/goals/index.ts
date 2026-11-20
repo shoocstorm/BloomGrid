@@ -39,7 +39,8 @@ export const goalsModule: GameModule = {
      */
     const signature = () => {
       const g = city.growth;
-      const parts: (string | number)[] = [long.signature(), g.milestones.length, g.wonders.join(), Math.round(g.fish * 100), city.stats.fishing.toFixed(1), Math.round(g.fishIncome)];
+      const firsts = ctx.services.tryGet('juice')?.firsts() ?? [];
+      const parts: (string | number)[] = [long.signature(), firsts.filter((f) => f.earned).length, g.milestones.length, g.wonders.join(), Math.round(g.fish * 100), city.stats.fishing.toFixed(1), Math.round(g.fishIncome)];
       for (const id of PROJECT_IDS) {
         const st = projectStatus(city, id);
         parts.push(st);
@@ -204,11 +205,31 @@ export const goalsModule: GameModule = {
               : h('span', { class: 'gl-ms-reward' }, `◈${fmt(m.reward)}`),
           );
         });
+      // Firsts (D-173): badges for a fresh island's discoveries; the ones still to find show their title, dimmed.
+      const firsts = ctx.services.tryGet('juice')?.firsts() ?? [];
+      const firstsEl = firsts.length
+        ? [
+            h('div', { class: 'pulse-title' }, `Firsts · ${firsts.filter((f) => f.earned).length} / ${firsts.length}`),
+            h(
+              'div',
+              { class: 'gl-firsts' },
+              ...firsts.map((f) =>
+                h(
+                  'span',
+                  { class: `gl-first ${f.earned ? 'got' : ''}`, title: f.earned ? f.line : `Not yet: ${f.title}` },
+                  icon(f.icon),
+                  f.title,
+                ),
+              ),
+            ),
+          ]
+        : [];
       const s = city.stats;
       el.replaceChildren(
         ...long.render(),
         h('div', { class: 'pulse-title' }, `Milestones · ${g.milestones.length} / ${MILESTONES.length}`),
         ...(milestones.length ? milestones : [h('p', { class: 'gl-note' }, 'Every milestone claimed. The island is in good hands.')]),
+        ...firstsEl,
         h('div', { class: 'pulse-title' }, 'Unlock projects'),
         ...projects,
         h('div', { class: 'pulse-title' }, 'Sea wonders'),

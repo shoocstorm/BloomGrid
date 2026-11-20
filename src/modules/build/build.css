@@ -433,3 +433,114 @@ body:not(.compact) .build {
 .compact .bd-tabs {
   margin: 0 0 2px;
 }
+
+/* "Keep placing" (D-174): a small switch on the title line; off = one placement, then build mode closes. */
+.bd-tline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bd-keep {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -3px 0;
+  padding: 2px 6px;
+  border-radius: var(--pill);
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.bd-keep:hover {
+  color: var(--ink);
+  background: var(--bg-hover);
+}
+.bd-keep-sw {
+  position: relative;
+  width: 24px;
+  height: 14px;
+  border-radius: var(--pill);
+  border: 1px solid var(--line-strong);
+  transition: background 0.2s;
+}
+.bd-keep-sw::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  transition: transform 0.2s;
+}
+.bd-keep.on {
+  color: var(--accent);
+}
+.bd-keep.on .bd-keep-sw {
+  background: rgba(95, 242, 218, 0.25);
+}
+.bd-keep.on .bd-keep-sw::after {
+  transform: translateX(10px);
+  background: var(--accent);
+}
+
+/* "Another …" (D-174): above the launcher for a few seconds after build mode closed itself. */
+.bd-again {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
+  background: var(--bg-strong);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: var(--cur-pointer, pointer);
+  animation: bd-again 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.bd-again:hover {
+  background: var(--bg-hover);
+}
+.bd-again.hidden {
+  display: none;
+}
+.bd-again .ico {
+  width: 15px;
+  height: 15px;
+}
+.bd-again b {
+  color: var(--warn);
+  font: 600 11.5px/1 var(--mono);
+}
+@keyframes bd-again {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+body.building .bd-again {
+  display: none;
+}
+.compact .dock-row .bd-again {
+  position: static;
+  translate: none;
+  flex: none;
+  max-width: 46%;
+  padding: 0 12px;
+}
+.compact .dock-row .bd-again span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.compact .dock-row .bd-again b {
+  display: none;
+}

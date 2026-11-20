@@ -258,11 +258,26 @@
 }
 
 /* The combo meter (D-172): under the top bar while a combo can still grow; the bar drains over the window. */
-.jc-meter {
+/* The stack under the top bar (D-173): combo meter, First badges and the Day recap, centred, newest last. */
+.jc-stack {
   position: absolute;
   top: 64px;
   left: 50%;
   translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.jc-stack.hidden {
+  display: none;
+}
+.compact .jc-stack {
+  /* Under the first toast row (phones show toasts under the chips). */
+  top: calc(var(--below, 60px) + 52px);
+  width: calc(100vw - var(--gut-l, 12px) - var(--gut-r, 12px));
+}
+.jc-meter {
   display: grid;
   grid-template-columns: auto auto;
   align-items: center;
@@ -312,8 +327,243 @@
     transform: scaleX(0);
   }
 }
-.compact .jc-meter {
-  top: calc(var(--below, 60px) + 4px);
+
+/* A First (D-173): a badge that drops in, holds, and lifts away. */
+.jc-first {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 16px 8px 9px;
+  border: 1px solid rgba(255, 226, 122, 0.6);
+  border-radius: var(--pill);
+  background: linear-gradient(100deg, rgba(48, 34, 4, 0.92), rgba(20, 30, 26, 0.92));
+  color: #fff6dc;
+  animation: jc-first var(--show, 4s) ease-in-out forwards;
+}
+.jc-first-ico {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #ffc24a 60%, #b8760a);
+  color: #4a2c00;
+  animation: jc-punch 0.5s cubic-bezier(0.2, 1.8, 0.4, 1) 0.15s both;
+}
+.jc-first-ico svg {
+  width: 19px;
+  height: 19px;
+}
+.jc-first-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.jc-first-text small {
+  color: #ffcf6a;
+  font: 700 9.5px/1.3 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.jc-first-text b {
+  font: 600 14px/1.3 var(--ui);
+}
+.jc-first-text span {
+  color: rgba(255, 246, 220, 0.75);
+  font: 12px/1.3 var(--ui);
+}
+@keyframes jc-first {
+  0% {
+    transform: translateY(-14px) scale(0.9);
+    opacity: 0;
+  }
+  8% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  90% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+}
+
+/* The Day recap (D-173). */
+.jc-recap {
+  position: relative;
+  pointer-events: auto;
+  width: 300px;
+  max-width: 100%;
+  padding: 12px 14px 12px;
+  animation: jc-turn 0.45s ease-out both;
+}
+.jc-recap.out {
+  animation: jc-out 0.35s ease-in forwards;
+}
+.jc-recap > .pop-x {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.jc-recap header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-right: 22px;
+}
+.jc-recap header svg {
+  width: 18px;
+  height: 18px;
+  color: #ffcf6a;
+}
+.jc-recap header b {
+  font: 600 14px/1.2 var(--ui);
+}
+.jc-recap header span {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font: 11px/1 var(--mono);
+}
+.jc-recap ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.jc-recap li {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font: 12.5px/1.2 var(--ui);
+  color: var(--ink-soft);
+  animation: jc-turn 0.4s ease-out both;
+}
+.jc-recap li:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.jc-recap li:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.jc-recap li:nth-child(4) {
+  animation-delay: 0.24s;
+}
+.jc-recap li:nth-child(5) {
+  animation-delay: 0.32s;
+}
+.jc-recap li:nth-child(6) {
+  animation-delay: 0.4s;
+}
+.jc-recap li svg {
+  width: 14px;
+  height: 14px;
+}
+.jc-recap li b {
+  color: var(--ink);
+  font: 600 12.5px/1.2 var(--mono);
+}
+.jc-recap li.up b {
+  color: var(--accent-2);
+}
+.jc-recap li.down b {
+  color: var(--crit);
+}
+.jc-record {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 9px 0 0;
+  padding: 5px 9px;
+  border-radius: var(--r-md);
+  background: rgba(255, 207, 106, 0.14);
+  color: #ffdf94;
+  font: 600 12px/1.2 var(--ui);
+  animation: jc-punch 0.45s cubic-bezier(0.2, 1.8, 0.4, 1) 0.5s both;
+}
+.jc-record svg {
+  width: 13px;
+  height: 13px;
+}
+@keyframes jc-out {
+  to {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+}
+
+/* A boat's haul over the dock, and residents moving in (D-173): small chips that float up and fade. */
+.jc-catch,
+.jc-movein {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  translate: -50% -100%;
+  padding: 2px 8px;
+  border-radius: var(--pill);
+  font: 600 11.5px/16px var(--mono);
+  white-space: nowrap;
+  animation: jc-float 2.2s ease-out forwards;
+}
+.jc-catch {
+  position: relative;
+  background: rgba(8, 40, 52, 0.88);
+  border: 1px solid rgba(95, 242, 218, 0.55);
+  color: #b8fff0;
+}
+.jc-movein {
+  background: rgba(10, 36, 14, 0.85);
+  border: 1px solid rgba(142, 240, 122, 0.5);
+  color: #c6ffb8;
+  animation-duration: 1.9s;
+}
+.jc-catch svg,
+.jc-movein svg {
+  width: 12px;
+  height: 12px;
+}
+.jc-splash {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 26px;
+  height: 26px;
+  margin: -6px 0 0 -13px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(184, 255, 240, 0.8);
+  animation: jc-ring 0.9s ease-out forwards;
+}
+
+/* The milestone count moved (D-173). */
+.jc-m-foot {
+  position: relative;
+}
+.jc-tick {
+  position: absolute;
+  left: 0;
+  top: -4px;
+  color: var(--accent-2);
+  font: 700 12px/1 var(--mono);
+  pointer-events: none;
+  animation: jc-tick 1.1s ease-out forwards;
+}
+@keyframes jc-tick {
+  0% {
+    transform: translateY(4px) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(-6px) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-18px);
+    opacity: 0;
+  }
 }
 .jc-gain {
   animation: jc-float 2.6s ease-out 0.15s both;
@@ -788,6 +1038,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .jc-recap li,
   .jc-m.near .jc-m-bar::after,
   .jc-bubble.golden .jc-bubble-in::before,
   .jc-bubble-in,

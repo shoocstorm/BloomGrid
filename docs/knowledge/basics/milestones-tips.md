@@ -4,7 +4,7 @@ title: Milestones and residents' tips
 category: basics
 summary: The steward milestones (short goals that pay a reward you claim) and the gold tip bubbles that float over happy buildings.
 tags:
-  [milestone, milestones, claim, reward, goal, next goal, tip, tips, bubble, combo, golden tip, golden bubble, shower, quick credits, early game]
+  [milestone, milestones, claim, reward, goal, next goal, tip, tips, bubble, combo, golden tip, golden bubble, shower, firsts, badge, achievement, day recap, day report, quick credits, early game]
 related: [basics-first-hour, playbooks-fresh-island, systems-budget]
 order: 4
 ---
@@ -40,3 +40,17 @@ Pop bubbles within a few seconds of each other to build a **combo** (up to ×5):
 tip. Sometimes several bubbles float up together (a *shower*), and while another bubble is waiting, a meter under the
 top bar shows your combo draining and what the next pop is worth. Tips grow with your population and with Harmony, so a happy city tips better. They are a bonus, not an
 income: taxes and fishing pay the bills. Turn bubbles off in Settings → Display → Tip bubbles.
+
+## What are Firsts?
+
+On a fresh island, sixteen **Firsts** mark things you do or reach for the first time: your first catch, first tip,
+first milestone claimed, three buildings in a row, a golden tip, a building's first level-up, 500 and 1,000
+residents, Harmony 70, the first bridge, happening and unlock project. Each shows a gold badge once. Build → Goals
+lists them all, with the ones still to find dimmed: they are a map of what the island has to offer.
+
+## What is the Day recap?
+
+At each dawn a card sums up the day that just ended: residents gained or lost, the treasury's change, buildings
+finished, tips, the fishing catch and new Firsts, and says when it was your best day yet for new residents. Close
+it with ✕ or let it fade after a few seconds. Boats coming home float their catch over the dock, and homes float
+"+N" as residents move in, so you can see where the island grows.

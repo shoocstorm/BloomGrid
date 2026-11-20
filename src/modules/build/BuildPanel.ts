@@ -13,6 +13,10 @@ const fmt = (n: number) => Math.round(n).toLocaleString();
 /** Build actions in the panel, in order. Inspect is not one: leaving build mode (Done, Esc) is. */
 const ACTIONS = ['road', 'channel', 'bulldoze', 'retrofit', 'mist', 'weave', 'reclaim'];
 const CAT_KEY = 'bloomgrid.build.category';
+/** "Keep placing" (D-174): the building stays in hand after a placement; off by default (one placement, then out). */
+const KEEP_KEY = 'bloomgrid.build.keep';
+/** Seconds the "Another …" pill waits beside the launcher after build mode closed itself. */
+const AGAIN_SHOW = 8;
 
 /** A card's group in the list, in list order: what can be built now comes first (D-153). */
 type Group = 'open' | BuildState['kind'];
@@ -114,6 +118,12 @@ export class BuildPanel {
   private briefKey = '';
   /** The inspector holds the 3D stage until the card shows something else. */
   private stageTaken = false;
+  /** Keep the building in hand after placing it (per viewer). */
+  keepPlacing = false;
+  private keepBtn: HTMLElement;
+  /** "Another …" after build mode closed itself on a placement (D-174). */
+  private again = h('button', { class: 'bd-again hidden' });
+  private againTimer = 0;
 
   constructor(
     private ctx: GameContext,
@@ -127,6 +137,25 @@ export class BuildPanel {
       /* storage blocked: start on Living */
     }
     const touch = isTouchDevice();
+    try {
+      this.keepPlacing = localStorage.getItem(KEEP_KEY) === '1';
+    } catch {
+      /* storage blocked: one placement at a time */
+    }
+    this.keepBtn = h(
+      'button',
+      {
+        class: 'bd-keep',
+        title: touch
+          ? 'Keep the building in hand after placing it'
+          : 'Keep the building in hand after placing it (or hold Shift while clicking)',
+        'aria-pressed': String(this.keepPlacing),
+        onClick: () => this.setKeep(!this.keepPlacing),
+      },
+      h('i', { class: 'bd-keep-sw' }),
+      h('span', {}, 'Keep placing'),
+    );
+    this.keepBtn.classList.toggle('on', this.keepPlacing);
     const done = h(
       'button',
       { class: 'bd-done', title: 'Done building (Esc)', 'aria-label': 'Done building', onClick: () => this.onDone() },
@@ -138,7 +167,7 @@ export class BuildPanel {
       'div',
       { class: 'bd-head' },
       h('span', { class: 'bd-ico' }, icon('build')),
-      h('div', { class: 'bd-titles' }, h('b', {}, 'Build'), this.hint),
+      h('div', { class: 'bd-titles' }, h('div', { class: 'bd-tline' }, h('b', {}, 'Build'), this.keepBtn), this.hint),
       done,
     );
 
@@ -222,8 +251,9 @@ export class BuildPanel {
     const place = (compact: boolean) => {
       if (compact) {
         hud.dock.insertBefore(this.el, hud.dockRow);
-        hud.dockRow.prepend(this.fab);
-      } else ctx.hud.append(this.el, this.fab);
+        // "Another …" sits in the dock row beside the launcher (above it, the milestone strip would cover it).
+        hud.dockRow.prepend(this.again, this.fab);
+      } else ctx.hud.append(this.el, this.fab, this.again);
       this.placeFloat();
     };
     place(isCompact());
@@ -302,7 +332,43 @@ export class BuildPanel {
     return !this.el.classList.contains('hidden');
   }
 
+  private setKeep(on: boolean): void {
+    this.keepPlacing = on;
+    this.keepBtn.classList.toggle('on', on);
+    this.keepBtn.setAttribute('aria-pressed', String(on));
+    try {
+      localStorage.setItem(KEEP_KEY, on ? '1' : '0');
+    } catch {
+      /* storage blocked: lasts the session */
+    }
+  }
+
+  /**
+   * After build mode closed itself on a placement (D-174): a pill above the launcher picks the same building up
+   * again in one click, for a few seconds.
+   */
+  offerAgain(defId: string): void {
+    const def = buildings.get(defId);
+    clearTimeout(this.againTimer);
+    this.again.replaceChildren(icon('build'), h('span', {}, `Another ${def.name}`), h('b', {}, `◈${fmt(def.stats.cost)}`));
+    this.again.title = isTouchDevice()
+      ? `Place another ${def.name}`
+      : `Place another ${def.name} (tip: Shift-click places several in a row)`;
+    this.again.onclick = () => {
+      this.hideAgain();
+      this.ctx.services.get('construction').startBuilding(defId);
+    };
+    this.again.classList.remove('hidden');
+    this.againTimer = window.setTimeout(() => this.hideAgain(), AGAIN_SHOW * 1000);
+  }
+
+  hideAgain(): void {
+    clearTimeout(this.againTimer);
+    this.again.classList.add('hidden');
+  }
+
   setOpen(open: boolean): void {
+    if (open) this.hideAgain();
     this.el.classList.toggle('hidden', !open);
     this.fab.classList.toggle('on', open);
     this.fab.setAttribute('aria-pressed', String(open));

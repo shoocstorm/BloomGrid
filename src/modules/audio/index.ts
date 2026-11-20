@@ -482,6 +482,20 @@ export const audioModule: GameModule = {
         // A golden bubble appears: two soft, high notes, quiet enough not to nag.
         s.tone(2093, 0.5, 0.02, 'sine', undefined);
         s.tone(2637, 0.6, 0.018, 'sine', undefined, 0.1);
+      } else if (sound === 'catch') {
+        // A boat home with its haul (D-173): a soft splash and two low, round notes.
+        s.burst(0.25, 0.05, 'lowpass', 900);
+        s.tone(392, 0.25, 0.05, 'sine', undefined, 0.05);
+        s.tone(523, 0.35, 0.045, 'sine', undefined, 0.14);
+      } else if (sound === 'first') {
+        // A First: a bright little fanfare.
+        [784, 988, 1175, 1568].forEach((f, i) => s.tone(f, 0.35, 0.055, 'triangle', undefined, i * 0.07));
+        s.burst(0.4, 0.04, 'highpass', 5000, undefined, 0.28);
+      } else if (sound === 'day') {
+        // Dawn's recap: a warm, slow major arpeggio.
+        [392, 494, 587, 784].forEach((f, i) => s.tone(f, 1.1, 0.045, 'sine', undefined, i * 0.14));
+      } else if (sound === 'tick') {
+        s.tone(1319, 0.08, 0.035, 'triangle');
       } else if (sound === 'coin') {
         s.tone(1568, 0.12, 0.05, 'triangle');
         s.tone(2093, 0.3, 0.05, 'triangle', undefined, 0.07);

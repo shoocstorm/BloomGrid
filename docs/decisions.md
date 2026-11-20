@@ -3235,3 +3235,43 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
 - **Rejected**: daily login streaks and loss-framed timers (they fight the steward role and the "bonus, not income"
   rule of D-118); golden odds in `city.rng` (cosmetic spawning stays out of the hash).
 - Measured: DOM only, a few extra elements at most; draw calls unchanged.
+
+## D-173 — Early-game juice: catches, move-ins, Firsts, the Day recap (2026-11-20)
+
+- **Why**: a fresh island's first hour still had stretches where growth happened out of sight: fishing (the first
+  income) paid continuously with no moment, homes filled silently, and milestone counts moved without a beat.
+  Players had no map of what the island holds beyond the next milestone.
+- **Catch chips**: `modules/fishing` emits `fishing:landed` when a boat's trip phase wraps home (never on a clock
+  jump: the step must be < 1 s); the amount is that boat's trip at today's stock, staffing and sea (`CATCH_VALUE`,
+  `cleanSea`, the fishing mods × `TRIP`), cosmetic since the sim pays continuously. In view only, with a splash ring
+  and a soft `catch` cue.
+- **Move-ins**: at 1 Hz, homes whose whole residents (`stats.population × size × occupancy`) rose float "+N", at
+  most 3 per scan, spaced on screen, while the city is a progression one or under 2,500 residents.
+- **Firsts** (`juice/firsts.ts`): 16 discoveries as data, event-earned or `check`ed at 1 Hz; progression cities
+  only. Saved per city through the juice module's save hook (not sim state: no hash, no `SAVE_VERSION` bump;
+  unknown ids are dropped on load). After a city change the first check marks what is already true quietly, so a
+  loaded city doesn't fire a burst; event Firsts always badge. One badge at a time in the stack under the top bar,
+  listed in Build → Goals (earned in gold, the rest dimmed as a teaser).
+- **Day recap**: when `city.day` advances by one on a progression city, a closable card (14 s) sums up the day from
+  a snapshot taken at its start (residents, treasury, finished buildings, tips, catch, Firsts) and marks a best day
+  for growth (kept in the save hook). Records start after the first day, so day 1 is never a "record".
+- **Milestone ticks**: a counted goal (`unit` count, need ≤ 100) that moves shows "+N" off the count with a tick.
+- **Rejected**: rewards for Firsts or the recap (D-118: bonus, not income; the Firsts are a map, not a payout);
+  login or daily streaks; recaps on the showcase (it has no early game).
+- Measured: DOM only; the 1 Hz scan touches residential buildings once (cheap on the showcase too).
+
+## D-174 — One placement, then out (2026-11-20)
+
+- **Why**: after placing a building the tool stayed in hand, so the next click on the city (to inspect, to pop a
+  tip) placed a second building or showed a red refusal, and the steward had to press Done, Esc or right-click
+  every time. Most placements are one building for a purpose (a milestone's Build button, a shortage, Flora).
+- **How**: the Build tool emits `build:placed` (`def`, lot, `shift`, `touch`) after a successful placement; the
+  build module closes build mode unless Shift was held or **Keep placing** is on (a switch on the Build panel's
+  title line, per viewer in `localStorage`, off by default). While staying, it still closes once `buildBlock` says
+  another can't be placed (credits, limit, lock), with a toast giving the reason. After closing on its own it
+  offers **Another …** (name and price) above the launcher for 8 s (in the dock row beside it on phones, where the
+  milestone strip sits above), which picks the same building up again.
+- **Scope**: buildings only. Highways, channels and the other drag actions stay in hand (they are drawn in
+  strokes). Flora's and scripts' builds run commands and are untouched.
+- **Rejected**: closing only for buildings that are "usually one" (heroes, utilities): the rule would be invisible
+  and wrong for half the cases; the explicit Shift / switch is learnable and shown in the placing tooltip.
