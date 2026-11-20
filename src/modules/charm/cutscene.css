@@ -1,0 +1,760 @@
+/* "The Stray" (D-178): the adoption cutscene. A full-screen illustrated night over the paused city; the cat on stage
+   is the city's rig (`ch-cat` classes) drawn large. A one-off film of ~20 s, so it may animate a little more than
+   the HUD does (clip and colour on top of transform / opacity); nothing here runs outside it. */
+
+/* The coat colours can tween (the dawn reveal). */
+@property --fur {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #3a3f4a;
+}
+@property --belly {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4b515d;
+}
+@property --mark {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #3a3f4a;
+}
+@property --eye {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #1f2a24;
+}
+
+.cs-root {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  color: #fff;
+  font-family: var(--ui);
+  --cs: min(26vmin, 210px);
+  --ground: 17vh;
+}
+.cs-root.in {
+  opacity: 1;
+}
+.cs-root.out {
+  opacity: 0;
+  transition-duration: 0.65s;
+}
+
+/* ── The night (and the dawn that breaks over it) ── */
+.cs-sky,
+.cs-dawn {
+  position: absolute;
+  inset: 0;
+}
+.cs-sky {
+  background: radial-gradient(ellipse at 50% 35%, #2a3560 0%, #141a33 45%, #070a16 100%);
+}
+.cs-dawn {
+  background: linear-gradient(#5a6fb0 0%, #f2a3a0 52%, #ffd08a 78%, #ffe9b8 100%);
+  opacity: 0;
+  transition: opacity 2.2s ease;
+}
+.cs-root.dawn .cs-dawn {
+  opacity: 1;
+}
+.cs-stars i {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #fff;
+  scale: var(--z);
+  animation: cs-twinkle 2.6s ease-in-out var(--d) infinite;
+  transition: opacity 1.6s;
+}
+.cs-root.dawn .cs-stars i {
+  opacity: 0;
+}
+@keyframes cs-twinkle {
+  50% {
+    opacity: 0.25;
+  }
+}
+.cs-moon {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  width: 30vmin;
+  height: 30vmin;
+  margin: -15vmin 0 0 -15vmin;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 40%, #fffbe8 0%, #f4ecc8 55%, #d9cf9e 100%);
+  box-shadow: 0 0 6vmin 2vmin rgba(255, 247, 214, 0.35);
+  transition:
+    transform 2.2s ease,
+    opacity 2.2s ease;
+}
+/* At dawn the moon becomes the sun coming up. */
+.cs-root.dawn .cs-moon {
+  transform: scale(1.25) translateY(6vh);
+  background: radial-gradient(circle, #fff8dc 0%, #ffd27a 60%, #ffb347 100%);
+}
+
+.cs-skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--ground);
+  height: 28vh;
+}
+.cs-skyline svg {
+  width: 100%;
+  height: 100%;
+}
+.cs-skyline .far {
+  fill: #1a2140;
+  transition: fill 2.2s;
+}
+.cs-skyline .near,
+.cs-turbine {
+  fill: #10152a;
+  transition: fill 2.2s;
+}
+.cs-root.dawn .cs-skyline .far {
+  fill: #8a6d8f;
+}
+.cs-root.dawn .cs-skyline .near,
+.cs-root.dawn .cs-turbine {
+  fill: #5d4766;
+}
+.cs-turbine .blades {
+  animation: cs-spin 4s linear infinite;
+}
+@keyframes cs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The roof the cat walks on, in front of the skyline: a chimney, bushes, a solar panel. */
+.cs-ledge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--ground);
+  background: linear-gradient(#0c1022, #05070f);
+  border-top: 0.6vh solid #1f2742;
+  transition:
+    background 2.2s,
+    border-color 2.2s;
+}
+.cs-root.dawn .cs-ledge {
+  background: linear-gradient(#5b3a3a, #2b1b22);
+  border-color: #9a5f50;
+}
+.cs-ledge i {
+  position: absolute;
+  bottom: 100%;
+  background: #0c1022;
+  transition: background 2.2s;
+}
+.cs-root.dawn .cs-ledge i {
+  background: #4a2f36;
+}
+.cs-chimney {
+  left: 69vw;
+  width: 5vw;
+  height: 13vh;
+  border-radius: 0.6vh 0.6vh 0 0;
+}
+.cs-bush {
+  border-radius: 50% 50% 0 0;
+}
+.cs-bush.b1 {
+  left: 12vw;
+  width: 9vw;
+  height: 7vh;
+}
+.cs-bush.b2 {
+  left: 86vw;
+  width: 7vw;
+  height: 5vh;
+}
+.cs-panel {
+  left: 26vw;
+  width: 11vw;
+  height: 3vh;
+  transform: skewX(-25deg);
+}
+
+/* ── The fish on a string ── */
+.cs-fish {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 6vmin;
+  margin-left: -3vmin;
+  transform: translateY(-60vh);
+  transform-origin: 50% 0;
+}
+.cs-fish.down {
+  transition: transform 1.1s cubic-bezier(0.3, 1.5, 0.5, 1);
+  transform: translateY(0);
+  animation: cs-dangle 2.4s ease-in-out 1.1s infinite;
+}
+.cs-fish.twitch {
+  animation: cs-twitch 0.18s linear 4;
+}
+.cs-fish.gone {
+  transition: transform 0.25s ease-in;
+  transform: translateY(-80vh);
+  animation: none;
+}
+.cs-fish.gone .cs-fish-body {
+  opacity: 0;
+}
+.cs-string {
+  display: block;
+  width: 1px;
+  height: 42vh;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.55);
+}
+.cs-fish-body {
+  display: block;
+  width: 6vmin;
+  height: 10vmin;
+}
+.cs-fish-body svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+@keyframes cs-dangle {
+  0%,
+  100% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+@keyframes cs-twitch {
+  25% {
+    transform: rotate(-12deg);
+  }
+  75% {
+    transform: rotate(12deg);
+  }
+}
+/* A puff of stars where the fish was. */
+.cs-puff {
+  position: absolute;
+  left: 50%;
+  top: calc(42vh + 5vmin);
+  width: 22vmin;
+  height: 22vmin;
+  margin: -11vmin 0 0 -11vmin;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 236, 170, 0.6) 35%,
+    transparent 70%
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+.cs-puff.show {
+  animation: cs-puff 0.7s ease-out forwards;
+}
+@keyframes cs-puff {
+  0% {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* ── The cat on stage: the city's rig, drawn large ── */
+.cs-actor {
+  position: absolute;
+  left: 0;
+  bottom: var(--ground);
+  width: var(--cs);
+  translate: calc(var(--x, 76vw) - var(--cs) / 2) 0;
+  transition: translate var(--t, 0s) linear;
+}
+.cs-jump.leap {
+  animation: cs-leap 0.8s cubic-bezier(0.2, 0.7, 0.4, 1);
+}
+@keyframes cs-leap {
+  0% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(-30vh);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+.cs-cat.ch-cat {
+  position: relative;
+  width: var(--cs);
+  height: var(--cs);
+  pointer-events: none;
+  transition:
+    --fur 1.6s ease,
+    --belly 1.6s ease,
+    --mark 1.6s ease,
+    --eye 1.6s ease;
+}
+.cs-cat .ch-cat-in {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  scale: 1;
+  filter: drop-shadow(0 0.6vmin 0.8vmin rgba(0, 0, 0, 0.45));
+}
+.cs-cat .ch-side {
+  left: -18%;
+  bottom: 0;
+  width: 136%;
+  height: 95%;
+}
+/* Lamp eyes in the dark; two blinks; wide at the fish; a slow blink at you. */
+.cs-cat.blink2 .ct-eyes {
+  animation: cs-blink2 1.2s ease-in-out;
+}
+@keyframes cs-blink2 {
+  20%,
+  60% {
+    transform: scaleY(0.08);
+  }
+  40%,
+  80% {
+    transform: scaleY(1);
+  }
+}
+.cs-cat.wide .ct-eyes {
+  animation: none;
+  transform: scale(1.35);
+  transition: transform 0.25s cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+.cs-cat.slowblink .ct-eyes {
+  animation: cs-slowblink 2s ease-in-out both;
+}
+@keyframes cs-slowblink {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  35%,
+  62% {
+    transform: scaleY(0.06);
+  }
+}
+/* Frozen mid-step, and on tiptoe for the second freeze. */
+.cs-cat.freeze,
+.cs-cat.freeze * {
+  animation-play-state: paused !important;
+}
+.cs-cat.tiptoe .ch-side svg {
+  transform: translateY(-1.2vmin) rotate(-4deg);
+}
+/* Full of fish. */
+.cs-cat.full .ct-body {
+  transform: scale(1.13, 1.05);
+  transition: transform 0.4s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+.cs-cat.glow .ch-cat-in {
+  filter: drop-shadow(0 0 2vmin rgba(255, 236, 170, 0.9));
+}
+.cs-cat.land .ch-cat-in {
+  animation: ch-land 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+/* The collar and its bell. */
+.cs-collar {
+  position: absolute;
+  left: 35%;
+  top: 55.5%;
+  width: 30%;
+  height: 4%;
+  border-radius: 1vmin;
+  background: #e2504c;
+  opacity: 0;
+  transform: translateY(-60vh);
+}
+.cs-collar b {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  width: 2.3vmin;
+  height: 2.3vmin;
+  margin-left: -1.15vmin;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff6c8, #ffc83a 55%, #b9780c);
+}
+.cs-cat.collared .cs-collar {
+  opacity: 1;
+  animation: cs-collar 0.9s cubic-bezier(0.3, 1.4, 0.5, 1) forwards;
+}
+.cs-cat.collared .cs-collar b {
+  animation: cs-jingle 0.3s ease-in-out 0.9s 3;
+}
+.cs-cat.pose-side .cs-collar {
+  display: none;
+}
+@keyframes cs-collar {
+  from {
+    transform: translateY(-60vh);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes cs-jingle {
+  25% {
+    transform: rotate(18deg);
+  }
+  75% {
+    transform: rotate(-18deg);
+  }
+}
+
+/* "!", "!!" over its head; munches. */
+.cs-bang,
+.cs-munch {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--cs) + 1vmin);
+  translate: -50% 0;
+  opacity: 0;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.cs-bang {
+  color: #ffd75e;
+  font: 900 clamp(26px, 7vmin, 64px) / 1 var(--ui);
+  text-shadow: 0 0.5vmin 0 #8a4b00;
+}
+.cs-munch {
+  padding: 0.6vmin 1.6vmin;
+  border-radius: 2vmin;
+  background: #fffaf0;
+  color: #3a2c14;
+  font: 700 clamp(14px, 2.8vmin, 24px) / 1.2 var(--ui);
+  font-style: italic;
+}
+.cs-bang.show {
+  animation: cs-bang 0.9s ease-out forwards;
+}
+.cs-munch.show {
+  animation: cs-bang 1s ease-out forwards;
+}
+@keyframes cs-bang {
+  0% {
+    transform: translateY(1vh) scale(0.3);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(0) scale(1.2);
+    opacity: 1;
+  }
+  35% {
+    transform: scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-1vh);
+    opacity: 0;
+  }
+}
+
+/* ── The reveal: a flash of morning light and a shower of sparkles from the cat ── */
+.cs-flash {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--ground) + var(--cs) / 2);
+  width: 30vmin;
+  height: 30vmin;
+  margin-left: -15vmin;
+  translate: 0 50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffbe6 0%, rgba(255, 220, 140, 0.7) 40%, transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+.cs-flash.show {
+  animation: cs-flash 1.6s ease-out forwards;
+}
+@keyframes cs-flash {
+  0% {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(5);
+    opacity: 0;
+  }
+}
+.cs-sparkles i {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--ground) + var(--cs) / 2);
+  width: 1.4vmin;
+  height: 1.4vmin;
+  background: #fff6c8;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  animation: cs-sparkle 1.6s cubic-bezier(0.1, 0.7, 0.3, 1) var(--d) both;
+}
+@keyframes cs-sparkle {
+  0% {
+    transform: translate(0, 0) scale(0.3) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--x), var(--y)) scale(1.4) rotate(160deg);
+    opacity: 0;
+  }
+}
+.cs-heart {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--ground) + var(--cs));
+  width: 7vmin;
+  height: 7vmin;
+  margin-left: -3.5vmin;
+  opacity: 0;
+  background: #ff7d9c;
+  clip-path: polygon(50% 92%, 8% 52%, 4% 30%, 14% 12%, 32% 8%, 50% 24%, 68% 8%, 86% 12%, 96% 30%, 92% 52%);
+}
+.cs-heart.show {
+  animation: cs-heart 1.8s ease-out forwards;
+}
+@keyframes cs-heart {
+  0% {
+    transform: translateY(2vh) scale(0.2);
+    opacity: 0;
+  }
+  25% {
+    transform: translateY(0) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-14vh) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* ── The name ── */
+.cs-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 13vh;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.8s ease;
+}
+.cs-title.show {
+  opacity: 1;
+}
+.cs-title.up {
+  transform: translateY(-4vh) scale(0.8);
+}
+.cs-name {
+  font: 800 clamp(44px, 13vmin, 120px) / 1 var(--ui);
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-shadow:
+    0 0.6vmin 0 #c9702a,
+    0 1.4vmin 3vmin rgba(0, 0, 0, 0.35);
+}
+.cs-name span {
+  display: inline-block;
+  animation: cs-drop 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--i) * 0.09s) both;
+}
+@keyframes cs-drop {
+  from {
+    transform: translateY(-30vh) rotate(-20deg);
+    opacity: 0;
+  }
+}
+.cs-sub {
+  margin: 1.6vh 0 0;
+  font: 600 clamp(16px, 3.6vmin, 30px) / 1.2 var(--ui);
+  color: #3a1f2a;
+  animation: cs-rise 0.6s ease-out 0.6s both;
+}
+.cs-aside {
+  margin: 0.8vh 0 0;
+  font: italic 500 clamp(12px, 2.4vmin, 19px) / 1.2 var(--ui);
+  color: #5a3a44;
+  animation: cs-rise 0.6s ease-out 1.3s both;
+}
+@keyframes cs-rise {
+  from {
+    transform: translateY(1.5vh);
+    opacity: 0;
+  }
+}
+
+/* Paw-print confetti. */
+.cs-paws i {
+  position: absolute;
+  top: -8vh;
+  width: 4vmin;
+  height: 4vmin;
+  scale: var(--s);
+  background: var(--c);
+  /* A pad and four toes. */
+  -webkit-mask:
+    radial-gradient(circle at 50% 70%, #000 28%, transparent 29%),
+    radial-gradient(circle at 18% 36%, #000 11%, transparent 12%),
+    radial-gradient(circle at 38% 16%, #000 11%, transparent 12%),
+    radial-gradient(circle at 62% 16%, #000 11%, transparent 12%),
+    radial-gradient(circle at 82% 36%, #000 11%, transparent 12%);
+  mask:
+    radial-gradient(circle at 50% 70%, #000 28%, transparent 29%),
+    radial-gradient(circle at 18% 36%, #000 11%, transparent 12%),
+    radial-gradient(circle at 38% 16%, #000 11%, transparent 12%),
+    radial-gradient(circle at 62% 16%, #000 11%, transparent 12%),
+    radial-gradient(circle at 82% 36%, #000 11%, transparent 12%);
+  animation: cs-fall 3.4s cubic-bezier(0.3, 0.2, 0.6, 1) var(--d) both;
+}
+@keyframes cs-fall {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(120vh) rotate(var(--r));
+  }
+}
+
+/* ── The card ── */
+.cs-card {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--ground) + var(--cs) + 4vh);
+  width: min(340px, 86vw);
+  translate: -50% 0;
+  padding: 16px 18px 14px;
+  border-radius: 16px;
+  background: #fffaf0;
+  color: #3a2c14;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  pointer-events: none;
+}
+.cs-card.show {
+  opacity: 1;
+  pointer-events: auto;
+  animation: cs-rise 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.cs-card b {
+  font: 700 16px/1.3 var(--ui);
+  color: #c9702a;
+}
+.cs-card ul {
+  margin: 8px 0 12px;
+  padding-left: 18px;
+  font: 500 13px/1.6 var(--ui);
+}
+.cs-go {
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #f0a14a;
+  color: #2b1800;
+  font: 700 14px/1 var(--ui);
+  cursor: var(--cur-pointer, pointer);
+}
+.cs-go:hover {
+  background: #ffb661;
+}
+
+/* ── Letterbox, captions, skip ── */
+.cs-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 10vh;
+  background: #000;
+  transition: transform 0.8s cubic-bezier(0.3, 0.8, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cs-bar.top {
+  top: 0;
+  transform: translateY(-100%);
+  justify-content: flex-end;
+  padding-right: 18px;
+}
+.cs-bar.bot {
+  bottom: 0;
+  transform: translateY(100%);
+}
+.cs-root.in .cs-bar {
+  transform: none;
+}
+.cs-cap {
+  margin: 0;
+  padding: 0 16px;
+  font: 500 clamp(14px, 2.6vmin, 20px) / 1.3 var(--ui);
+  color: #f4ecd8;
+  text-align: center;
+  opacity: 0;
+}
+.cs-cap.show {
+  animation: cs-cap 0.5s ease-out both;
+}
+@keyframes cs-cap {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.cs-skip {
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: none;
+  color: rgba(255, 255, 255, 0.8);
+  font: 600 12px/1 var(--ui);
+  cursor: var(--cur-pointer, pointer);
+}
+.cs-skip:hover {
+  color: #fff;
+  border-color: #fff;
+}
+.cs-skip.hidden {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-stars i,
+  .cs-turbine .blades,
+  .cs-paws i {
+    animation: none;
+  }
+  .cs-paws i {
+    display: none;
+  }
+}

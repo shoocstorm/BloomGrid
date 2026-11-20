@@ -118,7 +118,10 @@ describe('fresh island start (Phase 16, D-072)', () => {
     // The start wonders don't count toward the cruise line, and the jet needs the police charter first.
     c.stats.population = 9000;
     const unmet = (id: 'police' | 'cruise' | 'skyguard') =>
-      PROJECTS[id].criteria(c).filter((k) => !k.ok).map((k) => k.label);
+      PROJECTS[id]
+        .criteria(c)
+        .filter((k) => !k.ok)
+        .map((k) => k.label);
     expect(unmet('cruise').some((l) => /sea wonder/.test(l))).toBe(true);
     expect(unmet('skyguard').some((l) => /Aegis Watch/.test(l))).toBe(true);
     // Every unmet building criterion names a building to build (the Goals tab turns it into a Build button).
@@ -131,7 +134,58 @@ describe('fresh island start (Phase 16, D-072)', () => {
     // The showcase city has them all.
     const show = makeSim(1);
     applyScenario(show.city, 'founding-city');
-    for (const id of ['police', 'cruise', 'skyguard'] as const) expect(projectStatus(show.city, id)).toBe('open');
+    for (const id of ['police', 'cruise', 'skyguard'] as const)
+      expect(projectStatus(show.city, id)).toBe('open');
+  });
+
+  it("the island's cat is befriended, not given (D-178): fish, a garden, residents, then a short project", () => {
+    const s = fresh();
+    const c = s.city;
+    expect(isOpen(c.growth, 'cat')).toBe(false);
+    expect(projectStatus(c, 'cat')).toBe('blocked');
+    const unmet = () => PROJECTS.cat.criteria(c).filter((k) => !k.ok);
+    // A fresh island has one dock and no garden: each unmet criterion offers the building that meets it.
+    expect(unmet().length).toBeGreaterThan(0);
+    for (const k of unmet()) expect(k.build).toBeTruthy();
+    expect(PROJECTS.cat.cost).toBeLessThan(PROJECTS.flora.cost);
+    // Met by hand here (a park and a dock beside the hamlet are what a player would build).
+    const home = c.buildingRecord(
+      c.buildingEntities().find((e) => c.buildingDef(e).category === 'residential')!,
+    );
+    let built = 0;
+    for (let dz = -20; dz <= 20 && built < 1; dz++)
+      for (let dx = -20; dx <= 20 && built < 1; dx++)
+        if (s.commands.execute('build', { def: 'pocket-park', x: home.x + dx, z: home.z + dz, rot: 0 }))
+          built++;
+    expect(built).toBe(1);
+    c.stats.population = Math.max(c.stats.population, 260);
+    c.credits += 1000;
+    const okBut = PROJECTS.cat
+      .criteria(c)
+      .filter((k) => !k.ok)
+      .map((k) => k.label);
+    expect(okBut.every((l) => /Fishing Boat Docks/.test(l))).toBe(true);
+    // The showcase city has its cat from the start.
+    const show = makeSim(1);
+    applyScenario(show.city, 'founding-city');
+    expect(projectStatus(show.city, 'cat')).toBe('open');
+  });
+
+  it('befriending the stray takes seconds once started, and opens the cat', () => {
+    const s = fresh();
+    const c = s.city;
+    const real = PROJECTS.cat.criteria;
+    const ok = () => real(c).map((k) => ({ ...k, ok: true }));
+    PROJECTS.cat.criteria = ok;
+    try {
+      c.credits += 1000;
+      expect(projectStatus(c, 'cat')).toBe('ready');
+      expect(s.commands.execute('startProject', { id: 'cat' })).toBe(true);
+      seconds(s, 12);
+      expect(isOpen(c.growth, 'cat')).toBe(true);
+    } finally {
+      PROJECTS.cat.criteria = real;
+    }
   });
 
   it('Flora sleeps until woken, then each request is billed; the showcase city is free and open', () => {
@@ -187,7 +241,15 @@ describe('Flora knows the goals (Phase 22)', () => {
       fishing: { stock: string };
       wonders: { hidden: string[] };
     };
-    expect(out.projects.map((p) => p.id)).toEqual(['skylanes', 'aeroline', 'flora', 'police', 'cruise', 'skyguard']);
+    expect(out.projects.map((p) => p.id)).toEqual([
+      'cat',
+      'skylanes',
+      'aeroline',
+      'flora',
+      'police',
+      'cruise',
+      'skyguard',
+    ]);
     expect(out.projects.find((p) => p.id === 'skylanes')!.criteria!.some((c) => c.startsWith('✗'))).toBe(
       true,
     );
@@ -226,7 +288,7 @@ describe('Flora knows the goals (Phase 22)', () => {
     expect(plainIntent('start the sky-lane charter')).toBe('start_project');
     expect(plainIntent('build a fishing dock')).toBe('build');
     const b = cityBrief(fresh().city);
-    expect(b).toMatch(/Locked: Sky-lane charter \(needs/);
+    expect(b).toMatch(/Locked: Befriend the stray \(needs .*Sky-lane charter \(needs/);
     expect(b).toMatch(/Fish stock \d+%/);
   });
 });

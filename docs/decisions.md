@@ -3275,3 +3275,91 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   strokes). Flora's and scripts' builds run commands and are untouched.
 - **Rejected**: closing only for buildings that are "usually one" (heroes, utilities): the rule would be invisible
   and wrong for half the cases; the explicit Shift / switch is learnable and shown in the placing tooltip.
+
+## D-175 — Little charms: the island's cat, paper planes, sleepy homes (2026-11-20)
+
+- **Why**: the juice rewards attention with credits and progress; nothing on the island was simply delightful to
+  find. A few small, harmless surprises give curious clicks a smile and the island a personality.
+- **The cat**: one per island, its name and coat picked from `city.seed` (so a player's island keeps its cat across
+  sessions). It sits on a small home's roof in view (roof height ≤ 18), drawn as inline SVG (static markup in
+  `charm/art.ts`) anchored to the roof and scaled by distance, hidden beyond 260 units. Clicking: hearts, a meow,
+  often a hop to another roof; every 5th pet a purr; every 10th a gift that is a resident's tip through
+  `collectTip` (so credits stay the sim's and replay). It wanders every 40–75 s of running time (always back into
+  view when off screen) and sleeps at night (eyes shut, dimmed). Pets per viewer and island in `localStorage`.
+- **Paper planes**: one at a time, first after 75 s of running time, then every 150–260 s; a 13 s glide across the
+  screen. Caught: a paper note (`charm/notes.ts`, signed with a resident's voice from `voiceFor`), a third of them
+  with a tip folded inside (again `collectTip`). Missed: nothing lost.
+- **Sleepy homes**: at night, every 6–10 s a home in view floats "z z Z" (at most two at once).
+- Two Firsts (Cat person, Fan mail) through a new `juice.earn(id)`. Sounds `meow`, `purr`, `paper` on the `juice`
+  event. Settings → Display → Little charms turns it all off. Also fixed "a Old Harbour …" in residents' voices.
+- **Rejected**: a 3D cat (a few pixels tall at city zoom; a screen-sized sticker reads and costs nothing on the GPU);
+  charms as sim state (they are cosmetic; only the credits they pay go through commands).
+
+## D-176 — A lively cat (2026-11-20)
+
+- **Why**: D-175's cat sat still apart from a tail swish and a blink, and moved roofs by fading; it read as a sticker.
+- **How** (`charm/cat.ts`): a rigged front drawing (head turning from the neck, each ear, a grooming paw, pupils, a
+  yawning mouth) and a side-on drawing (four legs swinging in pairs, a waving tail, a bobbing head) in `art.ts`.
+  Awake, the cat picks an act every 0.4–2.6 s after the last one ends, by weight (`AWAKE`): sit, look about, ear
+  flicks, groom, yawn, stretch, walk along the roof (side on, the offset written per frame as the inner span's
+  `translate`, in half-widths of the roof as it looks on screen), loaf (paws tucked, eyes half shut), watch a
+  butterfly then pounce, or leap. A leap is an arc in world space (height 2.5 + 0.22·distance) to a home roof within
+  40 units in view, side on with legs stretched, landing with a squash; farther moves still hop off and drop in.
+  Asleep (`ASLEEP`): ear twitches, tail flicks, a stir. Its pupils and head follow the pointer within 280 px; hovered,
+  the ears perk and the tail quickens; nothing new is started while hovered, so a click lands.
+- Acts are CSS classes on the SVG parts (transform keyframes only); per frame, one element's transform and
+  translate are written, plus two projections for the roof's width. `charm.act(name)` runs one for scenes.
+- **Rejected**: sprite-sheet animation (an asset pipeline for one cat); a 3D cat (too small at city zoom, D-175).
+
+## D-177 — The cat as a pet: following and talking (2026-11-20)
+
+- **Why**: the cat lived on whatever roof it landed on and only "spoke" in short floating chips when petted. A pet
+  keeps you company and notices things with you.
+- **Following**: every 0.8 s (0.25 s while chasing) the cat checks its screen position. Off screen (0.6 s awake,
+  4 s asleep) it drops in near the middle of the view; awake and farther than 30 % of the short screen side from
+  the middle, it leaps to a roof within 40 units that is closer to the middle (`homeSpot` `toward`, weighted to the
+  closest). It perches on any non-landmark building up to 18 high, not only homes, so it can keep up anywhere.
+  Hovered, petted or zoomed out past its draw distance, it stays.
+- **Talking**: one bubble above the cat (name, line, an optional button), riding with it, shifted to stay on
+  screen; clicking dismisses it, hovering holds it. Out of sight when it has something to say, it comes into view
+  first. Lines are data (`charm/talk.ts`); occasions in `index.ts`: hello / welcome back (per viewer and island),
+  morning (on waking) and evening, milestones, new buildings and homes, level-ups, golden tips and combos, spotted
+  golden bubbles and paper planes, fireworks, crises (it wakes), fires (with **Show me**), projects, bridges,
+  wonders, eras, a system turning Critical, and chatter every 70–130 s of running time (an unclaimed milestone after
+  20 s, the worst strained supply, a thriving city, or an idle thought). Rate limits by weight: 5 s for moments,
+  16 s for small things, 45 s for chatter; moments meow.
+- **Bond**: Shy / Friend (3 pets) / Buddy (12) / Best friend (30), announced in a bubble and shown in its title.
+- **Rejected**: speech through toasts (they say nothing of who is talking); a cat that follows the pointer (it
+  would chase every cursor move; the view is where the steward is looking).
+
+## D-178 — Befriend the stray: the cat is earned, with a film (2026-11-20)
+
+- **Why**: a companion handed over at the start is easy to ignore. Earned, with a moment of its own, players value
+  it (as with Flora and the Aeroline).
+- **The gate** (`sim/projects.ts`, new `UnlockId` `cat`): *Befriend the stray*, the first and cheapest project:
+  two Fishing Boat Docks ("fresh fish"), a park or garden ("sunny naps"), 250 residents, ◈250 and 8 s of work.
+  Its criteria overlap the early milestones (Second catch, A busy harbour), so it lands in the first stretch of
+  play. Listed first in `PROJECTS` (Goals shows it first); the pacing test still holds. No save change: `unlocked`
+  is a list of ids, so older fresh-island saves meet the stray too; non-progression cities have the cat from the start.
+- **The stray**: until then the cat is a silhouette with lamp-yellow eyes and no name ("???"); it never follows or
+  talks, turns up now and then in view, flattens its ears when hovered, and darts off when clicked with a hint and
+  a **See how** button (Build → Goals). Paper-plane notes call it "the stray cat".
+- **The film** (`charm/cutscene.ts`, `cutscene.css`): ~20 s in its own illustrated night over the paused city
+  (letterbox, stars, a moon that becomes the rising sun, a skyline with a turning turbine, a roof ledge with a
+  chimney). The star is the city's rig drawn large (the same `ch-cat` classes and SVG), so it looks like the cat
+  players will meet. Beats: eyes blink in the dark; a fish drops on a string; the creep with two comic freezes
+  ("!", "!!", tiptoe); a pounce with a star puff; munch munch *hic*; dawn and the coat colours tweening in
+  (registered `@property` colours) with a flash and sparkles; a slow blink and a heart; the name dropping in letter
+  by letter ("has decided to adopt you. (You thought it was the other way round.)"); a collar and bell; paw-print
+  confetti; a card with **Welcome home, {name}**. Skip button and Esc; it owns the keyboard while it runs. Ten
+  synthesised `cs-*` cues score it.
+- **Integration**: `moments.stage(id, run)` queues a custom sequence in the ceremonies' line (ahead of waiting
+  ones, `playing` true while it runs, so juice and charms wait); the pause card treats `cutscene-on` as a hold
+  that isn't the player's. On finishing, the cat takes its colours and name, drops in near the view and says hello.
+- **Rejected**: a pre-rendered video file (size, a codec in both shells, and it could not show the player's own
+  cat); playing it in the 3D city (the cat is a few pixels tall there, D-175).
+- **Fix (same day)**: founding a new island showed a ready-made pet. `City.reset` emits `city:reset` before the
+  scenario turns progression on, and a city without progression has everything open, so reading adoption once at
+  the reset adopted the cat. The charms module now checks `isOpen(growth, 'cat')` every frame (`unfriend` /
+  `befriend`; held as a stray while the film is queued or playing). The stray no longer waits on a roof from the
+  start either: it first visits 50–80 s after founding, stays 25–40 s, and comes back every 90–160 s.

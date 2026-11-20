@@ -2,7 +2,7 @@
 id: playbooks-fresh-island
 title: Fresh island playbook
 category: playbooks
-summary: A route through progression on a new island: fishing, the first town, then the Sky-lane charter, Wake Flora, the Aeroline, and the late unlocks (police drones, the cruise ferry, the Sky Guard jet).
+summary: A route through progression on a new island: fishing, the first town, befriending the stray cat, then the Sky-lane charter, Wake Flora, the Aeroline, and the late unlocks (police drones, the cruise ferry, the Sky Guard jet).
 tags: [progression, unlock, project, goals, fresh island, sky-lane charter, aeroline, wake flora, wonders, police, drones, aegis watch, cruise ferry, tidesong, jet, sky guard]
 related: [basics-first-hour, reference-rules, playbooks-flora]
 order: 1
@@ -17,6 +17,8 @@ every tier at Stable. Watch the fish stock in the Goals tab.
 
 The Goals tab (Build panel) lists each project's conditions and cost. Live numbers: [Rules of play](kb:reference-rules).
 
+- **Befriend the stray** (the first and cheapest): a second Fishing Boat Dock, a park or garden, and 250
+  residents, then ◈250 and a few seconds. A short film plays and the island's cat becomes yours.
 - **Sky-lane charter**: needs residents and a Drone Fabricator. Unlocks pod docks, interchanges and the Skylane
   Nexus: the cure for early traffic.
 - **Wake Flora**: needs a power plant, a Data Spire and credits in the treasury. Unlocks the city assistant; each

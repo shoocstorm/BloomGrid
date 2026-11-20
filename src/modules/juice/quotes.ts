@@ -138,7 +138,8 @@ export function voiceFor(city: City, category: string, r: number, x: number, z: 
   const area = city.areaAt(Math.floor(x), Math.floor(z));
   const key = area?.name ?? OUTSKIRTS_KEY;
   const who = WHO[category] ?? WHO.residential!;
-  const place = key === OUTSKIRTS_KEY ? 'an outskirts' : `a ${districtLabel(key)}`;
+  const label = districtLabel(key);
+  const place = key === OUTSKIRTS_KEY ? 'an outskirts' : `${/^[aeiou]/i.test(label) ? 'an' : 'a'} ${label}`;
   const by = `— ${place} ${who[Math.floor(r * 31) % who.length]!}`;
   if (taxNews && city.tick - taxNews.tick > NEWS * PULSE_TICKS) taxNews = null;
   if (lastTax >= 0 && city.pulse.taxRate !== lastTax) taxNews = { dir: city.pulse.taxRate > lastTax ? 'up' : 'down', tick: city.tick };

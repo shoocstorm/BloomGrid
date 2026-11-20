@@ -43,7 +43,7 @@ import './juice.css';
  *
  * - **Early-game life (D-173)**: boats coming home float their haul over the dock (`fishing:landed`); homes
  *   filling up float "+N" residents; the milestone card ticks "+1" as a counted goal moves; *Firsts* (`firsts.ts`)
- *   badge sixteen discoveries of a fresh island once each (saved per city, listed in Build → Goals); and each dawn
+ *   badge eighteen discoveries of a fresh island once each (saved per city, listed in Build → Goals); and each dawn
  *   a Day recap card sums up the day just ended (residents, treasury, builds, tips, catch, firsts).
  *
  * DOM only, animated with transform / opacity keyframes (§7½); world-anchored pieces re-project each frame (≤ ~12
@@ -61,7 +61,21 @@ export type JuiceSound =
   | 'catch'
   | 'first'
   | 'day'
-  | 'tick';
+  | 'tick'
+  | 'meow'
+  | 'purr'
+  | 'paper'
+  // The adoption cutscene (D-178).
+  | 'cs-night'
+  | 'cs-blink'
+  | 'cs-boing'
+  | 'cs-sneak'
+  | 'cs-freeze'
+  | 'cs-whoosh'
+  | 'cs-munch'
+  | 'cs-reveal'
+  | 'cs-fanfare'
+  | 'cs-bell';
 
 export interface JuiceService {
   /** Tip bubbles on or off (per viewer). */
@@ -72,6 +86,8 @@ export interface JuiceService {
   firsts(): { id: string; title: string; line: string; icon: string; earned: boolean }[];
   /** Shows the Day recap now for the day so far (scripts and scenes). */
   recap(): void;
+  /** Marks a First earned by another module (the charms' cat and paper planes, D-175). */
+  earn(id: string): void;
 }
 
 declare module '@/core/Services' {
@@ -966,6 +982,11 @@ class Juice {
     this.moveIns();
   }
 
+  /** A First earned elsewhere (a module's own event). */
+  earnFirst(id: string): void {
+    if (!this.ctx.loading) this.earn(id);
+  }
+
   /** Every First with whether this city has it. */
   firsts(): ReturnType<JuiceService['firsts']> {
     return FIRSTS.map((f) => ({
@@ -1029,6 +1050,7 @@ export const juiceModule: GameModule = {
       spawnTip: (golden?: boolean) => juice.spawnTip(golden),
       firsts: () => juice.firsts(),
       recap: () => juice.recap(),
+      earn: (id: string) => juice.earnFirst(id),
     });
   },
 };

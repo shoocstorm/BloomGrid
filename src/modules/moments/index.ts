@@ -38,6 +38,12 @@ export type MomentsMode = 'all' | 'major' | 'off';
 export interface MomentsService {
   /** Queues a moment; `done` runs when it has played (or at once when moments are off). */
   play(m: MomentSpec, done?: () => void): void;
+  /**
+   * Queues a custom sequence (a cutscene, D-178) in the same line as the ceremonies: `run` starts when its turn
+   * comes and calls `finish` when it is over; meanwhile `playing` is true (HUD juice and charms wait). It plays
+   * whatever the Settings mode, being a story beat rather than a celebration.
+   */
+  stage(id: string, run: (finish: () => void) => void): void;
   mode: MomentsMode;
   readonly playing: boolean;
 }
@@ -94,7 +100,9 @@ export const momentsModule: GameModule = {
     } catch {
       /* storage blocked */
     }
-    const queue: { m: MomentSpec; done?: () => void }[] = [];
+    const queue: { m: MomentSpec; done?: () => void; run?: (finish: () => void) => void }[] = [];
+    /** A staged sequence is on (D-178). */
+    let staged = false;
     const play = (m: MomentSpec, done?: () => void) => {
       if (mode === 'off' || (mode === 'major' && m.scale === 'minor')) return void done?.();
       if (queue.some((q) => q.m.id === m.id)) return;
@@ -107,9 +115,26 @@ export const momentsModule: GameModule = {
       }
     };
     const next = () => {
-      if (ceremony.playing || !queue.length || ctx.loading || document.body.classList.contains('chapter-open')) return;
-      const { m, done } = queue.shift()!;
+      if (staged || ceremony.playing || !queue.length || ctx.loading || document.body.classList.contains('chapter-open')) return;
+      const { m, done, run } = queue.shift()!;
+      if (run) {
+        staged = true;
+        document.body.classList.add('moment-on');
+        let over = false;
+        run(() => {
+          if (over) return;
+          over = true;
+          staged = false;
+          document.body.classList.remove('moment-on');
+        });
+        return;
+      }
       ceremony.play(m, () => done?.());
+    };
+    const stage = (id: string, run: (finish: () => void) => void) => {
+      if (queue.some((q) => q.m.id === id)) return;
+      // Ahead of anything waiting: it is the story beat the waiting moments would interrupt.
+      queue.unshift({ m: { id, scale: 'grand' } as MomentSpec, run });
     };
 
     // ── Baselines: a city change arms the triggers a few seconds later, from where the city already is ──
@@ -313,6 +338,7 @@ export const momentsModule: GameModule = {
 
     ctx.services.provide('moments', {
       play,
+      stage,
       get mode() {
         return mode;
       },
@@ -325,7 +351,7 @@ export const momentsModule: GameModule = {
         }
       },
       get playing() {
-        return ceremony.playing;
+        return ceremony.playing || staged;
       },
     });
 

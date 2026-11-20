@@ -53,6 +53,33 @@ const building = (city: City, id: string, label: string): Criterion => ({ label,
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
 export const PROJECTS: Record<UnlockId, ProjectDef> = {
+  // The island's cat (D-178): the first thing a fresh island earns, and the cheapest; it is a friendship rather
+  // than an investment. The criteria are what would make a stray stay: fish, a sunny garden, a lively town.
+  cat: {
+    id: 'cat',
+    name: 'Befriend the stray',
+    icon: 'happy',
+    description:
+      'A shy stray watches the harbour from the rooftops. Leave out fresh fish, plant a sunny garden, and it may decide to stay.',
+    unlocks:
+      "The island's cat: a rooftop companion that follows you, talks to you, warns you of trouble and loves a pet.",
+    cost: 250,
+    // 8 s at 1×: earning its trust, then the cutscene.
+    days: 8 / DAY_LENGTH,
+    criteria: (city) => [
+      {
+        label: `Two Fishing Boat Docks for fresh fish (${city.buildingEntities().filter((e) => city.buildingDef(e).id === 'fishing-dock').length})`,
+        ok: city.buildingEntities().filter((e) => city.buildingDef(e).id === 'fishing-dock').length >= 2,
+        build: 'fishing-dock',
+      },
+      {
+        label: 'A park or garden for sunny naps',
+        ok: city.buildingEntities().some((e) => city.buildingDef(e).category === 'nature'),
+        build: 'pocket-park',
+      },
+      residents(city, 250),
+    ],
+  },
   skylanes: {
     id: 'skylanes',
     name: 'Sky-lane charter',

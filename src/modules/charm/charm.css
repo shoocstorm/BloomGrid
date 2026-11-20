@@ -1,0 +1,891 @@
+/* Little charms (D-175): the island's cat, paper planes and sleepy homes. Transform / opacity keyframes only
+   (§7½), and gentle (the subtle-motion rule). */
+
+/* ── World layer: over the city, under the HUD's panels (like the juice) ── */
+#hud > .ch-world {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+#hud > .ch-world.hidden,
+.ch-top.hidden {
+  display: none;
+}
+.ch-world > * {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.ch-world > .off,
+.ch-world > .ch-cat.hidden {
+  visibility: hidden;
+}
+
+/* The cat: a button anchored at the roof (its own transform), the drawing inside free to animate. The walk
+   offset along the roof is the inner span's `translate`, written per frame (D-176). */
+.ch-cat {
+  pointer-events: auto;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: var(--cur-pointer, pointer);
+}
+.ch-cat-in {
+  position: absolute;
+  left: -17px;
+  top: -33px;
+  width: 34px;
+  height: 34px;
+  /* A bigger, invisible hit area for fingers. */
+  padding: 6px;
+  margin: -6px;
+  box-sizing: content-box;
+  scale: var(--s, 1);
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
+.ch-cat-in svg {
+  display: block;
+  overflow: visible;
+}
+.ct-front {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+}
+.ch-side {
+  position: absolute;
+  left: 2px;
+  bottom: 6px;
+  width: 42px;
+  height: 29px;
+  display: none;
+}
+.ch-side svg {
+  width: 100%;
+  height: 100%;
+}
+.ch-cat.pose-side .ct-front {
+  display: none;
+}
+.ch-cat.pose-side .ch-side {
+  display: block;
+}
+.ch-cat .ct-fur {
+  fill: var(--fur);
+}
+.ch-cat .ct-tail,
+.ch-cat .ct-stail {
+  stroke: var(--fur);
+}
+.ch-cat .ct-belly {
+  fill: var(--belly);
+}
+.ch-cat .ct-mark {
+  fill: var(--mark);
+  opacity: 0.85;
+}
+.ch-cat .ct-ear,
+.ch-cat .ct-nose {
+  fill: #f39aa8;
+}
+.ch-cat .ct-eyes,
+.ch-cat .ct-seye {
+  fill: var(--eye, #1f2a24);
+}
+.ch-cat .ct-glint {
+  fill: color-mix(in srgb, var(--eye, #1f2a24) 20%, #fff);
+}
+.ch-cat .ct-line,
+.ch-cat .ct-shut {
+  stroke: #1f2a24;
+}
+.ch-cat .ct-shut,
+.ch-cat .ct-yawn {
+  display: none;
+}
+.ch-cat .ct-yawn {
+  fill: #c9475e;
+}
+
+/* The rig at rest: the tail swishes, the eyes blink, the head and pupils lean toward the pointer. */
+.ch-cat .ct-tail {
+  transform-origin: 22px 27px;
+  animation: ch-tail 3.2s ease-in-out infinite;
+}
+.ch-cat .ct-eyes {
+  transform-origin: 16px 12.6px;
+  animation: ch-blink 4.6s ease-in-out infinite;
+}
+.ch-cat .ct-head {
+  transform-origin: 16px 19px;
+  transform: rotate(calc(var(--lx, 0) * 7deg)) translateY(calc(var(--ly, 0) * 0.4px));
+  transition: transform 0.3s ease-out;
+}
+.ch-cat .ct-look {
+  transform: translate(calc(var(--lx, 0) * 0.75px), calc(var(--ly, 0) * 0.6px));
+  transition: transform 0.15s ease-out;
+}
+.ch-cat .ct-earL {
+  transform-origin: 12px 9px;
+  transition: transform 0.2s;
+}
+.ch-cat .ct-earR {
+  transform-origin: 20px 9px;
+  transition: transform 0.2s;
+}
+.ch-cat .ct-paw {
+  transform-origin: 19.4px 29px;
+}
+.ch-cat .ct-body {
+  transform-origin: 16px 30px;
+}
+@keyframes ch-tail {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-14deg);
+  }
+}
+@keyframes ch-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+/* Hovered: ears up, a quick happy tail. */
+.ch-cat.hover .ct-earL {
+  transform: rotate(-10deg) scale(1.08);
+}
+.ch-cat.hover .ct-earR {
+  transform: rotate(10deg) scale(1.08);
+}
+.ch-cat.hover .ct-tail {
+  animation-duration: 0.9s;
+}
+
+/* Looking around: head left, right, back; the pupils lead. */
+.ch-cat.act-look .ct-head {
+  animation: ch-look-head 2.8s ease-in-out;
+}
+.ch-cat.act-look .ct-look {
+  animation: ch-look-eyes 2.8s ease-in-out;
+}
+@keyframes ch-look-head {
+  25%,
+  40% {
+    transform: rotate(-14deg);
+  }
+  65%,
+  80% {
+    transform: rotate(13deg);
+  }
+}
+@keyframes ch-look-eyes {
+  20%,
+  40% {
+    transform: translate(-0.9px, 0);
+  }
+  60%,
+  80% {
+    transform: translate(0.9px, 0);
+  }
+}
+/* An ear flick. */
+.ch-cat.act-twitchL .ct-earL {
+  animation: ch-twitchL 0.35s ease-in-out 2;
+}
+.ch-cat.act-twitchR .ct-earR {
+  animation: ch-twitchR 0.35s ease-in-out 2;
+}
+@keyframes ch-twitchL {
+  50% {
+    transform: rotate(-28deg) scaleY(0.85);
+  }
+}
+@keyframes ch-twitchR {
+  50% {
+    transform: rotate(28deg) scaleY(0.85);
+  }
+}
+/* Grooming: the paw to the mouth, the head down to meet it, eyes shut. */
+.ch-cat.act-groom .ct-paw {
+  animation: ch-groom-paw 1.1s ease-in-out 3;
+}
+.ch-cat.act-groom .ct-head {
+  animation: ch-groom-head 1.1s ease-in-out 3;
+}
+.ch-cat.act-groom .ct-eyes,
+.ch-cat.act-yawn .ct-eyes {
+  display: none;
+}
+.ch-cat.act-groom .ct-shut,
+.ch-cat.act-yawn .ct-shut {
+  display: inline;
+}
+@keyframes ch-groom-paw {
+  0%,
+  100% {
+    transform: none;
+  }
+  35%,
+  70% {
+    transform: translate(-2.5px, -11px) rotate(-25deg);
+  }
+  52% {
+    transform: translate(-2px, -12.5px) rotate(-15deg);
+  }
+}
+@keyframes ch-groom-head {
+  35%,
+  70% {
+    transform: rotate(12deg) translateY(1.2px);
+  }
+}
+/* A yawn: head back, mouth wide. */
+.ch-cat.act-yawn .ct-yawn {
+  display: inline;
+  transform-origin: 16px 16.5px;
+  animation: ch-yawn 1.9s ease-in-out both;
+}
+.ch-cat.act-yawn .ct-smile {
+  display: none;
+}
+.ch-cat.act-yawn .ct-head {
+  animation: ch-yawn-head 1.9s ease-in-out;
+}
+@keyframes ch-yawn {
+  0%,
+  100% {
+    transform: scale(0.2);
+  }
+  30%,
+  70% {
+    transform: scale(1.15);
+  }
+}
+@keyframes ch-yawn-head {
+  30%,
+  70% {
+    transform: rotate(-6deg) translateY(-1px);
+  }
+}
+/* A stretch: long and low, then back. */
+.ch-cat.act-stretch .ct-body {
+  animation: ch-stretch 2.1s ease-in-out;
+}
+.ch-cat.act-stretch .ct-head {
+  animation: ch-stretch-head 2.1s ease-in-out;
+}
+@keyframes ch-stretch {
+  35%,
+  65% {
+    transform: scale(1.16, 0.84);
+  }
+}
+@keyframes ch-stretch-head {
+  35%,
+  65% {
+    transform: translateY(3px) rotate(-4deg);
+  }
+}
+/* A butterfly: watched (head and eyes follow it), then a pounce. */
+.ch-cat.act-watch .ct-head {
+  animation: ch-watch 1.3s ease-in-out 2;
+}
+.ch-cat.act-watch .ct-look {
+  transform: translate(0, -0.8px);
+}
+.ch-cat.act-watch .ct-tail {
+  animation-duration: 0.7s;
+}
+.ch-cat.act-pounce .ct-front {
+  animation: ch-pounce 0.7s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+@keyframes ch-watch {
+  0%,
+  100% {
+    transform: rotate(-9deg) translateY(-0.8px);
+  }
+  50% {
+    transform: rotate(9deg) translateY(-1px);
+  }
+}
+@keyframes ch-pounce {
+  0% {
+    transform: scale(1.08, 0.86);
+  }
+  35% {
+    transform: translateY(-12px) scale(0.94, 1.08);
+  }
+  75% {
+    transform: translateY(0) scale(1.1, 0.88);
+  }
+}
+.ch-bfly {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  width: 14px;
+  height: 12px;
+  margin-left: -7px;
+  color: var(--bf, #ffd45e);
+  fill: currentColor;
+  pointer-events: none;
+  animation: ch-bf-loop 2.6s ease-in-out both;
+}
+.ch-bfly.flip {
+  animation-direction: reverse;
+}
+.ch-bfly.away {
+  animation: ch-bf-away 1s ease-in forwards;
+}
+.ch-bfly svg {
+  width: 100%;
+  height: 100%;
+}
+.ch-bfly .bf-wing {
+  transform-origin: 7px 6px;
+  animation: ch-flap 0.18s ease-in-out infinite alternate;
+}
+@keyframes ch-bf-loop {
+  0% {
+    transform: translate(-30px, -6px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  35% {
+    transform: translate(-6px, -22px);
+  }
+  60% {
+    transform: translate(14px, -10px);
+  }
+  100% {
+    transform: translate(2px, -16px);
+  }
+}
+@keyframes ch-bf-away {
+  from {
+    transform: translate(2px, -16px);
+  }
+  to {
+    transform: translate(40px, -60px);
+    opacity: 0;
+  }
+}
+@keyframes ch-flap {
+  to {
+    transform: scaleX(0.25);
+  }
+}
+
+/* Side on: walking (legs swing in pairs, a small bob), loafing, leaping. */
+.ch-cat .ct-stail {
+  transform-origin: 10px 14px;
+  animation: ch-stail 2.2s ease-in-out infinite;
+}
+.ch-cat .ct-leg1 {
+  transform-origin: 12.5px 16px;
+}
+.ch-cat .ct-leg2 {
+  transform-origin: 15.5px 17px;
+}
+.ch-cat .ct-leg3 {
+  transform-origin: 25px 16px;
+}
+.ch-cat .ct-leg4 {
+  transform-origin: 28px 17px;
+}
+.ch-cat .ct-shead {
+  transform-origin: 28px 12px;
+}
+.ch-cat .ct-seye {
+  transform-origin: 32.6px 9.3px;
+}
+@keyframes ch-stail {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+.ch-cat.act-walk .ct-leg1,
+.ch-cat.act-walk .ct-leg4 {
+  animation: ch-step 0.5s ease-in-out infinite alternate;
+}
+.ch-cat.act-walk .ct-leg2,
+.ch-cat.act-walk .ct-leg3 {
+  animation: ch-step 0.5s ease-in-out infinite alternate-reverse;
+}
+.ch-cat.act-walk .ch-side svg {
+  animation: ch-bob 0.25s ease-in-out infinite alternate;
+}
+.ch-cat.act-walk .ct-shead {
+  animation: ch-nod 0.5s ease-in-out infinite alternate;
+}
+@keyframes ch-step {
+  from {
+    transform: rotate(-22deg);
+  }
+  to {
+    transform: rotate(22deg);
+  }
+}
+@keyframes ch-bob {
+  to {
+    transform: translateY(-0.8px);
+  }
+}
+@keyframes ch-nod {
+  to {
+    transform: rotate(4deg);
+  }
+}
+/* A loaf: paws tucked, low, eyes half shut, the tail slow. */
+.ch-cat.act-loaf .ct-leg {
+  display: none;
+}
+.ch-cat.act-loaf .ch-side svg {
+  transform: translateY(4.5px) scaleY(0.9);
+  transform-origin: 50% 100%;
+}
+.ch-cat.act-loaf .ct-shead {
+  transform: translate(-1px, 2.5px) rotate(4deg);
+}
+.ch-cat.act-loaf .ct-seye {
+  transform: scaleY(0.3);
+}
+.ch-cat.act-loaf .ct-stail {
+  animation-duration: 5s;
+}
+/* A leap: legs reaching fore and aft. */
+.ch-cat.act-leap .ct-leg1,
+.ch-cat.act-leap .ct-leg2 {
+  transform: rotate(45deg);
+}
+.ch-cat.act-leap .ct-leg3,
+.ch-cat.act-leap .ct-leg4 {
+  transform: rotate(-45deg);
+}
+.ch-cat.act-leap .ct-stail {
+  animation: none;
+  transform: rotate(30deg);
+}
+
+/* Asleep at night: eyes shut, a slow breath, the odd ear twitch, tail flick or stir. */
+.ch-cat.sleep .ct-eyes {
+  display: none;
+}
+.ch-cat.sleep .ct-shut {
+  display: inline;
+}
+.ch-cat.sleep .ct-tail {
+  animation: none;
+  transform: rotate(-30deg);
+}
+.ch-cat.sleep .ct-head {
+  transform: rotate(8deg) translateY(1.5px);
+}
+.ch-cat.sleep .ct-front {
+  animation: ch-breathe 3.6s ease-in-out infinite;
+}
+.ch-cat.sleep.act-flick .ct-tail {
+  animation: ch-flick 1s ease-in-out;
+}
+.ch-cat.sleep.act-stir .ct-body {
+  animation: ch-stretch 2.2s ease-in-out;
+}
+.ch-cat.sleep .ch-cat-in {
+  filter: brightness(0.7) saturate(0.8) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
+@keyframes ch-breathe {
+  50% {
+    transform: scale(1.03, 0.97);
+  }
+}
+@keyframes ch-flick {
+  0%,
+  100% {
+    transform: rotate(-30deg);
+  }
+  30% {
+    transform: rotate(-4deg);
+  }
+  60% {
+    transform: rotate(-38deg);
+  }
+}
+
+/* Landing on a roof, hopping off, and a squish when petted. */
+.ch-cat.land .ch-cat-in {
+  animation: ch-land 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.ch-cat.arrive .ch-cat-in {
+  animation: ch-arrive 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.ch-cat.hop .ch-cat-in {
+  animation: ch-hop 0.42s ease-in forwards;
+}
+.ch-cat-in.squish .ct-front,
+.ch-cat-in.squish .ch-side svg {
+  animation: ch-squish 0.45s ease-out;
+}
+@keyframes ch-land {
+  0% {
+    transform: translateY(-6px) scale(0.95, 1.05);
+  }
+  45% {
+    transform: scale(1.12, 0.86);
+  }
+}
+@keyframes ch-arrive {
+  from {
+    transform: translateY(-26px);
+    opacity: 0;
+  }
+}
+@keyframes ch-hop {
+  40% {
+    transform: translateY(-18px);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+}
+@keyframes ch-squish {
+  30% {
+    transform: scale(1.12, 0.86);
+  }
+  60% {
+    transform: scale(0.95, 1.06);
+  }
+}
+
+/* Hearts and what the cat "said". */
+.ch-hearts {
+  width: 0;
+  height: 0;
+  /* Anchored at the roof: the hearts rise from the cat's head (screen pixels, at any zoom). */
+  translate: 0 -34px;
+}
+.ch-hearts i {
+  position: absolute;
+  left: -7px;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  color: #ff8fa8;
+  animation: ch-heart 1.4s ease-out calc(var(--i) * 0.14s) both;
+}
+.ch-hearts i:nth-child(2) {
+  --x: -14px;
+}
+.ch-hearts i:nth-child(3) {
+  --x: 14px;
+}
+.ch-hearts svg {
+  width: 14px;
+  height: 14px;
+}
+@keyframes ch-heart {
+  0% {
+    transform: translate(0, 6px) scale(0.3);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--x, 0), -26px) scale(1);
+    opacity: 0;
+  }
+}
+.ch-say {
+  translate: -50% calc(-100% - 44px);
+  max-width: 220px;
+  padding: 4px 10px;
+  border-radius: var(--r-md);
+  background: rgba(255, 250, 236, 0.95);
+  color: #2b2410;
+  font: italic 500 12px/1.3 var(--ui);
+  text-align: center;
+  white-space: normal;
+  width: max-content;
+  animation: jc-float 2.6s ease-out forwards;
+}
+.ch-say.gift {
+  background: #ffe9a8;
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* Sleepy homes: three z's drifting up. */
+.ch-zzz {
+  display: flex;
+  gap: 1px;
+  translate: -50% -100%;
+  color: rgba(220, 230, 255, 0.85);
+  font: 600 11px/1 var(--mono);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.ch-zzz i {
+  font-style: normal;
+  animation: ch-z 3.2s ease-out both;
+}
+.ch-zzz i:nth-child(2) {
+  animation-delay: 0.4s;
+  font-size: 13px;
+}
+.ch-zzz i:nth-child(3) {
+  animation-delay: 0.8s;
+  font-size: 15px;
+}
+@keyframes ch-z {
+  0% {
+    transform: translate(0, 6px);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(8px, -22px);
+    opacity: 0;
+  }
+}
+
+/* ── Screen layer: paper planes and their notes ── */
+.ch-top {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  pointer-events: none;
+}
+.ch-plane {
+  position: absolute;
+  left: 0;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: auto;
+  cursor: var(--cur-pointer, pointer);
+  animation: ch-fly-ltr var(--fly, 13s) linear forwards;
+}
+.ch-plane.rtl {
+  animation-name: ch-fly-rtl;
+}
+.ch-plane-in {
+  position: absolute;
+  left: -24px;
+  top: -18px;
+  width: 48px;
+  height: 36px;
+  padding: 6px;
+  box-sizing: border-box;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.3));
+  animation: ch-glide 3.2s ease-in-out infinite;
+}
+.ch-plane.rtl .ch-plane-in svg {
+  transform: scaleX(-1);
+}
+.ch-plane-in svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ch-plane:hover .ch-plane-in {
+  scale: 1.15;
+}
+@keyframes ch-fly-ltr {
+  from {
+    transform: translateX(-60px);
+  }
+  to {
+    transform: translateX(calc(100vw + 60px));
+  }
+}
+@keyframes ch-fly-rtl {
+  from {
+    transform: translateX(calc(100vw + 60px));
+  }
+  to {
+    transform: translateX(-60px);
+  }
+}
+@keyframes ch-glide {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(4deg);
+  }
+}
+.ch-note {
+  position: absolute;
+  pointer-events: auto;
+  padding: 14px 18px 12px;
+  border-radius: 4px;
+  background: linear-gradient(#fffdf6, #f7f0de);
+  color: #2b2410;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  rotate: -1.5deg;
+  animation: ch-unfold 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.ch-note.out {
+  animation: ch-fold 0.3s ease-in forwards;
+}
+.ch-note > .pop-x {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  color: #6b5d3a;
+}
+.ch-note p {
+  margin: 0 14px 6px 0;
+  font: italic 500 13.5px/1.45 var(--ui);
+}
+.ch-note cite {
+  display: block;
+  color: #7a6a44;
+  font: 500 11.5px/1.3 var(--ui);
+  text-align: right;
+}
+.ch-note-gift {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 2px 9px;
+  border-radius: var(--pill);
+  background: #ffe39a;
+  color: #4a3000;
+  font: 600 11.5px/18px var(--mono);
+}
+.ch-note-gift svg {
+  width: 12px;
+  height: 12px;
+}
+@keyframes ch-unfold {
+  from {
+    transform: scale(0.2, 0.05);
+    opacity: 0;
+  }
+}
+@keyframes ch-fold {
+  to {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-cat .ct-tail,
+  .ch-cat .ct-stail,
+  .ch-cat .ct-leg,
+  .ch-cat .ct-head,
+  .ch-cat .ct-front,
+  .ch-bfly,
+  .ch-cat .ct-eyes,
+  .ch-cat.sleep .ch-cat-in svg,
+  .ch-plane-in {
+    animation: none;
+  }
+}
+
+/* The cat's speech bubble (D-177): rides above the cat (inside its anchored button, offset by the walk), with its
+   name, a line and sometimes a button. Clicking it dismisses it; hovering holds it. */
+.ch-talk {
+  position: absolute;
+  left: var(--wxpx, 0px);
+  bottom: calc(34px * var(--s, 1) + 12px);
+  translate: calc(-50% + var(--bx, 0px)) 0;
+  width: max-content;
+  max-width: 230px;
+  padding: 7px 11px 8px;
+  border: 1.5px solid #f3d9a4;
+  border-radius: 14px;
+  background: #fffaf0;
+  color: #3a2c14;
+  font: 500 12.5px/1.35 var(--ui);
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  cursor: var(--cur-pointer, pointer);
+}
+.ch-talk.hidden {
+  display: none;
+}
+.ch-talk.pop {
+  animation: ch-talk-in 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+/* The tail, toward the cat. */
+.ch-talk::after {
+  content: '';
+  position: absolute;
+  left: clamp(14px, calc(50% - var(--bx, 0px)), calc(100% - 14px));
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: #fffaf0;
+  border-right: 1.5px solid #f3d9a4;
+  border-bottom: 1.5px solid #f3d9a4;
+  rotate: 45deg;
+}
+.ch-talk b {
+  display: block;
+  margin-bottom: 1px;
+  color: #c9702a;
+  font: 700 10px/1.3 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ch-talk-act:empty {
+  display: none;
+}
+.ch-talk-btn {
+  margin-top: 6px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: var(--pill);
+  background: #f0a14a;
+  color: #2b1800;
+  font: 600 11.5px/18px var(--ui);
+  cursor: var(--cur-pointer, pointer);
+}
+.ch-talk-btn:hover {
+  background: #ffb661;
+}
+.ch-cat.sleep .ch-talk {
+  filter: none;
+}
+@keyframes ch-talk-in {
+  from {
+    transform: translateY(6px) scale(0.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ch-talk.pop {
+    animation: none;
+  }
+}

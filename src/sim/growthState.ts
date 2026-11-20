@@ -3,10 +3,11 @@
  * wonders discovered, the fish stock the docks draw on, and Flora's bill. Plain data in its own module (no imports)
  * so `City` can hold it without an import cycle; logic lives in `sim/projects.ts`, `fishing.ts`, `wonders.ts`.
  */
-export type UnlockId = 'skylanes' | 'aeroline' | 'flora' | 'police' | 'cruise' | 'skyguard';
+export type UnlockId = 'cat' | 'skylanes' | 'aeroline' | 'flora' | 'police' | 'cruise' | 'skyguard';
 
 /** Readable names for lock messages (`City.checkPlacement` can't import the project table). */
 export const UNLOCK_NAMES: Record<UnlockId, string> = {
+  cat: "the island's cat",
   skylanes: 'the Sky-lane charter',
   aeroline: 'the Aeroline',
   flora: 'Flora',

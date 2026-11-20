@@ -24,6 +24,8 @@ export const FIRSTS: readonly FirstDef[] = [
   { id: 'combo', title: 'Bubble streak', line: 'A tip combo of ×3.', icon: 'sparkle' },
   { id: 'dawn', title: 'A new day', line: 'The island saw its second sunrise.', icon: 'sun' },
   { id: 'golden', title: 'Struck gold', line: 'You caught a golden tip.', icon: 'credits' },
+  { id: 'cat', title: 'Cat person', line: "You petted the island's cat.", icon: 'happy' },
+  { id: 'letter', title: 'Fan mail', line: 'You caught a paper plane from a resident.', icon: 'send' },
   { id: 'level', title: 'Growing up', line: 'A building grew to a new level.', icon: 'up' },
   {
     id: 'village',

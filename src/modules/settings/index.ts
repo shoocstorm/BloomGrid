@@ -240,6 +240,17 @@ export const settingsModule: GameModule = {
               ]
             : [];
         })(),
+        ...(() => {
+          // Little charms (D-175): the island's cat, paper planes, sleepy homes.
+          const charm = ctx.services.tryGet('charm');
+          return charm
+            ? [
+                h('h4', {}, 'Little charms'),
+                h('p', { class: 'set-hint' }, "The island's cat on the rooftops, paper planes with notes from residents, and sleepy homes at night."),
+                radio('charms', { on: 'On', off: 'Off' }, charm.on ? 'on' : 'off', (m) => (charm.on = m === 'on')),
+              ]
+            : [];
+        })(),
         h('h4', {}, 'Graphics'),
         radio('quality', QUALITY_LABELS, ctx.quality.tier, (q) => {
           render.setQuality(q);

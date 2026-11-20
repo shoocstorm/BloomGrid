@@ -467,6 +467,41 @@ export const audioModule: GameModule = {
     // Juice cues (D-118): tip pops climb a pentatonic step per combo, build chimes step up with a streak.
     const PENTA = [0, 2, 4, 7, 9, 12, 14];
     const up = (f: number, step = 0) => f * 2 ** (PENTA[Math.min(PENTA.length - 1, step)]! / 12);
+    // The adoption cutscene's score (D-178): a night pad, plinks, a boing, tiptoes, stings, a whoosh, munches, the
+    // dawn arpeggio, a fanfare and a bell.
+    const cutsceneCue = (cue: string) => {
+      if (cue === 'cs-night') {
+        [196, 247, 294].forEach((f) => s.tone(f, 3.2, 0.03, 'sine', undefined, 0.1));
+        for (let i = 0; i < 3; i++) s.burst(0.06, 0.012, 'bandpass', 4200, 4600, 0.8 + i * 0.5);
+      } else if (cue === 'cs-blink') {
+        s.tone(1568, 0.1, 0.03, 'sine');
+        s.tone(1760, 0.12, 0.03, 'sine', undefined, 0.3);
+      } else if (cue === 'cs-boing') {
+        s.tone(260, 0.3, 0.06, 'sine', 700);
+        s.tone(700, 0.4, 0.05, 'sine', 330, 0.28);
+      } else if (cue === 'cs-sneak') {
+        for (let i = 0; i < 5; i++) s.tone(i % 2 ? 988 : 880, 0.06, 0.022, 'triangle', undefined, i * 0.24);
+      } else if (cue === 'cs-freeze') {
+        s.tone(1319, 0.12, 0.05, 'triangle');
+        s.tone(1568, 0.25, 0.05, 'triangle', undefined, 0.08);
+        s.burst(0.15, 0.03, 'highpass', 3000);
+      } else if (cue === 'cs-whoosh') {
+        s.burst(0.5, 0.08, 'bandpass', 400, 3200);
+      } else if (cue === 'cs-munch') {
+        s.burst(0.08, 0.07, 'lowpass', 700);
+        s.burst(0.08, 0.06, 'lowpass', 600, undefined, 0.15);
+      } else if (cue === 'cs-reveal') {
+        [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => s.tone(f, 0.6, 0.05, 'triangle', undefined, i * 0.09));
+        [523, 659, 784].forEach((f) => s.tone(f, 2.4, 0.035, 'sine', undefined, 0.5));
+        s.burst(1.2, 0.04, 'highpass', 6000, undefined, 0.4);
+      } else if (cue === 'cs-fanfare') {
+        [392, 523, 659, 784].forEach((f, i) => s.tone(f, 0.35, 0.06, 'triangle', undefined, i * 0.08));
+        [784, 988, 1175, 1568].forEach((f) => s.tone(f, 1.4, 0.04, 'sine', undefined, 0.36));
+      } else if (cue === 'cs-bell') {
+        [2637, 3136, 2637, 3136, 2637].forEach((f, i) => s.tone(f, 0.18, 0.03, 'triangle', undefined, 0.85 + i * 0.09));
+        s.tone(1976, 0.6, 0.02, 'sine', undefined, 0.85);
+      }
+    };
     bus.on('juice', ({ sound, step = 0 }) => {
       if (quiet()) return;
       if (sound === 'tip') {
@@ -494,6 +529,21 @@ export const audioModule: GameModule = {
       } else if (sound === 'day') {
         // Dawn's recap: a warm, slow major arpeggio.
         [392, 494, 587, 784].forEach((f, i) => s.tone(f, 1.1, 0.045, 'sine', undefined, i * 0.14));
+      } else if (sound === 'meow') {
+        // The island's cat (D-175): a short rising-falling mew with a breathy edge.
+        const k = 0.9 + Math.random() * 0.25;
+        s.tone(620 * k, 0.12, 0.045, 'triangle', 900 * k);
+        s.tone(900 * k, 0.28, 0.045, 'triangle', 520 * k, 0.1);
+        s.burst(0.3, 0.012, 'bandpass', 2400, 1600, 0.05);
+      } else if (sound === 'purr') {
+        // A purr: low, rumbling noise pulses.
+        for (let i = 0; i < 4; i++) s.burst(0.22, 0.05, 'lowpass', 160, 110, i * 0.26);
+      } else if (sound === 'paper') {
+        // Paper: two soft rustles.
+        s.burst(0.12, 0.04, 'bandpass', 3200, 1800);
+        s.burst(0.16, 0.03, 'bandpass', 2600, 1400, 0.1);
+      } else if (sound.startsWith('cs-')) {
+        cutsceneCue(sound);
       } else if (sound === 'tick') {
         s.tone(1319, 0.08, 0.035, 'triangle');
       } else if (sound === 'coin') {
