@@ -3612,3 +3612,29 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   key. Films stay free of audio imports: they only emit events.
 - Rejected: audio files (licensing, download size, and the game has none); scoring inside each film with Web Audio
   directly (every film would need the audio context and the levels).
+
+## D-196: Films can be shot in 3D on the game's own models
+
+- **Why.** Every film so far was DOM / SVG / CSS over the paused city, so none could use the hundreds of 3D models
+  the game already has. The gallery's studio (D-171) proved a side scene can borrow the city's kit and materials
+  and draw full screen in place of the city frame. The first test is the stray's adoption film ("The Stray (3D)").
+- **How.** `moments/FilmStage.ts` is a second `render.stage`: its own scene, camera and `PostFX`, real buildings by
+  type (`addBuilding` → `designPieces`, one `ChunkedInstancer` chunk), module meshes (`add`), a gradient sky with
+  additive stars and a moon, and a key light refreshed at 30 Hz. The camera is data: shots on the film clock
+  (`moments/shots.ts`, `shotAt`, tested; `rel` shots track an anchor), and `project` pins DOM to a 3D point. The shared
+  uniforms a stage holds for its draw moved from the studio to `render/stageUniforms.ts` (`withStageLook`, `LOOKS`,
+  `mixLook` for a night-to-dawn grade), and both stages use them. A 3D film is still a reel: the letterbox, captions,
+  Skip, lead-in iris, score and end card stay DOM over the canvas, so films can mix 2D and 3D. The stage goes on
+  screen at the iris's black point and hands back to the city in the reel's `leaving`, so the fade-out shows the
+  city. Its clock holds with `reelClock`, which the moments service now hands out (`moments.clock`; `film.js` used
+  to find it through the resource list, which fills up during boot). `PowerManager.animating` keeps it at the active
+  frame cap.
+- **The cat** (`charm/cat3d.ts`) is procedural: about 30 smooth primitive meshes on a small CPU-posed rig (hips,
+  neck, head, four legs, five tail segments, eyes with blinks and pupils), poses as eased targets, and a coat as four
+  shared materials (repainting changes colours only). Lamp eyes are emissive, so they bloom.
+- **Rollout.** It plays alongside the 2D film while the two are compared: replay "The Stray (3D)" (Build → Goals →
+  Replays), or `?film3d=1` for the adoption itself. The 2D film stays the default.
+- Measured: 113 draw calls in the film (the city, 128); WebGPU and WebGL.
+- Rejected: shooting in the live city (its state, time and weather differ per island, and the city camera is
+  everyone's); a 2D cat billboarded in a 3D set (it only reads side-on); a GLB cat (GLB parts don't light or weather
+  like the kit, and the game has no asset pipeline for characters).

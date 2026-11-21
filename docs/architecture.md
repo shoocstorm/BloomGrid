@@ -81,7 +81,7 @@ Desktop: `src-tauri/src/{llm,models}/`, `mlx.rs` (`llm_*` commands; Apple Silico
 1. `input` phase: tools hover/pick, camera update (mouse, keys, and touch: one finger = left button, two = pinch/twist/pan/tilt gesture that cancels the tool's press, D-045).
 2. `sim` phase: 0..N fixed ticks (`clock → greenery → economy …`). **Only this phase mutates sim state**, besides commands.
 3. `sync` phase: renderers mirror sim (building growth staging, atmosphere, instancer flush/LOD).
-4. `render` phase: PostFX render (or `render.stage` when a full-screen stage replaces the city frame: the model gallery, D-171), HUD, debug overlays.
+4. `render` phase: PostFX render (or `render.stage` when a full-screen stage replaces the city frame: the model gallery, D-171, and the 3D film stage, D-196; both hold the shared uniforms through `render/stageUniforms.ts`), HUD, debug overlays.
 
 ## Data flow
 

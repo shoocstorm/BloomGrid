@@ -10,8 +10,9 @@ import { isOpen, type UnlockId } from '@/sim/growthState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { SYSTEM_ORDER } from '@/sim/indicators';
 import { Ceremony, type MomentSpec } from './Ceremony';
-import { openReel, type Reel, type ReelOptions } from './reel';
+import { openReel, reelClock, type Reel, type ReelOptions } from './reel';
 import { finishFilm, leadIn } from './finish';
+import { FilmStage } from './FilmStage';
 import { playMaidenFlight } from './films/flight';
 import { playSomethingStirs } from './films/stirs';
 import { playWhatTheSeaRemembers } from './films/remembers';
@@ -80,6 +81,8 @@ export interface MomentsService {
   stageNow(id: string, run: (finish: () => void) => void): void;
   /** The film kit (D-185): opens a reel for a cutscene (see `reel.ts`); modules make their films with it. */
   reel(opts: ReelOptions, done: () => void): Reel;
+  /** Every reel's clock (and the 3D film stage's): scripts hold it to freeze a frame (`scripts/scenes/film.js`). */
+  readonly clock: { held: boolean };
   /** The cinematic finish (grade, drift, vignette, grain; D-188) for a film that builds its own root. */
   finish(root: HTMLElement, set: HTMLElement, leak?: string): void;
   /** The lead-in (D-194) for a film with its own root: resolves when the iris has closed to black (start there). */
@@ -526,6 +529,7 @@ export const momentsModule: GameModule = {
       stage,
       stageNow: (_id: string, run: (finish: () => void) => void) => runStaged(run),
       reel: (opts: ReelOptions, done: () => void) => openReel(ctx, opts, done),
+      clock: reelClock,
       finish: (root: HTMLElement, set: HTMLElement, leak?: string) => finishFilm(root, set, leak),
       leadIn: (root: HTMLElement) => {
         ctx.bus.emit('film:hit', { hit: 'iris' });
@@ -549,6 +553,9 @@ export const momentsModule: GameModule = {
         return ceremony.playing || staged;
       },
     });
+
+    // The 3D film stage (D-196), while a film has it on screen: its camera, actors and lights, before the render.
+    ctx.systems.add({ id: 'film-stage', phase: 'sync', order: 121, update: (_c, f) => FilmStage.active?.update(f.dt) });
 
     let tick = 0;
     ctx.systems.add({

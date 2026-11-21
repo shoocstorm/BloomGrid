@@ -278,7 +278,7 @@ packages it. Saves are JSON files in the app data folder, and ⚙ → Display �
 
 `?quality=low|medium|high|ultra` · `?renderer=webgl` (force the WebGL2 fallback) · `?scenario=empty` (a blank island
 instead of the founding city) · `?difficulty=sandbox|relaxed|steward|hard` · `?seed=123` (a different island) ·
-`?drill=monsoon|king-tide|heatwave|algal-bloom|grid-failure|blight|strike|landslide` (start a crisis) · `?happening=request|festival|bumper-catch|cruise|petition|protest|praise|expo` · `?story=fisher|founder|family` (start a happening) · `?perf` (performance overlay,
+`?drill=monsoon|king-tide|heatwave|algal-bloom|grid-failure|blight|strike|landslide` (start a crisis) · `?happening=request|festival|bumper-catch|cruise|petition|protest|praise|expo` · `?story=fisher|founder|family` (start a happening) · `?film3d=1` (the cat's adoption film in 3D) · `?perf` (performance overlay,
 also **F3**) · `?stress=2000` (add a stress city) · `?nodynres` · `?taa=0` (MSAA instead of temporal anti-aliasing) · `?gputime` · `?pr=1 ?msaa=0 ?shadows=0 ?bloom=0`
 (quality overrides).
 

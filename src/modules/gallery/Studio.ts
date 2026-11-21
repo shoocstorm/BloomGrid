@@ -14,7 +14,6 @@ import {
   Scene,
   SphereGeometry,
   Vector3,
-  Vector4,
   type Object3D,
 } from 'three/webgpu';
 import { abs, float, fract, length, mix, positionLocal, smoothstep, uniform, uv } from 'three/tsl';
@@ -22,7 +21,7 @@ import type { GameContext } from '@/game/context';
 import { getPiece } from '@/assets/kit/pieces';
 import { ChunkedInstancer, type InstanceHandle } from '@/render/Instancer';
 import { PostFX } from '@/render/PostFX';
-import { U } from '@/render/uniforms';
+import { LOOKS, withStageLook, type Lighting } from '@/render/stageUniforms';
 import { spinPose, type DesignPiece } from '@/modules/construction/BuildingRenderer';
 import type { QualitySettings } from '@/render/Quality';
 
@@ -43,17 +42,7 @@ export interface StageModel {
   at?: Vector3;
 }
 
-export type Lighting = 'day' | 'dusk' | 'night';
-
-/** The studio's look per lighting: shared uniforms the city materials read, the sky and the lights. */
-const LOOKS: Record<
-  Lighting,
-  { night: number; sun: number; sunDir: [number, number, number]; key: number; keyI: number; rimI: number; hemiI: number; top: number; low: number; bloom: number; zenith: number; horizon: number }
-> = {
-  day: { night: 0, sun: 0xfff2dc, sunDir: [0.45, 0.8, 0.4], key: 0xfff2dc, keyI: 2.7, rimI: 1.0, hemiI: 1.2, top: 0x0a2e33, low: 0x2c6f6c, bloom: 0.5, zenith: 0x5fb0ff, horizon: 0xcfeaff },
-  dusk: { night: 0.45, sun: 0xffb27a, sunDir: [0.7, 0.28, 0.2], key: 0xffb27a, keyI: 2.2, rimI: 1.3, hemiI: 0.75, top: 0x161a33, low: 0x5a4256, bloom: 0.75, zenith: 0x4a5a9a, horizon: 0xffb48a },
-  night: { night: 1, sun: 0x9ab8ff, sunDir: [0.3, 0.7, 0.3], key: 0x8fb0ff, keyI: 0.55, rimI: 0.9, hemiI: 0.35, top: 0x02060c, low: 0x0b2238, bloom: 1.0, zenith: 0x0b1530, horizon: 0x1c2f4a },
-};
+export type { Lighting };
 
 const _box = new Box3();
 const _pbox = new Box3();
@@ -61,10 +50,6 @@ const _size = new Vector3();
 const _m = new Matrix4();
 const _m2 = new Matrix4();
 const _eye = new Vector3();
-
-/** Uniforms the studio overrides while it draws, restored after, so the city's own frame is untouched. */
-const SAVED = ['night', 'lateNight', 'grid', 'overlay', 'storm', 'heat', 'algae', 'rain', 'seasonAmount', 'pollen', 'bloom', 'gradeSat', 'gradeCon', 'vignette', 'cloudShadow'] as const;
-const SAVED_V = ['sunDir', 'zenith', 'horizon', 'sunColor', 'gradeLift', 'gradeGain', 'envTint', 'eye', 'walker', 'flash'] as const;
 
 /**
  * The gallery's studio: one model alone on a lit stage, drawn full screen through its own post pipeline (bloom,
@@ -285,35 +270,7 @@ export class Studio {
     this.skyLow.value.setHex(look.low);
     this.scene.environment = this.ctx.scene.environment;
 
-    // Hold the shared uniforms at the studio's values for this draw only.
-    const saved = SAVED.map((k) => U[k].value as number);
-    const savedV = SAVED_V.map((k) => (U[k].value as Vector3 | Color | Vector4).clone());
-    U.night.value = look.night;
-    U.lateNight.value = 0;
-    U.grid.value = 0;
-    U.overlay.value = 0;
-    U.storm.value = U.heat.value = U.algae.value = U.rain.value = 0;
-    U.seasonAmount.value = 0;
-    U.pollen.value = 0;
-    U.bloom.value = look.bloom;
-    U.gradeSat.value = 1.04;
-    U.gradeCon.value = 1.04;
-    U.vignette.value = 0.32;
-    U.cloudShadow.value = 0;
-    U.sunDir.value.set(...look.sunDir).normalize();
-    U.sunColor.value.setHex(look.sun);
-    U.zenith.value.setHex(look.zenith);
-    U.horizon.value.setHex(look.horizon);
-    U.gradeLift.value.set(0, 0, 0);
-    U.gradeGain.value.set(1, 1, 1);
-    U.envTint.value.setRGB(1, 1, 1);
-    U.eye.value.copy(this.camera.position);
-    U.walker.value.set(0, 0, 0, 0);
-    U.flash.value.w = 0;
-
-    this.fx.render();
-
-    SAVED.forEach((k, i) => ((U[k] as { value: number }).value = saved[i]!));
-    SAVED_V.forEach((k, i) => (U[k].value as { copy(v: unknown): void }).copy(savedV[i]));
+    // The shared uniforms at the studio's values for this draw only.
+    withStageLook(look, this.camera.position, () => this.fx.render());
   }
 }

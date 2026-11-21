@@ -25,6 +25,8 @@ const HOVER_FULL_MS = 400;
 
 export class PowerManager {
   mode: PowerMode = 'balanced';
+  /** True while something animates on its own at full rate (a 3D film, D-196): never idle meanwhile. */
+  animating = false;
 
   constructor(
     private input: Input,
@@ -50,6 +52,7 @@ export class PowerManager {
   }
 
   get idle(): boolean {
+    if (this.animating) return false;
     const now = performance.now();
     if (now - this.input.lastActivity <= IDLE_AFTER_MS || this.camera.isMoving()) return false;
     return !(now - this.input.lastHover <= HOVER_FULL_MS && this.hoverPreview());

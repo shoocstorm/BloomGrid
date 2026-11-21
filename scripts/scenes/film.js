@@ -8,7 +8,8 @@
   // The app's own module instances (a plain import would load another copy, and the dev server can serve the module
   // under more than one URL): hold every one's clock.
   const urls = performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/src/modules/moments/reel.ts'));
-  const clocks = await Promise.all((urls.length ? urls : ['/src/modules/moments/reel.ts']).map(async (u) => (await import(u)).reelClock));
+  // The resource list can be full by now (it holds 250 entries), so the moments service hands over its own clock too.
+  const clocks = [g.services.get('moments').clock, ...(await Promise.all(urls.map(async (u) => (await import(u)).reelClock)))];
   if (window.NAME) g.commands.execute('nameCity', { name: window.NAME }, false);
   // The steward's cat (Flora's film casts it on the ledge).
   if (window.CAT && !g.city.growth.unlocked.includes('cat')) g.city.growth.unlocked.push('cat');
