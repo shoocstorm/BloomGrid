@@ -69,14 +69,20 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
       leak: 'rgba(255, 190, 120, 0.18)',
       key: 0,
       leaving: () => {
+        document.body.classList.remove('film-covers');
         stage.close();
         opts.leaving?.();
       },
     },
     done,
   );
-  // Over a loading screen, hold the black until it has gone (the city under it is what the film shows).
-  if (opts.instant) reel.root.classList.add('hold');
+  // Over a loading screen, hold the black until it has gone (the city under it is what the film shows), with a lantern
+  // lighting up meanwhile so the wait never reads as a stalled black screen. It animates on the compositor, so it keeps
+  // flickering while the first shot's shaders compile.
+  if (opts.instant) {
+    reel.root.classList.add('hold');
+    reel.root.append(h('div', { class: 'ftl-wait', role: 'status' }, h('i', { class: 'ftl-flame' }), h('span', {}, 'Lighting the lantern')));
+  }
 
   // ── Where things are on this island ──
   const g = city.grid;
@@ -252,10 +258,25 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
       5,
     );
     if (opts.instant) {
-      // Black until the boot screen has gone (a founding: D-184), and a few frames of the posed shot have drawn.
-      for (let i = 0; i < 120 && document.querySelector('.boot-screen'); i++) if (!(await reel.wait(100))) return;
-      if (!(await reel.wait(300))) return;
+      // Held only until the first shot is ready: its shaders built and a few frames of it drawn, so the film opens on a
+      // moving picture, not a compile stall. The loading screen under it (a founding: D-184) may still be finishing
+      // its last stages; the film covers it from here (`film-covers` hides it) rather than waiting for its fade.
+      const held = performance.now();
+      try {
+        await ctx.renderer.compileAsync(ctx.scene, ctx.camera);
+      } catch {
+        /* compiled on first draw instead */
+      }
+      const f0 = ctx.engine.frames;
+      for (let i = 0; i < 80 && ctx.engine.frames < f0 + 4; i++) if (!(await reel.wait(50))) return;
+      document.body.classList.add('film-covers');
       reel.root.classList.remove('hold');
+      console.info('[film] first light held on black ms', Math.round(performance.now() - held));
+      // Once the loading screen has finished under the film, it no longer needs hiding.
+      void (async () => {
+        for (let i = 0; i < 300 && document.querySelector('.boot-screen:not(.bt-gone)'); i++) await new Promise((r) => setTimeout(r, 100));
+        document.body.classList.remove('film-covers');
+      })();
     }
 
     // 1. Night sea, and the light on the rock.

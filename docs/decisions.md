@@ -3650,7 +3650,10 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
 - **First Light** is shot on location over the player's own island (`openLocation`): the real terrain, sea,
   Tidewatch Lighthouse and hamlet, the hour animated for the film only. Ama's boat comes in over open water (a
   course with sea all the way out, not a lagoon); the seed lands on the highest ground near the hamlet. A founding
-  holds the reel on black (`.hold`) until `.boot-screen` has gone; the stage closes in `leaving` before the fly-in.
+  holds the reel (`.hold`, a lantern lighting up and "Lighting the lantern…") only until its first shot has compiled
+  and drawn (~0.4 s), then hides the loading screen still finishing under it (`body.film-covers`) instead of waiting
+  for its fade (~2 s); the boot screen never leaves the page (`bt-gone`), which once made the hold run to its 12 s cap.
+  The stage closes in `leaving` before the fly-in.
   The 2D drawing helpers (`moments/films/art.ts`) are gone.
 - **Draw calls.** Actors merge each joint's parts by material (`compact` in `actors/rig.ts`; face parts stay separate
   and cast no shadow) and crowds cast no shadows. Peak draws per film (WebGPU and WebGL alike): The Stray 108, Hello
