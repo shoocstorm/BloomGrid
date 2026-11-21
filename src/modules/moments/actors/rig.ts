@@ -161,9 +161,11 @@ export function compact(root: Object3D, keep: Set<Object3D>): void {
     }
     for (const [mat, list] of byMat) {
       if (list.length < 2) continue;
+      // Keep indices when every part has them (the primitives do): a merged mesh is no heavier than its parts.
+      const indexed = list.every((m) => !!m.geometry.index);
       const geos = list.map((m) => {
         m.updateMatrix();
-        const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+        const g = indexed || !m.geometry.index ? m.geometry.clone() : m.geometry.toNonIndexed();
         for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
         if (!g.attributes.uv) g.deleteAttribute('uv');
         return g.applyMatrix4(m.matrix);
