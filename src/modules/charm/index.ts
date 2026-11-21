@@ -12,6 +12,7 @@ import { claimableMilestones } from '@/sim/milestones';
 import { getCrisis } from '@/sim/crises';
 import { SYSTEMS } from '@/sim/pulseState';
 import { isOpen } from '@/sim/growthState';
+import { projectStatus } from '@/sim/projects';
 import { playAdoption } from './cutscene';
 import { addCatExhibit } from './exhibit';
 import { noteText } from './notes';
@@ -138,6 +139,9 @@ class Charm {
   private claimSince = -1;
   /** The adoption film is queued or playing: the cat stays a stray until it ends. */
   private filming = false;
+  /** The city on which "Befriend the stray" has been seen unlocked: from then on the stray may visit it. */
+  private strayCity: object | null = null;
+  private strayCheck = 0;
 
   constructor(private ctx: GameContext) {
     ctx.hud.append(this.world);
@@ -528,6 +532,13 @@ class Charm {
     const stray = !this.adopted;
     if (stray && !this.cat.stray) this.cat.unfriend();
     else if (!stray && this.cat.stray && !this.filming) this.cat.befriend();
+    // No stray while its project is locked: it first shows once the project is ready (then stays, whatever the
+    // credits do). Checked once a second (the criteria count buildings).
+    if (stray && this.strayCity !== ctx.city && (this.strayCheck -= dt) <= 0) {
+      this.strayCheck = 1;
+      if (this.filming || projectStatus(ctx.city, 'cat') !== 'blocked') this.strayCity = ctx.city;
+    }
+    this.cat.away = stray && !this.filming && this.strayCity !== ctx.city;
     this.cat.update(dt, night, this.pointer);
     this.voice(dt, run);
     // Floating hearts, words and z's.

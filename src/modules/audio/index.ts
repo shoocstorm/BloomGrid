@@ -2,7 +2,10 @@ import type { GameContext, GameModule } from '@/game/context';
 import { Vector3 } from 'three/webgpu';
 import { U } from '@/render/uniforms';
 import { seasonAt } from '@/sim/seasons';
+import { Building, Problem, Service } from '@/ecs/components';
+import { isHero } from '@/content/heroes';
 import { MOODS, makeRandom, midiHz, pickMood, type Mood } from './music';
+import { selectionCue, type BuildingState, type Played, type Selected } from './cues';
 
 const KEY = 'bloomgrid.audio';
 /** Most sound effects playing at once (music and ambience are separate). */
@@ -228,7 +231,7 @@ class Sound {
 
   // ── Effects ──
   /** A short tone (sine/triangle) with an exponential decay; frequency may glide to `to`. */
-  tone(f: number, len: number, vol = 0.2, type: OscillatorType = 'sine', to?: number, delay = 0): void {
+  tone(f: number, len: number, vol = 0.2, type: OscillatorType = 'sine', to?: number, delay = 0, out?: AudioNode): void {
     if (!this.ac || this.voices >= MAX_SFX || this.levels.muted) return;
     const ac = this.ac;
     const at = ac.currentTime + delay;
@@ -240,7 +243,7 @@ class Sound {
     g.gain.setValueAtTime(0, at);
     g.gain.linearRampToValueAtTime(vol, at + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0005, at + len);
-    o.connect(g).connect(this.sfx);
+    o.connect(g).connect(out ?? this.sfx);
     this.voices++;
     o.onended = () => this.voices--;
     o.start(at);
@@ -248,7 +251,7 @@ class Sound {
   }
 
   /** Filtered noise burst (whoosh, crack, rumble, bang). */
-  burst(len: number, vol: number, type: BiquadFilterType, f: number, to?: number, delay = 0): void {
+  burst(len: number, vol: number, type: BiquadFilterType, f: number, to?: number, delay = 0, out?: AudioNode): void {
     if (!this.ac || this.voices >= MAX_SFX || this.levels.muted) return;
     const ac = this.ac;
     const at = ac.currentTime + delay;
@@ -262,11 +265,30 @@ class Sound {
     const g = ac.createGain();
     g.gain.setValueAtTime(vol, at);
     g.gain.exponentialRampToValueAtTime(0.0005, at + len);
-    src.connect(filter).connect(g).connect(this.sfx);
+    src.connect(filter).connect(g).connect(out ?? this.sfx);
     this.voices++;
     src.onended = () => this.voices--;
     src.start(at, Math.random());
     src.stop(at + len + 0.05);
+  }
+
+  /**
+   * Plays a cue from `cues.ts` (D-189), scaled by `gain`; a `muffle` routes it through one low-pass. Skipped when
+   * the effects bus is nearly full, so a signature never starves alerts.
+   */
+  play(p: Played, gain = 1, delay = 0): void {
+    if (!this.ac || this.levels.muted || this.voices > MAX_SFX - 4) return;
+    let out: AudioNode | undefined;
+    if (p.muffle) {
+      const lp = this.ac.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = p.muffle;
+      lp.connect(this.sfx);
+      out = lp;
+    }
+    for (const v of p.cue)
+      if (v.t === 'tone') this.tone(v.f, v.len, v.vol * gain, v.wave, v.to, delay + v.at, out);
+      else this.burst(v.len, v.vol * gain, v.filter, v.f, v.to, delay + v.at, out);
   }
 
   /** Seconds for sound to travel from (x, z) to the camera (1 tile ≈ 4 m), and a distance fade. */
@@ -411,6 +433,72 @@ export const audioModule: GameModule = {
       if (quiet() || tier <= 0) return;
       s.tone(587, 0.4, paid ? 0.12 : 0.06, 'triangle');
       s.tone(880, 0.6, paid ? 0.1 : 0.05, 'triangle', undefined, 0.12);
+    });
+    // Selection signatures (D-189): picking a building, a wonder, the ferry or a road answers with that thing's own
+    // sound. The same pick twice in a row, or picks closer than 0.12 s (drags, chips), stay quiet.
+    const stateOf = (eid: number): BuildingState => {
+      const p = Service.problems[eid]!;
+      if (p & Problem.RUINED) return 'ruin';
+      if (p & Problem.ON_FIRE) return 'fire';
+      if (Service.off[eid]) return 'off';
+      return p & ~Problem.OFFLINE ? 'problem' : 'ok';
+    };
+    const buildingSel = (eid: number): Selected => {
+      const def = ctx.city.buildingDef(eid);
+      return { kind: 'building', def: def.id, category: def.category, tier: Building.tier[eid]!, hero: isHero(def), state: stateOf(eid) };
+    };
+    let lastKey = '';
+    let lastAt = 0;
+    let lastSig = 0;
+    bus.on('selection:changed', ({ eid, road, eids, bridge, object }) => {
+      if (quiet()) return;
+      const [sel, key]: [Selected | null, string] =
+        object !== undefined
+          ? [{ kind: 'object', key: object }, `o:${object}`]
+          : eids?.length
+            ? [{ kind: 'group', count: eids.length }, `g:${eids.length}:${eids[0]}`]
+            : bridge !== undefined
+              ? [{ kind: 'bridge' }, `b:${bridge}`]
+              : road !== undefined
+                ? [{ kind: 'road' }, `r:${road}`]
+                : eid != null && eid >= 0
+                  ? [buildingSel(eid), `e:${eid}`]
+                  : [null, ''];
+      const now = performance.now();
+      if (!sel) {
+        // Closing the inspector: a soft step down, only if something was open.
+        if (lastKey) s.tone(990, 0.08, 0.025, 'triangle', 660);
+        lastKey = '';
+        return;
+      }
+      if (key === lastKey || now - lastAt < 120) return;
+      lastKey = key;
+      lastAt = now;
+      const cue = selectionCue(sel);
+      if (cue) s.play(cue);
+    });
+    // A new building announces itself with its signature after the build chime (one every 0.4 s, so batches stay calm).
+    bus.on('building:added', ({ eid }) => {
+      if (quiet()) return;
+      const now = performance.now();
+      if (now - lastSig < 400) return;
+      lastSig = now;
+      const cue = selectionCue({ ...buildingSel(eid), state: 'ok', tier: 0 } as Selected);
+      if (cue) s.play(cue, 0.7, 0.45);
+    });
+    // Ruins crumble; repairs hammer twice and chime.
+    bus.on('building:ruined', ({ eid }) => {
+      if (quiet()) return;
+      const h = s.heard(Building.x[eid]!, Building.z[eid]!);
+      s.burst(1.6, 0.3 * h.vol, 'lowpass', 900, 80, h.delay);
+      s.burst(0.5, 0.08 * h.vol, 'highpass', 2500, undefined, h.delay + 0.2);
+    });
+    bus.on('building:repaired', ({ eid }) => {
+      if (quiet()) return;
+      const h = s.heard(Building.x[eid]!, Building.z[eid]!);
+      for (let i = 0; i < 3; i++) s.burst(0.05, 0.1 * h.vol, 'bandpass', 2000, undefined, i * 0.16);
+      s.tone(784, 0.4, 0.05 * h.vol, 'triangle', undefined, 0.5);
+      s.tone(1175, 0.6, 0.05 * h.vol, 'triangle', undefined, 0.6);
     });
     bus.on('lightning:strike', ({ x, z }) => {
       const h = s.heard(x, z);

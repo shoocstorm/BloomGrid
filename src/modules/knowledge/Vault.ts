@@ -4,6 +4,7 @@ import { ago, h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { holoHead } from '@/ui/holo';
 import { isTouchDevice } from '@/platform/device';
+import { floraLocked } from '@/sim/flora';
 import type { KnowledgeBase } from './base';
 import { parseMarkdown, renderBlocks, type RenderHooks } from './markdown';
 
@@ -258,16 +259,18 @@ export class Vault {
         h(
           'div',
           { class: 'kb-actions' },
-          h(
-            'button',
-            {
-              class: 'kb-btn',
-              title: 'Ask Flora how this applies to the city now',
-              onClick: () => this.askFlora(doc),
-            },
-            icon('sparkle'),
-            h('span', {}, 'Ask Flora'),
-          ),
+          floraLocked(this.ctx.city) || !this.ctx.services.tryGet('assistant')
+            ? null
+            : h(
+                'button',
+                {
+                  class: 'kb-btn',
+                  title: 'Ask Flora how this applies to the city now',
+                  onClick: () => this.askFlora(doc),
+                },
+                icon('sparkle'),
+                h('span', {}, 'Ask Flora'),
+              ),
           journal && doc.author !== 'city'
             ? h(
                 'button',

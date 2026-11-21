@@ -4,6 +4,7 @@ import { POWER_MODES, type PowerMode } from '@/render/Power';
 import { ago, h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { holoHead } from '@/ui/holo';
+import { floraLocked } from '@/sim/flora';
 import { controlsPane } from './controls';
 import './settings.css';
 
@@ -221,7 +222,7 @@ export const settingsModule: GameModule = {
         ...(() => {
           // Flora's foresight (plan v5): how readily she warns about forecast trouble.
           const flora = ctx.services.tryGet('assistant');
-          return flora
+          return flora && !floraLocked(ctx.city)
             ? [
                 h('h4', {}, 'Flora’s heads-ups'),
                 h('p', { class: 'set-hint' }, 'Flora watches the trends and speaks up before a supply runs short. Normal: only trouble due within about 5 minutes that she is sure of.'),

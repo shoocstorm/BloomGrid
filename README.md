@@ -140,7 +140,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Time               | **Space** pause · **1 / 2 / 3** speed; in the top bar, click the day dial to pause / play and the speed chip for the next speed (1× → 3× → 8×; right-click or scroll: slower); hover the season chip beside it for the weather, click it for the season's effects, crisis odds, the season ahead and one-click ways to prepare. Pausing opens a pause card (Resume, the city at a glance, what needs attention); **Esc** or a click on the city folds it to a pill. No context menu in the game |
 | Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** / **⌘L** (Ctrl on Windows/Linux), or ⚙ Settings → Game (shows the saved city and when; Load asks before replacing the city) |
 | Remember a view    | **Alt+1–4** store · **Shift+1–4** recall                                                           |
-| Sound              | **,** mute / unmute · volumes for music, ambience and effects in ⚙ Settings (sound starts on your first click); trains, pods and fires are heard close up |
+| Sound              | **,** mute / unmute · volumes for music, ambience and effects in ⚙ Settings (sound starts on your first click); trains, pods and fires are heard close up; every building type, wonder and vehicle has its own sound when you select it (and its state is heard: levels sparkle, trouble sounds muffled) |
 
 **On a phone:** drag to pan, pinch to zoom, twist to rotate, drag two fingers up or down to tilt. Tap a building to
 inspect it. To build, tap **Build** (bottom), pick a category and a building, tap a free lot on the map to build it (a preview waits on a free lot near the centre, and moves to the next one after each build; ⟳ rotates); **Done** leaves build mode. The Build sheet's

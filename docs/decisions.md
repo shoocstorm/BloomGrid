@@ -3506,3 +3506,31 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
 - **Gotchas**: in SVG a CSS `fill` beats a `fill` attribute, so a film's stylesheet must not fill what its markup
   shades with a gradient; and SVG classes count as classes (a `<circle class="reel">` matched the kit's `.reel`,
   renamed `spool`).
+
+## D-189 Selection sound signatures
+
+- **Why**: picking a building or object only clicked; the player wanted every selection to answer with a sound
+  that matches the thing, to keep play lively and amusing.
+- **What**: `modules/audio/cues.ts` (pure, tested in `tests/selectionCues.test.ts`) maps a selection to a cue (a
+  list of tone / noise voices). Each building category has a family timbre (doorbell homes, zapping energy, water
+  bloops, chiptune tech, marimba shops, clanking industry, whistle sports, birdsong nature, wooden food), transposed
+  per type by a hash of its id; ~70 types and every free-standing object (ferry, Aeroline, jet, each sea wonder,
+  whales, dolphins) have hand-written signatures (gull + ship bell at the fishing dock, siren whoop at Ember Watch,
+  radar ping, Westminster chime at the Bloom Clock, carnival run at Bloomtopia…). Roads tap, bridges twang, group
+  selections sweep up a note per building. State is heard: levels add sparkle, heroes a bell, and trouble muffles
+  the signature through one low-pass and adds a tail (problem: sour second; off: power-down; fire: crackle + alarm;
+  ruin: falling minor). New buildings play their signature after the build chime (max one per 0.4 s); ruins
+  crumble and repairs hammer and chime.
+- **Rules**: a cue starts at most `MAX_CUE_VOICES` (9) voices and `Sound.play` skips it when fewer than 4 effect
+  voices are free, so it never starves alerts. Repeat picks of the same thing and picks under 0.12 s apart are
+  silent. A new building type gets a family sound for free; add a `SIGNATURES` entry for a memorable one, and an
+  `OBJECTS` entry for a new pickable object key.
+
+## D-190 Flora's entry points and the stray wait for their unlocks
+
+- **Ask Flora** buttons (building / object inspector, the stat cards, the Seedvault reader) and Settings →
+  Flora's heads-ups show only once Flora is awake (`floraLocked`, D-092). Asleep she cannot answer, so offering
+  her was a dead end. Her orb stays: it opens the dormant card that says how to wake her.
+- **The stray** (D-178) visits only once "Befriend the stray" is no longer Locked (`projectStatus` ≠ `blocked`,
+  checked once a second). Once seen unlocked on a city it keeps visiting, even if credits dip. While locked,
+  `Cat.away` keeps it off the roofs (`come()` refuses too, so a talk or a call can't fetch it).

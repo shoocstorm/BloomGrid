@@ -1,4 +1,5 @@
 import { netIncome } from '@/sim/finance';
+import { floraLocked } from '@/sim/flora';
 import { approvalBand, complaintLine, districtIndexOf, districtKey, homeLayers } from '@/sim/approval';
 import { migrationLine } from '@/sim/statGuide';
 import type { City } from '@/sim/City';
@@ -625,7 +626,8 @@ class Hud {
    */
   private infoActions(id: string | null, ...actions: HTMLElement[]): HTMLElement {
     const ask =
-      id && this.ctx.services.tryGet('assistant')
+      // Only once Flora is awake: asleep she cannot answer (D-092).
+      id && this.ctx.services.tryGet('assistant') && !floraLocked(this.ctx.city)
         ? h('button', { class: 'tool ix-ask', title: 'Ask the city assistant about it (U)', onClick: () => this.askAbout(id) }, h('span', { class: 'g' }, icon('sparkle')), 'Ask Flora')
         : null;
     const row = h('div', { class: 'ix-actions' }, ...actions, ask);

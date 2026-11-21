@@ -268,6 +268,12 @@ export class Cat {
     });
   }
 
+  /**
+   * The stray keeps away (no visits; one on a roof leaves): its project, "Befriend the stray", is still locked, so
+   * there is no stray to see yet.
+   */
+  away = false;
+
   /** This island's cat: name and coat from the seed, pets from this viewer's count. */
   adopt(seed: number, pets: number, stray = false): void {
     const k = Math.abs(Math.floor(seed)) || 1;
@@ -407,6 +413,7 @@ export class Cat {
 
   /** Into view near the middle of the screen (a drop in); true when it is (or now will be) in view. */
   come(): boolean {
+    if (this.stray && this.away) return false;
     if (this.visible && this.at && !this.leap) return true;
     if (this.leap) return true;
     const spot = homeSpot(this.ctx, this.at?.eid ?? null, { any: true });
@@ -678,7 +685,10 @@ export class Cat {
       this.clearButterfly();
       this.after = null;
     }
-    if (this.stray) {
+    if (this.stray && this.away) {
+      if (this.at && !this.leap && this.busy <= 0 && !this.el.classList.contains('hop')) this.leave();
+      this.strayIn = rand(...STRAY_FIRST);
+    } else if (this.stray) {
       // A stray visits (D-178): first a while after the island is founded, then now and then, for half a minute.
       if (this.at && !this.leap) {
         if ((this.strayStay -= dt) <= 0 && !this.hover && !this.talking && this.busy <= 0) {
