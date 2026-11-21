@@ -3674,3 +3674,8 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   before it are pushed back by the time it took. Transform and opacity only (plus the iris mask), so it keeps moving
   during a compile stall. "First Light" keeps its own lantern beat (it plays over the loading screen).
 - Hello World's window lost its stone sill: a thin slab under the window flickered as the camera moved.
+- Film people have idle life (`Person3D.idle`: drifting glances, nods, weight and shoulders shifting, a quick look
+  aside now and then), `talk` (the mouth moves with a line) and `jig` (a rod's bob and twitch); Something Stirs gives
+  the fisher each gag's business (sips, binocular sweeps, fussing with the camera, chatting to the fish or his
+  granddaughter). The rowboat's floorboards are cut to the hull's cross-section above the waterline (`BOAT_FLOAT`),
+  so the sea never shows inside it.

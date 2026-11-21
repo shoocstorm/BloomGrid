@@ -18,7 +18,7 @@ import { FilmStage } from '@/modules/moments/FilmStage';
 import { orbit, type Framing, type Shot, type V3 } from '@/modules/moments/shots';
 import { Person3D } from '@/modules/moments/actors/person';
 import { CAST, crowdLook } from '@/modules/moments/actors/cast';
-import { rowboat } from '@/modules/moments/actors/boat';
+import { BOAT_FLOAT, rowboat } from '@/modules/moments/actors/boat';
 import { glow } from '@/modules/moments/actors/rig';
 import { WONDER_SITES } from '@/modules/scenery/sites';
 import { LANTERN_Y } from '@/modules/scenery/wonderModels';
@@ -267,7 +267,7 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
     const k = sailAt < 0 ? 0 : Math.min(1, (t - sailAt) / 11);
     const e = 1 - (1 - k) ** 2;
     boat.root.position.lerpVectors(boatFrom, boatTo, e);
-    boat.root.position.y = sea() + 0.12 + Math.sin(t * 1.3) * 0.05;
+    boat.root.position.y = sea() + BOAT_FLOAT * 0.55 + Math.sin(t * 1.3) * 0.03;
     boat.root.rotation.z = Math.sin(t * 0.9) * 0.04;
     ama.update(dt);
     for (const c of crew) c.update(dt);

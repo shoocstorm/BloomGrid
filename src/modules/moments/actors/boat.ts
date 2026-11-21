@@ -7,7 +7,12 @@ import { BALL, glow, hard, joint, part, soft } from './rig';
  */
 const BOX = new BoxGeometry(1, 1, 1);
 const CYL = new CylinderGeometry(1, 1, 1, 16);
-const DISC = new CylinderGeometry(1, 1, 1, 40);
+const DISC = new CylinderGeometry(1, 1, 1, 48);
+/** The floorboards' height and the thwarts' (seat tops at `SEAT + 0.025`), in boat units. */
+const FLOOR = -0.26;
+export const SEAT = -0.08;
+/** How high the boat's origin floats above the water, in boat units: the floor stays dry with room to rock. */
+export const BOAT_FLOAT = 0.34;
 
 /** The rowboat: a clinker hull, two thwarts, oars, a lantern at the bow (≈3.2 long along z, bow at +z). */
 export function rowboat(sail = false): { root: Group; lamp: ReturnType<typeof glow> } {
@@ -17,12 +22,21 @@ export function rowboat(sail = false): { root: Group; lamp: ReturnType<typeof gl
   const paint = soft(0x2f6d8a, 0.6, 0.2);
   const hull = part(new SphereGeometry(1, 40, 14, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), wood, root, 0, 0, 0, 0.78, 0.52, 1.62);
   (hull.material as typeof wood).side = DoubleSide;
-  // A painted band along the sheer and a darker inside floor.
+  // A painted band along the sheer.
   part(new SphereGeometry(1, 40, 4, 0, Math.PI * 2, Math.PI / 2, 0.18), paint, root, 0, 0, 0, 0.785, 0.52, 1.625);
-  part(DISC, dark, root, 0, -0.36, 0, 0.5, 0.02, 1.0);
+  // Floorboards cut to the hull's own cross-section at their height, so they close it off completely: the boat floats
+  // with its floor above the waterline (`BOAT_FLOAT`) and the sea never shows inside it.
+  const k = Math.sqrt(1 - (FLOOR / 0.52) ** 2);
+  part(DISC, dark, root, 0, FLOOR, 0, 0.78 * k, 0.03, 1.62 * k);
+  for (const x of [-0.36, -0.12, 0.12, 0.36]) part(BOX, wood, root, x, FLOOR + 0.017, 0, 0.18, 0.006, 2.6 * k * Math.sqrt(1 - (x / (0.78 * k)) ** 2));
+  // Ribs up the inside of the hull.
+  for (const z of [-1.0, -0.4, 0.2, 0.8]) {
+    const w = 0.78 * Math.sqrt(1 - (z / 1.62) ** 2);
+    for (const s of [1, -1]) part(BOX, dark, root, s * w * 0.86, -0.12, z, 0.03, 0.26, 0.05).rotation.z = s * -0.5;
+  }
   const rim = part(new TorusGeometry(1, 0.045, 8, 64), dark, root, 0, 0.005, 0, 0.78, 1.62, 1);
   rim.rotation.x = Math.PI / 2;
-  for (const z of [-0.75, 0.55]) part(BOX, wood, root, 0, -0.12, z, 1.36 - Math.abs(z) * 0.3, 0.05, 0.26);
+  for (const z of [-0.75, 0.55]) part(BOX, wood, root, 0, SEAT, z, 1.36 - Math.abs(z) * 0.3, 0.05, 0.26);
   // Oars resting along the gunwales.
   for (const s of [1, -1]) {
     const oar = joint(root, s * 0.62, 0.02, -0.1);

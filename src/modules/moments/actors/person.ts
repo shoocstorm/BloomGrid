@@ -113,6 +113,17 @@ export class Person3D {
   private time = Math.random() * 10;
   /** A lantern's light (`prop: 'lantern'`), for films to brighten or dim. */
   lamp: Mesh | null = null;
+  /**
+   * Life when a pose holds still (0 = a statue, 1 = default): drifting glances, small nods, weight and shoulders
+   * shifting, and now and then a quick look to one side. Films lower it for a held moment (a facepalm).
+   */
+  idle = 1;
+  /** Talking (0..1): the mouth moves and the head nods with the words. */
+  talk = 0;
+  /** A rod jigging in the right hand (0..1): the arm bobs, with a sharp twitch now and then. */
+  jig = 0;
+  private seed = Math.random() * 100;
+  private glance = { at: 2 + Math.random() * 4, dir: 1, t: -1 };
   /** The rod's tip (`prop: 'rod'`), where a fishing line hangs from. */
   rodTip: Group | null = null;
 
@@ -294,7 +305,37 @@ export class Person3D {
     sr.rotation.z = v.armRup + sw * 0.7;
     sr.rotation.x = v.armRout;
     er.rotation.z = v.elbowR + Math.sin(t * 11) * 0.45 * v.wave;
-    this.head.rotation.set(v.headTilt, v.headYaw, -v.headPitch + Math.sin(t * 1.3) * 0.015);
+    // Idle life on top of the pose: glances, nods, weight and shoulders shifting, a quick look aside now and then.
+    const id = this.idle;
+    const sd = this.seed;
+    const g = this.glance;
+    if (g.t < 0 && (g.at -= dt) <= 0) {
+      g.t = 0;
+      g.dir = Math.random() < 0.5 ? -1 : 1;
+    }
+    let aside = 0;
+    if (g.t >= 0) {
+      g.t += dt;
+      const k = g.t / 1.6;
+      aside = k < 1 ? Math.sin(Math.PI * Math.min(1, k * 1.4)) * g.dir * 0.55 : 0;
+      if (k >= 1) {
+        g.t = -1;
+        g.at = 3 + Math.random() * 5;
+      }
+    }
+    const look = (Math.sin(t * 0.31 + sd) * 0.2 + Math.sin(t * 0.83 + sd * 2) * 0.06 + aside) * id;
+    const nod = (Math.sin(t * 0.47 + sd * 3) * 0.05 + this.talk * Math.abs(Math.sin(t * 3.3)) * 0.08) * id;
+    this.torso.rotation.z += Math.sin(t * 0.6 + sd) * 0.025 * id;
+    this.torso.rotation.x = Math.sin(t * 0.37 + sd) * 0.025 * id;
+    sl.rotation.z += Math.sin(t * 0.9 + sd) * 0.04 * id;
+    sr.rotation.z += Math.sin(t * 0.77 + sd * 1.7) * 0.04 * id;
+    // A jigging rod: a slow bob of the arm, and a sharp twitch every few seconds.
+    if (this.jig > 0) {
+      const tw = Math.max(0, Math.sin(t * 0.9 + sd)) ** 12;
+      sr.rotation.z += (Math.sin(t * 1.7) * 0.07 + tw * 0.25) * this.jig;
+      er.rotation.z += Math.sin(t * 1.7 + 0.6) * 0.06 * this.jig;
+    }
+    this.head.rotation.set(v.headTilt + Math.sin(t * 0.29 + sd) * 0.04 * id, v.headYaw + look, -v.headPitch - nod + Math.sin(t * 1.3) * 0.015);
 
     const lid = this.blinker.lid(dt);
     const wide = 1 + Math.max(0, v.brows) * 0.25;
@@ -305,7 +346,9 @@ export class Person3D {
       b.rotation.x = (i === 0 ? 1 : -1) * v.brows * 0.25;
     }
     const m = this.mouth;
-    m.scale.set(0.008, 0.006 + v.mouth * 0.022, 0.026 + Math.max(0, v.smile) * 0.012 - v.mouth * 0.008);
-    m.position.y = 0.07 - v.mouth * 0.008 + Math.min(0, v.smile) * -0.004;
+    const words = this.talk * (0.35 + 0.35 * Math.sin(t * 13)) * Math.abs(Math.sin(t * 3.1));
+    const open = Math.min(1, v.mouth + words);
+    m.scale.set(0.008, 0.006 + open * 0.022, 0.026 + Math.max(0, v.smile) * 0.012 - open * 0.008);
+    m.position.y = 0.07 - open * 0.008 + Math.min(0, v.smile) * -0.004;
   }
 }

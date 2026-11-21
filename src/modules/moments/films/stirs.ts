@@ -34,7 +34,7 @@ import { Person3D, type Look as PersonLook } from '../actors/person';
 import { Gull3D } from '../actors/gull';
 import { CAST } from '../actors/cast';
 import { BALL, glow, hard, joint, part, soft } from '../actors/rig';
-import { rowboat } from '../actors/boat';
+import { BOAT_FLOAT, SEAT, rowboat } from '../actors/boat';
 import './stirs.css';
 import { INTROS } from '@/modules/moments/loading';
 
@@ -318,12 +318,12 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
 
   // ── The boat and the fisher (facing +z, his back to where the wonder will rise). ──
   const boat = rowboat();
-  boat.root.position.copy(B).setY(SEA + 0.2);
+  boat.root.position.copy(B).setY(SEA + BOAT_FLOAT);
   stage.add(boat.root);
   boat.lamp.emissiveIntensity = day ? 0.6 : 2.6;
   const old = new Person3D({ ...(CAST.fisher as PersonLook), prop: bit.id === 'boot' ? 'rod' : 'none' });
   old.root.scale.setScalar(0.85);
-  old.root.position.set(0, -0.09 - 0.37 * 0.85, -0.75);
+  old.root.position.set(0, SEAT + 0.025 - 0.37 * 0.85, -0.75);
   old.root.rotation.y = -Math.PI / 2;
   boat.root.add(old.root);
   old.act(bit.id === 'boot' ? 'fish' : 'sit');
@@ -334,7 +334,7 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
       : null;
   if (kid) {
     kid.root.scale.setScalar(0.55);
-    kid.root.position.set(0, -0.09 - 0.37 * 0.55, 0.55);
+    kid.root.position.set(0, SEAT + 0.025 - 0.37 * 0.55, 0.55);
     kid.root.rotation.y = Math.PI;
     boat.root.add(kid.root);
     kid.act('sit', { headYaw: -0.4 });
@@ -398,6 +398,7 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     old.pose.to({ armRup: 1.8, elbowR: 1.0, headYaw: -0.3 });
   }
   old.pose.snap();
+  if (bit.id === 'boot') old.jig = 1;
 
   // ── Things that happen: the toss over the side, the rise, swell, spray, gulls, dolphins. ──
   const splashAt = new Vector3(B.x + 1.3, SEA, B.z + 0.6);
@@ -501,15 +502,44 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
   let hooked = -1;
   let sneezeAt = -1;
   let shakeHands = false;
+  /** Where the film is: the fisher's business (a sip, a scan, a chat) runs in the open and gag beats. */
+  let beat: 'open' | 'a' | 'b' | 'after' = 'open';
+  // His business at rest pose, each bit (the targets the sip / scan return to).
+  const rest = { armRup: old.pose.v.armRup, elbowR: old.pose.v.elbowR };
   const tmp = new Vector3();
   const tip = new Vector3();
   const sinkFrom = new Vector3();
   stage.onFrame = (t, dt) => {
     // The boat rocks; after the rise the swell lifts it.
     const swellHit = riseAt >= 0 ? Math.max(0, Math.min(1, (t - riseAt - 1.2) / 0.6)) * Math.max(0, 1 - (t - riseAt - 1.8) / 3) : 0;
-    boat.root.position.y = SEA + 0.2 + Math.sin(t * 1.3) * 0.05 + Math.sin(t * 2.1 + 1) * 0.02 + swellHit * Math.sin((t - riseAt) * 3) * 0.5;
-    boat.root.rotation.x = Math.sin(t * 1.1) * 0.03 + swellHit * Math.sin((t - riseAt) * 3 + 0.8) * 0.12;
+    boat.root.position.y = SEA + BOAT_FLOAT + Math.sin(t * 1.3) * 0.05 + Math.sin(t * 2.1 + 1) * 0.02 + swellHit * Math.sin((t - riseAt) * 3) * 0.5;
+    boat.root.rotation.x = Math.sin(t * 1.1) * 0.03 + swellHit * Math.sin((t - riseAt) * 3 + 0.8) * 0.08;
     boat.root.rotation.z = Math.sin(t * 0.9 + 2) * 0.04;
+    // His business while he waits: the gag's own small actions, so he is never a statue.
+    if (beat === 'open' || beat === 'a') {
+      if (bit.id === 'coffee') {
+        // A sip every few seconds, eyes wide over the rim.
+        const sip = t % 3.4 < 1.0;
+        old.pose.to({ armRup: sip ? 2.25 : rest.armRup, elbowR: sip ? 2.45 : rest.elbowR, headPitch: sip ? -0.22 : 0.05 });
+      } else if (bit.id === 'bino') {
+        // Sweeping the horizon with the binoculars (the wrong way, of course).
+        old.pose.to({ headYaw: Math.sin(t * 0.55) * 0.55, twist: Math.sin(t * 0.55) * 0.25 });
+      } else if (bit.id === 'camera') {
+        // Fussing with the framing.
+        old.pose.to({ lean: 0.22 + Math.sin(t * 0.8) * 0.06, headTilt: Math.sin(t * 0.6) * 0.12 });
+      } else if (bit.id === 'fish') {
+        // Telling it about his day, the fish wriggling in his hand.
+        old.talk = 1;
+        item.rotation.y = Math.sin(t * 9) * 0.35;
+        item.rotation.z = Math.sin(t * 5.3) * 0.2;
+      } else if (bit.id === 'kid' && kid) {
+        // She asks; he answers without looking up.
+        const asking = t % 4 < 2;
+        kid.talk = asking ? 1 : 0;
+        old.talk = asking ? 0 : 0.8;
+        old.pose.to({ headYaw: asking ? 0.15 : -0.2, headPitch: asking ? 0.15 : 0.3 });
+      }
+    }
     old.update(dt);
     kid?.update(dt);
     gull?.update(dt);
@@ -635,7 +665,11 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     // 2. Close: the gag, and something over the side.
     cut(orbit(head(), 2.6, 0.55, 0.12, 34), orbit(head(), 2.2, 0.4, 0.1, 32), 6);
     reel.on('a');
+    beat = 'a';
     if (bit.tease) {
+      // He leans in, the rod still.
+      old.jig = 0.2;
+      old.pose.to({ lean: 0.25, headPitch: 0.35, brows: 0.5 });
       reel.say(bit.tease);
       tease = stage.t;
       gagSound('tease');
@@ -659,6 +693,10 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     reel.say(bit.a);
     if (!(await reel.wait(bit.tease ? 2100 : 2500))) return;
     reel.on('b');
+    beat = 'b';
+    old.talk = 0;
+    old.jig = 0;
+    if (kid) kid.talk = 0;
     gagSound('b');
     reel.bed('drone', 0.35, 2);
     reel.cue(bit.id === 'camera' ? 'cs-freeze' : 'cs-whoosh');
@@ -756,6 +794,14 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
 
     // 5. The payoff: a two-shot, the wonder behind him.
     reel.on('react');
+    beat = 'after';
+    // The payoff line is spoken (the fisher's, or the granddaughter's shout).
+    if (bit.id === 'kid' && kid) kid.talk = 1;
+    else if (bit.id === 'bino' || bit.id === 'camera') old.talk = 1;
+    setTimeout(() => {
+      old.talk = 0;
+      if (kid) kid.talk = 0;
+    }, 2600);
     stage.shake = 1;
     shakeHands = false;
     if (bit.id === 'boot') old.act('shrug', { headYaw: 0 });
