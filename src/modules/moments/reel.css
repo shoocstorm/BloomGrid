@@ -1,0 +1,239 @@
+/* The film kit (D-185): every cutscene's frame. A reel sits in the body (the 100dvh screen box: fixed stops short of
+   the iPhone home bar) above the boot screen and the city loader (z 50 / 1000), so a film can open over either. */
+
+.reel {
+  position: absolute;
+  inset: 0;
+  z-index: 1001;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  color: #fff;
+  font-family: var(--ui);
+}
+.reel.in {
+  opacity: 1;
+}
+.reel.instant {
+  transition: none;
+}
+.reel.out,
+.reel.instant.out {
+  opacity: 0;
+  transition: opacity 0.65s ease;
+}
+/* Opens on black, then the scene comes up. */
+.reel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: #000;
+  pointer-events: none;
+  animation: reel-unveil 1.5s ease-out 0.15s both;
+}
+@keyframes reel-unveil {
+  to {
+    opacity: 0;
+  }
+}
+.reel-set {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* ── Letterbox, caption, skip ── */
+.reel-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  height: 10vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  transition: transform 0.8s cubic-bezier(0.3, 0.8, 0.3, 1);
+}
+.reel-bar.top {
+  top: 0;
+  justify-content: flex-end;
+  padding-right: 18px;
+  transform: translateY(-100%);
+}
+.reel-bar.bot {
+  bottom: 0;
+  transform: translateY(100%);
+}
+.reel.in .reel-bar {
+  transform: none;
+}
+.reel-cap {
+  margin: 0;
+  padding: 0 16px;
+  font: 500 clamp(14px, 2.6vmin, 20px) / 1.3 var(--ui);
+  color: #f4ecd8;
+  text-align: center;
+  opacity: 0;
+}
+.reel-cap.show {
+  animation: reel-cap 0.5s ease-out both;
+}
+@keyframes reel-cap {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.reel-skip {
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: none;
+  color: rgba(255, 255, 255, 0.8);
+  font: 600 12px/1 var(--ui);
+  cursor: var(--cur-pointer, pointer);
+}
+.reel-skip:hover {
+  color: #fff;
+  border-color: #fff;
+}
+.reel-skip.hidden {
+  visibility: hidden;
+}
+
+/* ── The end card ── */
+.reel-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: min(560px, 90vw);
+  translate: -50% -50%;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+}
+.reel-card.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.reel-kick {
+  font: 600 clamp(11px, 1.9vmin, 14px) / 1.2 var(--mono);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--reel-ink, #fff);
+  opacity: 0.85;
+  animation: reel-rise 0.6s ease-out both;
+}
+.reel-title {
+  margin-top: 1.2vh;
+  font: 800 clamp(30px, min(10vmin, calc(170vw / var(--len))), 96px) / 1.05 var(--ui);
+  letter-spacing: 0.03em;
+  color: #fff;
+  text-shadow:
+    0 0.5vmin 0 var(--reel-accent, #2f9c86),
+    0 1.4vmin 3vmin rgba(0, 0, 0, 0.35);
+  animation: reel-rise 0.6s ease-out 0.15s both;
+}
+.reel-word {
+  display: inline-block;
+  margin: 0 0.15em;
+  white-space: nowrap;
+}
+.reel-l {
+  display: inline-block;
+  animation: reel-drop 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) calc(0.2s + var(--i) * 0.06s) both;
+}
+@keyframes reel-drop {
+  from {
+    transform: translateY(-22vh) rotate(-14deg);
+    opacity: 0;
+  }
+}
+.reel-sub {
+  margin: 1.4vh 0 0;
+  font: 600 clamp(14px, 2.8vmin, 22px) / 1.35 var(--ui);
+  color: var(--reel-ink, #fff);
+  animation: reel-rise 0.6s ease-out 0.9s both;
+}
+.reel-lines {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 1.6vh 0 0;
+  padding: 0;
+  list-style: none;
+  font: 500 clamp(12px, 2.1vmin, 16px) / 1.35 var(--ui);
+  color: var(--reel-ink, #fff);
+  opacity: 0.9;
+}
+.reel-lines li {
+  animation: reel-rise 0.5s ease-out calc(1.2s + var(--k) * 0.15s) both;
+}
+.reel-lines li::before {
+  content: '› ';
+  opacity: 0.6;
+}
+.reel-go {
+  display: block;
+  margin: 2.6vh auto 0;
+  padding: 12px 30px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--reel-button, linear-gradient(180deg, #6ff5df, #2fcfb6));
+  color: var(--reel-button-ink, #05302a);
+  font: 700 15px/1 var(--ui);
+  letter-spacing: 0.04em;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+  cursor: var(--cur-pointer, pointer);
+  animation: reel-rise 0.6s ease-out 1.5s both;
+}
+.reel-go:hover {
+  filter: brightness(1.08);
+}
+@keyframes reel-rise {
+  from {
+    transform: translateY(1.5vh);
+    opacity: 0;
+  }
+}
+
+/* Confetti for the end card. */
+.reel-confetti {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.reel-confetti i {
+  position: absolute;
+  top: -6vh;
+  width: 2.2vmin;
+  height: 1.3vmin;
+  border-radius: 2px;
+  background: var(--c);
+  scale: var(--s);
+  animation: reel-fall 4s cubic-bezier(0.3, 0.2, 0.6, 1) var(--d) both;
+}
+@keyframes reel-fall {
+  50% {
+    transform: translate(var(--sway), 55vh) rotate(calc(var(--r) / 2));
+  }
+  to {
+    transform: translate(0, 120vh) rotate(var(--r));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reel-confetti {
+    display: none;
+  }
+  .reel-l {
+    animation: none;
+  }
+}

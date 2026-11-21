@@ -3441,3 +3441,46 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   docks draw as a jetty with a dinghy, solar spires as a mast under three solar petals; a "you are here" ring on the
   hologram map; long names wrap between words and shrink to fit; on phones the island box centres on the hamlet.
   The film's clock can be held (`filmClock`) so scenes capture exact frames (headless screenshots land seconds late).
+
+## D-185 — A film kit, and three story films (2026-11-21)
+
+- **Kit**: `modules/moments/reel.ts` (`openReel`, also `moments.reel`) holds what every cutscene needs: a full-screen
+  stage above the boot screen and the loader (z 1001, in the body box), letterbox, caption, Skip / Esc, the paused
+  clock (restored on the way out), a holdable film clock (`reelClock`), stage classes, cues and a shared end card
+  (kicker, title dropped letter by letter, sub, lines, button, confetti; focused with `preventScroll`). Stage names
+  are prefixed `s-` on the root: a stage called `card` matched the HUD's global `.card` and shoved the whole film
+  aside (the third class clash, after `.ch-note` and `fd-`).
+- **Films** (each replaces a ceremony; each a replayable film, D-181):
+  - "Hello, World" (Flora's awakening, `assistant/hello.ts`): a boot log ("Loading civic empathy… 87%… 87%"),
+    petals and an eye, counting the real population twice, the steward's cat on the ledge ("Classification:
+    …supervisor") or a gull ("Threat level: snacks"), her first words; the card adds the city's top problem.
+  - "Maiden Flight" (the Sky-lane charter, `moments/films/flight.ts`): a test pilot's checklist ("Courage…
+    loading"), a countdown, a loop-de-loop on a drawn sky lane, a gull that lands on the roof (its approach computed
+    to meet the pod: the lane is flown at an even pace with SVG `animateMotion`), a cheering crowd, a stolen cap.
+  - "Something Stirs" (every sea wonder, `moments/films/stirs.ts`): an old fisher catches a boot and dozes on
+    while the wonder rises behind him (one silhouette per wonder in `SHAPES`, its tagline and keeper's quote from
+    `scenery/lore.ts` on the card), then turns round and loses his hat.
+- **Checking**: `scripts/scenes/film.js` plays any film and freezes it at `window.AT` (the reel clock, CSS
+  animations and SVG animations), so a capture shows that exact frame.
+- **Not yet**: "First Light" and "The Stray" keep their own chrome; moving them onto the kit is a cleanup.
+
+## D-186 — Moments keep their distance from films (2026-11-21)
+
+- **What**: the moments queue leaves 3 s (`GAP`) after any film or ceremony before starting the next, and a ceremony
+  that waited behind a film (queued while it played, or starting within a few seconds of its end) plays with
+  `camera: false`. A replay the player asks for skips the gap.
+- **Why**: a wonder that rose on the same pulse as another moment (a population milestone, an era) had that moment's
+  ceremony start the instant "Something Stirs" ended, so the film seemed to run on into the old ceremony, and a
+  grand ceremony then flew the camera away. Measured on the real discovery path: before, film → ceremony with no
+  gap; after, film → 3 s of the city → ceremony, camera where it was.
+
+## D-187 — A wonder's film flows into its ceremony and the camera goes there (2026-11-21)
+
+- **What**: "Something Stirs" ends straight into the wonder's ceremony (emblem, name, "Sea wonder · risen"), and that
+  ceremony flies the camera out to the wonder, framed whole (`at.size` on a moment, 70 for wonders; buildings keep
+  30). It is queued as the film's `chain`: no `GAP` before it, and the D-186 camera hold does not apply to it. Other
+  moments still wait the gap after it and keep the camera on the wonder. With moments off, the camera still goes
+  there. Replays do the same.
+- **Why**: the film alone left the player where they were, not knowing where the wonder had risen; the film and its
+  ceremony read as one beat, the story and then the place. Measured on the real discovery path: film → ceremony at
+  once → camera from the hamlet to the Tide Gates → (3 s) the next moment, camera unmoved.

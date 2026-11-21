@@ -358,7 +358,7 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
       );
     petals.classList.add('show');
     skip.classList.add('hidden');
-    (title.querySelector('.ftl-go') as HTMLElement | null)?.focus();
+    (title.querySelector('.ftl-go') as HTMLElement | null)?.focus({ preventScroll: true });
     await wait(14000);
     finish();
   };

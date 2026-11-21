@@ -1,0 +1,533 @@
+/* "Something Stirs" (D-185): a sea wonder rises behind a dozing fisher. A golden afternoon at sea; the wonder's
+   silhouette rises from behind the sea line; stage classes (`.s-*`) on `.reel.sw` direct it. */
+
+.sw {
+  --reel-accent: #2a8fb8;
+  --reel-button: linear-gradient(180deg, #8fe3ff, #3fb8e8);
+  --reel-button-ink: #062a3a;
+  /* The sea line. */
+  --sea: 58vh;
+}
+.sw-sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(#7fb2e0 0%, #f3c49a 62%, #ffdca8 100%);
+}
+.sw-sun {
+  position: absolute;
+  right: 18vw;
+  top: calc(var(--sea) - 20vmin);
+  width: 16vmin;
+  height: 16vmin;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffbe6, #ffd98a 50%, rgba(255, 200, 120, 0) 72%);
+}
+
+/* The wonder: below the sea line until it rises, water streaming off it. */
+.sw-wonder {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - var(--sea));
+  width: min(70vmin, 620px);
+  translate: -50% 0;
+  transform: translateY(105%);
+  transition: transform 3s cubic-bezier(0.25, 0.7, 0.25, 1);
+}
+.sw.s-stir .sw-wonder {
+  transform: translateY(88%);
+  transition-duration: 2s;
+}
+.sw.s-rise .sw-wonder {
+  transform: none;
+}
+.sw-wonder svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  fill: #3c5a78;
+  stroke: #3c5a78;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 2vmin rgba(160, 230, 255, 0.55));
+}
+.sw-wonder svg .hi {
+  fill: #c7f1ff;
+  stroke: #c7f1ff;
+}
+.sw-wonder .ring {
+  stroke: #e9f4ff;
+}
+.sw-wonder .eye {
+  fill: #1b2a3a;
+}
+.sw-geode .sw-wonder svg .hi {
+  fill: #e6b8ff;
+  stroke: #e6b8ff;
+}
+.sw-lotus .sw-wonder svg {
+  fill: #e08ab0;
+  stroke: #e08ab0;
+}
+.sw-lotus .sw-wonder svg .hi {
+  fill: #ffe39a;
+}
+.sw-stacks .sw-wonder svg .hi,
+.sw-turtle .sw-wonder svg .hi {
+  fill: #5fa86a;
+  stroke: #7ccf86;
+}
+
+/* The glow under the water, before it rises. */
+.sw-glow {
+  position: absolute;
+  left: 50%;
+  top: var(--sea);
+  width: 80vmin;
+  height: 26vh;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 20%, rgba(180, 245, 255, 0.9), rgba(120, 220, 255, 0) 65%);
+  opacity: 0;
+  z-index: 1;
+  transition: opacity 1.6s;
+}
+.sw.s-stir .sw-glow {
+  opacity: 1;
+  animation: sw-pulse 0.9s ease-in-out infinite alternate;
+}
+.sw.s-rise .sw-glow {
+  opacity: 0.3;
+}
+@keyframes sw-pulse {
+  to {
+    transform: scale(1.12);
+  }
+}
+
+/* The sea. */
+.sw-sea {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--sea);
+  bottom: 0;
+  background: linear-gradient(#4a9cc4, #1d5e86);
+}
+.sw-sea i {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  height: 1.6vh;
+  background: repeating-radial-gradient(ellipse at 50% 0, rgba(255, 255, 255, 0.4) 0 22%, transparent 24% 100%) 0 0 / 5vw 100%;
+  animation: sw-wave 7s linear infinite;
+}
+.sw-sea .w1 {
+  top: -0.8vh;
+}
+.sw-sea .w2 {
+  top: 4vh;
+  opacity: 0.6;
+  animation-duration: 10s;
+  animation-direction: reverse;
+}
+.sw-sea .w3 {
+  top: 11vh;
+  opacity: 0.4;
+  animation-duration: 13s;
+}
+@keyframes sw-wave {
+  to {
+    transform: translateX(5vw);
+  }
+}
+/* Water streaming off it as it rises. */
+.sw-cascade {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--sea) - 26vh);
+  width: min(62vmin, 560px);
+  height: 26vh;
+  translate: -50% 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.sw-cascade i {
+  position: absolute;
+  left: calc(var(--i) * 8.3%);
+  top: 0;
+  width: 0.5vmin;
+  height: 100%;
+  border-radius: 1vmin;
+  background: linear-gradient(transparent, rgba(220, 248, 255, 0.85));
+  opacity: 0;
+}
+.sw.s-rise .sw-cascade i {
+  animation: sw-stream 1.6s ease-in calc(0.6s + var(--i) * 0.09s) 2 both;
+}
+@keyframes sw-stream {
+  from {
+    transform: translateY(-20%) scaleY(0.3);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateY(10%) scaleY(1);
+    opacity: 0;
+  }
+}
+.sw-bubbles i {
+  position: absolute;
+  left: var(--x);
+  top: calc(var(--sea) + 4vh);
+  width: 1.4vmin;
+  height: 1.4vmin;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  scale: var(--s);
+  opacity: 0;
+  z-index: 2;
+}
+.sw.s-stir .sw-bubbles i {
+  animation: sw-bubble 1.2s ease-out var(--d) infinite;
+}
+.sw.s-rise .sw-bubbles i {
+  animation: none;
+  opacity: 0;
+}
+@keyframes sw-bubble {
+  0% {
+    transform: translateY(6vh);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-1vh) scale(1.3);
+    opacity: 0;
+  }
+}
+
+/* Gulls on the horizon, scattering when it rises. */
+.sw-gulls i {
+  position: absolute;
+  left: calc(40% + var(--i) * 3.5%);
+  top: calc(var(--sea) - 10vh + (var(--i) % 2) * 2vh);
+  width: 2.4vmin;
+  height: 1vmin;
+  border-top: 0.35vmin solid #4a4a5a;
+  border-radius: 50% 50% 0 0;
+  animation: sw-flap 0.5s ease-in-out infinite alternate;
+}
+@keyframes sw-flap {
+  to {
+    scale: 1 0.4;
+  }
+}
+.sw.s-rise .sw-gulls i {
+  transform: translate(calc((var(--i) - 2.5) * 14vw), -30vh);
+  transition: transform 2.2s cubic-bezier(0.3, 0.3, 0.4, 1) calc(var(--i) * 0.08s);
+}
+
+/* The boat, rocking (more as the sea stirs). */
+.sw-rocker {
+  position: absolute;
+  left: 6vw;
+  bottom: 13vh;
+  z-index: 3;
+  width: min(54vmin, 480px);
+  animation: sw-rock 3s ease-in-out infinite alternate;
+  transform-origin: 50% 90%;
+}
+.sw.s-stir .sw-rocker,
+.sw.s-rise .sw-rocker {
+  animation-duration: 0.8s;
+}
+.sw.s-wake .sw-rocker {
+  animation-duration: 3s;
+}
+@keyframes sw-rock {
+  from {
+    transform: rotate(-2.5deg) translateY(0);
+  }
+  to {
+    transform: rotate(2.5deg) translateY(0.6vh);
+  }
+}
+.sw-boat svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+.sw-boat .hull {
+  fill: #8a5a3a;
+}
+.sw-boat .trim {
+  stroke: #c9925a;
+  stroke-width: 5;
+}
+.sw-boat .rod {
+  stroke: #5a3a24;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+/* The rod and its line turn together, from his grip. */
+.sw-boat .rod-g {
+  transform-origin: 170px 120px;
+}
+.sw-boat .line {
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 1.5;
+}
+.sw-boat .coat {
+  fill: #3f6f8f;
+}
+.sw-boat .skin {
+  fill: #f1c7a5;
+}
+.sw-boat .beard {
+  fill: #eef0f2;
+}
+.sw-boat .eyes {
+  stroke: #2a2a2a;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  fill: #2a2a2a;
+}
+.sw-boat .eyes.open {
+  opacity: 0;
+}
+.sw-boat .hat {
+  fill: #e8c76a;
+}
+.sw-boat .arm {
+  stroke: #3f6f8f;
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+/* The bite: the rod bends and snaps up. */
+.sw.s-reel .sw-boat .rod-g {
+  animation: sw-yank 1.4s ease-out both;
+}
+@keyframes sw-yank {
+  0% {
+    transform: rotate(0);
+  }
+  12% {
+    transform: rotate(12deg);
+  }
+  35% {
+    transform: rotate(-16deg);
+  }
+  100% {
+    transform: rotate(0);
+  }
+}
+/* Waking, briefly for the boot, and for good at the end: eyes open, head turns to look behind. */
+.sw.s-bite .sw-boat .eyes.shut,
+.sw.s-wake .sw-boat .eyes.shut {
+  opacity: 0;
+}
+.sw.s-bite .sw-boat .eyes.open,
+.sw.s-wake .sw-boat .eyes.open {
+  opacity: 1;
+}
+.sw.s-toss .sw-boat .eyes.shut {
+  opacity: 1;
+}
+.sw.s-toss .sw-boat .eyes.open {
+  opacity: 0;
+}
+.sw.s-wake .sw-boat .eyes.shut {
+  opacity: 0;
+}
+.sw.s-wake .sw-boat .eyes.open {
+  opacity: 1;
+}
+.sw-head {
+  transform-origin: 152px 100px;
+}
+.sw.s-wake .sw-head {
+  transform: scaleX(-1) rotate(-6deg);
+  transition: transform 1.2s ease-in-out 0.2s;
+}
+.sw.s-wake .hat-on {
+  opacity: 0;
+  transition: opacity 0.1s 1s;
+}
+/* The hat, falling into the sea. */
+.sw-hat {
+  position: absolute;
+  left: calc(6vw + min(19vmin, 170px));
+  bottom: calc(13vh + min(36vmin, 320px));
+  z-index: 3;
+  width: min(13vmin, 110px);
+  height: min(4vmin, 34px);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 30%, #f3d57c 40%, #e8c76a 41%);
+  opacity: 0;
+}
+.sw.s-wake .sw-hat {
+  animation: sw-hatfall 1.6s cubic-bezier(0.4, 0, 0.7, 1) 1.05s both;
+}
+@keyframes sw-hatfall {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-4vw, 14vh) rotate(-40deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-6vw, 22vh) rotate(-10deg);
+  }
+}
+/* Snores. */
+.sw-zzz {
+  position: absolute;
+  left: 34%;
+  top: 6%;
+}
+.sw-zzz i {
+  position: absolute;
+  font: 700 clamp(16px, 3vmin, 26px) / 1 var(--ui);
+  font-style: normal;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  animation: sw-z 2.4s ease-out infinite;
+}
+.sw-zzz i:nth-child(2) {
+  animation-delay: 0.8s;
+}
+.sw-zzz i:nth-child(3) {
+  animation-delay: 1.6s;
+}
+@keyframes sw-z {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(4vmin, -8vmin) scale(1.2);
+    opacity: 0;
+  }
+}
+.sw.s-bite .sw-zzz,
+.sw.s-wake .sw-zzz {
+  opacity: 0;
+}
+.sw.s-toss .sw-zzz {
+  opacity: 1;
+}
+.sw.s-wake .sw-zzz {
+  opacity: 0;
+}
+.sw-bang {
+  position: absolute;
+  left: 38%;
+  top: -8%;
+  font: 900 clamp(26px, 6vmin, 52px) / 1 var(--ui);
+  color: #fff;
+  text-shadow: 0 2px 0 #2a8fb8;
+  opacity: 0;
+}
+.sw.s-wake .sw-bang {
+  animation: sw-bang 0.6s cubic-bezier(0.3, 1.8, 0.5, 1) 1.3s both;
+}
+@keyframes sw-bang {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The float, out on the water: it dips for the bite. */
+.sw-float {
+  position: absolute;
+  left: calc(6vw + min(52vmin, 462px));
+  bottom: calc(13vh + min(10vmin, 90px));
+  z-index: 2;
+  width: 1.4vmin;
+  height: 2.2vmin;
+  border-radius: 50% 50% 40% 40%;
+  background: linear-gradient(#ff5a4f 50%, #fff 50%);
+}
+.sw.s-bite .sw-float {
+  animation: sw-dip 0.35s ease-in-out 2 alternate;
+}
+.sw.s-reel .sw-float {
+  opacity: 0;
+}
+.sw.s-toss .sw-float {
+  opacity: 1;
+}
+@keyframes sw-dip {
+  to {
+    transform: translateY(1.4vmin);
+  }
+}
+/* The boot: out of the sea in an arc into his hands, then back over the side. */
+.sw-boot {
+  position: absolute;
+  left: calc(6vw + min(52vmin, 462px));
+  bottom: calc(13vh + min(10vmin, 90px));
+  z-index: 4;
+  width: min(7vmin, 60px);
+  opacity: 0;
+}
+.sw.s-reel .sw-boot {
+  animation: sw-boot-in 0.9s cubic-bezier(0.3, 0.6, 0.4, 1) both;
+}
+.sw.s-toss .sw-boot {
+  animation: sw-boot-out 1.1s cubic-bezier(0.4, 0, 0.7, 1) both;
+}
+@keyframes sw-boot-in {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-6vmin, -22vmin) rotate(-120deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-14vmin, -14vmin) rotate(-200deg);
+  }
+}
+@keyframes sw-boot-out {
+  0% {
+    opacity: 1;
+    transform: translate(-14vmin, -14vmin) rotate(-200deg);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(2vmin, -26vmin) rotate(-320deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(14vmin, 4vmin) rotate(-420deg);
+  }
+}
+
+.sw.s-finale .reel-set {
+  filter: blur(2px) brightness(0.8);
+  transition: filter 1s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-rocker,
+  .sw-sea i,
+  .sw-gulls i,
+  .sw-zzz i,
+  .sw-glow {
+    animation: none !important;
+  }
+}

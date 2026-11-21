@@ -26,10 +26,9 @@ import { floraBilled, floraBlocker, floraLocked, floraWake, type FloraPhase } fr
 import { diagnose } from '@/sim/proposals';
 import { MIN_CONFIDENCE, warnings, type ForecastMetric } from '@/sim/forecast';
 import { PULSE_TICKS } from '@/sim/pulseConst';
-import { Building } from '@/ecs/components';
 import { PROJECTS } from '@/sim/projects';
 import { isOpen } from '@/sim/growthState';
-import type { MomentSpec } from '@/modules/moments';
+import { playHelloWorld } from './hello';
 import { allOverlays, getOverlay } from '@/sim/overlays';
 import { ISSUES, inventoryKinds } from '@/sim/inventory';
 import { cityBrief } from '@/ai/brief';
@@ -118,11 +117,11 @@ class Assistant {
     ctx.bus.on('project:done', ({ id }) => id === 'flora' && !ctx.loading && this.awaken());
     ctx.services.tryGet('moments')?.film({
       id: 'project:flora',
-      title: 'Flora awakens',
+      title: 'Hello, World',
       icon: PROJECTS.flora.icon,
-      blurb: 'The city assistant comes online on the Data Spire.',
+      blurb: 'Flora boots, loads her civic empathy (eventually), counts everyone twice and meets the neighbours.',
       earned: () => isOpen(ctx.city.growth, 'flora'),
-      spec: () => this.wakeSpec(),
+      run: (finish) => playHelloWorld(ctx, finish, this.firstNotice()),
     });
     this.engine.onChange((s) => {
       if (s.status !== 'ready' || !this.pending || this.busy) return;
@@ -343,42 +342,14 @@ class Assistant {
     this.wakeTimer = 99;
   }
 
-  /** Her awakening ceremony (also replayed from Build → Goals → Replays, D-181). */
-  private wakeSpec(): MomentSpec {
-    const { city } = this.ctx;
-    const fmtN = (n: number) => Math.round(n).toLocaleString();
-    const docs = this.ctx.services.tryGet('knowledge')?.base.all().length ?? 0;
-    const tools = this.ctx.services.get('agent').list().length;
-    const lines = [
-      `Linking the city grid · ${fmtN(city.stats.population)} residents`,
-      `Indexing ${fmtN(city.buildingEntities().length)} buildings in ${city.districts.length || 1} district${city.districts.length === 1 ? '' : 's'}`,
-      ...(docs ? [`Reading the Seedvault · ${docs} docs`] : []),
-      `Binding ${tools} agent tools`,
-      'Data Spire core · stable',
-    ];
-    const trouble = diagnose(city)[0];
-    const greeting = `Hello, steward. I'm Flora, and I'm awake. ${city.growth.name || 'The city'} has ${fmtN(city.stats.population)} residents${
-      trouble ? `, and ${trouble.replace(/ \(.*$/, '').replace(/^(\w+) /, '$1 is ')}` : ', and every system is holding'
-    }. Ask me anything, or tell me what to build.`;
-    const spire = city.buildingEntities().find((e) => city.buildingDef(e).id === 'data-spire');
-    return {
-        id: 'flora',
-        scale: 'grand',
-        tone: 'bloom',
-        emblem: 'flora',
-        eyebrow: 'Civic intelligence · BG-01 · online',
-        title: 'Flora',
-        lines,
-        sub: greeting,
-        ...(spire !== undefined
-          ? { at: { x: Building.x[spire]! + Building.w[spire]! / 2, z: Building.z[spire]! + Building.d[spire]! / 2, height: 40 } }
-          : {}),
-        flyTo: this.panel.orb,
-        sound: 'awake',
-      };
+  /** What her film says she noticed first: the city's top trouble, if any (D-185). */
+  private firstNotice(): string | undefined {
+    const trouble = diagnose(this.ctx.city)[0];
+    // "food Critical (…)" → "food is critical".
+    return trouble ? `Worth a look: ${trouble.replace(/ \(.*$/, '').replace(/^(\w+) (\w+)/, (_m, a: string, b: string) => `${a} is ${b.toLowerCase()}`)}` : undefined;
   }
 
-  /** The project finished: the ceremony, then her console opens with the welcome. */
+  /** The project finished: her film ("Hello, World", D-185), then her console opens with the welcome. */
   private awaken(): void {
     const opened = () => {
       this.syncWake();
@@ -386,10 +357,18 @@ class Assistant {
       this.panel.toggle(true);
     };
     this.panel.toggle(false);
-    // A city moment (D-094): her sigil assembles over the Data Spire and flies into her orb.
     const moments = this.ctx.services.tryGet('moments');
     if (!moments) return opened();
-    moments.play(this.wakeSpec(), opened);
+    moments.stage('project:flora', (finish) =>
+      playHelloWorld(
+        this.ctx,
+        () => {
+          finish();
+          opened();
+        },
+        this.firstNotice(),
+      ),
+    );
   }
 
   /** Forgets the conversation: the log and the history the next turn would send to the model. */

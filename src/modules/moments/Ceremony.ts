@@ -34,8 +34,8 @@ export interface MomentSpec {
   lines?: string[];
   /** The closing sentence. */
   sub?: string;
-  /** Where it happened (tile coordinates): camera and shockwaves. `height` of what stands there. */
-  at?: { x: number; z: number; y?: number; height?: number };
+  /** Where it happened (tile coordinates): camera and shockwaves. `height` of what stands there, `size` to frame. */
+  at?: { x: number; z: number; y?: number; height?: number; size?: number };
   /** Move the camera there (grand moments by default). */
   camera?: boolean;
   /** The emblem flies into this element at the end (else up and away). */
@@ -180,7 +180,7 @@ export class Ceremony {
     const g = this.ctx.city.grid;
     const y = m.at.y ?? Math.max(0, g.heightAt(m.at.x, m.at.z));
     this.at = { x: m.at.x, y, z: m.at.z };
-    if (m.camera ?? m.scale === 'grand') this.ctx.cameraCtl.locate(m.at.x, m.at.z, { size: 30, height: Math.max(30, m.at.height ?? 0) });
+    if (m.camera ?? m.scale === 'grand') this.ctx.cameraCtl.locate(m.at.x, m.at.z, { size: m.at.size ?? 30, height: Math.max(30, m.at.height ?? 0) });
     let set = this.meshes.get(m.tone);
     if (!set) {
       const mat = getMaterial('beacon');

@@ -1,0 +1,388 @@
+/* "Hello, World" (D-185): Flora's awakening. The Data Spire's core room at dusk: a round window on the city, her
+   sigil waking in the middle, a terminal on the left. Stage classes (`.s-*`) on `.reel.hw` direct it. */
+
+.hw {
+  --reel-accent: #1f9c86;
+  --reel-ink: #d9fff6;
+}
+.hw-room {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 46%, rgba(95, 242, 218, 0.12), transparent 55%),
+    radial-gradient(ellipse at 50% 120%, #10343a, #061416 60%, #030a0b 100%);
+}
+.hw-room::after {
+  /* Floor grid. */
+  content: '';
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  bottom: 10vh;
+  height: 26vh;
+  background:
+    linear-gradient(rgba(95, 242, 218, 0.12) 1px, transparent 1px) 0 0 / 100% 3vh,
+    linear-gradient(90deg, rgba(95, 242, 218, 0.12) 1px, transparent 1px) 0 0 / 4vw 100%;
+  transform: perspective(500px) rotateX(60deg);
+  transform-origin: 50% 100%;
+}
+
+/* The round window on the city, right of centre. */
+.hw-window {
+  position: absolute;
+  right: 8vw;
+  top: 17vh;
+  width: min(44vmin, 380px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1.2vmin solid #1b3a40;
+  box-shadow:
+    0 0 0 0.4vmin #2f6b70,
+    0 0 6vmin rgba(255, 170, 110, 0.18);
+  overflow: hidden;
+  opacity: 0.35;
+  transition: opacity 1.2s;
+}
+.hw.s-wake .hw-window {
+  opacity: 1;
+}
+.hw-window svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.hw-dusk {
+  fill: #f2a37a;
+}
+.hw-sun {
+  fill: #ffe09a;
+  opacity: 0.85;
+}
+.hw-city rect {
+  fill: #3a3550;
+}
+.hw-city .hw-win {
+  fill: #ffd98a;
+  opacity: 0;
+}
+.hw.s-count .hw-city .hw-win {
+  animation: hw-light 0.4s ease-out var(--d) both;
+}
+@keyframes hw-light {
+  to {
+    opacity: 1;
+  }
+}
+/* The count, over the window. */
+.hw-count {
+  position: absolute;
+  right: calc(8vw + min(22vmin, 190px));
+  top: calc(17vh + min(46vmin, 400px));
+  translate: 50% 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid rgba(95, 242, 218, 0.6);
+  border-radius: 999px;
+  background: rgba(4, 22, 26, 0.85);
+  color: #8ff7e6;
+  font: 600 clamp(12px, 2vmin, 15px) / 1 var(--mono);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.hw-count b {
+  font-size: 1.5em;
+  color: #fff;
+}
+.hw.s-count .hw-count {
+  opacity: 1;
+}
+.hw-count.again {
+  animation: hw-again 0.6s ease-out;
+}
+@keyframes hw-again {
+  30% {
+    transform: scale(1.15);
+  }
+}
+/* The ledge under the window, and who comes along it. */
+.hw-ledge {
+  position: absolute;
+  right: 4vw;
+  top: calc(17vh + min(44vmin, 380px) + 1vh);
+  width: calc(min(44vmin, 380px) + 8vw);
+  height: 1.4vmin;
+  border-radius: 1vmin;
+  background: #2f6b70;
+}
+.hw-guest {
+  /* Its feet on the ledge (the cat's side pose sits ~2.6vmin high in its rig). */
+  position: absolute;
+  right: calc(4vw + min(30vmin, 260px));
+  top: calc(17vh + min(44vmin, 380px) + 1vh + 2.6vmin);
+  transform: translateX(40vw);
+  transition: transform 2s cubic-bezier(0.3, 0.6, 0.4, 1);
+}
+.hw.s-guest .hw-guest {
+  transform: none;
+}
+.hw-guest .ch-cat-in {
+  --s: 3.2;
+  /* No finger padding: scaled with the cat it would lift it off the ledge. */
+  padding: 0;
+  margin: 0;
+  top: -34px;
+}
+.hw-guest .ch-cat .ch-side {
+  scale: -1 1;
+}
+.hw.s-label .hw-guest .ch-cat {
+  /* It sits and stares back. */
+  animation: none;
+}
+.hw-gull svg {
+  position: absolute;
+  left: -6vmin;
+  bottom: 2.6vmin;
+  width: 12vmin;
+}
+.hw.s-guest .hw-gull svg {
+  animation: hw-hop 0.5s ease-in-out 4 alternate;
+}
+@keyframes hw-hop {
+  to {
+    transform: translateY(-1vmin);
+  }
+}
+.hw-label {
+  position: absolute;
+  right: 4vw;
+  top: calc(17vh + min(44vmin, 380px) + 9vh);
+  max-width: min(420px, 50vw);
+  padding: 8px 12px;
+  border-left: 3px solid #ffd76a;
+  background: rgba(4, 22, 26, 0.85);
+  color: #ffe9a8;
+  font: 600 clamp(12px, 2vmin, 15px) / 1.35 var(--mono);
+  opacity: 0;
+  transform: translateX(2vw);
+  transition:
+    opacity 0.4s,
+    transform 0.4s;
+}
+.hw.s-label .hw-label {
+  opacity: 1;
+  transform: none;
+}
+
+/* Flora: dim and folded while she boots, then the petals unfold and the eye opens. */
+.hw-flora {
+  position: absolute;
+  left: 36%;
+  top: 46%;
+  width: min(42vmin, 360px);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  --lx: 0;
+  --ly: 0;
+}
+.hw-flora svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.hw-halo {
+  fill: none;
+  stroke: rgba(95, 242, 218, 0.35);
+  stroke-width: 0.8;
+  stroke-dasharray: 3 5;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hw-spin 18s linear infinite;
+}
+.hw.s-wake .hw-halo {
+  opacity: 1;
+  transition: opacity 1s;
+}
+@keyframes hw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.hw-petal {
+  fill: rgba(95, 242, 218, 0.22);
+  stroke: #5ff2da;
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transform: scale(0.15);
+  opacity: 0.3;
+}
+.hw.s-wake .hw-petal {
+  transform: none;
+  opacity: 1;
+  transition:
+    transform 0.8s cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--i) * 0.1s),
+    opacity 0.4s ease calc(var(--i) * 0.1s);
+}
+.hw-core {
+  fill: #0b2a2e;
+  stroke: #5ff2da;
+  stroke-width: 1.2;
+  transition: fill 0.8s;
+}
+.hw.s-wake .hw-core {
+  fill: #12474b;
+  filter: drop-shadow(0 0 6px #5ff2da);
+}
+.hw-white {
+  fill: #eafffb;
+}
+.hw-iris {
+  fill: #2fcfb6;
+}
+.hw-pupil {
+  fill: #062024;
+}
+.hw-glint {
+  fill: #fff;
+}
+.hw-look {
+  transform: translate(calc(var(--lx) * 4px), calc(var(--ly) * 3px));
+  transition: transform 0.35s ease;
+}
+/* The lids: shut until she opens her eye; a blink now and then after. */
+.hw-lid {
+  /* The core's own colour, asleep and awake: shut lids read as the core, not a square on it. */
+  fill: #0b2a2e;
+  transform-box: fill-box;
+  transition: fill 0.8s;
+}
+.hw.s-wake .hw-lid {
+  fill: #12474b;
+}
+.hw-lid.top {
+  transform-origin: 50% 0;
+}
+.hw-lid.bot {
+  transform-origin: 50% 100%;
+}
+.hw.s-eye .hw-lid {
+  transform: scaleY(0);
+  transition: transform 0.5s cubic-bezier(0.3, 1.4, 0.5, 1);
+  animation: hw-blink 4.2s ease-in-out 1.6s infinite;
+}
+@keyframes hw-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(0);
+  }
+  96% {
+    transform: scaleY(1);
+  }
+}
+/* Wide-eyed at the visitor. */
+.hw.s-label .hw-white {
+  animation: hw-wide 0.5s ease-out both;
+}
+@keyframes hw-wide {
+  to {
+    transform: scale(1.18);
+  }
+}
+
+/* The terminal. */
+.hw-log {
+  position: absolute;
+  left: 5vw;
+  top: 16vh;
+  max-width: min(560px, 60vw);
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(95, 242, 218, 0.4);
+  border-radius: 8px;
+  background: rgba(2, 14, 16, 0.85);
+  color: #8ff7e6;
+  font: 500 clamp(11px, 1.8vmin, 14px) / 1.6 var(--mono);
+  white-space: pre-wrap;
+  transition:
+    opacity 0.6s,
+    transform 0.6s;
+}
+.hw-log::after {
+  content: '▌';
+  animation: hw-cursor 0.8s steps(1) infinite;
+}
+@keyframes hw-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+.hw.s-wake .hw-log {
+  opacity: 0;
+  transform: translateX(-4vw) scale(0.96);
+}
+
+/* Her first words. */
+.hw-bubble {
+  position: absolute;
+  left: calc(36% + min(18vmin, 150px));
+  top: calc(46% - min(30vmin, 260px));
+  max-width: min(380px, 42vw);
+  padding: 12px 16px;
+  border-radius: 14px 14px 14px 4px;
+  background: #eafffb;
+  color: #062024;
+  font: 600 clamp(13px, 2.2vmin, 17px) / 1.4 var(--ui);
+  opacity: 0;
+  transform: translateY(1vh) scale(0.9);
+  transform-origin: 0 100%;
+  transition:
+    opacity 0.3s,
+    transform 0.4s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.hw-bubble:empty {
+  padding: 0;
+}
+.hw.s-speak .hw-bubble {
+  opacity: 1;
+  transform: none;
+}
+/* The card has the stage: the words and labels step back. */
+.hw.s-finale .hw-bubble,
+.hw.s-finale .hw-label,
+.hw.s-finale .hw-count {
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+.hw.s-finale .reel-set {
+  filter: blur(2px) brightness(0.7);
+  transition: filter 1s;
+}
+
+/* Portrait phones: the window and its ledge on top, Flora below with her words beside her. */
+@media (orientation: portrait) {
+  .hw-flora {
+    left: 34%;
+    top: 66%;
+  }
+  .hw-bubble {
+    left: calc(34% + 17vmin);
+    top: calc(66% - 16vmin);
+    max-width: 50vw;
+  }
+  .hw-log {
+    max-width: 88vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hw-halo,
+  .hw-lid {
+    animation: none !important;
+  }
+}

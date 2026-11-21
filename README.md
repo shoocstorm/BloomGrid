@@ -221,8 +221,10 @@ jet), plus the sea wonders still
 to be discovered: they rise from the sea as your city earns them. The moment a project is ready, a glowing card drops in
 under the top bar with its own button (**Adopt** the stray, **Wake Flora**, **Open the skies**…) and the Build button
 pulses until you start it; **Later** puts the card away. Founding an island plays **First Light**, a short film of its founding cast from your own island (skip with
-**Skip** or Esc). Films and ceremonies you have seen (First Light, the stray's adoption, Flora's awakening, unlocks,
-risen sea wonders, new eras) play again from Build → Goals → **Replays**; the model gallery (**G**) shows the island's
+**Skip** or Esc). The big moments are short films: Flora wakes in **Hello, World** (and meets your cat), the Sky-lane charter
+opens with **Maiden Flight** (a nervous test pilot and an uninvited gull), and every sea wonder rises in **Something
+Stirs** (behind a fisher who sleeps through it). Films and ceremonies you have seen (First Light, the stray's
+adoption, Flora's awakening, unlocks, risen sea wonders, new eras) play again from Build → Goals → **Replays**; the model gallery (**G**) shows the island's
 cat in every coat and lists every film in its **Cutscenes** hall. While Flora sleeps her orb is dim with a "z": open
 it to see what she still needs, each with a **Build** button; when it pulses *Ready to wake*, wake her and watch her
 come online over the Data Spire.

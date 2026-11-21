@@ -4,17 +4,22 @@ import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { PROJECTS } from '@/sim/projects';
 import { CHARTERS } from '@/sim/charters';
 import { ERAS } from '@/sim/eras';
-import { WONDER_SITES } from '@/modules/scenery/sites';
 import { WONDERS } from '@/sim/wonders';
+import { WONDER_SITES } from '@/modules/scenery/sites';
 import { isOpen, type UnlockId } from '@/sim/growthState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { SYSTEM_ORDER } from '@/sim/indicators';
 import { Ceremony, type MomentSpec } from './Ceremony';
+import { openReel, type Reel, type ReelOptions } from './reel';
+import { playMaidenFlight } from './films/flight';
+import { playSomethingStirs } from './films/stirs';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import './moments.css';
 
 export type { MomentSpec } from './Ceremony';
+export type { Reel, ReelOptions, EndCard } from './reel';
+export { reelClock } from './reel';
 
 /**
  * City moments (D-094): the big events of a city's life played as full-screen ceremonies (`Ceremony`), so they
@@ -71,6 +76,8 @@ export interface MomentsService {
    * lifts. Ignores the queue (it was cleared by the city change); `playing` is true until `finish`.
    */
   stageNow(id: string, run: (finish: () => void) => void): void;
+  /** The film kit (D-185): opens a reel for a cutscene (see `reel.ts`); modules make their films with it. */
+  reel(opts: ReelOptions, done: () => void): Reel;
   mode: MomentsMode;
   readonly playing: boolean;
   /** Registers a replayable film (a later call with the same id replaces it). */
@@ -97,6 +104,11 @@ declare module '@/core/EventBus' {
 const MODE_KEY = 'bloomgrid.moments';
 const MILESTONES = [1000, 2500, 5000, 10000, 25000, 50000, 100000];
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
+/** Films' gallery titles and blurbs (D-185). */
+const FILM_TITLES: Partial<Record<string, string>> = { skylanes: 'Maiden Flight' };
+const FILM_BLURBS: Partial<Record<string, string>> = {
+  skylanes: 'The first pod, a very nervous test pilot, and a gull that did not buy a ticket.',
+};
 
 /** Centre of a building (tile coords) and its footprint. */
 const spotOf = (eid: number) => ({ x: Building.x[eid]! + Building.w[eid]! / 2, z: Building.z[eid]! + Building.d[eid]! / 2, height: 20 });
@@ -133,13 +145,24 @@ export const momentsModule: GameModule = {
     } catch {
       /* storage blocked */
     }
-    const queue: { m: MomentSpec; done?: () => void; run?: (finish: () => void) => void }[] = [];
+    /** `chain`: the second half of a film (its ceremony, D-187): no gap before it, and it may move the camera. */
+    const queue: { m: MomentSpec; done?: () => void; run?: (finish: () => void) => void; chain?: boolean }[] = [];
     /** A staged sequence is on (D-178). */
     let staged = false;
+    /**
+     * Breathing room between moments (D-186): nothing starts until a few seconds after the last one ended, so a
+     * ceremony never runs on from a film (or into one) as if they were one sequence.
+     */
+    const GAP = 3;
+    let calmUntil = 0;
+    /** When the last film ended: ceremonies that waited behind a film keep the camera where the player is. */
+    let filmEnded = -Infinity;
+    const now = () => performance.now() / 1000;
     const play = (m: MomentSpec, done?: () => void) => {
       if (mode === 'off' || (mode === 'major' && m.scale === 'minor')) return void done?.();
       if (queue.some((q) => q.m.id === m.id)) return;
-      queue.push({ m, done });
+      // Arriving during a film: it will play after it, where the player already is.
+      queue.push({ m: staged ? { ...m, camera: false } : m, done });
       // A backed-up queue keeps its grand moments.
       while (queue.length > 3) {
         const i = queue.findIndex((q) => q.m.scale === 'minor' && !q.done);
@@ -156,13 +179,21 @@ export const momentsModule: GameModule = {
         over = true;
         staged = false;
         document.body.classList.remove('moment-on');
+        filmEnded = now();
+        calmUntil = now() + GAP;
       });
     };
     const next = () => {
       if (staged || ceremony.playing || !queue.length || ctx.loading || document.body.classList.contains('chapter-open')) return;
-      const { m, done, run } = queue.shift()!;
+      if (now() < calmUntil && !queue[0]!.chain) return;
+      const { m, done, run, chain } = queue.shift()!;
       if (run) return runStaged(run);
-      ceremony.play(m, () => done?.());
+      // Right after a film, a ceremony never flies the camera off (to the city's heart), unless it is the film's own.
+      const spec = !chain && now() - filmEnded < GAP + 2 ? { ...m, camera: false } : m;
+      ceremony.play(spec, () => {
+        calmUntil = now() + GAP;
+        done?.();
+      });
     };
     const stage = (id: string, run: (finish: () => void) => void) => {
       if (queue.some((q) => q.m.id === id)) return;
@@ -214,6 +245,8 @@ export const momentsModule: GameModule = {
     const replay = (id: string) => {
       const f = films.get(id);
       if (!f) return;
+      // Asked for: no breathing room to wait out.
+      calmUntil = 0;
       if (f.run) return stage(`replay:${id}`, f.run);
       const spec = f.spec;
       // A ceremony replayed: its own spec, always grand, never deduped against the live queue.
@@ -363,21 +396,30 @@ export const momentsModule: GameModule = {
         };
       return null;
     };
+    /** Unlocks with a film of their own (D-185) instead of a ceremony. */
+    const projectFilm: Partial<Record<UnlockId, (finish: () => void) => void>> = {
+      skylanes: (finish) => playMaidenFlight(ctx, finish),
+    };
     ctx.bus.on('project:done', ({ id }) => {
       if (ctx.loading || id === 'flora') return;
+      const run = projectFilm[id];
+      if (run) return stage(`project:${id}`, run);
       const spec = projectSpec(id);
       if (spec) play(spec);
     });
-    for (const id of ['skylanes', 'aeroline', 'police', 'cruise', 'skyguard'] as const)
+    for (const id of ['skylanes', 'aeroline', 'police', 'cruise', 'skyguard'] as const) {
+      const run = projectFilm[id];
       film({
         id: `project:${id}`,
-        title: PROJECTS[id].name,
+        title: run ? FILM_TITLES[id] ?? PROJECTS[id].name : PROJECTS[id].name,
         icon: PROJECTS[id].icon,
-        blurb: `The unlock ceremony: ${PROJECTS[id].unlocks}`,
+        blurb: run ? FILM_BLURBS[id] : `The unlock ceremony: ${PROJECTS[id].unlocks}`,
         earned: () => isOpen(city().growth, id),
-        spec: () => projectSpec(id)!,
+        ...(run ? { run } : { spec: () => projectSpec(id)! }),
       });
+    }
 
+    /** The wonder's ceremony: its emblem and name, and the camera out over the sea to where it stands. */
     const wonderSpec = (id: string, name: string): MomentSpec => {
       const k = id as keyof typeof WONDER_SITES;
       const site = (k === 'whales' ? WONDER_SITES.whales[0] : WONDER_SITES[k]) as readonly [number, number] | undefined;
@@ -391,16 +433,37 @@ export const momentsModule: GameModule = {
         title: name,
         lines: [...(city().growth.progression ? [`${city().growth.wonders.length} sea wonders found`] : []), `Day ${city().day} · ${fmt(city().stats.population)} residents`],
         sub: 'It rose from the sea where your city could see it. Residents flock to the shore, and harmony rises.',
-        ...(site ? { at: { x: site[0] * S, z: site[1] * S, y: 0, height: 30 } } : {}),
+        // Framed whole: a wonder is far bigger than the buildings ceremonies usually frame.
+        ...(site ? { at: { x: site[0] * S, z: site[1] * S, y: 0, height: 30, size: 70 } } : {}),
+        camera: true,
         sound: 'wonder',
       };
     };
+    /**
+     * A wonder rising (D-185, D-187): the film "Something Stirs", then at once its ceremony, which flies the camera
+     * to the wonder, so the player sees what rose and where. With moments off, the camera still goes there.
+     */
+    const wonderFilm = (id: string, name: string) => (finish: () => void) =>
+      playSomethingStirs(ctx, { id, name }, () => {
+        const spec = wonderSpec(id, name);
+        if (mode === 'off') {
+          if (spec.at) ctx.cameraCtl.locate(spec.at.x, spec.at.z, { size: 70, height: 30 });
+        } else queue.unshift({ m: spec, chain: true });
+        finish();
+      });
     ctx.bus.on('wonder:discovered', ({ id, name }) => {
-      if (!ctx.loading) play(wonderSpec(id, name));
+      if (!ctx.loading) stage(`wonder:${id}`, wonderFilm(id, name));
     });
     // The two always there never rose before the steward's eyes: nothing to replay.
     for (const w of WONDERS.filter((x) => !x.start))
-      film({ id: `wonder:${w.id}`, title: `${w.name} rises`, icon: 'gem', blurb: `${w.name} rises from the sea where the city can see it.`, earned: () => city().growth.wonders.includes(w.id), spec: () => wonderSpec(w.id, w.name) });
+      film({
+        id: `wonder:${w.id}`,
+        title: `${w.name} rises`,
+        icon: 'gem',
+        blurb: `Something stirs off the coast, and an old fisher sleeps right through it: ${w.name} rises.`,
+        earned: () => city().growth.wonders.includes(w.id),
+        run: wonderFilm(w.id, w.name),
+      });
 
     ctx.bus.on('consequence', ({ rule, kind, text }) => {
       if (kind !== 'start' || ctx.loading || !armed()) return;
@@ -449,6 +512,7 @@ export const momentsModule: GameModule = {
       play,
       stage,
       stageNow: (_id: string, run: (finish: () => void) => void) => runStaged(run),
+      reel: (opts: ReelOptions, done: () => void) => openReel(ctx, opts, done),
       film,
       films: () => [...films.values()].filter((f) => f.earned()),
       replay,

@@ -319,7 +319,7 @@ export function playAdoption(ctx: GameContext, cast: Cast, done: () => void): vo
       h('button', { class: 'cs-go', onClick: () => finish() }, `Welcome home, ${cast.name}`),
     );
     card.classList.add('show');
-    (card.querySelector('.cs-go') as HTMLElement | null)?.focus();
+    (card.querySelector('.cs-go') as HTMLElement | null)?.focus({ preventScroll: true });
     await wait(12000);
     finish();
   };
