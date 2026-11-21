@@ -77,6 +77,9 @@ export class FilmStage {
   private skyTop = uniform(new Color());
   private skyLow = uniform(new Color());
   private starsOn = uniform(1);
+  /** The ground's colour (`groundColour`); by default the sky's low colour, darkened. */
+  private groundCol = uniform(new Color());
+  private groundOwn = uniform(0);
   /** Bounds of every placed piece (`heightAt`). */
   private solids: Box3[] = [];
   private spins: { h: InstanceHandle; p: DesignPiece; m: Matrix4 }[] = [];
@@ -123,7 +126,8 @@ export class FilmStage {
     this.dome.frustumCulled = false;
 
     const groundMat = new MeshStandardNodeMaterial({ roughness: 0.9, metalness: 0 });
-    groundMat.colorNode = mix(this.skyLow.mul(0.35), this.skyLow.mul(0.12), smoothstep(0.1, 0.5, length(uv().sub(0.5))));
+    const g0 = mix(this.skyLow.mul(0.35), this.groundCol, this.groundOwn);
+    groundMat.colorNode = mix(g0, g0.mul(0.35), smoothstep(0.1, 0.5, length(uv().sub(0.5))));
     this.ground = new Mesh(new CircleGeometry(1, 64).rotateX(-Math.PI / 2), groundMat);
     this.ground.receiveShadow = true;
 
@@ -164,6 +168,7 @@ export class FilmStage {
     this.set.clear();
     this.spins = [];
     this.solids = [];
+    this.groundColour(null);
     this.shots = [];
     this.onPins = null;
     this.onFrame = null;
@@ -174,10 +179,10 @@ export class FilmStage {
    * Places a building type at level `tier` (0-based) with its lot centre at (x, z), turned by `yaw`, standing at `y`.
    * Returns its bounds (roofs are its top) in stage coordinates.
    */
-  addBuilding(defId: string, tier: number, x: number, z: number, yaw = 0, y = 0): Box3 {
+  addBuilding(defId: string, tier: number, x: number, z: number, yaw = 0, y = 0, scale = 1): Box3 {
     const def = buildings.get(defId);
     // Template pieces are placed from the footprint's centre at ground level.
-    const at = new Matrix4().makeRotationY(yaw).setPosition(x, y, z);
+    const at = new Matrix4().makeRotationY(yaw).scale(_s.setScalar(scale)).setPosition(x, y, z);
     const box = new Box3();
     const pb = new Box3();
     const m = new Matrix4();
@@ -210,6 +215,43 @@ export class FilmStage {
     this.set.add(...objects);
   }
 
+  /**
+   * Cumulus: `n` clouds of soft white puffs scattered over a ring `r0`..`r1` round `c` at heights `y0`..`y1` (seeded,
+   * so a film's sky is the same every time). One merged mesh; lit by the stage (or the city) like everything else.
+   */
+  addClouds(c: Vector3, n: number, r0: number, r1: number, y0: number, y1: number, size: number, seed = 1): Mesh {
+    const parts: BufferGeometry[] = [];
+    const puff = new SphereGeometry(1, 14, 10);
+    for (let i = 0; i < n; i++) {
+      const a = hash2(i, seed) * Math.PI * 2;
+      const r = r0 + hash2(i, seed + 1) * (r1 - r0);
+      const cx = c.x + Math.cos(a) * r;
+      const cz = c.z + Math.sin(a) * r;
+      const cy = c.y + y0 + hash2(i, seed + 2) * (y1 - y0);
+      const k = size * (0.6 + hash2(i, seed + 3) * 0.8);
+      const m = 4 + Math.floor(hash2(i, seed + 4) * 5);
+      for (let j = 0; j < m; j++) {
+        const u = (j / (m - 1) - 0.5) * 2;
+        const pr = k * (0.55 + 0.45 * (1 - Math.abs(u)) + hash2(j, i + seed) * 0.25);
+        const g = puff.clone().scale(pr, pr * 0.8, pr);
+        g.translate(cx + Math.cos(a + 1.57) * u * k * 1.6, cy + pr * 0.35, cz + Math.sin(a + 1.57) * u * k * 1.6 + (hash2(i, j + 9) - 0.5) * k);
+        parts.push(g);
+      }
+      // A flat underside.
+      const base = puff.clone().scale(k * 1.9, k * 0.35, k * 1.1).rotateY(-a);
+      base.translate(cx, cy, cz);
+      parts.push(base);
+    }
+    const mat = new MeshStandardNodeMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
+    mat.emissive = new Color(0xc8d8ee);
+    mat.emissiveIntensity = 0.28;
+    const mesh = new Mesh(mergeGeometries(parts), mat);
+    for (const p of parts) p.dispose();
+    puff.dispose();
+    this.set.add(mesh);
+    return mesh;
+  }
+
   /** Lays out the sky, ground (at `base`), moon and shadow round the set's middle `c`, sized to `r`. */
   frame(c: Vector3, r: number, moon: Vector3, base = 0): void {
     this.centre.copy(c);
@@ -230,6 +272,12 @@ export class FilmStage {
     sc.far = r * 8;
     sc.updateProjectionMatrix();
     this.camera.far = r * 90;
+  }
+
+  /** A colour for the ground under the set (a park's green, a plaza's stone); null follows the sky. */
+  groundColour(col: number | null): void {
+    this.groundOwn.value = col === null ? 0 : 1;
+    if (col !== null) this.groundCol.value.setHex(col);
   }
 
   /** The light between two looks (`t` in [0, 1]); stars fade out as the night lifts. */

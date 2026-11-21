@@ -1,118 +1,292 @@
+import {
+  AdditiveBlending,
+  CatmullRomCurve3,
+  Group,
+  InstancedBufferAttribute,
+  InstancedMesh,
+  Matrix4,
+  Mesh,
+  MeshBasicNodeMaterial,
+  TubeGeometry,
+  Vector3,
+} from 'three/webgpu';
+import { attribute, float, normalWorld, positionWorld, sin, step, uniform, uv, vec3 } from 'three/tsl';
 import type { GameContext } from '@/game/context';
 import { h } from '@/ui/dom';
+import { podGeometry, podSurface } from '@/modules/mobility/podModel';
 import { openReel } from '../reel';
-import { cloud, seeded, skyline } from './art';
+import { FilmStage } from '../FilmStage';
+import { orbit, type Framing, type Shot, type V3 } from '../shots';
+import { LOOKS, type StageLook } from '@/render/stageUniforms';
+import { Person3D } from '../actors/person';
+import { Gull3D } from '../actors/gull';
+import { CAST, crowdLook } from '../actors/cast';
+import { BALL, glow, hard, part } from '../actors/rig';
+import { CylinderGeometry, TorusGeometry } from 'three/webgpu';
+
+const DISC = new CylinderGeometry(1, 1, 1, 48);
+const RING = new TorusGeometry(1, 0.02, 6, 64);
 import './flight.css';
 
 /**
- * "Maiden Flight" (D-185): the Sky-lane charter's film, ~18 s. The first pod's first hop over the city, by a test
- * pilot who would rather be anywhere else:
+ * "Maiden Flight" (D-185, in 3D since D-197): the Sky-lane charter's film, ~20 s, on a 3D set of the game's own
+ * buildings. The first pod's first hop over the city, by a test pilot who would rather be anywhere else:
  *
- * 1. Day over the island's skyline. A pod on its pad; a clipboard ticks the checklist ("Courage… loading").
- * 2. Three, two, one. The pod lifts, wobbling, onto the glowing sky lane.
+ * 1. Morning over a skyline of real towers. The pod waits on its pad; the pilot's checklist ticks ("Courage…
+ *    loading"), and a close-up on the pilot, gripping.
+ * 2. Three, two, one. The pod lifts, wobbling, onto the glowing sky lane (a chase camera behind it).
  * 3. A gull comes alongside and lands on the roof. The pilot's eyes go wide.
- * 4. The lane loops the loop; the gull holds on.
- * 5. Touchdown at the dock: the crowd cheers, and the gull leaves with the pilot's cap.
+ * 4. The lane loops the loop (seen side-on); the gull holds on, upside down.
+ * 5. Touchdown at the dock: the crowd cheers, and the gull leaves with the pilot's helmet.
  * 6. Sky-lanes are open.
  *
- * Everything that moves along a curve is one SVG (`viewBox` 1600 × 900, cropped to fill): the pod rides the lane
- * with `animateMotion` (paced, so where it is at any moment is known), and the gull's approach is computed to meet it.
+ * The pod is the city's own model (`podGeometry` / `podSurface`, drawn 3× with see-through glazing so the pilot shows);
+ * the pilot, gull and crowd are the film cast (`actors/`). The checklist, countdown and card are DOM over the frame.
  */
 
 const PILOTS = ['Ines', 'Bo', 'Tamsin', 'Okoro', 'Lumi', 'Rafa', 'Yuki', 'Dev'];
-/** The sky lane: up off the pad, a loop-de-loop, and down to the dock. */
-const LANE =
-  'M260 690 C 260 560 330 470 470 440 C 600 410 700 440 800 440 A 110 110 0 1 0 800 220 A 110 110 0 1 0 800 440 C 950 440 1150 380 1200 470 C 1240 560 1270 676 1350 676';
 /** Seconds the pod takes from pad to dock. */
-const FLIGHT = 7;
+const FLIGHT = 7.5;
 /** When, into the flight, the gull lands on the roof. */
-const GULL_LANDS = 2.2;
-/** The pod and the gulls are drawn this much larger than their shapes. */
-const K = 1.7;
+const GULL_LANDS = 2.4;
+/** The pod is drawn this much larger than in the city (a film's star). */
+const POD = 2.2;
+
+/** A clear morning: low sun from the east, a blue sky, soft shadows. */
+const MORNING: StageLook = {
+  ...LOOKS.day,
+  sunDir: [0.55, 0.62, 0.55],
+  key: 0xfff0d8,
+  keyI: 2.6,
+  rimI: 0.9,
+  hemiI: 1.25,
+  top: 0x2a6cd0,
+  low: 0x9ccbf2,
+  zenith: 0x5fa4ff,
+  horizon: 0xd8ecff,
+  bloom: 0.55,
+};
 
 export function playMaidenFlight(ctx: GameContext, done: () => void): void {
   const { city } = ctx;
-  const pilot = PILOTS[Math.abs(city.seed) % PILOTS.length]!;
-  const reel = openReel(ctx, { scene: 'mf', label: 'Maiden Flight', key: 5 }, done);
+  const pilotName = PILOTS[Math.abs(city.seed) % PILOTS.length]!;
+  const stage = FilmStage.get(ctx);
+  stage.clear();
+  const reel = openReel(ctx, { scene: 'mf', label: 'Maiden Flight', key: 5, leaving: () => stage.close() }, done);
 
-  // ── The set (D-188): sun and rays, two decks of cumulus, a skyline in three depths, a park, the pad and dock ──
-  const rand = seeded(city.seed * 7 + 11);
-  // As tall and as dense as the city is big.
-  const size = Math.min(1, city.buildingEntities().length / 400);
-  const cloudsAt = (n: number, y0: number, y1: number, k: number, lit: string, shade: string) =>
-    Array.from({ length: n }, (_, i) => {
-      const x = (i / n) * 1900 - 150 + rand() * 160;
-      const y = y0 + rand() * (y1 - y0);
-      return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(k * (0.7 + rand() * 0.6)).toFixed(2)})">${cloud(rand, lit, shade)}</g>`;
-    }).join('');
-  const far = skyline({ x0: -60, x1: 1660, ground: 792, tall: 250 + 120 * size, count: 34, face: '#bcd3e3', side: '#aac5d8', glass: '#d6e8f2', lit: '#fff3cf', litShare: 0, green: '#a9cdb6', detail: false }, rand);
-  const mid = skyline({ x0: -40, x1: 1640, ground: 792, tall: 200 + 110 * size, count: 18, face: '#93b6cc', side: '#7c9fb7', glass: '#c3dcea', lit: '#fff2c4', litShare: 0.06, green: '#6fae86', detail: true }, rand);
-  // Foreground towers framing the edges, out of the flight's way.
-  const near =
-    skyline({ x0: -90, x1: 150, ground: 800, tall: 520, count: 2, face: '#5e8098', side: '#4a6b82', glass: '#86a9bf', lit: '#ffe6a6', litShare: 0.04, green: '#5c9a70', detail: true }, rand) +
-    skyline({ x0: 1470, x1: 1700, ground: 800, tall: 500, count: 2, face: '#5e8098', side: '#4a6b82', glass: '#86a9bf', lit: '#ffe6a6', litShare: 0.04, green: '#5c9a70', detail: true }, rand);
-  let park = '';
-  for (let x = -40; x < 1660; x += 26 + rand() * 20) park += `<circle cx="${x.toFixed(0)}" cy="${(792 - rand() * 6).toFixed(0)}" r="${(10 + rand() * 9).toFixed(0)}"/>`;
-  const crowd = Array.from({ length: 11 }, (_, i) => {
-    const x = 1262 + i * 22 + (i % 2) * 4;
-    const tall = 18 + ((i * 7) % 5) * 2;
-    const hat = i % 4 === 1 ? `<path d="M${x - 8} ${760 - tall - 9} h16 l-4 -6 h-8z" fill="#3a4a5a"/>` : '';
-    const flag = i % 3 === 0 ? `<path class="mf-wave" d="M${x + 6} ${760 - tall} v-26 l14 5 l-14 5" fill="${FANS[(i + 2) % FANS.length]}" stroke="#5a6a7a" stroke-width="1.5"/>` : '';
-    return `<g class="mf-fan" style="--i:${i}"><rect x="${x - 6}" y="${760 - tall}" width="12" height="${tall}" rx="5" fill="${FANS[i % FANS.length]}"/><circle cx="${x}" cy="${760 - tall - 6}" r="6.5" fill="${SKIN[i % SKIN.length]}"/>${hat}<path class="mf-arms" d="M${x - 6} ${766 - tall} l-7 -10 M${x + 6} ${766 - tall} l7 -10" stroke="${SKIN[i % SKIN.length]}"/>${flag}</g>`;
-  }).join('');
-  const platform = (x: number, y: number, post: number, ring: boolean) =>
-    `<rect x="${x + 50}" y="${y + 14}" width="20" height="${post}" fill="url(#mf-steel)"/><path d="M${x} ${y + 14} h120 l-10 10 h-100z" fill="#c9d6e0"/><rect x="${x}" y="${y}" width="120" height="14" rx="4" fill="url(#mf-deck)"/>` +
-    [0, 1, 2, 3, 4].map((k) => `<rect x="${x + 4 + k * 28}" y="${y - 14}" width="2.5" height="14" fill="#9fb3c4"/>`).join('') +
-    `<rect x="${x + 2}" y="${y - 15}" width="116" height="2.5" fill="#9fb3c4"/>` +
-    (ring ? `<ellipse class="mf-ring" cx="${x + 60}" cy="${y + 2}" rx="40" ry="6"/>` : '');
+  // ── The set: two docks across a street of real towers, at the island's heart (its ground). ──
+  const cx = city.size / 2;
+  const base = Math.max(0, city.grid.heightAt(cx, cx));
+  const O = new Vector3(cx, base, cx);
+  const at = (x: number, y: number, z: number) => new Vector3(O.x + x, base + y, O.z + z);
+  // The skyport towers stand behind the two pads.
+  stage.addBuilding('pod-dock', 1, O.x - 7.4, O.z - 1.6, 0.2, base, 1.8);
+  stage.addBuilding('pod-dock', 2, O.x + 7.8, O.z - 1.6, -0.2, base, 1.8);
+  const towers: [string, number, number, number, number][] = [
+    ['canopy-tower', 2, -9, -7, 0.3],
+    ['helix-spire', 1, -3, -10, 0],
+    ['vertical-forest', 1, 3, -12, 0.1],
+    ['solar-spire', 1, 9, -8, -0.4],
+    ['data-spire', 1, 14, -13, 0],
+    ['mycelium-towers', 0, -15, -14, 0.5],
+    ['garden-residence', 1, -3, 4, 1.57],
+    ['garden-residence', 2, 2.5, 4.5, -1.57],
+    ['living-studio', 0, -11, 5, 0],
+    ['pocket-park', 0, 0, 0.2, 0],
+    ['pocket-park', 0, 3.5, 0.5, 0],
+    ['canopy-tower', 1, 13, -1, -0.3],
+  ];
+  for (const [id, tier, x, z, yaw] of towers) stage.addBuilding(id, tier, O.x + x, O.z + z, yaw, base);
+  stage.frame(at(0, 3, -2), 14, new Vector3(-0.4, 0.3, -1), base);
+  stage.addClouds(at(0, 0, -4), 14, 18, 40, 9, 15, 1.6, city.seed & 1023);
+  stage.look = { ...MORNING, sunDir: [...MORNING.sunDir] };
+  stage.groundColour(0x5f8f6c);
 
-  const svg = h('div', { class: 'mf-svg' });
-  svg.innerHTML = `<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-<defs>
-  <linearGradient id="mf-hullg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#eef3f8"/><stop offset="1" stop-color="#b9c9d8"/></linearGradient>
-  <radialGradient id="mf-glassg" cx="0.35" cy="0.3" r="0.9"><stop offset="0" stop-color="#e9f8ff"/><stop offset="0.5" stop-color="#a9dcf3"/><stop offset="1" stop-color="#5fa4c8"/></radialGradient>
-  <linearGradient id="mf-steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#dfe7ee"/><stop offset="1" stop-color="#a8b8c6"/></linearGradient>
-  <linearGradient id="mf-deck" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d4dee7"/></linearGradient>
-  <linearGradient id="mf-hazeg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8f3fa" stop-opacity="0"/><stop offset="1" stop-color="#e8f3fa" stop-opacity="0.75"/></linearGradient>
-  <linearGradient id="mf-groundg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fae8f"/><stop offset="0.3" stop-color="#6d9c80"/><stop offset="1" stop-color="#4f7a64"/></linearGradient>
-</defs>
-<g class="mf-cl back">${cloudsAt(5, 220, 360, 1.2, '#ffffff', '#dbe7f2')}</g>
-<g class="mf-birds">${[0, 1, 2, 3, 4].map((k) => `<path d="M${1100 + k * 22} ${210 + (k % 2) * 10} q6 -6 12 0 q6 -6 12 0" />`).join('')}</g>
-<g class="mf-far">${far}</g>
-<rect x="-60" y="520" width="1720" height="280" fill="url(#mf-hazeg)"/>
-<g class="mf-mid">${mid}</g>
-<rect x="-60" y="790" width="1720" height="140" fill="url(#mf-groundg)"/>
-<g class="mf-park">${park}</g>
-<rect x="-60" y="808" width="1720" height="4" fill="#e8efe9" opacity="0.6"/>
-<path class="mf-lane-glow" d="${LANE}"/>
-<path class="mf-lane" d="${LANE}"/>
-<g class="mf-pad">${platform(200, 694, 96, true)}<circle class="mf-blink" cx="206" cy="676" r="5"/><circle class="mf-blink b2" cx="314" cy="676" r="5"/></g>
-<g class="mf-dock">${platform(1290, 680, 110, false)}<path d="M1300 640 q60 -26 120 0 v6 h-120z" fill="#ffd76a" opacity="0.9"/><path class="mf-flag" d="M1404 600 v80 M1404 600 l28 10 l-28 10z"/></g>
-<g class="mf-crowd">${crowd}</g>
-<g class="mf-near">${near}</g>
-<g class="mf-pod">
-  <animateMotion class="mf-fly" dur="${FLIGHT}s" begin="indefinite" fill="freeze" rotate="auto" path="${LANE}"/>
-  <g class="mf-wobble"><g transform="scale(${K})">
-    <ellipse cx="0" cy="6" rx="34" ry="5" fill="#000" opacity="0.12"/>
-    <path class="mf-fin" d="M-30 -10 l-14 -14 h10 l16 10z M-30 -18 l-12 -4 l12 -4z" fill="#6aa8ff"/>
-    <ellipse class="mf-hull" cx="0" cy="-16" rx="40" ry="20" fill="url(#mf-hullg)"/>
-    <path d="M-30 -26 q30 -12 60 0" fill="none" stroke="#fff" stroke-width="2.5" opacity="0.9"/>
-    <path class="mf-glass" d="M-20 -26 a22 16 0 0 1 44 0 z" fill="url(#mf-glassg)"/>
-    <g class="mf-pilot"><circle cx="2" cy="-27" r="8"/><rect class="mf-goggles" x="-5" y="-31" width="15" height="5" rx="2.5"/><path class="mf-cap" d="M-7 -33 q9 -10 18 0 z"/><g class="mf-eyes"><circle cx="-1" cy="-28.5" r="1.6"/><circle cx="6" cy="-28.5" r="1.6"/></g></g>
-    <path d="M-12 -38 q8 -6 18 -4" fill="none" stroke="#fff" stroke-width="2" opacity="0.8"/>
-    <rect class="mf-stripe" x="-38" y="-14" width="76" height="4" rx="2"/>
-    <circle class="mf-nav red" cx="-36" cy="-16" r="2.4"/><circle class="mf-nav green" cx="38" cy="-16" r="2.4"/>
-    <path class="mf-jet" d="M-38 -12 l-26 -6 v12 z"/>
-    <g class="mf-rider" transform="translate(-6 -42)">${GULL}</g>
-  </g></g>
-</g>
-<g class="mf-gull"><animateMotion class="mf-gull-in" begin="indefinite" fill="freeze" path="M0 0"/><g transform="scale(${K})">${GULL}</g></g>
-<g class="mf-thief"><animateMotion class="mf-gull-out" dur="2.6s" begin="indefinite" fill="freeze" path="M1344 610 C 1300 520 1180 420 1000 360 S 640 260 300 150"/><g transform="scale(${K})">${GULL}<path class="mf-cap" d="M-4 12 q9 -10 18 0 z"/></g></g>
-<g class="mf-cl front">${cloudsAt(3, 190, 250, 0.75, 'rgba(255,255,255,0.9)', 'rgba(220,232,242,0.9)')}</g>
-</svg>`;
-  const sun = h('div', { class: 'mf-sun' }, h('i', { class: 'rays' }), h('i', { class: 'disc' }), h('i', { class: 'flare f1' }), h('i', { class: 'flare f3' }));
+  // ── Two pads at plaza level: launch on the left, landing (and the crowd) on the right. ──
+  const PAD_H = 0.22;
+  const padLights = new Group();
+  const blink = glow(0xff6a5a, 3);
+  const deck = hard(0xe9eef0, 0.6);
+  const ringMat = glow(0x7ff7e6, 1.6);
+  const marking = hard(0x2f6f78, 0.5);
+  const landingPad = (x: number, z: number) => {
+    const c = at(x, 0, z);
+    part(DISC, deck, padLights, c.x, base + PAD_H / 2, c.z, 1.45, PAD_H, 1.45).receiveShadow = true;
+    part(DISC, marking, padLights, c.x, base + PAD_H + 0.004, c.z, 1.05, 0.01, 1.05).receiveShadow = true;
+    part(DISC, deck, padLights, c.x, base + PAD_H + 0.008, c.z, 0.95, 0.01, 0.95).receiveShadow = true;
+    const ring = part(RING, ringMat, padLights, c.x, base + PAD_H + 0.01, c.z, 1.3);
+    ring.rotation.x = Math.PI / 2;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      part(BALL, blink, padLights, c.x + Math.cos(a) * 1.38, base + PAD_H + 0.03, c.z + Math.sin(a) * 1.38, 0.045);
+    }
+    return new Vector3(c.x, base + PAD_H + 0.3, c.z);
+  };
+  // ── The sky lane: off the pad, over the park, a loop-the-loop, and down to the landing pad. ──
+  const padTop = landingPad(-7, 1.6);
+  const dockTop = landingPad(7.4, 1.6);
+  const loopC = at(0.4, 7.2, 0.6);
+  const R = 1.7;
+  const pts = [
+    padTop.clone(),
+    padTop.clone().add(new Vector3(1.0, 0.8, 0)),
+    at(-3.8, 4.6, 1.4),
+    at(-1.2, loopC.y - base - R, 1.05),
+  ];
+  // Counter-clockwise seen from +z (so the roof faces the loop's centre), drifting a little in z to clear itself.
+  for (let k = 1; k <= 7; k++) {
+    const a = -Math.PI / 2 + (k / 8) * Math.PI * 2;
+    pts.push(new Vector3(loopC.x + Math.cos(a) * R, loopC.y + Math.sin(a) * R, loopC.z + 0.45 - (k / 8) * 0.9));
+  }
+  pts.push(at(2.0, loopC.y - base - R, 0.1), at(4.8, 4.2, 1.2), dockTop.clone().add(new Vector3(-1.2, 0.9, 0)), dockTop.clone());
+  const lane = new CatmullRomCurve3(pts, false, 'centripetal');
+  const laneOn = uniform(0);
+  const laneFlow = uniform(0);
+  const glowMat = (w: number) => {
+    const m = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, fog: false });
+    // Chevrons running along the lane toward the dock once it is lit.
+    const run = sin(uv().x.mul(220).sub(laneFlow.mul(6))).mul(0.5).add(0.5);
+    m.colorNode = vec3(0.35, 1, 0.92).mul(laneOn.mul(float(w).add(run.mul(0.35))));
+    return m;
+  };
+  const tube = new Mesh(new TubeGeometry(lane, 700, 0.045, 8, false), glowMat(1.1));
+  const halo = new Mesh(new TubeGeometry(lane, 350, 0.16, 8, false), glowMat(0.18));
+  tube.frustumCulled = halo.frustumCulled = false;
+  stage.add(tube, halo);
 
-  // The checklist on its clipboard, and the countdown.
+  // ── The pod (the city's model) with a see-through canopy, the pilot inside, a perch for the gull. ──
+  const pod = new Group();
+  const geo = podGeometry();
+  geo.setAttribute('aRouteInfo', new InstancedBufferAttribute(new Float32Array([0, 0, 0.36, 0]), 4));
+  const pm = new MeshBasicNodeMaterial({ transparent: true });
+  podSurface(pm, attribute('aRouteInfo', 'vec4'), normalWorld, positionWorld);
+  const lum = attribute('aGlow', 'float');
+  pm.opacityNode = float(1).sub(step(lum, -0.5).mul(float(1).sub(step(lum, -1.5))).mul(0.62));
+  const hull = new InstancedMesh(geo, pm, 1);
+  hull.setMatrixAt(0, new Matrix4().makeScale(POD, POD, POD));
+  hull.castShadow = true;
+  hull.renderOrder = 2;
+  pod.add(hull);
+  // The pilot stands on the pad beside the pod with the checklist; boards at the countdown; steps out at the dock.
+  const pilot = new Person3D(CAST.pilot);
+  const standOn = (c: Vector3, yaw: number) => {
+    stage.add(pilot.root);
+    pilot.root.scale.setScalar(0.5);
+    pilot.root.position.set(c.x + 0.15, c.y - 0.3, c.z + 0.95);
+    pilot.root.rotation.set(0, yaw, 0);
+  };
+  standOn(padTop, -0.75);
+  pilot.act('read');
+  pilot.pose.snap();
+  const board = () => {
+    pod.add(pilot.root);
+    pilot.root.scale.setScalar(0.27);
+    pilot.root.position.set(0.16, -0.12, 0);
+    pilot.root.rotation.set(0, 0, 0);
+    pilot.act('grip');
+    pilot.pose.snap();
+  };
+  stage.add(pod, padLights);
+
+  const gull = new Gull3D();
+  gull.root.scale.setScalar(0.7);
+  stage.add(gull.root);
+  // The crowd at the dock, on the plaza in front of it.
+  const crowd = Array.from({ length: 7 }, (_, i) => {
+    const p = new Person3D(crowdLook(i + city.seed));
+    p.root.scale.setScalar(0.55);
+    // A crescent on the plaza in front of the pad, facing it.
+    const a = Math.PI * (0.25 + (i / 6) * 0.62);
+    const r = 1.9 + (i % 2) * 0.35;
+    p.root.position.set(dockTop.x + Math.cos(a) * r, base, dockTop.z + Math.sin(a) * r);
+    p.root.rotation.y = Math.atan2(Math.sin(a), -Math.cos(a)) + Math.PI;
+    p.act('stand', { headPitch: -0.2 });
+    p.pose.snap();
+    stage.add(p.root);
+    return p;
+  });
+
+  // ── Direction: where the pod is (flight progress `u` over arc length), the gull's flight, the theft. ──
+  let flightAt = -1;
+  const P = new Vector3();
+  const T = new Vector3();
+  const side = new Vector3();
+  const up = new Vector3();
+  const m4 = new Matrix4();
+  const perch = new Vector3(-0.12, 0.33, 0);
+  const gullFrom = new Vector3();
+  let gullAt = -1;
+  let gullOn = false;
+  let heistAt = -1;
+  const away = at(-14, 13, -6);
+  const helmet = pilot.hat;
+  const tmp = new Vector3();
+  const flat = new Vector3();
+  const place = (u: number) => {
+    lane.getPointAt(u, P);
+    lane.getTangentAt(u, T);
+    // Level flight with a gentle climb or dive (at most ~20°), turning into the full tangent through the loop.
+    const inLoop = Math.max(0, Math.min(1, (R * 1.5 - Math.hypot(P.x - loopC.x, P.y - loopC.y)) / (R * 0.4)));
+    const lim = 0.36 * Math.min(1, u * 10, (1 - u) * 10);
+    flat.set(T.x, Math.max(-lim, Math.min(lim, T.y)), T.z).normalize();
+    if (u === 0) flat.set(1, 0, 0);
+    T.lerp(flat, 1 - inLoop).normalize();
+    // The lane's left is the roof's up (the loop is flown counter-clockwise, seen from +z).
+    side.set(0, 0, 1);
+    up.crossVectors(side, T).normalize();
+    side.crossVectors(T, up).normalize();
+    m4.makeBasis(T, up, side.negate());
+    pod.quaternion.setFromRotationMatrix(m4);
+    pod.position.copy(P);
+  };
+  place(0);
+
+  stage.onFrame = (t, dt) => {
+    laneFlow.value = t;
+    blink.emissiveIntensity = flightAt < 0 ? (Math.sin(t * 6) > 0 ? 3.5 : 0.3) : 0.3;
+    if (flightAt >= 0) {
+      const k = Math.min(1, (t - flightAt) / FLIGHT);
+      // Gentle start and stop; a nervous wobble that settles.
+      const u = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+      place(u);
+      const wob = Math.max(0, 1 - k * 2.2);
+      pod.rotateX(Math.sin(t * 9) * 0.12 * wob);
+      pod.rotateZ(Math.sin(t * 6.3) * 0.05 * wob);
+    } else {
+      place(0);
+      pod.position.y += Math.sin(t * 2.2) * 0.02 + (laneOn.value > 0.5 ? Math.sin(t * 40) * 0.006 : 0);
+    }
+    pilot.update(dt);
+    // The gull: homes in on the perch, then rides it; at the dock it grabs the helmet and flies off.
+    if (gullAt >= 0 && !gullOn && heistAt < 0) {
+      const k = Math.min(1, (t - gullAt) / 1.5);
+      const e = k * k * (3 - 2 * k);
+      tmp.copy(perch).applyMatrix4(pod.matrixWorld);
+      gull.root.position.lerpVectors(gullFrom, tmp, e);
+      gull.root.position.y += Math.sin(k * Math.PI) * 0.8;
+      gull.root.lookAt(tmp.x + (tmp.x - gullFrom.x), gull.root.position.y, tmp.z + (tmp.z - gullFrom.z));
+      gull.root.rotateY(-Math.PI / 2);
+      if (k >= 1) {
+        gullOn = true;
+        gull.pose = 'stand';
+        pod.add(gull.root);
+        gull.root.position.copy(perch);
+        gull.root.rotation.set(0, 0, 0);
+      }
+    }
+    if (heistAt >= 0) {
+      const k = Math.min(1, (t - heistAt) / 2.6);
+      const e = k * k;
+      gull.root.position.lerpVectors(gullFrom, away, e);
+      gull.root.position.y += Math.sin(k * Math.PI) * 1.2;
+      gull.root.rotation.set(0, Math.atan2(-(away.z - gullFrom.z), away.x - gullFrom.x), 0.25);
+    }
+    gull.update(dt);
+    for (const c of crowd) c.update(dt);
+    stage.anchor.copy(pod.position);
+  };
+
+  // ── DOM over the frame: the checklist on its clipboard, the countdown. ──
   const items = [
     ['Seatbelt', '✓'],
     ['Sky-lane map', '✓'],
@@ -122,35 +296,23 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
   const list = h(
     'div',
     { class: 'mf-clip' },
-    h('b', {}, `Test pilot: ${pilot}`),
+    h('b', {}, `Test pilot: ${pilotName}`),
     ...items.map(([k, v], i) => h('div', { class: 'mf-item', style: `--i:${i}` }, h('span', {}, k), h('em', {}, v))),
   );
   const count = h('div', { class: 'mf-count' });
-  reel.set.append(h('div', { class: 'mf-sky' }), sun, h('div', { class: 'mf-earth' }), svg, list, count);
+  reel.set.append(list, count);
 
-  const s = svg.querySelector('svg')!;
-  // Portrait screens see the whole flight (pad to dock), standing on the bottom bar, rather than its middle.
-  if (innerHeight > innerWidth) {
-    // Pad to dock, centred; the ground carries on below it (`.mf-earth`).
-    s.setAttribute('viewBox', '170 100 1260 760');
-    s.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    reel.root.classList.add('mf-portrait');
-  }
-  const fly = s.querySelector<SVGAnimationElement>('.mf-fly')!;
-  const gullIn = s.querySelector<SVGAnimationElement>('.mf-gull-in')!;
-  const gullOut = s.querySelector<SVGAnimationElement>('.mf-gull-out')!;
-  // Where the pod will be when the gull lands: the lane is flown at an even pace.
-  const lane = s.querySelector<SVGPathElement>('.mf-lane')!;
-  const meet = lane.getPointAtLength(lane.getTotalLength() * (GULL_LANDS / FLIGHT));
-  const from = { x: 1680, y: 180 };
-  // The rider's perch on the roof, at the pod's scale.
-  const perch = { x: meet.x - 6 * K, y: meet.y - 42 * K };
-  gullIn.setAttribute('path', `M${from.x} ${from.y} C ${perch.x + 380} ${from.y + 40} ${perch.x + 140} ${perch.y - 140} ${perch.x} ${perch.y}`);
-  gullIn.setAttribute('dur', '1.5s');
+  const cut = (from: Framing, to?: Framing, dur = 0, opts: Partial<Shot> = {}) => {
+    stage.shots = [{ at: stage.t, dur, from, to, ...opts }];
+  };
+  const v = (p: Vector3, dy = 0): V3 => [p.x, p.y + dy, p.z];
 
   const film = async () => {
-    // 1. The pad and the checklist.
+    // 1. The pad, the skyline and the checklist.
+    cut(orbit(v(padTop, 0.4), 9, 0.95, 0.32, 40), orbit(v(padTop, 0.3), 5.5, 0.7, 0.18, 36), 4.5);
     reel.bed('wind', 0.35, 2);
+    if (!(await reel.wait(0))) return;
+    stage.open();
     reel.hit('gulls', 1.2);
     reel.say('Sky-lane charter: approved. Test pilot: …available.');
     if (!(await reel.wait(1700))) return;
@@ -159,11 +321,19 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
       reel.cue('tick');
       if (!(await reel.wait(i === items.length - 1 ? 900 : 520))) return;
     }
-    reel.say(`${pilot} has flown this route four hundred times. In a simulator.`);
-    if (!(await reel.wait(1500))) return;
+    // Close on the pilot, gripping the controls.
+    const face = new Vector3();
+    pilot.headAt(face);
+    cut(orbit(v(face), 1.1, 0.55, 0.08, 30), orbit(v(face), 0.9, 0.5, 0.06, 28), 2.2);
+    pilot.act('read', { brows: 0.9, mouth: 0.15, smile: -0.3 });
+    reel.say(`${pilotName} has flown this route four hundred times. In a simulator.`);
+    if (!(await reel.wait(1600))) return;
 
     // 2. Countdown and lift-off.
     reel.on('ready');
+    laneOn.value = 1;
+    board();
+    cut(orbit(v(padTop, 0.2), 4.2, 0.45, 0.2, 36), orbit(v(padTop, 0.6), 4.8, 0.3, 0.3, 36), 2.4);
     for (const n of ['3', '2', '1']) {
       count.textContent = n;
       reel.pop(count);
@@ -172,46 +342,75 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
     }
     count.textContent = '';
     reel.on('launch');
-    // The score (D-195): the wind of the sky lane, the lift-off, a crowd at the dock.
     reel.bed('wind', 0.8, 1);
     reel.hit('swell', 0, 2.5);
-    fly.beginElement();
+    flightAt = stage.t;
+    // A chase camera: behind and above, the skyline ahead.
+    cut({ pos: [-2.6, 1.3, 2.4], look: [1.5, 0.3, -0.4], fov: 42 }, { pos: [-2.2, 1.0, 2.6], look: [1.5, 0.4, -0.3], fov: 40 }, 2.5, { rel: true });
     reel.cue('cs-whoosh');
     reel.say('One small hop for a pod…');
+
     // 3. A passenger nobody booked.
     if (!(await reel.wait((GULL_LANDS - 1.5) * 1000))) return;
-    reel.on('gull');
     reel.hit('gulls', 0.3);
     reel.hit('wings', 1.1);
-    gullIn.beginElement();
+    gull.pose = 'fly';
+    gullFrom.copy(pod.position).add(new Vector3(3.5, 1.8, 3));
+    gull.root.position.copy(gullFrom);
+    gullAt = stage.t;
+    cut({ pos: [0.5, 0.7, 3.2], look: [0.2, 0.25, 0], fov: 38 }, { pos: [0.1, 0.6, 2.8], look: [0, 0.3, 0], fov: 36 }, 2, { rel: true });
     if (!(await reel.wait(1500))) return;
     reel.on('aboard');
     reel.cue('cs-boing');
+    pilot.act('grip', { brows: 1, mouth: 0.9, smile: 0, headYaw: 0.4, headPitch: -0.3 });
     reel.say('…and one passenger nobody booked.');
-    if (!(await reel.wait(1500))) return;
-    // 4. The loop.
+    if (!(await reel.wait(1300))) return;
+
+    // 4. The loop, side-on, the whole of it in frame.
+    cut(orbit(v(loopC), 8.5, 0.05, 0.06, 38), orbit(v(loopC), 7.8, -0.05, 0.08, 38), 2.6);
     reel.say('The gull insisted on the scenic route.');
     reel.cue('cs-freeze');
-    if (!(await reel.wait((FLIGHT - GULL_LANDS - 1.5) * 1000))) return;
+    if (!(await reel.wait((FLIGHT - GULL_LANDS - 1.5 - 1.3) * 1000 - 600))) return;
+    // Coming in to the dock.
+    cut(orbit(v(dockTop, 0.2), 7, 0.15, 0.2, 40), orbit(v(dockTop, 0.2), 6.2, 0.25, 0.17, 40), 2.6);
+    if (!(await reel.wait(600))) return;
 
     // 5. Touchdown, cheers, and a theft.
     reel.on('landed');
+    laneOn.value = 0.4;
     reel.bed('wind', 0.25, 1);
     reel.hit('thud');
     reel.hit('crowd', 0.2);
     reel.cue('cs-fanfare');
+    for (const c of crowd) c.act('cheer');
+    // Out onto the pad, waving.
+    standOn(dockTop, Math.PI / 2 + 0.4);
+    pilot.act('wave');
     reel.say('Touchdown! The crowd goes mild. Then wild.');
     if (!(await reel.wait(1500))) return;
     reel.on('heist');
     reel.hit('wings', 0.1);
     reel.hit('gulls', 0.3);
-    gullOut.beginElement();
+    // The gull takes the helmet and goes.
+    gull.root.updateWorldMatrix(true, false);
+    gullFrom.setFromMatrixPosition(gull.root.matrixWorld);
+    stage.add(gull.root);
+    gull.root.scale.setScalar(0.7);
+    gull.pose = 'fly';
+    helmet.removeFromParent();
+    gull.carry.add(helmet);
+    helmet.position.set(0, 0, 0);
+    helmet.scale.setScalar(0.8);
+    heistAt = stage.t;
+    pilot.act('facepalm');
+    cut(orbit(v(dockTop, 0.1), 4.2, 0.55, 0.12, 38), orbit(v(dockTop, 1.0), 7, 0.4, 0.22, 40), 2.4);
     reel.cue('cs-munch');
     reel.say('Sky-lanes: open. Hats: at your own risk.');
     if (!(await reel.wait(2300))) return;
 
-    // 6. The card.
+    // 6. The card, the pod at rest under the skyline.
     reel.on('finale');
+    cut(orbit(v(dockTop, 1), 8, 0.2, 0.22, 40), orbit(v(dockTop, 1.5), 10, 0.6, 0.28, 40), 14, { ease: 'linear' });
     await reel.end({
       kicker: 'Unlock · charter granted',
       title: 'Sky-lanes',
@@ -220,7 +419,7 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
       lines: [
         'Pod Docks near busy homes',
         'Pod Interchanges and the Skylane Nexus',
-        `${pilot} would like a word about the gull`,
+        `${pilotName} would like a word about the gull`,
         'The Drift will be singing about that gull for years',
       ],
       button: 'Clear for take-off',
@@ -229,9 +428,3 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
   };
   void film();
 }
-
-const FANS = ['#ff9fb6', '#8fc0ff', '#ffd76a', '#8ef07a', '#c8a8ff'];
-const SKIN = ['#f1c7a5', '#c98f68', '#8d5a3b', '#f5d3b8', '#b07a52'];
-
-/** A gull, wings up (≈ 30 × 16, origin at its feet). */
-const GULL = `<g class="mf-bird"><path class="w" d="M0 -6 q-8 -12 -18 -8 q8 2 10 10 z M0 -6 q8 -12 18 -8 q-8 2 -10 10 z"/><ellipse cx="0" cy="-4" rx="9" ry="5"/><circle cx="7" cy="-8" r="3.6"/><path class="beak" d="M10 -8 l6 1.5 l-6 1.5 z"/><circle class="eye" cx="8" cy="-9" r="0.9"/></g>`;

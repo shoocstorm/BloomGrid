@@ -44,7 +44,8 @@ export type PersonPose =
   | 'slump'
   | 'hold'
   | 'think'
-  | 'grip';
+  | 'grip'
+  | 'read';
 
 const BASE = {
   hip: 0,
@@ -87,6 +88,7 @@ const POSES: Record<PersonPose, Partial<Record<Key, number>>> = {
   wave: { armRup: 2.4, armRout: 0.5, elbowR: 0.5, wave: 1, smile: 1, mouth: 0.4, brows: 0.4 },
   slump: { lean: 0.32, headPitch: 0.45, armLup: -0.05, armRup: -0.05, elbowL: 0.05, elbowR: 0.05, brows: -0.5, smile: -0.4 },
   hold: { armRup: 2.0, armRout: 0.15, elbowR: 0.35, headPitch: -0.2, smile: 0.4 },
+  read: { armRup: 0.95, armRout: 0.05, elbowR: 1.25, armLup: 0.7, elbowL: 1.1, armLout: -0.15, headPitch: 0.35, smile: 0 },
   think: { armRup: 1.3, armRout: 0.2, elbowR: 2.1, headTilt: 0.15, headPitch: -0.1, brows: 0.3, smile: 0 },
 };
 
@@ -194,10 +196,13 @@ export class Person3D {
     } else if (hat === 'helmet') {
       part(HEMI, m, h, -0.01, 0.0, 0, 0.17, 0.165, 0.165);
       for (const s of [1, -1]) {
-        part(new TorusGeometry(1, 0.28, 8, 16), hard(0x8a6a3a, 0.4, 0.6), h, 0.12, 0.04, 0.055 * s, 0.032).rotation.y = Math.PI / 2;
-        part(BALL, hard(0x9fd8ff, 0.05, 0.3), h, 0.125, 0.04, 0.055 * s, 0.012, 0.028, 0.028);
+        // Goggles pushed up on the forehead: brass rims, sky-blue lenses.
+        part(new TorusGeometry(1, 0.3, 8, 18), hard(0xc9a040, 0.3, 0.85), h, 0.135, 0.06, 0.055 * s, 0.042).rotation.y = Math.PI / 2;
+        part(BALL, hard(0x9fd8ff, 0.05, 0.3), h, 0.14, 0.06, 0.055 * s, 0.014, 0.038, 0.038);
       }
-      part(ROD, hard(0x8a6a3a, 0.4, 0.6), h, 0.12, 0.045, 0, 0.006, 0.11, 0.006).rotation.x = Math.PI / 2;
+      part(ROD, hard(0x3a2a1c, 0.5), h, 0.13, 0.06, 0.055, 0.01, 0.11, 0.01).rotation.x = Math.PI / 2;
+      // Ear flaps.
+      for (const s of [1, -1]) part(BALL, m, h, -0.01, -0.04, 0.14 * s, 0.07, 0.08, 0.025);
     } else if (hat === 'beanie') {
       part(HEMI, m, h, -0.01, 0.02, 0, 0.162, 0.17, 0.16);
       part(BALL, m, h, -0.02, 0.19, 0, 0.035);

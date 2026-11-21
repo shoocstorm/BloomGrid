@@ -12,7 +12,7 @@ export const CAST = {
   /** The old fisher of "Something Stirs" (a different name per city, the same oilskins). */
   fisher: { skin: 0xe8b48e, hair: 0xb9b4ad, top: 0xf2c23a, bottom: 0x3e5a7a, vest: 0xe9a62a, hat: 'souwester', hatColour: 0xf2c23a, beard: true, prop: 'rod', shoes: 0x2b2b30 },
   /** The Sky-lane test pilot of "Maiden Flight" (who would rather be anywhere else). */
-  pilot: { skin: 0xc68e62, hair: 0x2a1d16, top: 0x7fd1c7, bottom: 0x33383f, vest: 0x8a6a3a, hat: 'helmet', hatColour: 0x8a6a3a, prop: 'clipboard', shoes: 0x5a3a24 },
+  pilot: { skin: 0xc68e62, hair: 0x2a1d16, top: 0x7fd1c7, bottom: 0x33383f, vest: 0x8a6a3a, hat: 'helmet', hatColour: 0x5a3a24, prop: 'clipboard', shoes: 0x5a3a24 },
   /** Ama Reyes, who lit the Tidewatch Lighthouse ("First Light"). */
   keeper: { skin: 0x9a6440, hair: 0x15120f, top: 0x2f4f6a, bottom: 0x4a3a2c, vest: 0x6a8a5a, hat: 'hood', hatColour: 0x3a5a4a, long: true, prop: 'lantern', shoes: 0x3a2a20 },
   /** A Halcyon citizen ("What the Sea Remembers"): white linen. */
@@ -20,7 +20,8 @@ export const CAST = {
 } satisfies Record<string, Look>;
 
 /** A crowd member's look, varied by `i` (a dock's cheering residents). */
-export function crowdLook(i: number): Look {
+export function crowdLook(n: number): Look {
+  const i = Math.abs(Math.round(n)) % 420;
   const tops = [0xf2a7a0, 0x7fd1c7, 0xf7d36b, 0x9ec5ff, 0xc9a7f2, 0xf4f1e8, 0xe7795f];
   const skins = [0xf6d2b4, 0xe8b48e, 0xc68e62, 0x9a6440, 0x6e4430];
   const hairs = [0x2a1d16, 0x15120f, 0x5a3a24, 0xd8b46a, 0x8a4a2a, 0xe58fb5];
@@ -38,7 +39,7 @@ export function crowdLook(i: number): Look {
   };
 }
 
-const PERSON_POSES: PersonPose[] = ['stand', 'walk', 'cheer', 'startled', 'shrug', 'facepalm', 'point', 'wave', 'sit', 'fish', 'slump', 'hold', 'think', 'grip'];
+const PERSON_POSES: PersonPose[] = ['stand', 'walk', 'cheer', 'startled', 'shrug', 'facepalm', 'point', 'wave', 'sit', 'fish', 'slump', 'hold', 'think', 'grip', 'read'];
 const CAT_POSES: CatPose[] = ['idle', 'wide', 'creep', 'freeze', 'tiptoe', 'leap', 'land', 'proud', 'trust'];
 const GULL_POSES: GullPose[] = ['stand', 'fly', 'glide', 'squawk'];
 const cap = (s: string) => s[0]!.toUpperCase() + s.slice(1);
