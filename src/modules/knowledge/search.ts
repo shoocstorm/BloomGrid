@@ -17,6 +17,14 @@ const STOP = new Set(
 /** Player words → doc words. Applied to query terms only (one hop). */
 const SYNONYMS: Record<string, string[]> = {
   blackout: ['power', 'energy', 'grid'],
+  // The Chronicle (D-192): players ask about the island's past in many words.
+  history: ['chronicle', 'halcyon', 'lore'],
+  lore: ['chronicle', 'history'],
+  legend: ['chronicle', 'history', 'lore'],
+  myth: ['chronicle', 'history', 'lore'],
+  backstory: ['chronicle', 'history', 'lore'],
+  ruins: ['halcyon', 'colonnade'],
+  origin: ['history', 'chronicle'],
   brownout: ['power', 'energy'],
   electricity: ['power', 'energy'],
   power: ['energy'],

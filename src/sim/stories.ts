@@ -6,6 +6,7 @@ import type { ConsequenceMods } from './consequenceState';
 import { unavailable } from './buildGate';
 import { placeName } from './happenings';
 import { isActive } from './policies';
+import { isOpen } from './growthState';
 import { PULSE_TICKS } from './pulseConst';
 import type { StoryRun } from './storyState';
 import type { SimCtx } from './systems';
@@ -33,6 +34,17 @@ export const LASTING: Record<string, { name: string; text: string; apply(m: Cons
   'startup-hub': { name: 'Start-up hub', text: 'Businesses pay 3% more tax.', apply: (m) => void (m.workerTax *= 1.03) },
   'seawall-pride': { name: 'A coast that holds', text: 'Floods do 10% less damage.', apply: (m) => void (m.flood *= 0.9) },
   resettled: { name: 'Higher ground', text: '+0.3 harmony: the city looks after its own.', apply: (m) => void (m.harmony += 0.3) },
+  // The Chronicle's arcs (D-192): Halcyon's marble, the Concord's credit, the Lantern Orders' curiosity.
+  'harbour-museum': { name: 'Harbour museum', text: '+0.2 harmony: visitors come for the marble.', apply: (m) => void (m.harmony += 0.2) },
+  'concord-wall': {
+    name: 'A Concord wall',
+    text: 'Floods do 8% less damage, but −0.3 harmony: the sea is out of sight.',
+    apply: (m) => {
+      m.flood *= 0.92;
+      m.harmony -= 0.3;
+    },
+  },
+  'lantern-ties': { name: 'Lantern ties', text: 'Businesses pay 2% more tax: scholars and visitors in town.', apply: (m) => void (m.workerTax *= 1.02) },
 };
 
 export interface StoryGoal {
@@ -251,6 +263,109 @@ export const ARCS: StoryArc[] = [
         choices: [
           { label: 'Plant a park', goal: parkGoal(360), reward: 500, mood: 1, told: 'A park grew on the new shore.', next: null },
           { label: 'Not now', told: 'The shore stayed as it was.', next: null },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'diver',
+    title: 'Marble in the bay',
+    role: 'diver',
+    icon: 'ruin',
+    when: (c) => c.stats.population >= 800 && c.buildingEntities().some((e) => !!c.buildingDef(e).fishing),
+    home: (c) => {
+      const hs = residents(c);
+      return hs.length ? hs[Math.floor(c.rng.next() * hs.length)]! : -1;
+    },
+    beats: [
+      {
+        id: 'find',
+        text: (r) => `${r.name}, a diver from ${r.place}, has brought up a block of white marble carved with a sun over a wave. "There's a whole street down there. Steps, doors, the same seal on every lintel."`,
+        choices: [
+          { label: 'Fund a harbour museum', cost: 900, mood: 1, told: 'The city paid for a small harbour museum.', next: 'lintel' },
+          { label: 'Leave it to the sea', mood: 0.5, told: 'The marble went back where it was found.', next: 'lintel' },
+        ],
+      },
+      {
+        id: 'lintel',
+        after: 150,
+        text: (r) => `${r.first} is back with the biggest find yet: a lintel from the drowned city's assembly, with words carved under the seal. "A Lantern scholar on the mainland says she can read them. Shall I send her a rubbing?"`,
+        choices: [
+          { label: 'Send the rubbing', reward: 600, lasting: 'harbour-museum', told: 'The words came back read: "Every day better than the last."', next: null },
+          { label: 'Keep it on the island', mood: 0.5, told: 'The lintel stayed in the harbour, unread.', next: null },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'envoy',
+    title: 'The Concord’s offer',
+    role: 'host',
+    icon: 'credits',
+    when: (c) => c.charters.era >= 2 || c.steward.loans.length > 0,
+    home: (c) => {
+      const hs = residents(c);
+      return hs.length ? hs[Math.floor(c.rng.next() * hs.length)]! : -1;
+    },
+    beats: [
+      {
+        id: 'offer',
+        text: (r) => `Envoy Castellan of the Concord is lodging with ${r.name} in ${r.place}, and brings an offer from the Walled Cities: cheap credit, on one condition. "A proper concrete seawall along your coast. We insist on it for everyone we lend to."`,
+        choices: [
+          { label: 'Sign the Concord loan', reward: 2500, lasting: 'concord-wall', told: 'The city took the Concord’s credit, and its wall.', next: 'return' },
+          {
+            label: 'Decline: plant mangroves instead',
+            goal: {
+              hint: 'Build a Mangrove Seawall within 14 tiles of their home',
+              within: 360,
+              count: (c, r) => near(c, r, 14, (_id, _cat, defence) => defence),
+              build: (c) => (unavailable(c, 'mangrove-seawall') ? undefined : 'mangrove-seawall'),
+            },
+            reward: 600,
+            mood: 1,
+            lasting: 'seawall-pride',
+            told: 'The envoy left puzzled; mangroves hold the coast instead.',
+            next: 'return',
+          },
+        ],
+      },
+      {
+        id: 'return',
+        after: 180,
+        text: (r) => `Envoy Castellan is back at ${r.first}'s door, sincerely curious this time. "Your island floods less than our cities do, and you have half the concrete. The Walled Cities would like to open a trade office here, to learn how."`,
+        choices: [
+          { label: 'Welcome the office', reward: 1000, told: 'The Concord opened a small trade office on the harbour.', next: null },
+          { label: 'Thank them, no', mood: 0.5, told: 'The island kept its own counsel.', next: null },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'archivist',
+    title: 'The Lantern archivist',
+    role: 'host',
+    icon: 'book',
+    when: (c) => c.charters.era >= 2 && isOpen(c.growth, 'flora'),
+    home: (c) => {
+      const hs = residents(c);
+      return hs.length ? hs[Math.floor(c.rng.next() * hs.length)]! : -1;
+    },
+    beats: [
+      {
+        id: 'ask',
+        text: (r) => `Wren Sallow, an archivist of the Lantern Orders, is lodging with ${r.name} in ${r.place}. She has spent thirty years looking for the drowned city's lost mind. "Your vault in the hill. May I read its records?"`,
+        choices: [
+          { label: 'Open the records to her', mood: 0.5, told: 'The Seedvault’s records were opened to the Lantern Orders.', next: 'question' },
+          { label: 'Keep the vault closed', told: 'The vault stayed closed to the mainland.', next: null },
+        ],
+      },
+      {
+        id: 'question',
+        after: 150,
+        text: () => `Wren comes back pale. "The vault's records end with a decision log, and its author never signed out. Your Flora was not built. She was made, by someone who knew the end was coming. May I speak with her?"`,
+        choices: [
+          { label: 'Let them talk', reward: 800, lasting: 'lantern-ties', told: 'Flora and the archivist talked until dawn.', next: null },
+          { label: 'Not yet', told: 'Flora was left to find out for herself.', next: null },
         ],
       },
     ],

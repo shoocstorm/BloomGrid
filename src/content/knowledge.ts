@@ -42,6 +42,11 @@ export const KNOWLEDGE_CATEGORIES: readonly KnowledgeCategory[] = [
     blurb: 'Strategies for growing, balancing and protecting the city.',
   },
   {
+    id: 'lore',
+    label: 'Chronicle',
+    blurb: 'The island’s history: Halcyon, the Drowning, the Tidekin and the Deep Choir. Chapters open as you find them.',
+  },
+  {
     id: 'reference',
     label: 'Live reference',
     blurb: 'Generated from the game’s own rules, so always current.',
@@ -77,6 +82,8 @@ export interface KnowledgeDoc {
   author?: 'steward' | 'flora' | 'city';
   /** Epoch ms of the last change (journal docs). */
   updated?: number;
+  /** Chronicle pages (`sim/chronicle.ts`): the doc shows once the city has found any of them (D-192). */
+  unlock?: string[];
 }
 
 export interface DocSection {
@@ -139,6 +146,7 @@ export function parseDoc(text: string, source: KnowledgeSource, fallbackId: stri
     heading && heading.index === body.search(/\S/) ? body.slice(heading.index + heading[0].length) : body;
   const updated = Number(str(meta.updated));
   const author = str(meta.author);
+  const unlock = list(meta.unlock);
   return {
     id: slug(str(meta.id) || fallbackId),
     title,
@@ -152,6 +160,7 @@ export function parseDoc(text: string, source: KnowledgeSource, fallbackId: stri
     order: Number(str(meta.order)) || 50,
     ...(author === 'steward' || author === 'flora' || author === 'city' ? { author } : {}),
     ...(Number.isFinite(updated) && updated > 0 ? { updated } : {}),
+    ...(unlock.length ? { unlock } : {}),
   };
 }
 

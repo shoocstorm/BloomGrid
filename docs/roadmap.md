@@ -327,6 +327,16 @@ Design and checklists in [`plan-v5.md`](plan-v5.md); tick here as phases land.
 
 ---
 
+## ✅ The Tide Remembers: background story and the Chronicle (2026-11-21)
+
+- [x] Canon bible `docs/lore/bible.md` (timeline, seven parts, peoples, characters, gazetteer, mysteries, style guide) (D-192)
+- [x] Chronicle sim (`sim/chronicle.ts`): 28 pages with triggers, last-page choice, save v26, hashed, tests
+- [x] Build → Chronicle tab, toasts, *Old stories* First; Seedvault *Chronicle* shelf gated by pages; Flora `chronicle_status`
+- [x] Film "What the Sea Remembers" for the Sunken Colonnade
+- [x] Resident arcs: Marble in the bay, The Concord's offer, The Lantern archivist
+- [x] Wonder tales, hero descriptions, era lines and the steward guide aligned with the canon
+- [ ] Later: Chronicle pages in the model gallery's Cutscenes hall as readable exhibits; a second film for the last page
+
 ## Tech debt / open issues
 
 Keep this list current; remove items when fixed.

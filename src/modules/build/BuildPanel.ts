@@ -514,7 +514,9 @@ export class BuildPanel {
     const holding = tool !== 'select';
     setText(
       this.hint,
-      this.tab !== 'build'
+      this.tab === 'chronicle'
+        ? 'The island’s history, a page at a time'
+        : this.tab !== 'build'
         ? 'Charters, era, unlocks and milestones'
         : holding
         ? touch

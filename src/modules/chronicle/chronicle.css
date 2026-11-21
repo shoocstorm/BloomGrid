@@ -1,0 +1,54 @@
+/* The Chronicle tab (D-192): the island's history as pages in the Build panel. */
+.chronicle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cr-chapter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cr-chapter .cr-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  color: var(--ink-faint);
+}
+.cr-page {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+}
+.cr-page b {
+  color: var(--ink);
+}
+.cr-page p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.cr-page.locked {
+  border-style: dashed;
+  background: transparent;
+}
+.cr-page.locked b {
+  color: var(--ink-faint);
+}
+.cr-ask {
+  color: var(--accent) !important;
+}
+.cr-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cr-choices .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}

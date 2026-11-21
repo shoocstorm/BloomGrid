@@ -19,6 +19,7 @@ import { updateConsequences } from './consequences';
 import { updateDirector } from './director';
 import { updateCharters } from './charters';
 import { updateStories } from './stories';
+import { updateChronicle } from './chronicle';
 import { updateEras } from './eras';
 import { updateObjectives } from './objectives';
 import { updateHappenings } from './happenings';
@@ -406,6 +407,8 @@ export const pulseSystem: System<SimCtx> = {
     updateCharters(city);
     updateEras(city);
     updateObjectives(city);
+    // The Chronicle reads the settled pulse: wonders, era and stories as they now stand (D-192).
+    updateChronicle(city);
     // The director reads this pulse's settled state; the crisis step reads its dials on the next (Phase 27).
     updateDirector(city);
 

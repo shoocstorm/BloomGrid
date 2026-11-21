@@ -3542,3 +3542,26 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   wonder, a Weather Radar and the credits. Grove (1,000 residents + one charter tier) fits the existing
   resident bar; Canopy (10,000 + four tiers) would have pushed the ferry past the Sky Guard jet.
 - Showcase and tests are unchanged: without progression every project is already open.
+
+## D-192 The Tide Remembers: a canon, and the Chronicle that tells it
+
+- **One canon.** The island's background story lives in `docs/lore/bible.md` (team only, not bundled): Halcyon
+  the drowned marble republic and its planning mind Meridian, the Drowning and the Long Tide, the Seedvault and
+  Flora as Meridian's "cutting", the Tidekin and their Three Promises, the Deep Choir (why sea wonders rise), the
+  mainland powers (Concord, Drift, Lantern Orders), First Light and the Island Compact. Existing lore (wonder
+  tales, films, hero descriptions, era lines) was aligned to it, not replaced. Player-facing text follows its
+  style guide; the open questions (does the Choir want cities? was Meridian a monster or a martyr?) stay open.
+- **The Chronicle is a sim system**, not per-viewer UI state: pages are data (`PAGES` in `sim/chronicle.ts`) with
+  triggers read from the city, found every 5 pulses, saved (v26) and hashed, so a save carries its history and
+  determinism holds. Without progression every page counts as found and nothing is recorded (like wonders,
+  D-072). The last page asks one question (`chronicleEnding`, undoable = false like story choices); its answer is
+  a page, never a rule change.
+- **Seedvault gating.** Lore guides (`docs/knowledge/lore/`, category `lore`) carry `unlock: [page ids]` and show
+  (to the reader and to Flora's search) once any is found; `KnowledgeBase.setGate` / `refresh`. Flora reads found
+  pages through `chronicle_status` (hints only for the rest), so she never tells a story the city hasn't earned.
+- **Film.** "What the Sea Remembers" (`moments/films/remembers.ts`, CSS prefix `hal-`) plays in place of
+  "Something Stirs" when the Sunken Colonnade rises, then the wonder's ceremony as before (D-187).
+- **Arcs.** Three resident stories carry the plot into play: the Diver, the Concord's offer, the Lantern
+  archivist; their endings write Chronicle pages.
+- Rejected: storing found pages per viewer in `localStorage` (a save would lose its history and the hash would
+  miss it); hiding lore in the guides behind a spoiler toggle (Flora would read spoilers).

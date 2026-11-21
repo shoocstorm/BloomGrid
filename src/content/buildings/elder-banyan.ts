@@ -12,7 +12,7 @@ export default defineBuilding({
   id: 'elder-banyan',
   name: 'Elder Banyan Treehouse Hotel',
   description:
-    'A colossal banyan grown over two centuries of careful steering: glass treehouse suites hang in its limbs, rope bridges link them, and aerial roots fall like curtains to a fungus-lit garden.',
+    'A colossal banyan grown over two centuries of careful steering, first by the marble city’s gardeners and then by the Tidekin: glass treehouse suites hang in its limbs, rope bridges link them, and aerial roots fall like curtains to a fungus-lit garden.',
   category: 'commercial',
   footprint: [10, 10],
   stats: {

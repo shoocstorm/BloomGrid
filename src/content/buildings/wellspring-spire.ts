@@ -48,7 +48,7 @@ export default defineBuilding({
   id: 'wellspring-spire',
   name: 'Wellspring Spire',
   description:
-    'A landmark of the Working Hills by the lake, rising where the river is born: a twisting arcology of research labs and sky-gardens on living root buttresses, a cantilevered sky-park whose rim pours four waterfalls into the moat, a solar halo, and a beacon spire seen from every shore.',
+    'A landmark of the Working Hills by the lake, rising where the river is born, over the aquifer the Seedvault’s old maps first traced: a twisting arcology of research labs and sky-gardens on living root buttresses, a cantilevered sky-park whose rim pours four waterfalls into the moat, a solar halo, and a beacon spire seen from every shore.',
   category: 'commercial',
   footprint: [10, 10],
   // About half the floor area it had at full size (D-135), and half the jobs and output.

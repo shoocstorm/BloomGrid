@@ -1,4 +1,5 @@
 import type { StoryRun } from './storyState';
+import type { FlameEnding } from './chronicleState';
 import type { Happening } from './happeningState';
 import type { BuildingRecord } from './City';
 import type { SystemKey, Tier } from './pulseState';
@@ -82,6 +83,9 @@ declare module '@/core/EventBus' {
     'story:choice': { run: StoryRun; label: string };
     'story:resolved': { run: StoryRun; told: string };
     'story:end': { run: StoryRun; outcome: 'happy' | 'let down' | 'moved away' | 'faded' };
+    /** The Chronicle (D-192): a page of the island's history was found; the city answered at the flame. */
+    'chronicle:found': { id: string; title: string; chapter: string };
+    'chronicle:ending': { ending: FlameEnding };
     /** A challenge scenario was won or lost (the city plays on). */
     'objective:won': { scenario: string; seconds: number };
     'objective:lost': { scenario: string; reason: string };

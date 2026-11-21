@@ -14,6 +14,7 @@ import { openReel, type Reel, type ReelOptions } from './reel';
 import { finishFilm } from './finish';
 import { playMaidenFlight } from './films/flight';
 import { playSomethingStirs } from './films/stirs';
+import { playWhatTheSeaRemembers } from './films/remembers';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import './moments.css';
@@ -446,14 +447,18 @@ export const momentsModule: GameModule = {
      * A wonder rising (D-185, D-187): the film "Something Stirs", then at once its ceremony, which flies the camera
      * to the wonder, so the player sees what rose and where. With moments off, the camera still goes there.
      */
-    const wonderFilm = (id: string, name: string) => (finish: () => void) =>
-      playSomethingStirs(ctx, { id, name }, () => {
+    const wonderFilm = (id: string, name: string) => (finish: () => void) => {
+      const after = () => {
         const spec = wonderSpec(id, name);
         if (mode === 'off') {
           if (spec.at) ctx.cameraCtl.locate(spec.at.x, spec.at.z, { size: 70, height: 30 });
         } else queue.unshift({ m: spec, chain: true });
         finish();
-      });
+      };
+      // The colonnade brings the island's oldest story with it (D-192): Halcyon and the Long Tide.
+      if (id === 'colonnade') playWhatTheSeaRemembers(ctx, after);
+      else playSomethingStirs(ctx, { id, name }, after);
+    };
     ctx.bus.on('wonder:discovered', ({ id, name }) => {
       if (!ctx.loading) stage(`wonder:${id}`, wonderFilm(id, name));
     });
@@ -461,9 +466,12 @@ export const momentsModule: GameModule = {
     for (const w of WONDERS.filter((x) => !x.start))
       film({
         id: `wonder:${w.id}`,
-        title: `${w.name} rises`,
-        icon: 'gem',
-        blurb: `Something stirs off the coast, and an old fisher sleeps right through it: ${w.name} rises.`,
+        title: w.id === 'colonnade' ? 'What the Sea Remembers' : `${w.name} rises`,
+        icon: w.id === 'colonnade' ? 'ruin' : 'gem',
+        blurb:
+          w.id === 'colonnade'
+            ? 'The Sunken Colonnade rises, and with it the island’s oldest story: Halcyon, Meridian and the Long Tide.'
+            : `Something stirs off the coast, and an old fisher sleeps right through it: ${w.name} rises.`,
         earned: () => city().growth.wonders.includes(w.id),
         run: wonderFilm(w.id, w.name),
       });

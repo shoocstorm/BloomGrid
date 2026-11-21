@@ -164,7 +164,7 @@ export default defineBuilding({
   id: 'aurora-gemini',
   name: 'Aurora Gemini',
   description:
-    'Twin towers at the island’s heart, mostly sky homes over a few floors of offices. Sol and Luna are identical round glass towers, ringed by spiralling light ribs and sky-garden lawns, and joined by a garden bridge and a sky-pool bridge. The pool spills a waterfall into the canal between them, and the Sun Gate, a golden ring of rays, hangs between their spires. At night their searchlights sweep the sky. Select them for a light show, to stand on the sky deck or for a postcard view.',
+    'Twin towers at the island’s heart, mostly sky homes over a few floors of offices. Sol and Luna are identical round glass towers, ringed by spiralling light ribs and sky-garden lawns, and joined by a garden bridge and a sky-pool bridge. The pool spills a waterfall into the canal between them, and the Sun Gate, a golden ring of rays, hangs between their spires; at the equinox it frames the lighthouse at dawn and the drowned temple’s flame at dusk, as the old Twin Lights saying asks. At night their searchlights sweep the sky. Select them for a light show, to stand on the sky deck or for a postcard view.',
   category: 'commercial',
   footprint: [14, 14],
   // Mostly homes: residents at the centre walk to work, where 360 office jobs pulled commuters in from the towns

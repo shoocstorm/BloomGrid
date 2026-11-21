@@ -8,7 +8,7 @@ related: [runbook-fail-clock, reference-rules, basics-reading-the-city]
 order: 2
 ---
 
-You are the island's **steward**: you don't place every house, you keep a living city in balance. Residents move in
+You are the island's **steward**, chosen by the **Island Compact**, the settlers' council (its story is in the [Chronicle](kb:lore-chronicle)): you don't place every house, you keep a living city in balance. Residents move in
 when there is housing, power, water, food, work and a pleasant place to live; they leave, and the city decays, when
 those fail.
 

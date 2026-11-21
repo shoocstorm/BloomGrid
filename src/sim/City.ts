@@ -22,6 +22,7 @@ import { UNLOCK_NAMES, createGrowthState, isOpen, type GrowthState } from './gro
 import { createHappeningState, type HappeningState } from './happeningState';
 import { createCharterState, type CharterState } from './charterState';
 import { createStoryState, type StoryState } from './storyState';
+import { chronicleHash, createChronicleState, type ChronicleState } from './chronicleState';
 import { charterHash } from './charters';
 import { createConsequenceState, type ConsequenceState } from './consequenceState';
 import { createSoil, initSoilLand, soilChecksum, type SoilState } from './floranet';
@@ -143,6 +144,8 @@ export class City {
   charters!: CharterState;
   /** The resident story running now and what stories left behind (plan v5, Phase 29; saved v24, hashed). */
   stories!: StoryState;
+  /** The Chronicle: pages of the island's history found, and the choice at the flame (D-192; saved v26, hashed). */
+  chronicle!: ChronicleState;
   /** Ordinances, sector budgets and the business tax (plan v5, Phase 25). */
   policies!: PolicyState;
   /** District approval, streaks and moods (plan v5, Phase 26). */
@@ -204,6 +207,7 @@ export class City {
     this.happenings = createHappeningState();
     this.charters = createCharterState();
     this.stories = createStoryState();
+    this.chronicle = createChronicleState();
     this.policies = createPolicyState();
     this.approval = createApprovalState();
     this.roadCount = 0;
@@ -531,7 +535,7 @@ export class City {
       (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0},${r.tier ?? 0},${Math.round(r.age ?? 0)},${Math.round(r.thrive ?? 0)},${(r.scorch ?? 0).toFixed(3)},${r.off ? 1 : 0},${r.by ?? 'system'},${Math.round(r.spent ?? 0)}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}|${policyHash(this)}|${approvalHash(this)}|${this.directorHash()}|${charterHash(this)}|${this.storyHash()}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}|${policyHash(this)}|${approvalHash(this)}|${this.directorHash()}|${charterHash(this)}|${this.storyHash()}|${chronicleHash(this.chronicle)}`,
     );
   }
 }

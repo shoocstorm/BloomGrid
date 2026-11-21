@@ -25,9 +25,9 @@ export interface EraDef {
 
 export const ERAS: EraDef[] = [
   { id: 'seedling', name: 'Seedling', icon: 'leaf', line: 'A young city finding its feet.', population: 0, tiers: 0, golds: 0, slots: 2, band: 0 },
-  { id: 'grove', name: 'Grove', icon: 'nature', line: 'A town with a charter to its name.', population: 1000, tiers: 1, golds: 0, slots: 3, band: 0.02 },
-  { id: 'canopy', name: 'Canopy', icon: 'flower', line: 'A city with a reputation: the Bloom Expo comes calling.', population: 10000, tiers: 4, golds: 0, slots: 4, band: 0.04 },
-  { id: 'bloom', name: 'Bloom', icon: 'sparkle', line: 'A city in full bloom, known across the sea.', population: 30000, tiers: 8, golds: 1, slots: 8, band: 0.06 },
+  { id: 'grove', name: 'Grove', icon: 'nature', line: 'A town with a charter to its name, and the Drift sails in to see it.', population: 1000, tiers: 1, golds: 0, slots: 3, band: 0.02 },
+  { id: 'canopy', name: 'Canopy', icon: 'flower', line: 'A city with a reputation: the Bloom Expo comes calling, and the mainland takes notice.', population: 10000, tiers: 4, golds: 0, slots: 4, band: 0.04 },
+  { id: 'bloom', name: 'Bloom', icon: 'sparkle', line: 'A city in full bloom, known across the sea, and the sea answers.', population: 30000, tiers: 8, golds: 1, slots: 8, band: 0.06 },
 ];
 
 export const eraOf = (city: City): EraDef => ERAS[Math.min(ERAS.length - 1, city.charters.era)]!;

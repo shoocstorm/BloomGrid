@@ -56,6 +56,7 @@ export const FIRSTS: readonly FirstDef[] = [
   },
   { id: 'bridge', title: 'Over the water', line: 'You opened your first bridge.', icon: 'bridge' },
   { id: 'project', title: 'Grand plan', line: 'An unlock project was completed.', icon: 'gem' },
+  { id: 'chronicle', title: 'Old stories', line: 'You found a page of the island’s Chronicle.', icon: 'book' },
   {
     id: 'town',
     title: 'Town',

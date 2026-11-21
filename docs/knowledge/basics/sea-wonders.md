@@ -29,6 +29,12 @@ On a fresh island only the lighthouse and the whales are there at the start; the
 - **Sunken Colonnade**: 3,000 residents from day 6.
 - **Prism Geode**: harmony 75+ with 5,000 residents.
 
+## Why do the wonders rise at all?
+
+The island's old stories say the sea answers a city that keeps the reef-singers' Three Promises: keep the reef
+healthy, take only what it can spare, never build where the water wants to be. The **Chronicle** (Build →
+Chronicle) tells that story a page at a time as the city earns it, and opens its chapters here in the Seedvault.
+
 ## The first five wonders' stories
 
 - **Tidewatch Lighthouse** (north-east): the first light the island lit, built band by band by the keeper Ama Reyes

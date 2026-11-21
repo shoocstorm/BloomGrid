@@ -136,6 +136,8 @@ export class KnowledgeBase {
   private data = new Map<string, unknown[]>();
   private index: KnowledgeIndex | null = null;
   private listeners = new Set<() => void>();
+  /** Which shipped docs show (D-192: Chronicle guides wait for their page); every doc without a gate. */
+  private gate: (d: KnowledgeDoc) => boolean = () => true;
   private queue: Promise<unknown> = Promise.resolve();
   /** Bumped on every change (UI refresh). */
   version = 0;
@@ -191,12 +193,23 @@ export class KnowledgeBase {
   }
 
   all(): KnowledgeDoc[] {
-    return [...this.fixed, ...this.journal.values()];
+    return [...this.fixed.filter((d) => !d.unlock || this.gate(d)), ...this.journal.values()];
   }
 
   get(id: string): KnowledgeDoc | undefined {
     const key = slug(id.replace(/\.md$/, ''));
-    return this.journal.get(key) ?? this.fixed.find((d) => d.id === key);
+    return this.journal.get(key) ?? this.fixed.find((d) => d.id === key && (!d.unlock || this.gate(d)));
+  }
+
+  /** Sets which `unlock` docs show; call `refresh` when the answer may have changed. */
+  setGate(fn: (d: KnowledgeDoc) => boolean): void {
+    this.gate = fn;
+    this.changed();
+  }
+
+  /** Re-reads the gate (a Chronicle page was found, a city loaded). */
+  refresh(): void {
+    this.changed();
   }
 
   isJournal(id: string): boolean {

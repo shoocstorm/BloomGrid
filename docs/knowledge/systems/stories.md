@@ -20,10 +20,14 @@ their street on foot.
 | Light nets (a fisher) | the fish stock is low and a fleet works it | a Fishing quota or fuel money, then a park by the harbour |
 | Kitchen-table start-up (a founder) | the city has 1,500+ residents | a tech workplace nearby or a grant, then Car-free core |
 | Higher ground (a family) | the sea is rising, the coast is bare or a flood just struck | a Mangrove Seawall nearby or help moving, then a park |
+| Marble in the bay (a diver) | 800+ residents and a fishing fleet | a harbour museum or leave it to the sea, then whether to have an old lintel read |
+| The Concord’s offer (a host) | the Canopy era, or a loan taken | the Concord's loan and its wall, or mangroves instead; then a trade office |
+| The Lantern archivist (a host) | the Canopy era with Flora awake | open the Seedvault's records, then let the archivist talk to Flora |
 
 ## What do my choices change?
 
 A goal met pays a reward and lifts harmony for a while; some endings leave a **lasting outcome** for good (a
 fishers' co-op: a larger catch; a start-up hub: more business tax; a coast that holds: milder floods; higher
-ground: a little harmony). A goal missed, a "not now", or a choice left unanswered for five minutes lets the
+ground: a little harmony; a harbour museum: a little harmony; a Concord wall: milder floods but less harmony;
+Lantern ties: a little more business tax). The last three stories also write pages of the [Chronicle](kb:lore-chronicle). A goal missed, a "not now", or a choice left unanswered for five minutes lets the
 resident down (harmony dips for a while). Ask Flora *"what does the fisher want?"*.
