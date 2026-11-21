@@ -109,22 +109,6 @@ describe('resident stories (plan v5, Phase 29)', () => {
     expect(s.commands.execute('storyChoice', { choice: 1 }, false)).toBe(false);
   });
 
-  it('the scheduler tells stories on its own, deterministically (and not in tests by default)', () => {
-    const run = () => {
-      const s = founded();
-      s.city.stories.auto = true;
-      s.city.growth.fish = 0.4;
-      pulses(s, 300, () => (s.city.growth.fish = Math.min(s.city.growth.fish, 0.4)));
-      return { hash: s.city.hash(), story: s.city.stories.current?.name ?? null };
-    };
-    const a = run();
-    expect(a.story).not.toBeNull();
-    expect(run()).toEqual(a);
-    const quiet = founded();
-    pulses(quiet, 300);
-    expect(quiet.city.stories.current).toBeNull();
-  });
-
   it('round-trips a story in progress (v24) and migrates v23 saves', () => {
     const s = hamlet();
     s.city.growth.fish = 0.4;

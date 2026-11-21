@@ -28,5 +28,10 @@ export default defineConfig({
   preview: { headers: production },
   optimizeDeps: { exclude: ['@wllama/wllama'] },
   // Sim-heavy tests (founding city, crisis collapse) take 2-4 s locally and ~2.5x that on CI runners.
-  test: { environment: 'node', include: ['tests/**/*.test.ts'], testTimeout: 30_000 },
+  test: {
+    environment: 'node',
+    include: ['tests/**/*.test.ts'],
+    testTimeout: 30_000,
+    reporters: ['default', 'html'],
+  },
 });

@@ -27,7 +27,8 @@ build and modify it, and keep it running well. Neglect can make the city decline
 bun install
 bun run dev            # http://localhost:3000: the welcome screen (New Chapter dialog over a holographic island, before the engine boots; resume / new island / showcase, D-148); ?scenario=founding-city = the showcase (scripts default to it), ?wizard / ?nowizard  (?perf ?taa=0 ?renderer=webgl ?quality=low|medium|high|ultra ?stress=2000 ?seed=N ?scenario=empty|water-crisis|debt-island ?difficulty=sandbox|relaxed|steward|hard ?drill=<crisis> ?happening=request|festival|bumper-catch|cruise|petition|protest|praise|expo ?story=fisher|founder|family ?nodynres)
 bun run check          # typecheck + lint + tests + production build (must pass before you finish)
-bun run test           # vitest only (NOT `bun test`: that is bun's own runner and skips the Vitest setup)
+bun run test           # vitest only (NOT `bun test`: that is bun's own runner and skips the Vitest setup); also writes an HTML report to .vitest/ — view it with `bunx vite preview --outDir .vitest`
+bun run test:quick     # same, but skips the eight long-horizon suites (pacing, crises, director, happenings, policies, fireworks, charters, progression) — ~50 s instead of ~100 s for local iteration; `bun run check` still runs all of them
 bun run snap -- --out shots/x.png [--path "/?perf"] [--eval @scripts/scenes/demo-city.js] [--times 400,1500] [--mobile [--size 844x390]] [--dpr 2]
 bun run perf -- [--path "/?gputime"] [--seconds 10] [--idle] [--sound] [--profile 15]   # power/perf probe (see §8)
 bun run flicker -- [--pieces all|names|a,b] [--defs canopy-tower] [--day] [--diff shots/f.png]   # thin-detail flashing probe (D-070)
