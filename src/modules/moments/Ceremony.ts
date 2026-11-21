@@ -1,4 +1,4 @@
-import { CylinderGeometry, Mesh, Quaternion, TorusGeometry, Vector3, type BufferGeometry } from 'three/webgpu';
+import { Mesh, Quaternion, TorusGeometry, Vector3, type BufferGeometry } from 'three/webgpu';
 import type { GameContext } from '@/game/context';
 import { getMaterial } from '@/render/materials/library';
 import { GeoBuilder, tf } from '@/render/bake';
@@ -8,8 +8,7 @@ import { icon } from '@/ui/icons';
 /**
  * A city moment (D-094): the full-screen ceremony first made for Flora's awakening (D-092), for any big event.
  *
- * - **The city**: optionally the camera comes down over where it happened, a column of light rises there and
- *   shockwaves race out, in the moment's colours (unlit `beacon`, CPU-posed for a few seconds, then removed).
+ * - **The city**: optionally the camera comes down over where it happened and shockwaves race out from it, in the moment's colours (unlit `beacon`, CPU-posed for a few seconds, then removed).
  * - **The screen**: a veil, an emblem that assembles itself (hex frame and orbit draw, six petals unfold, then the
  *   centre: Flora's core, or the moment's icon, flares with rings and slow light rays), the title letter by letter,
  *   lines ticking in, a closing sentence; then the emblem flies away (into a target such as Flora's orb) and the
@@ -35,7 +34,7 @@ export interface MomentSpec {
   lines?: string[];
   /** The closing sentence. */
   sub?: string;
-  /** Where it happened (tile coordinates): camera, light column and shockwaves. `height` of what stands there. */
+  /** Where it happened (tile coordinates): camera and shockwaves. `height` of what stands there. */
   at?: { x: number; z: number; y?: number; height?: number };
   /** Move the camera there (grand moments by default). */
   camera?: boolean;
@@ -75,18 +74,11 @@ function ringGeometry(color: number): BufferGeometry {
   return new GeoBuilder().add(new TorusGeometry(1, 0.02, 3, 128), tf(0, 0, 0, Math.PI / 2), color, 6).build();
 }
 
-function columnGeometry(a: number, b: number): BufferGeometry {
-  return new GeoBuilder()
-    .add(new CylinderGeometry(0.35, 1, 1, 16, 1, true), tf(0, 0.5, 0), a, 5)
-    .add(new CylinderGeometry(0.12, 0.3, 1, 8, 1, true), tf(0, 0.5, 0), b, 9)
-    .build();
-}
-
 export class Ceremony {
   private stage: HTMLElement | null = null;
-  private meshes = new Map<MomentTone, { column: Mesh; rings: Mesh[] }>();
-  private live: { column: Mesh; rings: Mesh[] } | null = null;
-  private at: { x: number; y: number; z: number; h: number } | null = null;
+  private meshes = new Map<MomentTone, { rings: Mesh[] }>();
+  private live: { rings: Mesh[] } | null = null;
+  private at: { x: number; y: number; z: number } | null = null;
   private t = -1;
   private finish: (() => void) | null = null;
   private outTimer = 0;
@@ -181,21 +173,21 @@ export class Ceremony {
     }, OUT * 1000);
   }
 
-  /** The 3D part: the camera over the spot, and the column and shockwaves in the moment's colours. */
+  /** The 3D part: the camera over the spot, and the shockwaves in the moment's colours. */
   private place(m: MomentSpec): void {
     this.at = null;
     if (!m.at) return;
     const g = this.ctx.city.grid;
     const y = m.at.y ?? Math.max(0, g.heightAt(m.at.x, m.at.z));
-    this.at = { x: m.at.x, y, z: m.at.z, h: m.at.height ?? 6 };
+    this.at = { x: m.at.x, y, z: m.at.z };
     if (m.camera ?? m.scale === 'grand') this.ctx.cameraCtl.locate(m.at.x, m.at.z, { size: 30, height: Math.max(30, m.at.height ?? 0) });
     let set = this.meshes.get(m.tone);
     if (!set) {
       const mat = getMaterial('beacon');
       const tone = TONES[m.tone];
       const ring = ringGeometry(tone.a);
-      set = { column: new Mesh(columnGeometry(tone.a, tone.b), mat), rings: [new Mesh(ring, mat), new Mesh(ring, mat)] };
-      for (const o of [set.column, ...set.rings]) {
+      set = { rings: [new Mesh(ring, mat), new Mesh(ring, mat)] };
+      for (const o of set.rings) {
         o.frustumCulled = false;
         o.castShadow = false;
         o.matrixAutoUpdate = false;
@@ -203,15 +195,15 @@ export class Ceremony {
       }
       this.meshes.set(m.tone, set);
     }
-    if (this.live) for (const o of [this.live.column, ...this.live.rings]) this.ctx.scene.remove(o);
+    if (this.live) for (const o of this.live.rings) this.ctx.scene.remove(o);
     this.live = set;
-    for (const o of [set.column, ...set.rings]) {
+    for (const o of set.rings) {
       o.visible = false;
       this.ctx.scene.add(o);
     }
   }
 
-  /** Poses the column and shockwaves (render phase) while they run. */
+  /** Poses the shockwaves (render phase) while they run. */
   update(dt: number): void {
     if (this.t < 0) return;
     this.t += dt;
@@ -220,12 +212,6 @@ export class Ceremony {
     if (s && m) {
       const t = this.t;
       const { q, v, sc } = this;
-      const rise = Math.min(1, Math.max(0, (t - 1.2) / 1.2));
-      const fade = 1 - Math.min(1, Math.max(0, (t - 5) / 1.5));
-      const w = (1.6 + 0.4 * Math.sin(t * 7)) * fade * (0.4 + 0.6 * rise);
-      m.column.visible = rise > 0 && fade > 0;
-      m.column.matrix.compose(v.set(s.x, s.y + s.h * 0.6, s.z), q.identity(), sc.set(w, 4 + 260 * rise * rise, w));
-      m.column.matrixWorldNeedsUpdate = true;
       m.rings.forEach((ring, k) => {
         const p = Math.min(1, Math.max(0, (t - 2 - k * 0.6) / 3.6));
         ring.visible = p > 0 && p < 1;
@@ -236,7 +222,7 @@ export class Ceremony {
     }
     if (this.t > 7.5) {
       this.t = -1;
-      if (m) for (const o of [m.column, ...m.rings]) this.ctx.scene.remove(o);
+      if (m) for (const o of m.rings) this.ctx.scene.remove(o);
       this.live = null;
     }
   }

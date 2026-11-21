@@ -3363,3 +3363,21 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   the reset adopted the cat. The charms module now checks `isOpen(growth, 'cat')` every frame (`unfriend` /
   `befriend`; held as a stray while the film is queued or playing). The stray no longer waits on a roof from the
   start either: it first visits 50–80 s after founding, stays 25–40 s, and comes back every 90–160 s.
+
+## D-179 — City moments drop the light column (2026-11-21)
+
+- **What**: a city moment (D-094) no longer raises a column of light over where it happened; the camera move and the
+  two shockwave rings stay.
+- **Why**: the column read as a huge white pole standing in the city (crisis warnings, sea wonder discoveries) rather
+  than a glow.
+
+## D-180 — The Goals tab shows what is within reach (2026-11-21)
+
+- **What**: unlock projects list only those under way, ready, or locked but within reach: their prerequisite
+  (`after` on a `ProjectDef`) done and their resident gate (`residents`) at most `REACH` (3) × the population; the
+  nearest locked one always shows (`projectsInView` in `sim/projects.ts`, tested in `tests/goalsView.test.ts`).
+  Finished projects fold into one "Done" line, the rest into "N more open up as the island grows (the next at X
+  residents)". Charters not taken up are one-line rows, three in view and the rest folded; sea wonders show the
+  found ones plus the next two hints.
+- **Why**: a 200-resident hamlet saw every project up to the 8,000-resident Sky Guard, seven charter cards and every
+  wonder: a long scroll before the milestones that matter early.

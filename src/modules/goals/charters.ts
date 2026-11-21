@@ -17,6 +17,8 @@ const mins = (s: number) => (s >= 90 ? `${Math.round(s / 60)} min` : `${Math.rou
 export function longTermGoals(ctx: GameContext): { signature(): string; render(): HTMLElement[] } {
   const { city } = ctx;
   const legacy = () => stewardLegacy(city);
+  /** The folded charter list stays as the steward left it across rebuilds. */
+  let moreOpen = false;
 
   const signature = () => {
     const st = city.charters;
@@ -99,6 +101,7 @@ export function longTermGoals(ctx: GameContext): { signature(): string; render()
 
   const charters = (): HTMLElement[] => {
     const st = city.charters;
+    const rows: HTMLElement[] = [];
     const cards = CHARTERS.map((d) => {
       const active = st.active.includes(d.id);
       const reached = st.reached[d.id] ?? 0;
@@ -108,6 +111,31 @@ export function longTermGoals(ctx: GameContext): { signature(): string; render()
       const next = d.tiers[Math.min(2, reached)]!;
       const v = active ? charterValue(city, d) : 0;
       const block = active || done ? null : charterBlock(city, d.id);
+      // Not taken up and nothing to claim: one line (D-180); the description rides on its tooltip.
+      if (!active && !ready) {
+        rows.push(
+          h(
+            'div',
+            { class: `gl-crow ${done ? 'open' : ''}`, title: d.description },
+            h('span', { class: 'gl-ico' }, icon(d.icon)),
+            h('b', {}, d.name),
+            h('span', { class: 'gl-medals' }, ...TIER_NAMES.map((t, i) => h('i', { class: `m${i} ${i < claimedN ? 'won' : i < reached ? 'got' : ''}`, title: t }))),
+            done
+              ? null
+              : h(
+                  'button',
+                  {
+                    class: 'gl-start',
+                    disabled: !!block,
+                    title: block ?? `Take it up: ${next.reward ? `◈${fmt(next.reward)}` : (next.perk?.name ?? '')} at ${TIER_NAMES[Math.min(2, reached)]}`,
+                    onClick: () => ctx.commands.execute('setCharter', { id: d.id, on: true }),
+                  },
+                  'Take up',
+                ),
+          ),
+        );
+        return null;
+      }
       return h(
         'div',
         { class: `gl-card gl-charter ${active ? 'running' : ''} ${ready ? 'ready' : ''} ${done && !ready ? 'open' : ''}` },
@@ -162,7 +190,19 @@ export function longTermGoals(ctx: GameContext): { signature(): string; render()
         ),
       );
     });
-    return [h('div', { class: 'pulse-title' }, `Charters · ${st.active.length} / ${MAX_ACTIVE} under way`), ...cards];
+    // Three to choose from in view; the rest folded (D-180).
+    const SHOW = 3;
+    const more = rows.length > SHOW + 1 ? rows.splice(SHOW) : [];
+    const fold = more.length
+      ? h('details', { class: 'gl-more', open: moreOpen }, h('summary', {}, `${more.length} more charters`), ...more)
+      : null;
+    fold?.addEventListener('toggle', () => (moreOpen = (fold as HTMLDetailsElement).open));
+    return [
+      h('div', { class: 'pulse-title' }, `Charters · ${st.active.length} / ${MAX_ACTIVE} under way`),
+      ...cards.filter((c) => c !== null),
+      ...rows,
+      ...(fold ? [fold] : []),
+    ];
   };
 
   return { signature, render: () => [...challenge(), ...era(), ...charters()] };

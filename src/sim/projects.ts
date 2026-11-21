@@ -32,6 +32,10 @@ export interface ProjectDef {
   cost: number;
   /** Sim days of work once started. */
   days: number;
+  /** Residents it asks for (0 = none): the Goals tab keeps projects far beyond the city out of view. */
+  residents: number;
+  /** A project that must be done first (the Goals tab waits for it). */
+  after?: UnlockId;
   criteria(city: City): Criterion[];
 }
 
@@ -57,6 +61,7 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   // than an investment. The criteria are what would make a stray stay: fish, a sunny garden, a lively town.
   cat: {
     id: 'cat',
+    residents: 250,
     name: 'Befriend the stray',
     icon: 'happy',
     description:
@@ -82,6 +87,7 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   },
   skylanes: {
     id: 'skylanes',
+    residents: 2000,
     name: 'Sky-lane charter',
     icon: '⇶',
     description: 'License the air corridors over the island and train the first pod pilots.',
@@ -96,6 +102,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   },
   aeroline: {
     id: 'aeroline',
+    residents: 5000,
+    after: 'skylanes',
     name: 'Build the Aeroline',
     icon: '◇',
     description: 'Raise the maglev loop over the island: four stations, two days of construction.',
@@ -115,6 +123,7 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   },
   flora: {
     id: 'flora',
+    residents: 0,
     name: 'Wake Flora',
     icon: '✧',
     description:
@@ -141,6 +150,7 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   // The late-game spectacle (D-144): drones, the cruise ferry and the jet are earned like the Aeroline.
   police: {
     id: 'police',
+    residents: 3000,
     name: 'Aegis Watch charter',
     icon: 'drone',
     description: 'Found the island police and train the first drone crews, with the fire watch as their backbone.',
@@ -161,6 +171,7 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   },
   cruise: {
     id: 'cruise',
+    residents: 4000,
     name: 'Tidesong cruise line',
     icon: 'ferry',
     description: 'Commission the Tidesong and lay out her pier: a cruise ferry that sails the sea wonders.',
@@ -178,6 +189,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   },
   skyguard: {
     id: 'skyguard',
+    residents: 8000,
+    after: 'police',
     name: 'Sky Guard air wing',
     icon: 'jet',
     description: 'Stand up the island’s air guard: an airfield crew, a radar picture and the Aegis Watch behind it.',
@@ -203,6 +216,45 @@ export function projectStatus(city: City, id: UnlockId): ProjectStatus {
   if (city.growth.projects.some((p) => p.id === id)) return 'running';
   const def = PROJECTS[id];
   return def.criteria(city).every((c) => c.ok) && city.credits >= def.cost ? 'ready' : 'blocked';
+}
+
+/** How far past the city's population a locked project may ask and still show in the Goals tab. */
+export const REACH = 3;
+
+/**
+ * What the Goals tab lists (D-180): every project under way or ready, and the locked ones within reach (their
+ * prerequisite done, residents asked no more than `REACH` × the population; the nearest one is always shown).
+ * The rest wait, counted in `later` with the smallest resident gate among them.
+ */
+export function projectsInView(city: City): { shown: UnlockId[]; done: UnlockId[]; later: number; next: number } {
+  const pop = city.stats.population;
+  const done: UnlockId[] = [];
+  const shown: UnlockId[] = [];
+  const locked: UnlockId[] = [];
+  for (const id of PROJECT_IDS) {
+    const st = projectStatus(city, id);
+    if (st === 'open') done.push(id);
+    else if (st !== 'blocked') shown.push(id);
+    else {
+      const after = PROJECTS[id].after;
+      if (!after || isOpen(city.growth, after)) locked.push(id);
+    }
+  }
+  const nearest = Math.min(Infinity, ...locked.map((id) => PROJECTS[id].residents));
+  const reach = Math.max(pop * REACH, nearest);
+  let later = 0;
+  let next = Infinity;
+  for (const id of PROJECT_IDS) {
+    if (done.includes(id) || shown.includes(id)) continue;
+    if (locked.includes(id) && PROJECTS[id].residents <= reach) shown.push(id);
+    else {
+      later++;
+      // Only a gate the city can grow into now (not one waiting on its prerequisite).
+      if (locked.includes(id)) next = Math.min(next, PROJECTS[id].residents);
+    }
+  }
+  shown.sort((a, b) => PROJECT_IDS.indexOf(a) - PROJECT_IDS.indexOf(b));
+  return { shown, done, later, next: Number.isFinite(next) ? next : 0 };
 }
 
 /** 0..1 progress of a running project. */

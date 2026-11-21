@@ -58,7 +58,7 @@
   return {
     cat: charm.cat,
     sleeping: !!document.querySelector('.ch-cat.sleep'),
-    note: document.querySelector('.ch-note')?.innerText,
+    note: document.querySelector('.charm-note')?.innerText,
     plane: !!document.querySelector('.ch-plane'),
     zzz: document.querySelectorAll('.ch-zzz').length,
     rect: (({ left, top, width, height }) => [left, top, width, height].map(Math.round))(

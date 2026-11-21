@@ -430,11 +430,11 @@ class Charm {
     this.closeNote();
     const note: HTMLElement = h(
       'section',
-      { class: 'ch-note', role: 'status', 'aria-label': 'A note from a resident' },
+      { class: 'charm-note', role: 'status', 'aria-label': 'A note from a resident' },
       closeX('the note', () => this.closeNote()),
       h('p', {}, noteText(Math.random(), city.growth.name, this.cat.stray ? 'the stray cat' : this.cat.name)),
       h('cite', {}, by),
-      gift > 0 ? h('span', { class: 'ch-note-gift' }, icon('credits'), `Folded inside: ◈${gift}`) : null,
+      gift > 0 ? h('span', { class: 'charm-note-gift' }, icon('credits'), `Folded inside: ◈${gift}`) : null,
     );
     const w = Math.min(280, innerWidth - 24);
     note.style.left = `${Math.round(Math.min(innerWidth - w - 12, Math.max(12, r.left + r.width / 2 - w / 2)))}px`;

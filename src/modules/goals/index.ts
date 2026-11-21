@@ -1,6 +1,6 @@
 import { buildings } from '@/content';
 import type { GameModule } from '@/game/context';
-import { PROJECTS, PROJECT_IDS, projectProgress, projectStatus } from '@/sim/projects';
+import { PROJECTS, PROJECT_IDS, projectProgress, projectStatus, projectsInView } from '@/sim/projects';
 import { WONDERS } from '@/sim/wonders';
 import { MILESTONES, claimableMilestones, milestoneDone, openMilestones } from '@/sim/milestones';
 import { DAY_LENGTH } from '@/sim/pulseConst';
@@ -41,7 +41,9 @@ export const goalsModule: GameModule = {
       const g = city.growth;
       const firsts = ctx.services.tryGet('juice')?.firsts() ?? [];
       const parts: (string | number)[] = [long.signature(), firsts.filter((f) => f.earned).length, g.milestones.length, g.wonders.join(), Math.round(g.fish * 100), city.stats.fishing.toFixed(1), Math.round(g.fishIncome)];
-      for (const id of PROJECT_IDS) {
+      const view = projectsInView(city);
+      parts.push(view.done.join(), view.later, view.next);
+      for (const id of view.shown) {
         const st = projectStatus(city, id);
         parts.push(st);
         const run = g.projects.find((r) => r.id === id);
@@ -77,7 +79,9 @@ export const goalsModule: GameModule = {
       const sig = signature();
       if (sig === key) return;
       key = sig;
-      const projects = PROJECT_IDS.map((id) => {
+      // Only what the city can reach soon (D-180): done ones fold into one line, far ones into a count.
+      const view = projectsInView(city);
+      const projects = view.shown.map((id) => {
         const def = PROJECTS[id];
         const status = projectStatus(city, id);
         const run = g.projects.find((r) => r.id === id);
@@ -175,7 +179,10 @@ export const goalsModule: GameModule = {
         }
         return card;
       });
-      const wonders = WONDERS.map((w) => {
+      // Found wonders, then the next two to look for; the rest stay a mystery.
+      const unfound = WONDERS.filter((w) => !g.wonders.includes(w.id));
+      const hidden = Math.max(0, unfound.length - 2);
+      const wonders = WONDERS.filter((w) => g.wonders.includes(w.id) || unfound.indexOf(w) < 2).map((w) => {
         const found = g.wonders.includes(w.id);
         return h(
           'div',
@@ -225,15 +232,22 @@ export const goalsModule: GameModule = {
           ]
         : [];
       const s = city.stats;
-      el.replaceChildren(
+      const kids: (HTMLElement | null)[] = [
         ...long.render(),
         h('div', { class: 'pulse-title' }, `Milestones · ${g.milestones.length} / ${MILESTONES.length}`),
         ...(milestones.length ? milestones : [h('p', { class: 'gl-note' }, 'Every milestone claimed. The island is in good hands.')]),
         ...firstsEl,
-        h('div', { class: 'pulse-title' }, 'Unlock projects'),
+        h('div', { class: 'pulse-title' }, `Unlock projects · ${view.done.length} / ${PROJECT_IDS.length}`),
         ...projects,
-        h('div', { class: 'pulse-title' }, 'Sea wonders'),
+        view.done.length
+          ? h('p', { class: 'gl-done' }, icon('st-ok'), h('span', {}, 'Done: '), view.done.map((id) => PROJECTS[id].name).join(' · '))
+          : null,
+        view.later
+          ? h('p', { class: 'gl-note' }, `${view.later} more open up as the island grows${view.next ? ` (the next at ${fmt(view.next)} residents)` : ''}.`)
+          : null,
+        h('div', { class: 'pulse-title' }, `Sea wonders · ${g.wonders.length} / ${WONDERS.length}`),
         h('div', { class: 'gl-wonders' }, ...wonders),
+        hidden ? h('p', { class: 'gl-note' }, `${hidden} more still hidden in the deep.`) : null,
         h('div', { class: 'pulse-title' }, 'Fishing fleet'),
         h(
           'div',
@@ -245,7 +259,8 @@ export const goalsModule: GameModule = {
           h('span', {}, 'Earned'),
           h('b', {}, `◈${fmt(g.fishIncome)}`),
         ),
-      );
+      ];
+      el.replaceChildren(...kids.filter((x) => x !== null));
       if (g.fish < 0.45)
         el.append(
           h(
