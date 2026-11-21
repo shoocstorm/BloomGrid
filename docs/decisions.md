@@ -3650,8 +3650,10 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
 - **First Light** is shot on location over the player's own island (`openLocation`): the real terrain, sea,
   Tidewatch Lighthouse and hamlet, the hour animated for the film only. Ama's boat comes in over open water (a
   course with sea all the way out, not a lagoon); the seed lands on the highest ground near the hamlet. A founding
-  holds the reel (`.hold`, a lantern lighting up and "Lighting the lantern…") only until its first shot has compiled
-  and drawn (~0.4 s), then hides the loading screen still finishing under it (`body.film-covers`) instead of waiting
+  holds the reel (`.hold`) on an opening beat, a brass lantern lit on a dark horizon (spark, flame, bloom, rings,
+  rays, embers, its light on the water, "Lighting the lantern" under "The founding of <name>"; at least `LANTERN_MIN_MS`
+  so a fast load never flashes), then opens as an iris out of the lantern's burst (`--ftl-iris`), until its first shot
+  has compiled and drawn (~0.4 s), then hides the loading screen still finishing under it (`body.film-covers`) instead of waiting
   for its fade (~2 s); the boot screen never leaves the page (`bt-gone`), which once made the hold run to its 12 s cap.
   The stage closes in `leaving` before the fly-in.
   The 2D drawing helpers (`moments/films/art.ts`) are gone.

@@ -54,6 +54,77 @@ export interface FilmOptions {
 
 const PETALS = ['#ffd6e8', '#ffb3cf', '#fff3c4', '#c9f2d4', '#ffffff'];
 
+/** The lantern intro is shown at least this long (spark, flame, bloom), so a fast load never reads as a flash. */
+const LANTERN_MIN_MS = 1700;
+
+/**
+ * The founding's opening beat while its first shot gets ready: a brass lantern on a dark horizon is lit (a spark, the
+ * flame rising, a bloom of light, rings of it running out), embers drift up, its light shimmers on the water, and
+ * "Lighting the lantern" writes itself under "The founding of <name>". The name reaches the DOM as text only; the
+ * lantern is static SVG we wrote.
+ */
+function lanternIntro(name: string): HTMLElement {
+  const embers = h(
+    'div',
+    { class: 'ftl-w-embers' },
+    ...Array.from({ length: 18 }, () =>
+      h('i', {
+        style: `--x:${(Math.random() * 16 - 8).toFixed(1)}vmin;--drift:${(Math.random() * 10 - 5).toFixed(1)}vmin;--d:${(0.7 + Math.random() * 2.4).toFixed(2)}s;--t:${(2 + Math.random() * 1.6).toFixed(2)}s;--s:${(0.5 + Math.random() * 0.9).toFixed(2)}`,
+      }),
+    ),
+  );
+  const lantern = h('div', { class: 'ftl-w-lantern' }, h('i', { class: 'ftl-w-flame' }, h('i', { class: 'ftl-w-core' })));
+  lantern.insertAdjacentHTML('afterbegin', LANTERN_SVG);
+  let i = 0;
+  const title = h(
+    'p',
+    { class: 'ftl-w-title' },
+    ...'Lighting the lantern'.split(' ').map((w) => h('span', { class: 'ftl-w-word' }, ...[...w].map((ch) => h('span', { style: `--i:${i++}` }, ch)))),
+  );
+  return h(
+    'div',
+    { class: 'ftl-wait', role: 'status', 'aria-label': `Lighting the lantern: the founding of ${name}` },
+    h(
+      'div',
+      { class: 'ftl-w-stage' },
+      // Everything but the flare in one layer, so the opening fades it as one (its parts run their own animations).
+      h(
+        'div',
+        { class: 'ftl-w-glow' },
+        h('i', { class: 'ftl-w-rays' }),
+        h('i', { class: 'ftl-w-bloom' }),
+        h('i', { class: 'ftl-w-ring' }),
+        h('i', { class: 'ftl-w-ring r2' }),
+        h('i', { class: 'ftl-w-ring r3' }),
+        embers,
+        lantern,
+        h('i', { class: 'ftl-w-spark' }),
+      ),
+      h('i', { class: 'ftl-w-flare' }),
+    ),
+    h('div', { class: 'ftl-w-horizon' }, h('i', { class: 'ftl-w-glint' })),
+    h('div', { class: 'ftl-w-words' }, h('p', { class: 'ftl-w-kick' }, `The founding of ${name}`), title),
+  );
+}
+
+/** A brass storm lantern (60 × 96): a ring and handle, a cap, a glass globe in a cage of bars, a weighted base. */
+const LANTERN_SVG = `<svg viewBox="0 0 60 96" aria-hidden="true">
+<defs>
+  <linearGradient id="ftl-brass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b4a22"/><stop offset="0.45" stop-color="#e6b766"/><stop offset="0.6" stop-color="#ffdf9a"/><stop offset="1" stop-color="#7a5426"/></linearGradient>
+  <radialGradient id="ftl-glass" cx="0.5" cy="0.62" r="0.6"><stop offset="0" stop-color="#ffe6a8" stop-opacity="0.55"/><stop offset="0.6" stop-color="#ffb35c" stop-opacity="0.18"/><stop offset="1" stop-color="#ff9a40" stop-opacity="0.05"/></radialGradient>
+</defs>
+<path d="M18 16 Q30 -2 42 16" fill="none" stroke="url(#ftl-brass)" stroke-width="2.6"/>
+<circle cx="30" cy="5" r="3" fill="none" stroke="url(#ftl-brass)" stroke-width="2"/>
+<path d="M14 24 L20 14 H40 L46 24Z" fill="url(#ftl-brass)"/>
+<rect x="12" y="23" width="36" height="4" rx="2" fill="url(#ftl-brass)"/>
+<path class="ftl-w-glass" d="M15 27 Q10 50 15 73 H45 Q50 50 45 27Z" fill="url(#ftl-glass)" stroke="rgba(255,226,170,0.35)" stroke-width="0.8"/>
+<path d="M15 27 Q10 50 15 73 M45 27 Q50 50 45 73 M30 27 V73" fill="none" stroke="url(#ftl-brass)" stroke-width="1.6"/>
+<path d="M21 36 Q19 50 21 64" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round"/>
+<rect x="12" y="72" width="36" height="5" rx="2" fill="url(#ftl-brass)"/>
+<path d="M14 77 H46 L42 90 H18Z" fill="url(#ftl-brass)"/>
+<rect x="16" y="89" width="28" height="3" rx="1.5" fill="#5a3e1c"/>
+</svg>`;
+
 /** Plays "First Light"; `done` runs when it has faded out (ended or skipped). */
 export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptions = {}): void {
   const { city } = ctx;
@@ -76,12 +147,12 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
     },
     done,
   );
-  // Over a loading screen, hold the black until it has gone (the city under it is what the film shows), with a lantern
-  // lighting up meanwhile so the wait never reads as a stalled black screen. It animates on the compositor, so it keeps
-  // flickering while the first shot's shaders compile.
+  // Over a loading screen the film opens on its own first beat while its first shot gets ready (`hold`): a lantern lit
+  // on a dark horizon, embers rising, its light on the water, and the film then opens as an iris out of that light.
+  // All of it animates on the compositor (transform / opacity), so it keeps moving while shaders compile.
   if (opts.instant) {
     reel.root.classList.add('hold');
-    reel.root.append(h('div', { class: 'ftl-wait', role: 'status' }, h('i', { class: 'ftl-flame' }), h('span', {}, 'Lighting the lantern')));
+    reel.root.append(lanternIntro(name));
   }
 
   // ── Where things are on this island ──
@@ -270,6 +341,9 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
       const f0 = ctx.engine.frames;
       for (let i = 0; i < 80 && ctx.engine.frames < f0 + 4; i++) if (!(await reel.wait(50))) return;
       document.body.classList.add('film-covers');
+      // The lantern gets its moment (lit and blooming) however quickly the shot was ready.
+      const lit = performance.now() - held;
+      if (lit < LANTERN_MIN_MS && !(await reel.wait(LANTERN_MIN_MS - lit))) return;
       reel.root.classList.remove('hold');
       console.info('[film] first light held on black ms', Math.round(performance.now() - held));
       // Once the loading screen has finished under the film, it no longer needs hiding.
