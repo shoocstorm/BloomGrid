@@ -15,6 +15,11 @@ export interface WorldService {
   flora: Flora;
   terrain: Terrain;
   water: Mesh;
+  /**
+   * Render-only time of day in [0, 1) that the sky, sun, light and windows show instead of the city's own (a film
+   * shot on location, D-197); null follows the city. The sim never sees it.
+   */
+  timeOverride: number | null;
 }
 
 declare module '@/core/Services' {
@@ -36,7 +41,7 @@ export const worldModule: GameModule = {
     let terrain!: Terrain;
     let water: Mesh | null = null;
     let flora!: Flora;
-    const service = { atmosphere } as WorldService;
+    const service = { atmosphere, timeOverride: null } as WorldService;
 
     const build = () => {
       const { city } = ctx;
@@ -117,7 +122,7 @@ export const worldModule: GameModule = {
       update(c, f) {
         U.clock.value += f.dt;
         // Interpolate time of day between ticks for smooth sun motion.
-        const t = (c.city.timeOfDay + (f.alpha * c.engine.speed * c.engine.step) / DAY_LENGTH) % 1;
+        const t = service.timeOverride ?? (c.city.timeOfDay + (f.alpha * c.engine.speed * c.engine.step) / DAY_LENGTH) % 1;
         atmosphere.applyTime(t);
         // Once per finished pop-in on a shadow caster, not every frame while plants sprout (D-150).
         if (c.instancer.takeShadowChange()) atmosphere.invalidateShadows();

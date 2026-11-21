@@ -13,6 +13,7 @@ import { Ceremony, type MomentSpec } from './Ceremony';
 import { openReel, reelClock, type Reel, type ReelOptions } from './reel';
 import { finishFilm, leadIn } from './finish';
 import { FilmStage } from './FilmStage';
+import { addCastExhibits } from './actors/cast';
 import { playMaidenFlight } from './films/flight';
 import { playSomethingStirs } from './films/stirs';
 import { playWhatTheSeaRemembers } from './films/remembers';
@@ -146,6 +147,8 @@ export const momentsModule: GameModule = {
   id: 'moments',
   deps: ['hud'],
   init(ctx) {
+    // The films' cast in the model gallery (D-197).
+    addCastExhibits(ctx);
     const ceremony = new Ceremony(ctx);
     let mode: MomentsMode = 'all';
     try {

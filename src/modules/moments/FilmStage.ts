@@ -80,6 +80,10 @@ export class FilmStage {
   private spins: { h: InstanceHandle; p: DesignPiece; m: Matrix4 }[] = [];
   private shadowIn = 0;
   private resume: { speed: number; suspended: boolean; camera: boolean } | null = null;
+  /** On location (D-197): the real city is the set, seen through the city camera; else the stage's own scene. */
+  private location = false;
+  private cityView: { x: number; z: number; yaw: number; pitch: number; distance: number; aim: number; fov: number; near: number } | null = null;
+  private time: number | null = null;
 
   /** The stage's light now (films set it, or grade between two). */
   look: StageLook = mixLook(LOOKS.night, LOOKS.night, 0);
@@ -90,6 +94,11 @@ export class FilmStage {
   readonly centre = new Vector3();
   /** Per-frame direction of the film's own actors (`t` = film time). */
   onFrame: ((t: number, dt: number) => void) | null = null;
+  /**
+   * Handheld: a slow drift of the aim (radians at 1, ~0.004 rad by default), so no frame is a locked-off still. A film
+   * raises it for a shaking moment (a wonder breaking the surface) and drops it to 0 for a still one.
+   */
+  shake = 1;
   /** After the camera has moved this frame: DOM pinned to the set (`project`). */
   onPins: (() => void) | null = null;
   /** Where shots with `rel` are framed from (a film moves it with its actor: tracking shots). */
@@ -217,6 +226,39 @@ export class FilmStage {
     mixLook(a, b, t, this.look);
   }
 
+  /** The camera in use: the stage's own, or the city's on location. */
+  get cam(): PerspectiveCamera {
+    return this.location ? this.ctx.camera : this.camera;
+  }
+
+  /**
+   * Shoots on location (D-197): the real island is the set, drawn by the city's own pipeline from the city camera,
+   * which the film poses (`cameraCtl.cinematic`, as the tour does: LODs, shadows and fog follow it). The film's
+   * actors (`add`) join the city scene for the film; `timeOfDay` (render only) sets the hour the sky shows.
+   */
+  openLocation(timeOfDay: number | null = null): void {
+    const { ctx } = this;
+    const c = ctx.cameraCtl;
+    this.location = true;
+    this.cityView ??= { x: c.target.x, z: c.target.z, yaw: c.yaw, pitch: c.pitch, distance: c.distance, aim: c.aim, fov: ctx.camera.fov, near: ctx.camera.near };
+    ctx.scene.add(this.set, this.pieces);
+    c.cinematic = true;
+    c.externalMotion = true;
+    this.setTime(timeOfDay);
+    this.open();
+  }
+
+  /** The hour the sky shows on location ([0, 1), render only), or null for the city's own. */
+  setTime(t: number | null): void {
+    this.time = t;
+    const world = this.ctx.services.tryGet('world');
+    if (world) world.timeOverride = t === null ? null : ((t % 1) + 1) % 1;
+  }
+
+  get timeOfDay(): number | null {
+    return this.time;
+  }
+
   open(): void {
     FilmStage.active = this;
     const { ctx } = this;
@@ -224,7 +266,7 @@ export class FilmStage {
     ctx.tools.suspended = true;
     ctx.cameraCtl.enabled = false;
     const render = ctx.services.get('render');
-    render.stage = this;
+    if (!this.location) render.stage = this;
     render.power.animating = true;
     // Its first frames compile the set's shaders: don't let them cut the render scale (D-142).
     render.dynamicResolution.hold(3);
@@ -245,6 +287,23 @@ export class FilmStage {
       ctx.cameraCtl.enabled = this.resume.camera;
       this.resume = null;
     }
+    if (this.location) {
+      // Back to the steward's view, exactly as it was.
+      const c = ctx.cameraCtl;
+      ctx.scene.remove(this.set, this.pieces);
+      this.setTime(null);
+      c.cinematic = false;
+      c.externalMotion = false;
+      const v = this.cityView!;
+      ctx.camera.fov = v.fov;
+      ctx.camera.near = v.near;
+      ctx.camera.updateProjectionMatrix();
+      c.holdAt({ x: v.x, z: v.z, yaw: v.yaw, pitch: v.pitch, distance: v.distance, aim: v.aim });
+      this.cityView = null;
+      this.location = false;
+      this.scene.add(this.set, this.pieces);
+    }
+    this.shake = 1;
     this.clear();
   }
 
@@ -260,17 +319,39 @@ export class FilmStage {
     a[1] = this.anchor.y;
     a[2] = this.anchor.z;
     const f = shotAt(this.shots, this.t, this.framing, a);
+    const cam = this.cam;
     const el = this.ctx.renderer.domElement;
-    this.camera.aspect = Math.max(0.2, (el.clientWidth || 1) / (el.clientHeight || 1));
-    this.camera.fov = f.fov;
-    this.camera.position.set(...f.pos);
-    this.camera.lookAt(f.look[0], f.look[1], f.look[2]);
-    this.camera.near = Math.max(0.01, this.camera.position.distanceTo(_v.set(...f.look)) * 0.02);
-    this.camera.updateProjectionMatrix();
-    this.camera.updateMatrixWorld();
+    cam.aspect = Math.max(0.2, (el.clientWidth || 1) / (el.clientHeight || 1));
+    cam.fov = f.fov;
+    cam.position.set(...f.pos);
+    // Handheld drift: two slow, incommensurate sines per axis, scaled by distance so a close-up and a wide sway alike.
+    const d = cam.position.distanceTo(_v.set(...f.look));
+    const k = this.shake * 0.004 * d;
+    const t = this.t;
+    _v.x += (Math.sin(t * 0.61) + Math.sin(t * 1.37 + 1.3) * 0.5) * k;
+    _v.y += (Math.sin(t * 0.83 + 2.1) + Math.sin(t * 1.91) * 0.4) * k * 0.7;
+    _v.z += Math.sin(t * 0.47 + 0.7) * k;
+    if (this.shake > 2) _v.addScaledVector(_s.set(Math.sin(t * 31), Math.sin(t * 27 + 1), Math.sin(t * 23 + 2)), k * 0.35);
+    cam.lookAt(_v);
+    cam.near = Math.max(0.01, d * 0.02);
+    cam.updateProjectionMatrix();
+    cam.updateMatrixWorld();
+    if (this.location) {
+      // The city view's focus (shadows, fog, walkers, LODs) follows the film, as it follows the tour.
+      const c = this.ctx.cameraCtl;
+      c.target.copy(_v);
+      c.distance = d;
+      _s.subVectors(cam.position, _v);
+      c.yaw = Math.atan2(_s.x, _s.z);
+      c.pitch = Math.asin(Math.max(-1, Math.min(1, _s.y / Math.max(1e-6, d))));
+    }
     this.onPins?.();
 
     for (const s of this.spins) this.instancer.setMatrix(s.h, _m.multiplyMatrices(s.m, spinPose(s.p.src, this.t, 0.42, _m2)));
+    if (this.location) {
+      this.instancer.update(dt, cam);
+      return;
+    }
 
     // Lights: the key from the look's sun (the moon at night), a cool rim opposite.
     const L = this.look;
@@ -309,7 +390,7 @@ export class FilmStage {
 
   /** Screen position (CSS px in the viewport) of a stage point, for DOM pinned to it; `on` false behind the camera. */
   project(p: Vector3, out = { x: 0, y: 0, on: false }): { x: number; y: number; on: boolean } {
-    _v.copy(p).project(this.camera);
+    _v.copy(p).project(this.cam);
     const r = this.ctx.renderer.domElement.getBoundingClientRect();
     out.x = r.left + ((_v.x + 1) / 2) * r.width;
     out.y = r.top + ((1 - _v.y) / 2) * r.height;
@@ -321,3 +402,4 @@ export class FilmStage {
 const _m = new Matrix4();
 const _m2 = new Matrix4();
 const _v = new Vector3();
+const _s = new Vector3();

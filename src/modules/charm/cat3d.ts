@@ -10,6 +10,11 @@ import {
   type BufferGeometry,
 } from 'three/webgpu';
 import type { Coat } from './art';
+import { glow, soft } from '@/modules/moments/actors/rig';
+
+/** A whisker: a hair-thin rod 0.2 long, from its root along +y. */
+const _white = new Color(0xffffff);
+const WHISKER = new CylinderGeometry(0.0016, 0.0028, 0.2, 4).translate(0, 0.1, 0);
 
 /**
  * The island's cat in 3D (D-196), for the 3D adoption film: the same character as the SVG one (`art.ts`), built from
@@ -61,7 +66,6 @@ const SEG = new CylinderGeometry(0.04, 0.05, 1, 8).translate(0, 0.5, 0);
 const EAR = new ConeGeometry(1, 1, 4).translate(0, 0.5, 0);
 const RING = new TorusGeometry(0.2, 0.03, 8, 24).rotateY(Math.PI / 2);
 
-const mat = (rough = 0.85) => new MeshStandardNodeMaterial({ roughness: rough, metalness: 0 });
 
 export class Cat3D {
   readonly root = new Group();
@@ -73,12 +77,15 @@ export class Cat3D {
   private eyes: Group[] = [];
   private pupils: Mesh[] = [];
   private collar = new Group();
-  readonly fur = mat();
-  readonly belly = mat();
-  readonly mark = mat();
+  // Fur: a velvet sheen at grazing angles, so the coat reads as fur in close-ups rather than plastic.
+  readonly fur = soft(0x888888, 0.85, 0.9);
+  readonly belly = soft(0xeeeeee, 0.85, 0.9);
+  readonly mark = soft(0x666666, 0.85, 0.9);
   readonly eye = new MeshStandardNodeMaterial({ roughness: 0.15, metalness: 0 });
   private pupilMat = new MeshStandardNodeMaterial({ roughness: 0.2, color: 0x07080a });
   private nose = new MeshStandardNodeMaterial({ roughness: 0.6, color: 0xe58a9a });
+  private shine = glow(0xffffff, 1.2);
+  private whisker = new MeshStandardNodeMaterial({ roughness: 0.5, color: 0xf4f1e8 });
   private collarMat = new MeshStandardNodeMaterial({ roughness: 0.5, color: 0xd8423c });
   private bellMat = new MeshStandardNodeMaterial({ roughness: 0.25, metalness: 0.9, color: 0xf2c45a });
 
@@ -116,6 +123,9 @@ export class Cat3D {
     part(BALL, this.fur, this.head, 0.06, -0.06, 0.1, 0.1, 0.08, 0.09);
     part(BALL, this.fur, this.head, 0.06, -0.06, -0.1, 0.1, 0.08, 0.09);
     part(BALL, this.belly, this.head, 0.2, -0.08, 0, 0.09, 0.07, 0.12);
+    // A small mouth under the nose: a short philtrum and two curves (the cat's "w").
+    part(BALL, this.pupilMat, this.head, 0.282, -0.075, 0, 0.004, 0.018, 0.004);
+    for (const s of [1, -1]) part(BALL, this.pupilMat, this.head, 0.276, -0.093, 0.016 * s, 0.004, 0.006, 0.02).rotation.x = s * 0.5;
     part(BALL, this.mark, this.head, -0.02, 0.13, 0, 0.14, 0.05, 0.12);
     part(BALL, this.nose, this.head, 0.28, -0.04, 0, 0.024, 0.02, 0.03);
     for (const s of [1, -1]) {
@@ -128,7 +138,17 @@ export class Cat3D {
       eye.rotation.y = -0.45 * s;
       this.head.add(eye);
       part(BALL, this.eye, eye, 0, 0, 0, 0.04, 0.05, 0.03);
-      this.pupils.push(part(BALL, this.pupilMat, eye, 0.022, 0, 0, 0.012, 0.04, 0.012));
+      const pupil = part(BALL, this.pupilMat, eye, 0.022, 0, 0, 0.012, 0.04, 0.012);
+      this.pupils.push(pupil);
+      // Catchlights: what makes an eye look wet and alive.
+      part(BALL, this.shine, eye, 0.034, 0.018, -0.008 * s, 0.009, 0.009, 0.009);
+      part(BALL, this.shine, eye, 0.034, -0.016, 0.01 * s, 0.004, 0.004, 0.004);
+      // Whiskers: three a side, fanning out from the muzzle.
+      for (let k = 0; k < 3; k++) {
+        const w = part(WHISKER, this.whisker, this.head, 0.2, -0.065 - k * 0.012, 0.07 * s, 1, 1, 1);
+        w.rotation.set(s * (1.35 + k * 0.12), 0, -0.1 - k * 0.08);
+        w.castShadow = false;
+      }
       this.eyes.push(eye);
     }
     // Collar and bell (hidden until it lands).
@@ -138,6 +158,8 @@ export class Cat3D {
     part(RING, this.collarMat, this.collar, 0, 0, 0, 0.62, 0.62, 0.62);
     part(BALL, this.bellMat, this.collar, 0.13, -0.07, 0, 0.035);
     this.collar.visible = false;
+    // A ruff of pale fur on the chest.
+    part(BALL, this.belly, this.neck, 0.04, -0.04, 0, 0.11, 0.13, 0.13);
 
     // Legs: shoulders and hips; a pale sock at each paw.
     for (const [x, z] of [[0.3, 0.11], [0.3, -0.11], [-0.28, 0.12], [-0.28, -0.12]] as const) {
@@ -162,9 +184,10 @@ export class Cat3D {
 
   /** Colours a coat; `glow` lights the eyes (lamp eyes in the dark). */
   paint(c: { fur: string; belly: string; mark: string; eye?: string }, glow = 0): void {
-    this.fur.color.set(c.fur);
-    this.belly.color.set(c.belly);
-    this.mark.color.set(c.mark);
+    for (const [m, col] of [[this.fur, c.fur], [this.belly, c.belly], [this.mark, c.mark]] as const) {
+      m.color.set(col);
+      m.sheenColor.set(col).lerp(_white, 0.45);
+    }
     const eye = new Color(c.eye ?? (glow > 0 ? '#ffe27a' : '#c9e86a'));
     this.eye.color.copy(eye);
     this.eye.emissive.copy(eye);

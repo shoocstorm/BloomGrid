@@ -48,6 +48,11 @@ export interface GalleryService {
   dress(defId: string, fn: (level: number) => GalleryModel): void;
   /** Opens the gallery, on exhibit `id` (a building type is `b:<def id>`) at `level` (0-based). */
   open(id?: string, level?: number): void;
+  /**
+   * A module's model by exhibit id (`pod`, `ferry`, `drone`, `wonder:lotus`…), built afresh for a film (D-197): the
+   * caller owns it (its own object, never the one on the gallery's stage). Null for an unknown or 2D exhibit.
+   */
+  exhibitModel(id: string, level?: number): GalleryModel | null;
   close(): void;
   toggle(): void;
   readonly isOpen: boolean;
@@ -60,7 +65,7 @@ declare module '@/core/Services' {
 }
 
 /** Halls in the order the gallery lists them; building categories follow Landmarks. */
-export const GROUP_ORDER = ['Landmarks', ...Object.values(CATEGORY_LABELS), 'Transit', 'Sky & sea', 'Sea wonders', 'Sea life', 'Charms', 'Cutscenes'];
+export const GROUP_ORDER = ['Landmarks', ...Object.values(CATEGORY_LABELS), 'Transit', 'Sky & sea', 'Sea wonders', 'Sea life', 'Charms', 'Film cast', 'Cutscenes'];
 
 /** Resolved exhibit: what the list and the info card read. */
 export interface Exhibit {
@@ -238,6 +243,11 @@ class Gallery implements GalleryService {
       this.view.open(this.list());
     }
     this.select(id ?? (this.current || this.list()[0]!.id), id ? level : this.level);
+  }
+
+  exhibitModel(id: string, level = 0): GalleryModel | null {
+    const entry = this.extra.find((e) => e.id === id);
+    return entry?.build ? entry.build(level) : null;
   }
 
   close(): void {
