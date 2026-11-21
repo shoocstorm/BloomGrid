@@ -11,16 +11,105 @@
 .sw-sky {
   position: absolute;
   inset: 0;
-  background: linear-gradient(#7fb2e0 0%, #f3c49a 62%, #ffdca8 100%);
+  /* Golden hour: deep blue overhead, rose, then gold at the horizon. */
+  background:
+    radial-gradient(ellipse 50% 40% at calc(100% - 18vw - 8vmin) var(--sea), rgba(255, 220, 150, 0.85), transparent 70%),
+    linear-gradient(#4a6fa8 0%, #8a8fc0 28%, #e7a6a2 52%, #ffc98f 66%, #ffe2a8 100%);
 }
 .sw-sun {
   position: absolute;
-  right: 18vw;
-  top: calc(var(--sea) - 20vmin);
-  width: 16vmin;
-  height: 16vmin;
+  inset: 0;
+  pointer-events: none;
+}
+.sw-sun .disc,
+.sw-sun .rays {
+  position: absolute;
+  left: calc(100% - 18vw - 8vmin);
+  top: calc(var(--sea) - 9vmin);
+  translate: -50% -50%;
   border-radius: 50%;
-  background: radial-gradient(circle, #fffbe6, #ffd98a 50%, rgba(255, 200, 120, 0) 72%);
+}
+.sw-sun .disc {
+  width: 14vmin;
+  height: 14vmin;
+  background: radial-gradient(circle, #fffdf0 0%, #ffe9a8 40%, rgba(255, 200, 120, 0.4) 58%, transparent 72%);
+}
+.sw-sun .rays {
+  width: 100vmin;
+  height: 100vmin;
+  background: repeating-conic-gradient(rgba(255, 236, 200, 0.14) 0deg 3deg, transparent 3deg 12deg);
+  -webkit-mask: radial-gradient(circle, #000, transparent 62%);
+  mask: radial-gradient(circle, #000, transparent 62%);
+  animation: sw-turn 80s linear infinite;
+}
+@keyframes sw-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.sw-clouds,
+.sw-clouds svg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--sea);
+  width: 100%;
+}
+.sw-clouds svg {
+  animation: sw-cloud 60s linear infinite alternate;
+}
+@keyframes sw-cloud {
+  to {
+    transform: translateX(-4vw);
+  }
+}
+/* The far island, and the lighthouse blinking on it. */
+.sw-isle {
+  position: absolute;
+  left: 4vw;
+  top: calc(var(--sea) - 4.2vmin);
+  width: 24vmin;
+  opacity: 0.75;
+}
+.sw-isle svg {
+  display: block;
+  width: 100%;
+  fill: #8a6f8f;
+}
+.sw-isle .beam {
+  fill: #fff6c4;
+  animation: sw-beam 2.4s steps(1) infinite;
+}
+@keyframes sw-beam {
+  50% {
+    opacity: 0.15;
+  }
+}
+/* Rays of light bursting behind the wonder as it rises. */
+.sw-godrays {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--sea) - 18vh);
+  width: 130vmin;
+  height: 130vmin;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(rgba(220, 250, 255, 0.28) 0deg 5deg, transparent 5deg 16deg);
+  -webkit-mask: radial-gradient(circle, #000 5%, transparent 60%);
+  mask: radial-gradient(circle, #000 5%, transparent 60%);
+  opacity: 0;
+  transform: scale(0.6) rotate(0deg);
+  transition:
+    opacity 1.6s,
+    transform 6s ease-out;
+}
+.sw.s-rise .sw-godrays {
+  opacity: 1;
+  transform: scale(1) rotate(25deg);
+}
+.sw.s-wake .sw-godrays {
+  opacity: 0.45;
 }
 
 /* The wonder: below the sea line until it rises, water streaming off it. */
@@ -110,7 +199,127 @@
   right: 0;
   top: var(--sea);
   bottom: 0;
-  background: linear-gradient(#4a9cc4, #1d5e86);
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(255, 210, 160, 0.45), transparent 12%),
+    linear-gradient(#5c93b8 0%, #2f6d96 40%, #174a6e 100%);
+}
+/* The sun's path on the water: broken strips of light that shimmer. */
+.sw-glitter {
+  position: absolute;
+  left: calc(100% - 18vw - 8vmin);
+  top: 0;
+  width: 18vmin;
+  height: 100%;
+  translate: -50% 0;
+  background: repeating-linear-gradient(transparent 0 0.9vh, rgba(255, 236, 180, 0.75) 0.9vh 1.3vh);
+  -webkit-mask: radial-gradient(ellipse 50% 90% at 50% 0%, #000, transparent 75%);
+  mask: radial-gradient(ellipse 50% 90% at 50% 0%, #000, transparent 75%);
+  animation: sw-glint 1.3s ease-in-out infinite alternate;
+}
+@keyframes sw-glint {
+  to {
+    transform: scaleX(1.3);
+    opacity: 0.7;
+  }
+}
+/* The wonder in the water: its silhouette flipped, faded and squashed. */
+.sw-reflect {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: min(70vmin, 620px);
+  translate: -50% 0;
+  transform: scaleY(-0.55);
+  transform-origin: 50% 0;
+  opacity: 0;
+  filter: blur(2px);
+  -webkit-mask: linear-gradient(to top, #000, transparent 80%);
+  mask: linear-gradient(to top, #000, transparent 80%);
+  transition: opacity 2.6s ease 0.6s;
+}
+.sw-reflect svg {
+  display: block;
+  width: 100%;
+  fill: #b4e6ff;
+  stroke: #b4e6ff;
+}
+.sw.s-rise .sw-reflect {
+  opacity: 0.35;
+}
+.sw-swell,
+.sw-swell svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.sw-swell path {
+  fill: none;
+  stroke: rgba(220, 240, 255, 0.35);
+  animation: sw-swell calc(6s + var(--i) * 0.6s) linear infinite;
+}
+@keyframes sw-swell {
+  to {
+    transform: translateX(60px);
+  }
+}
+/* Foam where it breaks the surface. */
+.sw-foam {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--sea) - 1vh);
+  width: min(72vmin, 640px);
+  height: 3vh;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 255, 255, 0.9) 30%, rgba(255, 255, 255, 0) 70%);
+  opacity: 0;
+  z-index: 1;
+}
+.sw.s-rise .sw-foam {
+  opacity: 1;
+  animation: sw-foam 1.4s ease-in-out infinite alternate;
+  transition: opacity 1s;
+}
+@keyframes sw-foam {
+  to {
+    transform: scaleX(1.06) scaleY(1.3);
+    opacity: 0.7;
+  }
+}
+/* Rings on the water round the float. */
+.sw-ripples {
+  position: absolute;
+  left: calc(6vw + min(52vmin, 462px));
+  bottom: calc(13vh + min(9.5vmin, 85px));
+  z-index: 2;
+}
+.sw-ripples i {
+  position: absolute;
+  left: -3vmin;
+  top: -0.8vmin;
+  width: 6vmin;
+  height: 1.6vmin;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  animation: sw-ripple 2.4s ease-out infinite;
+}
+.sw-ripples i:nth-child(2) {
+  animation-delay: 0.8s;
+}
+.sw-ripples i:nth-child(3) {
+  animation-delay: 1.6s;
+}
+@keyframes sw-ripple {
+  from {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
 }
 .sw-sea i {
   position: absolute;
@@ -257,8 +466,34 @@
   width: 100%;
   overflow: visible;
 }
-.sw-boat .hull {
-  fill: #8a5a3a;
+.sw-boat .plank {
+  stroke: rgba(40, 20, 8, 0.35);
+  stroke-width: 2;
+}
+.sw-boat .wet {
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 3;
+}
+.sw-boat .oar {
+  stroke: #7a5236;
+  stroke-width: 5;
+  fill: #7a5236;
+  stroke-linecap: round;
+}
+.sw-boat .spool {
+  fill: #9aa6b2;
+  stroke: #3a4a5a;
+  stroke-width: 2;
+}
+.sw-boat .bucket {
+  fill: #6f8fa6;
+}
+.sw-boat .lantern rect {
+  fill: #3a281c;
+}
+.sw-boat .lantern .glow {
+  fill: #ffd76a;
+  filter: drop-shadow(0 0 6px #ffd76a);
 }
 .sw-boat .trim {
   stroke: #c9925a;
@@ -276,9 +511,6 @@
 .sw-boat .line {
   stroke: rgba(255, 255, 255, 0.85);
   stroke-width: 1.5;
-}
-.sw-boat .coat {
-  fill: #3f6f8f;
 }
 .sw-boat .skin {
   fill: #f1c7a5;

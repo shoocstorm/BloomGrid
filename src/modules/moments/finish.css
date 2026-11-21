@@ -1,0 +1,95 @@
+/* The cinematic finish (D-188): grade, drift, vignette, grain and a light leak over any film. */
+
+.fx-set {
+  /* The grade: a touch more contrast and colour, highlights a little brighter. */
+  filter: contrast(1.07) saturate(1.12) brightness(1.02);
+  transform-origin: 50% 58%;
+  animation: fx-drift 26s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+/* The camera never holds still: a slow push-in with a breath of sideways travel. */
+@keyframes fx-drift {
+  from {
+    transform: scale(1.005) translateX(0.4%);
+  }
+  to {
+    transform: scale(1.075) translateX(-0.6%);
+  }
+}
+
+.fx-vignette,
+.fx-leak,
+.fx-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.fx-vignette {
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 75% 70% at 50% 52%, transparent 55%, rgba(0, 0, 0, 0.42) 100%),
+    linear-gradient(transparent 85%, rgba(0, 0, 0, 0.18));
+}
+/* A warm light leak breathing at one edge, as if the lens caught the sun. */
+.fx-leak {
+  z-index: 1;
+  background: radial-gradient(ellipse 45% 60% at 100% 20%, var(--leak), transparent 70%);
+  mix-blend-mode: screen;
+  animation: fx-leak 9s ease-in-out infinite alternate;
+}
+@keyframes fx-leak {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* Grain: the plate, overlaid, hopping a few times a second like a film's. */
+.fx-grain {
+  z-index: 1;
+  inset: -50%;
+  background-size: 256px 256px;
+  opacity: 0.075;
+  mix-blend-mode: overlay;
+  animation: fx-grain 0.5s steps(5) infinite;
+}
+@keyframes fx-grain {
+  0% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-7%, 4%);
+  }
+  40% {
+    transform: translate(5%, -6%);
+  }
+  60% {
+    transform: translate(-3%, 7%);
+  }
+  80% {
+    transform: translate(8%, 2%);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* Letterbox bars feathered into the picture rather than cut. */
+.fx-film .reel-bar.top,
+.fx-film .ftl-bar.top,
+.fx-film .cs-bar.top {
+  box-shadow: 0 1.4vh 2vh -0.6vh rgba(0, 0, 0, 0.55);
+}
+.fx-film .reel-bar.bot,
+.fx-film .ftl-bar.bot,
+.fx-film .cs-bar.bot {
+  box-shadow: 0 -1.4vh 2vh -0.6vh rgba(0, 0, 0, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-set,
+  .fx-grain,
+  .fx-leak {
+    animation: none;
+  }
+}

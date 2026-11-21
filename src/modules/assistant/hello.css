@@ -51,26 +51,116 @@
   width: 100%;
   height: 100%;
 }
-.hw-dusk {
-  fill: #f2a37a;
-}
 .hw-sun {
   fill: #ffe09a;
   opacity: 0.85;
 }
-.hw-city rect {
-  fill: #3a3550;
+/* As she counts, the city in the window seems to light up. */
+.hw-city {
+  filter: brightness(0.85);
+  transition: filter 1.4s;
 }
-.hw-city .hw-win {
-  fill: #ffd98a;
-  opacity: 0;
+.hw.s-count .hw-city {
+  filter: brightness(1.15) saturate(1.1);
 }
-.hw.s-count .hw-city .hw-win {
-  animation: hw-light 0.4s ease-out var(--d) both;
+
+/* Server racks on both walls, their status lights blinking. */
+.hw-rack {
+  position: absolute;
+  bottom: 10vh;
+  width: min(13vmin, 120px);
+  opacity: 0.95;
 }
-@keyframes hw-light {
-  to {
+.hw-rack svg {
+  display: block;
+  width: 100%;
+}
+.hw-rack.l {
+  left: 1vw;
+}
+.hw-rack.r {
+  right: 1vw;
+  opacity: 0.55;
+}
+.hw-led {
+  fill: var(--c);
+  filter: drop-shadow(0 0 2px var(--c));
+  animation: hw-led 1.6s steps(1) var(--d) infinite;
+}
+@keyframes hw-led {
+  40% {
+    opacity: 0.15;
+  }
+  70% {
     opacity: 1;
+  }
+}
+.hw-cables {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 10vh;
+  height: 16vh;
+}
+.hw-cables svg {
+  width: 100%;
+  height: 100%;
+}
+/* Dusk light falling from the window to the floor, dust drifting in it. */
+.hw-beam {
+  position: absolute;
+  right: calc(8vw + min(6vmin, 50px));
+  top: calc(17vh + min(22vmin, 190px));
+  width: min(40vmin, 340px);
+  height: 70vh;
+  background: linear-gradient(rgba(255, 190, 140, 0.22), rgba(255, 190, 140, 0) 85%);
+  transform: skewX(28deg);
+  transform-origin: 50% 0;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+  mask: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+  opacity: 0.4;
+  transition: opacity 1.2s;
+}
+.hw.s-wake .hw-beam {
+  opacity: 1;
+}
+.hw-beam i {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffe9c8;
+  scale: var(--s);
+  opacity: 0.7;
+  animation: hw-dust 7s ease-in-out var(--d) infinite alternate;
+}
+@keyframes hw-dust {
+  to {
+    transform: translate(2vw, -6vh);
+    opacity: 0.15;
+  }
+}
+/* Her glow on the floor. */
+.hw-floorglow {
+  position: absolute;
+  left: 36%;
+  bottom: 12vh;
+  width: min(60vmin, 520px);
+  height: 8vh;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(95, 242, 218, 0.35), transparent 70%);
+  opacity: 0.2;
+  transition: opacity 1.4s;
+}
+.hw.s-wake .hw-floorglow {
+  opacity: 1;
+}
+@media (orientation: portrait) {
+  .hw-floorglow {
+    left: 34%;
   }
 }
 /* The count, over the window. */

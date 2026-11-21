@@ -930,3 +930,9 @@
     display: none;
   }
 }
+/* The art's layer (D-188): the cinematic finish drifts and grades it. */
+.ftl-set {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}

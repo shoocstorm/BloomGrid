@@ -2,6 +2,7 @@ import type { GameContext } from '@/game/context';
 import type { JuiceSound } from '@/modules/juice';
 import type { MomentSound } from './Ceremony';
 import { h } from '@/ui/dom';
+import { finishFilm } from './finish';
 import './reel.css';
 
 /**
@@ -30,6 +31,8 @@ export interface ReelOptions {
   instant?: boolean;
   /** Runs as the reel starts to fade out (a camera can start moving under it). */
   leaving?: () => void;
+  /** The light leak's colour (the finish, D-188); amber by default. */
+  leak?: string;
 }
 
 export interface EndCard {
@@ -105,6 +108,8 @@ export function openReel(ctx: GameContext, opts: ReelOptions, done: () => void):
     h('div', { class: 'reel-bar bot' }, cap),
   );
   root.addEventListener('pointerdown', (e) => e.stopPropagation());
+  // Grade, drift, vignette, grain (D-188).
+  finishFilm(root, set, opts.leak);
   if (opts.instant) root.classList.add('instant', 'in');
   document.body.append(root);
   document.body.classList.add('cutscene-on');

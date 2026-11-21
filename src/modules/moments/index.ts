@@ -11,6 +11,7 @@ import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { SYSTEM_ORDER } from '@/sim/indicators';
 import { Ceremony, type MomentSpec } from './Ceremony';
 import { openReel, type Reel, type ReelOptions } from './reel';
+import { finishFilm } from './finish';
 import { playMaidenFlight } from './films/flight';
 import { playSomethingStirs } from './films/stirs';
 import { h } from '@/ui/dom';
@@ -78,6 +79,8 @@ export interface MomentsService {
   stageNow(id: string, run: (finish: () => void) => void): void;
   /** The film kit (D-185): opens a reel for a cutscene (see `reel.ts`); modules make their films with it. */
   reel(opts: ReelOptions, done: () => void): Reel;
+  /** The cinematic finish (grade, drift, vignette, grain; D-188) for a film that builds its own root. */
+  finish(root: HTMLElement, set: HTMLElement, leak?: string): void;
   mode: MomentsMode;
   readonly playing: boolean;
   /** Registers a replayable film (a later call with the same id replaces it). */
@@ -513,6 +516,7 @@ export const momentsModule: GameModule = {
       stage,
       stageNow: (_id: string, run: (finish: () => void) => void) => runStaged(run),
       reel: (opts: ReelOptions, done: () => void) => openReel(ctx, opts, done),
+      finish: (root: HTMLElement, set: HTMLElement, leak?: string) => finishFilm(root, set, leak),
       film,
       films: () => [...films.values()].filter((f) => f.earned()),
       replay,

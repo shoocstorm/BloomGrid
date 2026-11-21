@@ -3484,3 +3484,25 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
 - **Why**: the film alone left the player where they were, not knowing where the wonder had risen; the film and its
   ceremony read as one beat, the story and then the place. Measured on the real discovery path: film → ceremony at
   once → camera from the hamlet to the Tide Gates → (3 s) the next moment, camera unmoved.
+
+## D-188 — Films finished like film; richer art (2026-11-21)
+
+- **Finish** (`modules/moments/finish.ts`, `moments.finish(root, set, leak)`): every film (reels, "First Light",
+  "The Stray") gets a colour grade (contrast / saturation on its art layer), a slow push-in camera drift over the
+  film, a vignette, a light leak breathing at one edge, film grain (a 256² noise plate drawn once on a canvas, a
+  `data:` image: both CSPs allow `img-src data:`) and letterbox bars feathered into the picture. The art layer is one
+  element per film (`reel-set`, `.ftl-set`, `.cs-set`) so the letterbox, captions and cards stay sharp and still.
+- **Art** (`modules/moments/films/art.ts`): `skyline()` draws solarpunk towers by depth (lit face and shaded side,
+  window grids with some lit, stepped tops, spires, glass domes, solar petals, roof gardens, terraces with planters),
+  `cloud()` draws cumulus with lit tops and shaded bases, `seeded()` keeps a city's films the same on replay.
+  - "Maiden Flight": sun with turning rays and a lens flare, two drifting cloud decks, a skyline in three depths
+    with haze, a park, platforms with railings and a landing ring, a shaded pod (gradients, glass reflection, fins,
+    navigation lights), a glowing lane, a crowd with skin tones, hats and flags, a distant flock.
+  - "Something Stirs": golden-hour sky with sun rays and lit clouds, a far island with the lighthouse blinking,
+    a sea with depth, the sun's glitter path and drifting swells, god rays behind the rising wonder, foam at its
+    foot and its reflection; a planked, shaded boat with an oar, bucket and lantern, ripples round the float.
+  - "Hello, World": server racks with blinking lights, cables, a dusk light shaft with dust, her glow on the floor,
+    and a detailed dusk city in the window.
+- **Gotchas**: in SVG a CSS `fill` beats a `fill` attribute, so a film's stylesheet must not fill what its markup
+  shades with a gradient; and SVG classes count as classes (a `<circle class="reel">` matched the kit's `.reel`,
+  renamed `spool`).

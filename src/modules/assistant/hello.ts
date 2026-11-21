@@ -2,6 +2,7 @@ import type { GameContext } from '@/game/context';
 import { isOpen } from '@/sim/growthState';
 import { CAT_SIDE_SVG, CAT_SVG, COATS } from '@/modules/charm/art';
 import { h } from '@/ui/dom';
+import { cloud, seeded, skyline } from '@/modules/moments/films/art';
 import './hello.css';
 
 /**
@@ -27,18 +28,27 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
   const catName = ctx.services.tryGet('charm')?.cat.name ?? 'the cat';
   const reel = moments.reel({ scene: 'hw', label: 'Hello, World' }, done);
 
-  // ── The set: the core room, its round window on the city, the console ──
-  let skyline = '';
-  for (let i = 0; i < 16; i++) {
-    const w = 20 + Math.random() * 26;
-    const x = i * 26 - 10 + Math.random() * 8;
-    const ht = 40 + Math.random() * 120;
-    skyline += `<rect x="${x.toFixed(0)}" y="${(400 - ht).toFixed(0)}" width="${w.toFixed(0)}" height="${ht.toFixed(0)}" rx="2"/>`;
-    for (let k = 0; k < ht / 18; k++)
-      if (Math.random() < 0.45) skyline += `<rect class="hw-win" style="--d:${(Math.random() * 1.2).toFixed(2)}s" x="${(x + 5 + (k % 2) * 8).toFixed(0)}" y="${(400 - ht + 8 + k * 16).toFixed(0)}" width="5" height="6"/>`;
-  }
+  // ── The set (D-188): the core room, server racks, its round window on a dusk city, light falling in ──
+  const rand = seeded(city.seed * 5 + 3);
+  const city2 =
+    skyline({ x0: -20, x1: 420, ground: 400, tall: 150, count: 14, face: '#6b5a7e', side: '#58496b', glass: '#8f7fa6', lit: '#ffd98a', litShare: 0, green: '#5f8a6e', detail: false }, rand) +
+    skyline({ x0: -10, x1: 410, ground: 400, tall: 200, count: 9, face: '#3d3552', side: '#2f2843', glass: '#55496e', lit: '#ffd98a', litShare: 0.3, green: '#4d7a5e', detail: true }, rand);
   const window_ = h('div', { class: 'hw-window' });
-  window_.innerHTML = `<svg viewBox="0 0 400 400" aria-hidden="true"><defs><clipPath id="hw-round"><circle cx="200" cy="200" r="200"/></clipPath></defs><g clip-path="url(#hw-round)"><rect class="hw-dusk" width="400" height="400"/><circle class="hw-sun" cx="300" cy="300" r="40"/><g class="hw-city">${skyline}</g></g></svg>`;
+  window_.innerHTML = `<svg viewBox="0 0 400 400" aria-hidden="true"><defs><clipPath id="hw-round"><circle cx="200" cy="200" r="200"/></clipPath><linearGradient id="hw-skyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a5a9a"/><stop offset="0.45" stop-color="#d98a8a"/><stop offset="0.75" stop-color="#f6b57c"/><stop offset="1" stop-color="#ffd9a0"/></linearGradient></defs><g clip-path="url(#hw-round)"><rect width="400" height="400" fill="url(#hw-skyg)"/><circle class="hw-sun" cx="290" cy="290" r="36"/><g opacity="0.85"><g transform="translate(90 110) scale(0.6 0.4)">${cloud(rand, '#ffd2c0', '#c98fa0')}</g><g transform="translate(300 80) scale(0.45 0.3)">${cloud(rand, '#ffd2c0', '#c98fa0')}</g></g><g class="hw-city">${city2}</g><rect y="388" width="400" height="12" fill="#2a2338"/></g><circle cx="200" cy="200" r="198" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="3"/><path d="M60 90 A170 170 0 0 1 150 36" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="5" stroke-linecap="round"/></svg>`;
+  // Server racks on both walls, their lights blinking; cables hanging between them.
+  const rack = (side: 'l' | 'r') => {
+    let leds = '';
+    for (let r = 0; r < 14; r++)
+      for (let c = 0; c < 3; c++)
+        if (rand() < 0.7) leds += `<circle class="hw-led" style="--d:${(rand() * 2).toFixed(2)}s;--c:${LEDS[Math.floor(rand() * LEDS.length)]}" cx="${18 + c * 10}" cy="${20 + r * 22}" r="2"/>`;
+    const units = Array.from({ length: 14 }, (_, r) => `<rect x="8" y="${12 + r * 22}" width="64" height="18" rx="2" fill="#0d2226" stroke="#1d3a40"/>`).join('');
+    const el = h('div', { class: `hw-rack ${side}` });
+    el.innerHTML = `<svg viewBox="0 0 80 330" aria-hidden="true"><rect width="80" height="330" rx="4" fill="#081719"/>${units}${leds}</svg>`;
+    return el;
+  };
+  const cables = h('div', { class: 'hw-cables' });
+  cables.innerHTML = `<svg viewBox="0 0 1600 200" preserveAspectRatio="none" aria-hidden="true"><path d="M0 20 Q300 150 620 40 M980 30 Q1300 170 1600 24 M0 50 Q220 120 420 70" fill="none" stroke="#0b1f22" stroke-width="6"/><path d="M0 20 Q300 150 620 40" fill="none" stroke="#1f6b66" stroke-width="1.5" opacity="0.6"/></svg>`;
+  const beam = h('div', { class: 'hw-beam' }, ...Array.from({ length: 14 }, () => h('i', { style: `--x:${(rand() * 100).toFixed(1)}%;--y:${(rand() * 100).toFixed(1)}%;--d:${(rand() * 6).toFixed(2)}s;--s:${(0.5 + rand()).toFixed(2)}` })));
   const count = h('div', { class: 'hw-count' }, h('b', {}), h('span', {}, 'residents'));
   const ledge = h('div', { class: 'hw-ledge' });
 
@@ -68,7 +78,7 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
   flora.innerHTML = FLORA_SVG;
   const log = h('pre', { class: 'hw-log' });
   const bubble = h('div', { class: 'hw-bubble' });
-  reel.set.append(h('div', { class: 'hw-room' }), window_, count, ledge, guest, label, flora, log, bubble);
+  reel.set.append(h('div', { class: 'hw-room' }), cables, rack('l'), rack('r'), beam, window_, h('div', { class: 'hw-floorglow' }), count, ledge, guest, label, flora, log, bubble);
 
   const type = async (el: HTMLElement, text: string, cps = 60) => {
     for (let i = 0; i < text.length; i++) {
@@ -165,6 +175,8 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
   };
   void film();
 }
+
+const LEDS = ['#5ff2da', '#5ff2da', '#8ef07a', '#ffd76a', '#ff6b6b'];
 
 /** Flora's sigil: six petals round a core, and an eye (its lids and pupil move with `--lx`, `--ly`). */
 const FLORA_SVG = `<svg viewBox="-60 -60 120 120" aria-hidden="true">

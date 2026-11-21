@@ -107,15 +107,8 @@ export function playAdoption(ctx: GameContext, cast: Cast, done: () => void): vo
   const root = h(
     'div',
     { class: 'cs-root', role: 'dialog', 'aria-label': 'Cutscene: the stray' },
-    sky,
-    skyline,
-    fish,
-    actor,
-    ledge,
-    puff,
-    flash,
-    sparkles,
-    heart,
+    // The art, as one layer: the finish drifts and grades it (D-188).
+    h('div', { class: 'cs-set' }, sky, skyline, fish, actor, ledge, puff, flash, sparkles, heart),
     title,
     paws,
     card,
@@ -123,6 +116,7 @@ export function playAdoption(ctx: GameContext, cast: Cast, done: () => void): vo
     h('div', { class: 'cs-bar bot' }, cap),
   );
   root.addEventListener('pointerdown', (e) => e.stopPropagation());
+  ctx.services.tryGet('moments')?.finish(root, root.querySelector('.cs-set')!, 'rgba(160, 170, 255, 0.14)');
   document.body.append(root);
   document.body.classList.add('cutscene-on');
 

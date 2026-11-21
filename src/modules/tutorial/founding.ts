@@ -237,11 +237,8 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
   const root = h(
     'div',
     { class: 'ftl-root', role: 'dialog', 'aria-label': `Cutscene: the founding of ${name}` },
-    sky,
-    birds,
-    island,
-    mist,
-    holo,
+    // The art, as one layer: the finish drifts and grades it (D-188).
+    h('div', { class: 'ftl-set' }, sky, birds, island, mist, holo),
     flash,
     title,
     petals,
@@ -249,6 +246,7 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
     h('div', { class: 'ftl-bar bot' }, cap),
   );
   root.addEventListener('pointerdown', (e) => e.stopPropagation());
+  ctx.services.tryGet('moments')?.finish(root, root.querySelector('.ftl-set')!, 'rgba(255, 190, 120, 0.18)');
   // Over a loading screen: black from the first frame (D-184).
   if (opts.instant) root.classList.add('instant', 'in');
   document.body.append(root);
