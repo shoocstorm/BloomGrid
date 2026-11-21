@@ -1,6 +1,9 @@
 import {
   AdditiveBlending,
   BackSide,
+  BufferAttribute,
+  DoubleSide,
+  PlaneGeometry,
   Box3,
   CircleGeometry,
   Color,
@@ -19,7 +22,9 @@ import {
   type BufferGeometry,
   type Object3D,
 } from 'three/webgpu';
-import { float, length, mix, positionLocal, smoothstep, uniform, uv, vec3 } from 'three/tsl';
+import { float, fog, fract, length, mix, normalView, positionLocal, positionViewDirection, positionWorld, rangeFogFactor, sin, smoothstep, uniform, uv, vec3, dot, clamp, attribute } from 'three/tsl';
+import { bumped } from '@/render/materials/surface';
+import { U } from '@/render/uniforms';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { GameContext } from '@/game/context';
 import { buildings } from '@/content';
@@ -80,11 +85,17 @@ export class FilmStage {
   /** The ground's colour (`groundColour`); by default the sky's low colour, darkened. */
   private groundCol = uniform(new Color());
   private groundOwn = uniform(0);
+  private fogCol = uniform(new Color());
+  private fogNear = uniform(10);
+  private fogFar = uniform(80);
+  /** The camera's world position for shaders (`U.eye` is the city's). */
+  private camWorld = uniform(new Vector3());
   /** Bounds of every placed piece (`heightAt`). */
   private solids: Box3[] = [];
   private spins: { h: InstanceHandle; p: DesignPiece; m: Matrix4 }[] = [];
   private shadowIn = 0;
   private skyR = 6;
+  private skyOn = true;
   private resume: { speed: number; suspended: boolean; camera: boolean } | null = null;
   /** On location (D-197): the real city is the set, seen through the city camera; else the stage's own scene. */
   private location = false;
@@ -169,6 +180,8 @@ export class FilmStage {
     this.spins = [];
     this.solids = [];
     this.groundColour(null);
+    this.setFog(null);
+    this.showSky(true);
     this.shots = [];
     this.onPins = null;
     this.onFrame = null;
@@ -179,16 +192,19 @@ export class FilmStage {
    * Places a building type at level `tier` (0-based) with its lot centre at (x, z), turned by `yaw`, standing at `y`.
    * Returns its bounds (roofs are its top) in stage coordinates.
    */
-  addBuilding(defId: string, tier: number, x: number, z: number, yaw = 0, y = 0, scale = 1): Box3 {
+  addBuilding(defId: string, tier: number, x: number, z: number, yaw = 0, y = 0, scale = 1, tint?: { col: number; k: number }): Box3 {
     const def = buildings.get(defId);
     // Template pieces are placed from the footprint's centre at ground level.
     const at = new Matrix4().makeRotationY(yaw).scale(_s.setScalar(scale)).setPosition(x, y, z);
     const box = new Box3();
     const pb = new Box3();
     const m = new Matrix4();
+    const tc = tint ? new Color(tint.col) : null;
     for (const p of designPieces(def, tier)) {
       m.multiplyMatrices(at, p.src.local);
-      const h = this.instancer.addMatrix(p.piece, m, p.color, p.params);
+      // A tint pulls every piece toward one colour (Halcyon's marble, a ruin's stone), keeping some of its own.
+      const col = tc ? p.color.clone().lerp(tc, tint!.k) : p.color;
+      const h = this.instancer.addMatrix(p.piece, m, col, p.params);
       if (p.src.spin) this.spins.push({ h, p, m: at.clone() });
       const g = getPiece(p.piece).geometry;
       if (!g.boundingBox) g.computeBoundingBox();
@@ -272,6 +288,80 @@ export class FilmStage {
     sc.far = r * 8;
     sc.updateProjectionMatrix();
     this.camera.far = r * 90;
+  }
+
+  /**
+   * A sea: a wide water surface at height `y` round `c` (its mesh, to raise for a flood), with travelling waves in
+   * its shading (a world-unit height field, faded with distance), a deep / shallow colour by view angle, and a sun
+   * glint. Seen from below it is the bright ceiling of an underwater shot.
+   */
+  addSea(c: Vector3, y: number, size: number, deep = 0x0b3a52, shallow = 0x2f8fa0): Mesh {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.12, metalness: 0.05, side: DoubleSide });
+    const p = positionWorld;
+    const t = U.clock;
+    const height = sin(p.x.mul(1.3).add(t.mul(1.1)))
+      .mul(0.05)
+      .add(sin(p.z.mul(1.7).sub(t.mul(0.8)).add(p.x.mul(0.4))).mul(0.04))
+      .add(sin(p.x.mul(4.1).add(p.z.mul(3.3)).add(t.mul(2.3))).mul(0.012));
+    m.normalNode = bumped(height, float(1).sub(smoothstep(0.02, 0.12, length(p.sub(this.camWorld)).div(400))));
+    const facing = clamp(dot(normalView, positionViewDirection), 0, 1);
+    m.colorNode = mix(uniform(new Color(shallow)), uniform(new Color(deep)), facing.pow(0.6));
+    const sea = new Mesh(new PlaneGeometry(size, size, 1, 1).rotateX(-Math.PI / 2), m);
+    sea.position.set(c.x, y, c.z);
+    sea.receiveShadow = true;
+    this.set.add(sea);
+    return sea;
+  }
+
+  /**
+   * Fog over the set (`null` clears it): range fog from `near` to `far` in `col` (underwater haze, a storm's murk).
+   * Set it up before the stage opens (far away, if it comes later): materials built without fog stay unfogged. Its
+   * colour and range are uniforms, so changing them later is free.
+   */
+  setFog(col: number | null, near = 10, far = 80): void {
+    if (col === null) {
+      this.scene.fogNode = null;
+      return;
+    }
+    this.fogCol.value.setHex(col);
+    this.fogNear.value = near;
+    this.fogFar.value = far;
+    this.scene.fogNode ??= fog(this.fogCol, rangeFogFactor(this.fogNear, this.fogFar));
+  }
+
+  /**
+   * Rain: `n` streaks falling through a box of half-size `r` and height `h` round `c`, slanted by the wind, posed
+   * entirely in the shader from the clock (no uploads). Returns its mesh (`visible` to start and stop the shower).
+   */
+  addRain(c: Vector3, r: number, h: number, n = 2500): Mesh {
+    const parts: BufferGeometry[] = [];
+    const streak = new PlaneGeometry(0.012, 0.35);
+    for (let i = 0; i < n; i++) {
+      const g = streak.clone().rotateY(hash2(i, 77) * Math.PI);
+      g.translate((hash2(i, 71) - 0.5) * 2 * r, 0, (hash2(i, 75) - 0.5) * 2 * r);
+      const seed = new Float32Array(g.attributes.position!.count).fill(hash2(i, 79));
+      g.setAttribute('aSeed', new BufferAttribute(seed, 1));
+      parts.push(g);
+    }
+    const m = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, fog: false });
+    const sd = attribute('aSeed', 'float');
+    // Each streak falls through the box and wraps round to the top (whole: the offset is per streak, not per vertex).
+    const fall = fract(sd.mul(7.31).sub(U.clock.mul(float(1.6).add(sd.mul(0.6)))));
+    m.positionNode = positionLocal.add(vec3(fall.oneMinus().mul(h * 0.18), fall.mul(h), 0));
+    m.colorNode = vec3(0.55, 0.62, 0.72).mul(0.32);
+    const rain = new Mesh(mergeGeometries(parts), m);
+    for (const p of parts) p.dispose();
+    streak.dispose();
+    rain.position.copy(c);
+    rain.frustumCulled = false;
+    this.set.add(rain);
+    return rain;
+  }
+
+  /** Shows or hides the sky (dome, stars, moon, sun): off for an underwater shot, where the fog is the world. */
+  showSky(on: boolean): void {
+    this.skyOn = on;
+    this.dome.visible = on;
   }
 
   /** A colour for the ground under the set (a park's green, a plaza's stone); null follows the sky. */
@@ -395,6 +485,7 @@ export class FilmStage {
     cam.near = Math.max(0.01, d * 0.02);
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
+    this.camWorld.value.copy(cam.position);
     if (this.location) {
       // The city view's focus (shadows, fog, walkers, LODs) follows the film, as it follows the tour.
       const c = this.ctx.cameraCtl;
@@ -442,15 +533,18 @@ export class FilmStage {
     this.skyTop.value.setHex(L.top);
     this.skyLow.value.setHex(L.low);
     this.starsOn.value = Math.max(0, Math.min(1, (L.night - 0.35) / 0.6));
-    this.stars.visible = this.moon.visible = this.starsOn.value > 0.004;
+    this.stars.visible = this.moon.visible = this.skyOn && this.starsOn.value > 0.004;
     // The sun shows once the night is mostly gone, low on the sky where the look puts it.
     this.sunOn.value = Math.max(0, Math.min(1, (0.6 - L.night) / 0.4));
-    this.sun.visible = this.sunOn.value > 0.004;
+    this.sun.visible = this.skyOn && this.sunOn.value > 0.004;
     if (this.sun.visible) {
       _v.set(L.sunDir[0], Math.max(0.04, L.sunDir[1] * 0.45), L.sunDir[2]).normalize();
       this.sun.position.copy(this.centre).addScaledVector(_v, this.skyR * 30);
     }
     this.scene.environment = this.ctx.scene.environment;
+    // The film's own materials take image light from the environment directly: dim it with the look, as `envTint`
+    // dims the city's.
+    this.scene.environmentIntensity = L.env ?? 1;
     withStageLook(L, this.camera.position, () => this.fx.render());
   }
 

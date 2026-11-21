@@ -21,6 +21,11 @@ export interface StageLook {
   bloom: number;
   zenith: number;
   horizon: number;
+  /**
+   * Reflections and image light (the city's environment map), scaled and tinted toward the horizon: below 1 for a
+   * storm, a night or the deep, where a noon environment would leave white surfaces glowing. Default 1 (untinted).
+   */
+  env?: number;
 }
 
 export type Lighting = 'day' | 'dusk' | 'night';
@@ -35,6 +40,7 @@ const COLOURS = ['sun', 'key', 'top', 'low', 'zenith', 'horizon'] as const;
 const NUMBERS = ['night', 'keyI', 'rimI', 'hemiI', 'bloom'] as const;
 const _a = new Color();
 const _b = new Color();
+const _w = new Color();
 
 /** A look between `a` and `b` (`t` in [0, 1]), into `out`: a night grading to dawn. */
 export function mixLook(a: StageLook, b: StageLook, t: number, out: StageLook = { ...a, sunDir: [...a.sunDir] }): StageLook {
@@ -42,6 +48,7 @@ export function mixLook(a: StageLook, b: StageLook, t: number, out: StageLook = 
   for (const n of NUMBERS) out[n] = a[n] + (b[n] - a[n]) * k;
   for (const c of COLOURS) out[c] = _a.setHex(a[c]).lerp(_b.setHex(b[c]), k).getHex();
   for (let i = 0; i < 3; i++) out.sunDir[i] = a.sunDir[i]! + (b.sunDir[i]! - a.sunDir[i]!) * k;
+  out.env = (a.env ?? 1) + ((b.env ?? 1) - (a.env ?? 1)) * k;
   return out;
 }
 
@@ -73,7 +80,8 @@ export function withStageLook(look: StageLook, eye: Vector3, draw: () => void): 
   U.horizon.value.setHex(look.horizon);
   U.gradeLift.value.set(0, 0, 0);
   U.gradeGain.value.set(1, 1, 1);
-  U.envTint.value.setRGB(1, 1, 1);
+  if (look.env === undefined || look.env === 1) U.envTint.value.setRGB(1, 1, 1);
+  else (U.envTint.value as Color).setHex(look.horizon).lerp(_w.setRGB(1, 1, 1), 0.5).multiplyScalar(look.env);
   U.eye.value.copy(eye);
   U.walker.value.set(0, 0, 0, 0);
   U.flash.value.w = 0;

@@ -30,7 +30,7 @@ const SHADOW = { fur: '#1b2130', belly: '#222a3a', mark: '#1b2130', eye: '#ffe27
 const PAW_COLOURS = ['#ffcf6a', '#ff9ec4', '#8ef07a', '#9fd8ff', '#ffffff'];
 
 /** Night over the rooftops (moonlight from the west) and the dawn that breaks behind the cat (sun low in the east). */
-const NIGHT: StageLook = { ...LOOKS.night, sunDir: [-0.45, 0.62, 0.4], key: 0x9fb8ff, keyI: 0.75, rimI: 0.7, hemiI: 0.28, top: 0x03070f, low: 0x13284a, bloom: 1.1 };
+const NIGHT: StageLook = { ...LOOKS.night, env: 0.45, sunDir: [-0.45, 0.62, 0.4], key: 0x9fb8ff, keyI: 0.75, rimI: 0.7, hemiI: 0.28, top: 0x03070f, low: 0x13284a, bloom: 1.1 };
 const DAWN: StageLook = { ...LOOKS.dusk, night: 0.12, sunDir: [0.75, 0.3, 0.45], key: 0xffc493, keyI: 2.5, rimI: 1.2, hemiI: 0.9, top: 0x2d4a80, low: 0xffa77a, bloom: 0.8, zenith: 0x6d8fd0, horizon: 0xffc09a };
 
 /** The cat's size on the set: a little larger than life against the houses, as a film's star is. */
