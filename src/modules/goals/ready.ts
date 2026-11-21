@@ -28,6 +28,7 @@ export function projectVerb(ctx: GameContext, id: UnlockId): string {
 /** How long a project takes, in words. */
 export function projectTime(id: UnlockId): string {
   const d = PROJECTS[id].days;
+  if (d <= 0) return 'at once';
   return d >= 1 ? `${d} day${d > 1 ? 's' : ''}` : d * 24 >= 2 ? `${Math.round(d * 24)} h` : `${Math.round(d * DAY_LENGTH)} s`;
 }
 
@@ -173,7 +174,8 @@ export class ReadyCall {
     if (!this.ctx.commands.execute('startProject', { id }))
       return void this.ctx.bus.emit('toast', { text: `${PROJECTS[id].name} can't start yet: check the credits.`, tone: 'bad' });
     this.ctx.bus.emit('juice', { sound: 'claim' });
-    this.ctx.bus.emit('toast', { text: `${PROJECTS[id].name}: under way (${projectTime(id)})`, tone: 'ok' });
+    // An instant project (D-182) has already played its film's cue; no "under way" toast over it.
+    if (PROJECTS[id].days > 0) this.ctx.bus.emit('toast', { text: `${PROJECTS[id].name}: under way (${projectTime(id)})`, tone: 'ok' });
     this.shown = null;
     this.refresh();
   }

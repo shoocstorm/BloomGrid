@@ -3399,3 +3399,12 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   cutscene registers a film so it is replayable from the start.
 - **Note**: `bun run snap` screenshots don't show the ceremony layer (`.fa-stage` on `body`) though it is on screen
   (DOM check: opacity 1, z-index 1000); the cat's film, in the HUD layer, does show.
+
+## D-182 — Instant projects: Adopt plays the film on the click (2026-11-21)
+
+- **What**: a project with `days: 0` finishes inside `startProject` (unlocked and `project:done` emitted in the
+  command), instead of at the next pulse. "Befriend the stray" is one: **Adopt** stages the film on the next frame
+  (measured 8 ms from click to film, clock paused). Undo takes the unlock back and refunds it (the cat is a stray
+  again).
+- **Why**: the stray took 8 s of sim time plus up to a pulse after the click, a dead pause between pressing Adopt and
+  the film.

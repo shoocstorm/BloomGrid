@@ -30,7 +30,7 @@ export interface ProjectDef {
   /** What finishing it opens up. */
   unlocks: string;
   cost: number;
-  /** Sim days of work once started. */
+  /** Sim days of work once started; 0 = done the moment it starts (its film plays at once, D-182). */
   days: number;
   /** The button that starts it, in the project's own words (`{cat}` is the island cat's name), D-181. */
   verb: string;
@@ -75,8 +75,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
     unlocks:
       "The island's cat: a rooftop companion that follows you, talks to you, warns you of trouble and loves a pet.",
     cost: 250,
-    // 8 s at 1×: earning its trust, then the cutscene.
-    days: 8 / DAY_LENGTH,
+    // At once (D-182): the click is the adoption; the film is where its trust is earned.
+    days: 0,
     criteria: (city) => [
       {
         label: `Two Fishing Boat Docks for fresh fish (${city.buildingEntities().filter((e) => city.buildingDef(e).id === 'fishing-dock').length})`,
@@ -300,10 +300,18 @@ export function updateProjects(city: City): void {
 }
 
 export function registerProjectCommands(stack: CommandStack<SimCtx>): void {
-  stack.register<{ id: UnlockId }, ProjectRun>('startProject', {
+  stack.register<{ id: UnlockId }, ProjectRun & { instant?: boolean }>('startProject', {
     apply({ city }, p) {
       if (!PROJECTS[p.id] || projectStatus(city, p.id) !== 'ready') return null;
       const def = PROJECTS[p.id];
+      if (def.days <= 0) {
+        // Instant (D-182): unlocked now, not at the next pulse, so its film starts on the click.
+        city.credits -= def.cost;
+        city.growth.unlocked.push(p.id);
+        city.bus.emit('project:start', { id: p.id });
+        city.bus.emit('project:done', { id: p.id });
+        return { id: p.id, startTick: city.tick, endTick: city.tick, cost: def.cost, instant: true };
+      }
       const run: ProjectRun = {
         id: p.id,
         startTick: city.tick,
@@ -316,6 +324,13 @@ export function registerProjectCommands(stack: CommandStack<SimCtx>): void {
       return run;
     },
     revert({ city }, _p, run) {
+      if (run.instant) {
+        // An instant one has nothing to cancel: undo takes the unlock back and refunds it.
+        const k = city.growth.unlocked.indexOf(run.id);
+        if (k >= 0) city.growth.unlocked.splice(k, 1);
+        city.credits += run.cost;
+        return;
+      }
       // Undo before completion cancels the work and refunds it; a finished project stays finished.
       const i = city.growth.projects.findIndex((r) => r.id === run.id && r.startTick === run.startTick);
       if (i < 0) return;

@@ -171,7 +171,7 @@ describe('fresh island start (Phase 16, D-072)', () => {
     expect(projectStatus(show.city, 'cat')).toBe('open');
   });
 
-  it('befriending the stray takes seconds once started, and opens the cat', () => {
+  it('befriending the stray opens the cat on the click (D-182), and undo takes it back', () => {
     const s = fresh();
     const c = s.city;
     const real = PROJECTS.cat.criteria;
@@ -180,9 +180,17 @@ describe('fresh island start (Phase 16, D-072)', () => {
     try {
       c.credits += 1000;
       expect(projectStatus(c, 'cat')).toBe('ready');
+      const credits = c.credits;
+      const done: string[] = [];
+      c.bus.on('project:done', ({ id }) => done.push(id));
       expect(s.commands.execute('startProject', { id: 'cat' })).toBe(true);
-      seconds(s, 12);
+      // No pulse needed: unlocked and announced inside the command.
       expect(isOpen(c.growth, 'cat')).toBe(true);
+      expect(done).toEqual(['cat']);
+      expect(c.credits).toBe(credits - PROJECTS.cat.cost);
+      s.commands.undo();
+      expect(isOpen(c.growth, 'cat')).toBe(false);
+      expect(c.credits).toBe(credits);
     } finally {
       PROJECTS.cat.criteria = real;
     }

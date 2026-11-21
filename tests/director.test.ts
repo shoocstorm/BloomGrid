@@ -31,6 +31,7 @@ const inDebt = (s: ReturnType<typeof makeSim>) => () => {
 };
 
 describe('the director (plan v5, Phase 27)', () => {
+  // Long sim runs: ~7 s alone, past 30 s under the full parallel suite.
   it('pulls a calm city up: pace rises, drift builds and lifts demand; dials stay in bounds', () => {
     const s = founded();
     s.city.steward.autoDirector = true;
@@ -45,7 +46,7 @@ describe('the director (plan v5, Phase 27)', () => {
     expect(d.drift).toBeGreaterThan(0.1);
     expect(s.city.steward.modifiers.energyDemand).toBeGreaterThan(1.05);
     expect(s.city.stats.energyUsed).toBeGreaterThan(used0);
-  });
+  }, 90_000);
 
   it('eases off a spiralling city: pace falls, the calm gap stretches, drift clears', () => {
     const s = founded();

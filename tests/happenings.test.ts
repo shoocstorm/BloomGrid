@@ -15,6 +15,7 @@ function founded(seed = 20261024) {
 }
 
 describe('happenings (D-123)', () => {
+  // Long sim runs: ~7 s alone, past 30 s under the full parallel suite.
   it('stay off in tests unless switched on, and then start on their own', () => {
     const s = founded();
     s.step(400 * PULSE_TICKS);
@@ -23,8 +24,9 @@ describe('happenings (D-123)', () => {
     s.city.happenings.auto = true;
     s.step(200 * PULSE_TICKS);
     expect(s.city.happenings.history.length + (s.city.happenings.current ? 1 : 0)).toBeGreaterThan(0);
-  });
+  }, 90_000);
 
+  // Long sim runs: ~7 s alone, past 30 s under the full parallel suite.
   it('are deterministic: the same seed and steps give the same hash', () => {
     const run = () => {
       const s = founded(7);
@@ -35,7 +37,7 @@ describe('happenings (D-123)', () => {
       return [s.city.hash(), JSON.stringify(s.city.happenings.history)];
     };
     expect(run()).toEqual(run());
-  });
+  }, 90_000);
 
   it('a request is met by building what was asked nearby, then claimed for credits', () => {
     const s = founded();

@@ -177,7 +177,7 @@ export const goalsModule: GameModule = {
             h(
               'div',
               { class: 'gl-foot' },
-              h('span', {}, `◈${fmt(def.cost)} · ${projectTime(id)} of work`),
+              h('span', {}, def.days > 0 ? `◈${fmt(def.cost)} · ${projectTime(id)} of work` : `◈${fmt(def.cost)}`),
               h(
                 'button',
                 {
