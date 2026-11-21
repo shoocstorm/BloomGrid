@@ -5,6 +5,8 @@ import { PROJECTS } from '@/sim/projects';
 import { CHARTERS } from '@/sim/charters';
 import { ERAS } from '@/sim/eras';
 import { WONDER_SITES } from '@/modules/scenery/sites';
+import { WONDERS } from '@/sim/wonders';
+import { isOpen, type UnlockId } from '@/sim/growthState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { SYSTEM_ORDER } from '@/sim/indicators';
 import { Ceremony, type MomentSpec } from './Ceremony';
@@ -35,6 +37,22 @@ export type { MomentSpec } from './Ceremony';
  */
 export type MomentsMode = 'all' | 'major' | 'off';
 
+/**
+ * A replayable film (D-181): a cutscene (`run`) or a ceremony (`spec`). Register every new cutscene here and it
+ * shows in Build → Goals → Replays once `earned` says the city has seen it.
+ */
+export interface Film {
+  id: string;
+  title: string;
+  /** Icon key (`icons.ts`). */
+  icon: string;
+  earned(): boolean;
+  /** A cutscene: plays and calls `finish` when over. A replay must not change the city. */
+  run?: (finish: () => void) => void;
+  /** A ceremony: the spec to play again. */
+  spec?: () => MomentSpec;
+}
+
 export interface MomentsService {
   /** Queues a moment; `done` runs when it has played (or at once when moments are off). */
   play(m: MomentSpec, done?: () => void): void;
@@ -46,6 +64,12 @@ export interface MomentsService {
   stage(id: string, run: (finish: () => void) => void): void;
   mode: MomentsMode;
   readonly playing: boolean;
+  /** Registers a replayable film (a later call with the same id replaces it). */
+  film(f: Film): void;
+  /** The films this city has earned, in registration order. */
+  films(): Film[];
+  /** Plays a film again now (whatever the Settings mode). */
+  replay(id: string): void;
 }
 
 declare module '@/core/Services' {
@@ -137,6 +161,18 @@ export const momentsModule: GameModule = {
       queue.unshift({ m: { id, scale: 'grand' } as MomentSpec, run });
     };
 
+    // ── Replays (D-181) ──
+    const films = new Map<string, Film>();
+    const film = (f: Film) => void films.set(f.id, f);
+    const replay = (id: string) => {
+      const f = films.get(id);
+      if (!f) return;
+      if (f.run) return stage(`replay:${id}`, f.run);
+      const spec = f.spec;
+      // A ceremony replayed: its own spec, always grand, never deduped against the live queue.
+      if (spec) stage(`replay:${id}`, (finish) => ceremony.play({ ...spec(), id: `replay:${id}` }, finish));
+    };
+
     // ── Baselines: a city change arms the triggers a few seconds later, from where the city already is ──
     const city = () => ctx.city;
     let armIn = 4;
@@ -164,11 +200,11 @@ export const momentsModule: GameModule = {
 
     // ── Triggers ──
     // Long-term goals (plan v5, Phase 28).
-    ctx.bus.on('era:advanced', ({ era, name }) => {
-      if (ctx.loading || !armed()) return;
+    const eraSpec = (era: number): MomentSpec => {
       const e = ERAS[era]!;
       const prev = ERAS[era - 1];
-      play({
+      const name = e.name;
+      return {
         id: `era:${e.id}`,
         scale: 'grand',
         tone: era >= 3 ? 'gold' : 'bloom',
@@ -179,7 +215,13 @@ export const momentsModule: GameModule = {
         sub: 'Crises come a little harder in a greater city. Take up a new charter from Build → Goals.',
         at: heart(ctx),
         sound: 'triumph',
-      });
+      };
+    };
+    ctx.bus.on('era:advanced', ({ era }) => {
+      if (!ctx.loading && armed()) play(eraSpec(era));
+    });
+    ERAS.forEach((e, i) => {
+      if (i > 0) film({ id: `era:${e.id}`, title: `The ${e.name} era`, icon: e.icon, earned: () => city().charters.era >= i, spec: () => eraSpec(i) });
     });
     ctx.bus.on('charter:claimed', ({ id, tier, title, perk }) => {
       if (ctx.loading || tier < 3 || !armed()) return;
@@ -204,11 +246,11 @@ export const momentsModule: GameModule = {
       if (ctx.loading) return;
       play({ id: 'challenge', scale: 'minor', tone: 'storm', emblem: 'st-warn', eyebrow: 'Challenge · lost', title: scenario, lines: [reason], sub: 'The city plays on as free play, or try again from the New Chapter dialog.', sound: 'weathered' });
     });
-    ctx.bus.on('project:done', ({ id }) => {
-      if (ctx.loading || id === 'flora') return;
+    /** An unlock project's ceremony (Flora's is the assistant's own). */
+    const projectSpec = (id: UnlockId): MomentSpec | null => {
       const p = PROJECTS[id];
       if (id === 'skylanes')
-        play({
+        return {
           id: 'skylanes',
           scale: 'grand',
           tone: 'sky',
@@ -219,9 +261,9 @@ export const momentsModule: GameModule = {
           sub: 'Commuters can fly now instead of jamming the streets. Build a Pod Dock near your busiest homes.',
           at: firstOf(ctx, 'drone-fabricator') ?? heart(ctx),
           sound: 'triumph',
-        });
+        };
       else if (id === 'aeroline')
-        play({
+        return {
           id: 'aeroline',
           scale: 'grand',
           tone: 'gold',
@@ -232,9 +274,9 @@ export const momentsModule: GameModule = {
           sub: p.unlocks,
           at: firstOf(ctx, 'aeroline-station') ?? { x: city().size / 2, z: city().size / 2 },
           sound: 'triumph',
-        });
+        };
       else if (id === 'police')
-        play({
+        return {
           id: 'police',
           scale: 'grand',
           tone: 'sky',
@@ -245,9 +287,9 @@ export const momentsModule: GameModule = {
           sub: p.unlocks,
           at: firstOf(ctx, 'ember-watch') ?? heart(ctx),
           sound: 'triumph',
-        });
+        };
       else if (id === 'cruise')
-        play({
+        return {
           id: 'cruise',
           scale: 'grand',
           tone: 'sea',
@@ -258,9 +300,9 @@ export const momentsModule: GameModule = {
           sub: p.unlocks,
           at: ctx.services.tryGet('ferry')?.position ?? heart(ctx),
           sound: 'triumph',
-        });
+        };
       else if (id === 'skyguard')
-        play({
+        return {
           id: 'skyguard',
           scale: 'grand',
           tone: 'sky',
@@ -271,15 +313,28 @@ export const momentsModule: GameModule = {
           sub: p.unlocks,
           at: firstOf(ctx, 'zephyr-airport') ?? heart(ctx),
           sound: 'triumph',
-        });
+        };
+      return null;
+    };
+    ctx.bus.on('project:done', ({ id }) => {
+      if (ctx.loading || id === 'flora') return;
+      const spec = projectSpec(id);
+      if (spec) play(spec);
     });
+    for (const id of ['skylanes', 'aeroline', 'police', 'cruise', 'skyguard'] as const)
+      film({
+        id: `project:${id}`,
+        title: PROJECTS[id].name,
+        icon: PROJECTS[id].icon,
+        earned: () => isOpen(city().growth, id),
+        spec: () => projectSpec(id)!,
+      });
 
-    ctx.bus.on('wonder:discovered', ({ id, name }) => {
-      if (ctx.loading) return;
+    const wonderSpec = (id: string, name: string): MomentSpec => {
       const k = id as keyof typeof WONDER_SITES;
       const site = (k === 'whales' ? WONDER_SITES.whales[0] : WONDER_SITES[k]) as readonly [number, number] | undefined;
       const S = city().size;
-      play({
+      return {
         id: `wonder:${id}`,
         scale: 'grand',
         tone: 'sea',
@@ -290,8 +345,14 @@ export const momentsModule: GameModule = {
         sub: 'It rose from the sea where your city could see it. Residents flock to the shore, and harmony rises.',
         ...(site ? { at: { x: site[0] * S, z: site[1] * S, y: 0, height: 30 } } : {}),
         sound: 'wonder',
-      });
+      };
+    };
+    ctx.bus.on('wonder:discovered', ({ id, name }) => {
+      if (!ctx.loading) play(wonderSpec(id, name));
     });
+    // The two always there never rose before the steward's eyes: nothing to replay.
+    for (const w of WONDERS.filter((x) => !x.start))
+      film({ id: `wonder:${w.id}`, title: w.name, icon: 'gem', earned: () => city().growth.wonders.includes(w.id), spec: () => wonderSpec(w.id, w.name) });
 
     ctx.bus.on('consequence', ({ rule, kind, text }) => {
       if (kind !== 'start' || ctx.loading || !armed()) return;
@@ -339,6 +400,9 @@ export const momentsModule: GameModule = {
     ctx.services.provide('moments', {
       play,
       stage,
+      film,
+      films: () => [...films.values()].filter((f) => f.earned()),
+      replay,
       get mode() {
         return mode;
       },

@@ -28,6 +28,8 @@ import { MIN_CONFIDENCE, warnings, type ForecastMetric } from '@/sim/forecast';
 import { PULSE_TICKS } from '@/sim/pulseConst';
 import { Building } from '@/ecs/components';
 import { PROJECTS } from '@/sim/projects';
+import { isOpen } from '@/sim/growthState';
+import type { MomentSpec } from '@/modules/moments';
 import { allOverlays, getOverlay } from '@/sim/overlays';
 import { ISSUES, inventoryKinds } from '@/sim/inventory';
 import { cityBrief } from '@/ai/brief';
@@ -114,6 +116,13 @@ class Assistant {
     // and the undo stack they pointed at is gone. A turn in flight is stopped.
     ctx.bus.on('city:reset', () => this.newCity());
     ctx.bus.on('project:done', ({ id }) => id === 'flora' && !ctx.loading && this.awaken());
+    ctx.services.tryGet('moments')?.film({
+      id: 'project:flora',
+      title: 'Flora awakens',
+      icon: PROJECTS.flora.icon,
+      earned: () => isOpen(ctx.city.growth, 'flora'),
+      spec: () => this.wakeSpec(),
+    });
     this.engine.onChange((s) => {
       if (s.status !== 'ready' || !this.pending || this.busy) return;
       const request = this.pending;
@@ -333,8 +342,8 @@ class Assistant {
     this.wakeTimer = 99;
   }
 
-  /** The project finished: the ceremony, then her console opens with the welcome. */
-  private awaken(): void {
+  /** Her awakening ceremony (also replayed from Build → Goals → Replays, D-181). */
+  private wakeSpec(): MomentSpec {
     const { city } = this.ctx;
     const fmtN = (n: number) => Math.round(n).toLocaleString();
     const docs = this.ctx.services.tryGet('knowledge')?.base.all().length ?? 0;
@@ -351,17 +360,7 @@ class Assistant {
       trouble ? `, and ${trouble.replace(/ \(.*$/, '').replace(/^(\w+) /, '$1 is ')}` : ', and every system is holding'
     }. Ask me anything, or tell me what to build.`;
     const spire = city.buildingEntities().find((e) => city.buildingDef(e).id === 'data-spire');
-    const opened = () => {
-      this.syncWake();
-      this.panel.flash();
-      this.panel.toggle(true);
-    };
-    this.panel.toggle(false);
-    // A city moment (D-094): her sigil assembles, the column rises from the Data Spire, the sigil flies into her orb.
-    const moments = this.ctx.services.tryGet('moments');
-    if (!moments) return opened();
-    moments.play(
-      {
+    return {
         id: 'flora',
         scale: 'grand',
         tone: 'bloom',
@@ -375,9 +374,21 @@ class Assistant {
           : {}),
         flyTo: this.panel.orb,
         sound: 'awake',
-      },
-      opened,
-    );
+      };
+  }
+
+  /** The project finished: the ceremony, then her console opens with the welcome. */
+  private awaken(): void {
+    const opened = () => {
+      this.syncWake();
+      this.panel.flash();
+      this.panel.toggle(true);
+    };
+    this.panel.toggle(false);
+    // A city moment (D-094): her sigil assembles over the Data Spire and flies into her orb.
+    const moments = this.ctx.services.tryGet('moments');
+    if (!moments) return opened();
+    moments.play(this.wakeSpec(), opened);
   }
 
   /** Forgets the conversation: the log and the history the next turn would send to the model. */

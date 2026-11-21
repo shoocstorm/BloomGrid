@@ -154,6 +154,14 @@ class Charm {
         action: { label: 'See how', run: () => this.ctx.services.tryGet('build')?.show('goals') },
       });
     this.listen();
+    // The film plays again from Build → Goals → Replays (D-181): the film alone, the cat already home.
+    ctx.services.tryGet('moments')?.film({
+      id: 'project:cat',
+      title: 'The Stray',
+      icon: 'happy',
+      earned: () => this.adopted && ctx.city.growth.progression,
+      run: (finish) => playAdoption(ctx, this.cast(), finish),
+    });
     this.world.append(this.cat.el);
     this.adopt();
     addEventListener('pointermove', (e) => ((this.pointer.x = e.clientX), (this.pointer.y = e.clientY)), {
@@ -216,6 +224,10 @@ class Charm {
     this.cat.adopt(this.ctx.city.seed, Number(store.get(this.petsKey)) || 0, !this.adopted);
   }
 
+  private cast() {
+    return { name: this.cat.name, coat: this.cat.colours, island: this.ctx.city.growth.name };
+  }
+
   /** The adoption cutscene (D-178), then the cat on a roof in view, saying hello. */
   cutscene(): void {
     const moments = this.ctx.services.tryGet('moments');
@@ -223,7 +235,7 @@ class Charm {
     const run = (finish: () => void) => {
       playAdoption(
         this.ctx,
-        { name: this.cat.name, coat: this.cat.colours, island: this.ctx.city.growth.name },
+        this.cast(),
         () => {
           finish();
           this.filming = false;
@@ -317,6 +329,21 @@ class Charm {
         wake: true,
         action: { label: 'Show me', run: () => this.ctx.cameraCtl.locate(x, z, { size: 30 }) },
       });
+    });
+    // Its project is ready (D-181): the stray asks for itself.
+    bus.on('project:ready', ({ id }) => {
+      if (id !== 'cat' || this.adopted || !this.on) return;
+      later(1200, () =>
+        this.cat.talk('Mrrp? …that fish smells like home.', {
+          ttl: 9,
+          action: {
+            label: 'Adopt me',
+            run: () => {
+              if (this.ctx.commands.execute('startProject', { id: 'cat' })) this.ctx.bus.emit('juice', { sound: 'claim' });
+            },
+          },
+        }),
+      );
     });
     bus.on('project:done', ({ id }) => {
       if (id === 'cat') return void (!this.ctx.loading && this.cutscene());

@@ -214,11 +214,14 @@ loading a city plays behind a full-screen loading screen with its real stages an
 starts as a fishing hamlet, and the guide walks you through the first steps (⚙ Settings → How to play reopens it;
 **H** or Settings → Controls shows every control). Early on, **Fishing Boat Docks** (free; Build → Food; must touch the sea, and turn to face it by themselves until you press R) pay the bills:
 two or three fish the sea best, more overfish it, and a polluted coast spoils the catch. The **Goals** tab of the
-Build panel (**B**, then Goals; a badge on the Build button says when a project is ready or a milestone can be claimed) lists what to unlock next: the *Sky-lane charter* (pod docks), the *Aeroline* and *Wake Flora* (the city
+Build panel (**B**, then Goals; a badge on the Build button says when a project is ready or a milestone can be claimed) lists what to unlock next (only what is within reach of your city's size): the *Sky-lane charter* (pod docks), the *Aeroline* and *Wake Flora* (the city
 assistant needs a power plant and a Data Spire, and each request then costs credits), later the *Aegis Watch charter*
 (police drones and their precinct), the *Tidesong cruise line* (the cruise ferry) and the *Sky Guard air wing* (the
 jet), plus the sea wonders still
-to be discovered: they rise from the sea as your city earns them. While Flora sleeps her orb is dim with a "z": open
+to be discovered: they rise from the sea as your city earns them. The moment a project is ready, a glowing card drops in
+under the top bar with its own button (**Adopt** the stray, **Wake Flora**, **Open the skies**…) and the Build button
+pulses until you start it; **Later** puts the card away. Films and ceremonies you have seen (the stray's adoption,
+Flora's awakening, unlocks, risen sea wonders, new eras) play again from Build → Goals → **Replays**. While Flora sleeps her orb is dim with a "z": open
 it to see what she still needs, each with a **Build** button; when it pulses *Ready to wake*, wake her and watch her
 come online over the Data Spire.
 

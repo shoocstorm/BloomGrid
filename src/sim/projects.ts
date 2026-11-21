@@ -32,6 +32,10 @@ export interface ProjectDef {
   cost: number;
   /** Sim days of work once started. */
   days: number;
+  /** The button that starts it, in the project's own words (`{cat}` is the island cat's name), D-181. */
+  verb: string;
+  /** What the ready call-out says when every criterion is met. */
+  readyLine: string;
   /** Residents it asks for (0 = none): the Goals tab keeps projects far beyond the city out of view. */
   residents: number;
   /** A project that must be done first (the Goals tab waits for it). */
@@ -61,6 +65,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   // than an investment. The criteria are what would make a stray stay: fish, a sunny garden, a lively town.
   cat: {
     id: 'cat',
+    verb: "Adopt {cat}",
+    readyLine: "The stray has been eyeing your fish all week. Leave the door open and it may just stay.",
     residents: 250,
     name: 'Befriend the stray',
     icon: 'happy',
@@ -87,6 +93,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   },
   skylanes: {
     id: 'skylanes',
+    verb: "Open the skies",
+    readyLine: "The pods are built and the pilots are waiting. The air over the island is yours to license.",
     residents: 2000,
     name: 'Sky-lane charter',
     icon: '⇶',
@@ -102,6 +110,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   },
   aeroline: {
     id: 'aeroline',
+    verb: "Raise the Aeroline",
+    readyLine: "Power to spare and a city ready to ride: the maglev loop can rise.",
     residents: 5000,
     after: 'skylanes',
     name: 'Build the Aeroline',
@@ -123,6 +133,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   },
   flora: {
     id: 'flora',
+    verb: "Wake Flora",
+    readyLine: "The Data Spire hums. Flora is ready to open her eyes.",
     residents: 0,
     name: 'Wake Flora',
     icon: '✧',
@@ -150,6 +162,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   // The late-game spectacle (D-144): drones, the cruise ferry and the jet are earned like the Aeroline.
   police: {
     id: 'police',
+    verb: "Found the Watch",
+    readyLine: "The fire crews are ready to take the oath: the island can have its own watch.",
     residents: 3000,
     name: 'Aegis Watch charter',
     icon: 'drone',
@@ -171,6 +185,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   },
   cruise: {
     id: 'cruise',
+    verb: "Launch the Tidesong",
+    readyLine: "A wonder has risen and the radar is up: the Tidesong can set sail.",
     residents: 4000,
     name: 'Tidesong cruise line',
     icon: 'ferry',
@@ -189,6 +205,8 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   },
   skyguard: {
     id: 'skyguard',
+    verb: "Wings up",
+    readyLine: "The airfield is ready and the radar is watching: the Sky Guard can take to the sky.",
     residents: 8000,
     after: 'police',
     name: 'Sky Guard air wing',

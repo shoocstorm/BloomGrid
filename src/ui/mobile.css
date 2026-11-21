@@ -891,3 +891,17 @@ body.compact.flora-open #hud > :not(.ai) {
   width: 16px;
   height: 16px;
 }
+
+/* The ready call-out (D-181): full width under the top bar on phones. */
+.compact .rc {
+  top: var(--chips);
+  left: var(--gut-l);
+  right: var(--gut-r);
+  width: auto;
+  max-width: none;
+  translate: none;
+}
+.compact .rc-go,
+.compact .rc-later {
+  min-height: 40px;
+}

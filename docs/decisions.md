@@ -3381,3 +3381,21 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   found ones plus the next two hints.
 - **Why**: a 200-resident hamlet saw every project up to the 8,000-resident Sky Guard, seven charter cards and every
   wonder: a long scroll before the milestones that matter early.
+
+## D-181 — Ready call-outs, project verbs and replayable films (2026-11-21)
+
+- **Ready call-out**: when an unlock project turns ready, `ReadyCall` (`modules/goals/ready.ts`) drops a glowing card
+  under the top bar with one button that starts it, plays the `claimable` chime, and pulses the Build launcher
+  (`body.project-ready`) until it is started; **Later** hides it until the project next becomes ready. It emits
+  `project:ready`, on which the stray asks to be adopted with an **Adopt me** button in its bubble. Projects ready at a
+  load show the card after the city settles, without the chime. It replaces the phone-only "ready" toast.
+- **Verbs**: each `ProjectDef` has a `verb` (`Adopt {cat}`, `Wake Flora`, `Open the skies`, `Raise the Aeroline`,
+  `Found the Watch`, `Launch the Tidesong`, `Wings up`) and a `readyLine`; the Goals tab and the call-out use them
+  instead of "Start".
+- **Films**: the moments service keeps a registry of replayable films (`film`, `films`, `replay`): a cutscene `run`
+  (which must not change the city on a replay) or a ceremony `spec`. The stray's adoption, Flora's awakening, the
+  unlock ceremonies, risen sea wonders (not the two always there) and new eras are registered; Build → Goals →
+  Replays lists the earned ones. Replays play whatever the Settings moments mode, through `stage`. Any future
+  cutscene registers a film so it is replayable from the start.
+- **Note**: `bun run snap` screenshots don't show the ceremony layer (`.fa-stage` on `body`) though it is on screen
+  (DOM check: opacity 1, z-index 1000); the cat's film, in the HUD layer, does show.

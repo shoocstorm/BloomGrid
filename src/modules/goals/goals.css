@@ -392,3 +392,260 @@
 .gl-more[open] > summary {
   margin-bottom: 0;
 }
+
+/* Replays (D-181): every film the city has earned, one click each. */
+.gl-replays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.gl-replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  color: var(--ink);
+  font-size: 11.5px;
+  cursor: var(--cur-pointer, pointer);
+}
+.gl-replay .ico {
+  width: 13px;
+  height: 13px;
+  color: var(--accent);
+}
+.gl-replay .ico:last-child {
+  width: 10px;
+  height: 10px;
+  color: var(--ink-faint);
+}
+.gl-replay:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.gl-replay:hover .ico:last-child {
+  color: var(--accent);
+}
+
+/* The ready call-out (D-181): under the top bar, centred, glowing until started or put away. Transform and
+   opacity keyframes only (§7½): the glow is a pseudo-element fading, not an animated shadow. */
+.rc {
+  position: absolute;
+  left: 50%;
+  top: 74px;
+  z-index: 13;
+  width: 380px;
+  max-width: calc(100% - 32px);
+  padding: 12px 14px 12px;
+  translate: -50% 0;
+  border-color: var(--accent);
+}
+.rc.hidden {
+  display: none;
+}
+.rc.rc-in {
+  animation: rc-drop 0.6s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.rc::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 22px 2px color-mix(in srgb, var(--accent) 55%, transparent);
+  pointer-events: none;
+  animation: rc-glow 1.8s ease-in-out infinite;
+}
+.rc-spark {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.rc-spark i {
+  position: absolute;
+  left: calc(6% + var(--i) * 9.6%);
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+}
+.rc.rc-in .rc-spark i {
+  animation: rc-spark 1.1s ease-out calc(0.25s + var(--i) * 0.04s) both;
+}
+.rc.rc-in .rc-spark i:nth-child(odd) {
+  background: #ffd77a;
+  --up: -1;
+}
+.rc-kick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.rc-kick .ico {
+  width: 13px;
+  height: 13px;
+}
+.rc-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 8px 0 10px;
+}
+.rc-ico {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+}
+.rc-ico .ico {
+  width: 20px;
+  height: 20px;
+}
+.rc-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rc-name {
+  font-size: 15px;
+  color: var(--ink);
+}
+.rc-line {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.rc-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rc-cost {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+}
+.rc-later {
+  padding: 6px 12px;
+}
+.rc-go {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  overflow: hidden;
+  border-radius: var(--pill);
+  background: linear-gradient(180deg, #ffd77a, #ffad3a);
+  color: #2b1a00;
+  font: 600 13px/1 var(--ui);
+  cursor: var(--cur-pointer, pointer);
+}
+.rc-go .ico {
+  width: 14px;
+  height: 14px;
+}
+.rc-go::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
+  animation: rc-sheen 2.4s ease-in-out infinite;
+}
+.rc-go:hover {
+  filter: brightness(1.08);
+}
+@keyframes rc-drop {
+  from {
+    transform: translateY(-24px) scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes rc-glow {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes rc-spark {
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc((var(--i) - 4.5) * 6px), calc(var(--up, 1) * 46px)) scale(1);
+    opacity: 0;
+  }
+}
+@keyframes rc-sheen {
+  0% {
+    transform: translateX(-70%);
+  }
+  60%,
+  100% {
+    transform: translateX(70%);
+  }
+}
+
+/* The Build launcher pulses while a project waits to start (D-181). */
+body.project-ready .build-fab::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid #ffd77a;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: rc-ring 1.6s ease-out infinite;
+}
+@keyframes rc-ring {
+  from {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.18, 1.45);
+    opacity: 0;
+  }
+}
+/* A condition slipped for a moment (D-181): the card holds still, its button waits. */
+.rc-wait {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+.rc-wait:empty {
+  display: none;
+}
+.rc-go:disabled {
+  filter: grayscale(0.7) brightness(0.8);
+  cursor: not-allowed;
+}
+.rc-go:disabled::after {
+  animation: none;
+}

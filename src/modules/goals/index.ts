@@ -3,12 +3,11 @@ import type { GameModule } from '@/game/context';
 import { PROJECTS, PROJECT_IDS, projectProgress, projectStatus, projectsInView } from '@/sim/projects';
 import { WONDERS } from '@/sim/wonders';
 import { MILESTONES, claimableMilestones, milestoneDone, openMilestones } from '@/sim/milestones';
-import { DAY_LENGTH } from '@/sim/pulseConst';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
-import { isCompact } from '@/platform/device';
 import { CHARTERS, claimable } from '@/sim/charters';
 import { longTermGoals } from './charters';
+import { ReadyCall, projectTime, projectVerb } from './ready';
 import './goals.css';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -30,6 +29,29 @@ export const goalsModule: GameModule = {
     let key = '';
     // Charters, era, legacy and a challenge (plan v5, Phase 28): every city, the showcase included.
     const long = longTermGoals(ctx);
+    const call = new ReadyCall(ctx);
+    /** Replays (D-181): every film this city has earned, as one-click chips. */
+    const replays = (): HTMLElement[] => {
+      const films = ctx.services.tryGet('moments')?.films() ?? [];
+      if (!films.length) return [];
+      return [
+        h('div', { class: 'pulse-title' }, `Replays · ${films.length}`),
+        h(
+          'div',
+          { class: 'gl-replays' },
+          ...films.map((f) =>
+            h(
+              'button',
+              { class: 'gl-replay', title: `Watch “${f.title}” again`, onClick: () => ctx.services.get('moments').replay(f.id) },
+              icon(f.icon),
+              h('span', {}, f.title),
+              icon('play'),
+            ),
+          ),
+        ),
+      ];
+    };
+    const filmsKey = () => (ctx.services.tryGet('moments')?.films() ?? []).map((f) => f.id).join();
     /** Read by the 1 Hz refresh: only while its tab is open. */
     const shown = () => tab.selected;
 
@@ -40,7 +62,7 @@ export const goalsModule: GameModule = {
     const signature = () => {
       const g = city.growth;
       const firsts = ctx.services.tryGet('juice')?.firsts() ?? [];
-      const parts: (string | number)[] = [long.signature(), firsts.filter((f) => f.earned).length, g.milestones.length, g.wonders.join(), Math.round(g.fish * 100), city.stats.fishing.toFixed(1), Math.round(g.fishIncome)];
+      const parts: (string | number)[] = [filmsKey(), ctx.services.tryGet('charm')?.cat.name ?? '', long.signature(), firsts.filter((f) => f.earned).length, g.milestones.length, g.wonders.join(), Math.round(g.fish * 100), city.stats.fishing.toFixed(1), Math.round(g.fishIncome)];
       const view = projectsInView(city);
       parts.push(view.done.join(), view.later, view.next);
       for (const id of view.shown) {
@@ -62,11 +84,12 @@ export const goalsModule: GameModule = {
       el.classList.toggle('gl-open', !g.progression);
       if (!force && el.querySelector('button:hover')) return;
       if (!g.progression) {
-        const k = `open|${long.signature()}`;
+        const k = `open|${long.signature()}|${filmsKey()}`;
         if (k === key) return;
         key = k;
         el.replaceChildren(
           ...long.render(),
+          ...replays(),
           h('div', { class: 'pulse-title' }, 'Unlocks'),
           h(
             'p',
@@ -154,11 +177,7 @@ export const goalsModule: GameModule = {
             h(
               'div',
               { class: 'gl-foot' },
-              h(
-                'span',
-                {},
-                `◈${fmt(def.cost)} · ${def.days >= 1 ? `${def.days} day${def.days > 1 ? 's' : ''}` : def.days * 24 >= 2 ? `${Math.round(def.days * 24)} h` : `${Math.round(def.days * DAY_LENGTH)} s`} of work`,
-              ),
+              h('span', {}, `◈${fmt(def.cost)} · ${projectTime(id)} of work`),
               h(
                 'button',
                 {
@@ -166,13 +185,14 @@ export const goalsModule: GameModule = {
                   disabled: status !== 'ready',
                   title:
                     status === 'ready'
-                      ? 'Start the project'
+                      ? `${projectVerb(ctx, id)}: start the project`
                       : city.credits < def.cost
                         ? 'Not enough credits'
                         : 'Meet every criterion first',
                   onClick: () => ctx.commands.execute('startProject', { id }),
                 },
-                'Start',
+                // In the project's own words (D-181): "Adopt Mochi", "Wake Flora".
+                projectVerb(ctx, id),
               ),
             ),
           );
@@ -237,6 +257,7 @@ export const goalsModule: GameModule = {
         h('div', { class: 'pulse-title' }, `Milestones · ${g.milestones.length} / ${MILESTONES.length}`),
         ...(milestones.length ? milestones : [h('p', { class: 'gl-note' }, 'Every milestone claimed. The island is in good hands.')]),
         ...firstsEl,
+        ...replays(),
         h('div', { class: 'pulse-title' }, `Unlock projects · ${view.done.length} / ${PROJECT_IDS.length}`),
         ...projects,
         view.done.length
@@ -278,17 +299,9 @@ export const goalsModule: GameModule = {
           ? PROJECT_IDS.filter((id) => projectStatus(city, id) === 'ready').length + claimableMilestones(city).length
           : 0) + CHARTERS.reduce((a, c) => a + (claimable(city, c.id) > 0 ? 1 : 0), 0);
       tab.setBadge(ready ? String(ready) : '', ready ? 'warn' : '');
-      // Phones keep the console folded over the city: say once when a project becomes ready to start.
-      if (!g.progression) return;
-      for (const id of PROJECT_IDS) {
-        const now = projectStatus(city, id) === 'ready';
-        if (now && !told.has(id) && isCompact())
-          ctx.bus.emit('toast', { text: `${PROJECTS[id].name} is ready to start: Build → Goals`, tone: 'ok' });
-        if (now) told.add(id);
-        else told.delete(id);
-      }
+      // A project ready to start calls out on every screen (D-181).
+      call.tick();
     };
-    const told = new Set<string>();
     let timer = 0;
     let wasShown = false;
     ctx.systems.add({
