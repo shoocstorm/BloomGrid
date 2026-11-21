@@ -13,6 +13,7 @@ import { getCrisis } from '@/sim/crises';
 import { SYSTEMS } from '@/sim/pulseState';
 import { isOpen } from '@/sim/growthState';
 import { playAdoption } from './cutscene';
+import { addCatExhibit } from './exhibit';
 import { noteText } from './notes';
 import './charm.css';
 
@@ -159,9 +160,11 @@ class Charm {
       id: 'project:cat',
       title: 'The Stray',
       icon: 'happy',
+      blurb: 'A shadow on the rooftops, a fish on a string, and a cat who decides to adopt you.',
       earned: () => this.adopted && ctx.city.growth.progression,
       run: (finish) => playAdoption(ctx, this.cast(), finish),
     });
+    addCatExhibit(ctx);
     this.world.append(this.cat.el);
     this.adopt();
     addEventListener('pointermove', (e) => ((this.pointer.x = e.clientX), (this.pointer.y = e.clientY)), {

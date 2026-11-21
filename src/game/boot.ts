@@ -82,7 +82,10 @@ export async function bootGame(start: GameStart | undefined, screen: BootScreen,
   res.hold(4);
   ctx.engine.start();
   (window as unknown as { bloomgrid: unknown }).bloomgrid = ctx;
-  await screen.finish(() => (ctx.cameraCtl.intro(v.x, v.z, v.distance, 6, v), res.hold(8), onReveal?.()));
+  // A fresh island's founding film starts over the boot screen (D-184): the city is first seen after it, and the
+  // film's end flies the camera in instead.
+  const film = ctx.services.tryGet('wizard')?.premiere() ?? false;
+  await screen.finish(() => (film || ctx.cameraCtl.intro(v.x, v.z, v.distance, 6, v), res.hold(8), onReveal?.()));
   hud.style.transition = 'opacity 1s';
   hud.style.opacity = '1';
   // HUD entrance animations (the welcome card) wait for this so they play in view.

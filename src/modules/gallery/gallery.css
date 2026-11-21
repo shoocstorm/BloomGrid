@@ -432,3 +432,176 @@ body.gallery-open #hud {
     width: 280px;
   }
 }
+
+/* ── 2D exhibits (D-183): the island's cat, cutscenes. A panel between the list and the card; the 3D-only
+   controls (lighting, turntable, reset, clean view) step aside. ── */
+.gal-flat {
+  position: absolute;
+  left: 324px;
+  right: 372px;
+  top: 64px;
+  bottom: 88px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.gal-flat:empty {
+  display: none;
+}
+.gal-flat > * {
+  pointer-events: auto;
+}
+.gallery.flat .gal-stage {
+  cursor: default;
+}
+.gallery.flat .gal-bar .gal-seg:not(:first-of-type),
+.gallery.flat .gal-hide {
+  display: none;
+}
+@media (max-width: 1080px) {
+  .gal-flat {
+    right: 312px;
+  }
+}
+
+/* The cat on its own little stage, rigged as in the city, cycling its acts. */
+.gx-cat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.gx-cat-stage {
+  position: relative;
+  width: min(360px, 60vmin);
+  aspect-ratio: 1.2;
+  border-radius: var(--r-lg, 14px);
+  background: radial-gradient(ellipse at 50% 100%, rgba(95, 242, 218, 0.16), transparent 62%);
+}
+.gx-cat-stage::after {
+  /* Its shadow on the floor. */
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  width: 46%;
+  height: 7%;
+  translate: -50% 50%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  filter: blur(4px);
+}
+.gx-cat-stage .ch-cat {
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  z-index: 1;
+  cursor: var(--cur-pointer, pointer);
+}
+.gx-cat-stage .ch-cat-in {
+  --s: 6.4;
+  /* No finger padding here: scaled with the cat it would lift it off its shadow. */
+  padding: 0;
+  margin: 0;
+  top: -34px;
+}
+.gx-acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  max-width: 420px;
+}
+.gx-acts button {
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
+  background: var(--bg-strong);
+  color: var(--ink);
+  font-size: 11.5px;
+  cursor: var(--cur-pointer, pointer);
+}
+.gx-acts button.on,
+.gx-acts button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* A cutscene's poster: play it from here. */
+.gx-film {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(420px, 70vmin);
+  padding: 34px 26px 26px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg, 14px);
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 60%),
+    linear-gradient(160deg, #0b1d26, #050c12);
+  text-align: center;
+}
+.gx-film::before {
+  /* Film perforations along the top and bottom edges. */
+  content: '';
+  position: absolute;
+  inset: 8px 10px;
+  border-top: 6px dotted rgba(255, 255, 255, 0.08);
+  border-bottom: 6px dotted rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+.gx-film-ico {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+}
+.gx-film-ico .ico {
+  width: 34px;
+  height: 34px;
+}
+.gx-film-kind {
+  font: 600 10px/1 var(--mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.gx-film b {
+  font-size: 22px;
+  color: var(--ink);
+}
+.gx-film p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.gx-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 24px;
+  border-radius: var(--pill);
+  background: var(--accent);
+  color: #06201c;
+  font: 700 14px/1 var(--ui);
+  cursor: var(--cur-pointer, pointer);
+}
+.gx-play .ico {
+  width: 14px;
+  height: 14px;
+}
+.gx-play:hover {
+  filter: brightness(1.08);
+}
+.gx-film-note {
+  font-size: 11px !important;
+  color: var(--ink-faint) !important;
+}

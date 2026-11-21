@@ -892,6 +892,17 @@ body.compact.flora-open #hud > :not(.ai) {
   height: 16px;
 }
 
+/* A 2D exhibit (D-183): between the card and the bar. */
+.compact .gal-flat {
+  left: var(--gut-l);
+  right: var(--gut-r);
+  top: calc(var(--top) + 34dvh + 8px);
+  bottom: calc(var(--bot) + 104px);
+}
+.compact .gx-cat-stage .ch-cat-in {
+  --s: 4.4;
+}
+
 /* The ready call-out (D-181): full width under the top bar on phones. */
 .compact .rc {
   top: var(--chips);

@@ -10,6 +10,8 @@ import { isOpen, type UnlockId } from '@/sim/growthState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { SYSTEM_ORDER } from '@/sim/indicators';
 import { Ceremony, type MomentSpec } from './Ceremony';
+import { h } from '@/ui/dom';
+import { icon } from '@/ui/icons';
 import './moments.css';
 
 export type { MomentSpec } from './Ceremony';
@@ -46,6 +48,8 @@ export interface Film {
   title: string;
   /** Icon key (`icons.ts`). */
   icon: string;
+  /** A line for its gallery poster (D-183). */
+  blurb?: string;
   earned(): boolean;
   /** A cutscene: plays and calls `finish` when over. A replay must not change the city. */
   run?: (finish: () => void) => void;
@@ -62,6 +66,11 @@ export interface MomentsService {
    * whatever the Settings mode, being a story beat rather than a celebration.
    */
   stage(id: string, run: (finish: () => void) => void): void;
+  /**
+   * Starts a sequence at once, not at the next frame's turn (D-184): a film that must be up before a loading screen
+   * lifts. Ignores the queue (it was cleared by the city change); `playing` is true until `finish`.
+   */
+  stageNow(id: string, run: (finish: () => void) => void): void;
   mode: MomentsMode;
   readonly playing: boolean;
   /** Registers a replayable film (a later call with the same id replaces it). */
@@ -138,21 +147,21 @@ export const momentsModule: GameModule = {
         queue.splice(i, 1);
       }
     };
+    const runStaged = (run: (finish: () => void) => void) => {
+      staged = true;
+      document.body.classList.add('moment-on');
+      let over = false;
+      run(() => {
+        if (over) return;
+        over = true;
+        staged = false;
+        document.body.classList.remove('moment-on');
+      });
+    };
     const next = () => {
       if (staged || ceremony.playing || !queue.length || ctx.loading || document.body.classList.contains('chapter-open')) return;
       const { m, done, run } = queue.shift()!;
-      if (run) {
-        staged = true;
-        document.body.classList.add('moment-on');
-        let over = false;
-        run(() => {
-          if (over) return;
-          over = true;
-          staged = false;
-          document.body.classList.remove('moment-on');
-        });
-        return;
-      }
+      if (run) return runStaged(run);
       ceremony.play(m, () => done?.());
     };
     const stage = (id: string, run: (finish: () => void) => void) => {
@@ -163,7 +172,45 @@ export const momentsModule: GameModule = {
 
     // ── Replays (D-181) ──
     const films = new Map<string, Film>();
-    const film = (f: Film) => void films.set(f.id, f);
+    const film = (f: Film) => {
+      const fresh = !films.has(f.id);
+      films.set(f.id, f);
+      // Every film hangs in the gallery's Cutscenes hall (D-183), whether or not this city has seen it.
+      if (fresh) ctx.services.tryGet('gallery')?.add(filmExhibit(f.id));
+    };
+    const filmExhibit = (id: string) => {
+      const f = () => films.get(id)!;
+      const kind = () => (f().run ? 'Cutscene' : 'Ceremony');
+      return {
+        id: `film:${id}`,
+        name: f().title,
+        group: 'Cutscenes',
+        blurb: f().blurb ?? (f().run ? 'A short film.' : 'A city moment, played again.'),
+        facts: [['Kind', kind()] as [string, string]],
+        panel: () =>
+          h(
+            'div',
+            { class: 'gx-film' },
+            h('span', { class: 'gx-film-ico' }, icon(f().icon)),
+            h('span', { class: 'gx-film-kind' }, kind()),
+            h('b', {}, f().title),
+            h('p', {}, f().blurb ?? ''),
+            h(
+              'button',
+              {
+                class: 'gx-play',
+                onClick: () => {
+                  ctx.services.tryGet('gallery')?.close();
+                  replay(id);
+                },
+              },
+              icon('play'),
+              'Play',
+            ),
+            h('p', { class: 'gx-film-note' }, f().earned() ? 'Seen in this city · also in Build → Goals → Replays' : 'Not seen in this city yet'),
+          ),
+      };
+    };
     const replay = (id: string) => {
       const f = films.get(id);
       if (!f) return;
@@ -221,7 +268,7 @@ export const momentsModule: GameModule = {
       if (!ctx.loading && armed()) play(eraSpec(era));
     });
     ERAS.forEach((e, i) => {
-      if (i > 0) film({ id: `era:${e.id}`, title: `The ${e.name} era`, icon: e.icon, earned: () => city().charters.era >= i, spec: () => eraSpec(i) });
+      if (i > 0) film({ id: `era:${e.id}`, title: `The ${e.name} era`, icon: e.icon, blurb: e.line, earned: () => city().charters.era >= i, spec: () => eraSpec(i) });
     });
     ctx.bus.on('charter:claimed', ({ id, tier, title, perk }) => {
       if (ctx.loading || tier < 3 || !armed()) return;
@@ -326,6 +373,7 @@ export const momentsModule: GameModule = {
         id: `project:${id}`,
         title: PROJECTS[id].name,
         icon: PROJECTS[id].icon,
+        blurb: `The unlock ceremony: ${PROJECTS[id].unlocks}`,
         earned: () => isOpen(city().growth, id),
         spec: () => projectSpec(id)!,
       });
@@ -352,7 +400,7 @@ export const momentsModule: GameModule = {
     });
     // The two always there never rose before the steward's eyes: nothing to replay.
     for (const w of WONDERS.filter((x) => !x.start))
-      film({ id: `wonder:${w.id}`, title: w.name, icon: 'gem', earned: () => city().growth.wonders.includes(w.id), spec: () => wonderSpec(w.id, w.name) });
+      film({ id: `wonder:${w.id}`, title: `${w.name} rises`, icon: 'gem', blurb: `${w.name} rises from the sea where the city can see it.`, earned: () => city().growth.wonders.includes(w.id), spec: () => wonderSpec(w.id, w.name) });
 
     ctx.bus.on('consequence', ({ rule, kind, text }) => {
       if (kind !== 'start' || ctx.loading || !armed()) return;
@@ -400,6 +448,7 @@ export const momentsModule: GameModule = {
     ctx.services.provide('moments', {
       play,
       stage,
+      stageNow: (_id: string, run: (finish: () => void) => void) => runStaged(run),
       film,
       films: () => [...films.values()].filter((f) => f.earned()),
       replay,

@@ -120,6 +120,7 @@ class Assistant {
       id: 'project:flora',
       title: 'Flora awakens',
       icon: PROJECTS.flora.icon,
+      blurb: 'The city assistant comes online on the Data Spire.',
       earned: () => isOpen(ctx.city.growth, 'flora'),
       spec: () => this.wakeSpec(),
     });

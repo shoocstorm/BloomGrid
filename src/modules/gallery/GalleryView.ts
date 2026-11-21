@@ -35,6 +35,8 @@ export class GalleryView {
   private levels: HTMLElement;
   private lights: HTMLElement;
   private spinBtn: HTMLElement;
+  /** Where a 2D exhibit's panel stands (D-183). */
+  private flat: HTMLElement;
   private hall = '';
   private query = '';
   private current: Exhibit | null = null;
@@ -95,10 +97,12 @@ export class GalleryView {
     const close = closeX('Close the gallery (Esc)', () => this.act.close());
     close.classList.add('gal-close');
     this.stage = h('div', { class: 'gal-stage', 'aria-hidden': 'true' });
+    this.flat = h('div', { class: 'gal-flat' });
     this.el = h(
       'div',
       { class: 'gallery hidden', role: 'dialog', 'aria-label': 'Model gallery' },
       this.stage,
+      this.flat,
       rail,
       this.card,
       bar,
@@ -119,6 +123,7 @@ export class GalleryView {
   }
 
   close(): void {
+    this.flat.replaceChildren();
     this.el.classList.add('hidden');
     this.el.classList.remove('list-open');
   }
@@ -129,7 +134,9 @@ export class GalleryView {
     return all.filter((e) => (!this.hall || e.group === this.hall) && (!q || `${e.name} ${e.group}`.toLowerCase().includes(q)));
   }
 
-  showExhibit(ex: Exhibit, level: number, all: Exhibit[]): void {
+  showExhibit(ex: Exhibit, level: number, all: Exhibit[], panel: HTMLElement | null = null): void {
+    this.flat.replaceChildren(...(panel ? [panel] : []));
+    this.el.classList.toggle('flat', !!panel);
     this.all = all;
     this.current = ex;
     for (const [id, el] of this.items) el.classList.toggle('on', id === ex.id);

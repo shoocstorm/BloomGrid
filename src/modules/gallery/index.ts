@@ -1,4 +1,4 @@
-import { Vector3, type Object3D } from 'three/webgpu';
+import { Group, Vector3, type Object3D } from 'three/webgpu';
 import type { GameContext, GameModule } from '@/game/context';
 import { buildings } from '@/content';
 import { CATEGORY_LABELS, type BuildingDef } from '@/content/types';
@@ -32,7 +32,13 @@ export interface GalleryEntry {
   levels?: string[];
   /** Stands in the sea (a water plane instead of the floor). */
   water?: boolean;
-  build(level: number): GalleryModel;
+  /** A 3D model on the stage (or `panel`). */
+  build?(level: number): GalleryModel;
+  /**
+   * A 2D exhibit instead (D-183): a DOM panel over the empty stage, for things that are not meshes (the island's
+   * cat, cutscenes). Built afresh each time it is shown; stop any timers once it is no longer `isConnected`.
+   */
+  panel?(level: number): HTMLElement;
 }
 
 export interface GalleryService {
@@ -54,7 +60,7 @@ declare module '@/core/Services' {
 }
 
 /** Halls in the order the gallery lists them; building categories follow Landmarks. */
-export const GROUP_ORDER = ['Landmarks', ...Object.values(CATEGORY_LABELS), 'Transit', 'Sky & sea', 'Sea wonders', 'Sea life'];
+export const GROUP_ORDER = ['Landmarks', ...Object.values(CATEGORY_LABELS), 'Transit', 'Sky & sea', 'Sea wonders', 'Sea life', 'Charms', 'Cutscenes'];
 
 /** Resolved exhibit: what the list and the info card read. */
 export interface Exhibit {
@@ -66,9 +72,13 @@ export interface Exhibit {
   levels: string[];
   hero: boolean;
   water: boolean;
+  /** A 2D exhibit (no model: the 3D controls hide). */
+  flat: boolean;
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
+/** The stage's model for a 2D exhibit: nothing. */
+const EMPTY = new Group();
 
 function buildingFacts(def: BuildingDef): [string, string][] {
   const s = def.stats;
@@ -153,10 +163,11 @@ class Gallery implements GalleryService {
         levels: levelled ? ['Level 1', 'Level 2', 'Level 3'] : [],
         hero,
         water: false,
+        flat: false,
       });
     }
     for (const e of this.extra)
-      out.push({ id: e.id, name: e.name, group: e.group, blurb: e.blurb, facts: e.facts ?? [], levels: e.levels ?? [], hero: false, water: !!e.water });
+      out.push({ id: e.id, name: e.name, group: e.group, blurb: e.blurb, facts: e.facts ?? [], levels: e.levels ?? [], hero: false, water: !!e.water, flat: !!e.panel });
     const rank = (g: string) => {
       const i = GROUP_ORDER.indexOf(g);
       return i < 0 ? GROUP_ORDER.length : i;
@@ -177,7 +188,10 @@ class Gallery implements GalleryService {
       return { pieces: designPieces(def, level), object: extra?.object, update: extra?.update, at };
     }
     const entry = this.extra.find((e) => e.id === id)!;
-    const m = this.keep(`${id}#${level}`, () => entry.build(level));
+    // A 2D exhibit stands on an empty stage.
+    if (!entry.build) return { object: EMPTY, frame: { center: new Vector3(0, 1, 0), radius: 2 } };
+    const build = entry.build;
+    const m = this.keep(`${id}#${level}`, () => build(level));
     return { object: m.object, frame: m.frame, update: m.update, water: entry.water };
   }
 
@@ -199,7 +213,8 @@ class Gallery implements GalleryService {
     this.studio.show(this.model(ex.id, lv));
     if (keep) Object.assign(this.studio, keep);
     else this.studio.reset();
-    this.view.showExhibit(ex, lv, this.list());
+    const entry = ex.flat ? this.extra.find((e) => e.id === ex.id) : undefined;
+    this.view.showExhibit(ex, lv, this.list(), entry?.panel?.(lv) ?? null);
   }
 
   private step(d: number): void {
@@ -229,6 +244,7 @@ class Gallery implements GalleryService {
     if (!this.shown) return;
     const { ctx } = this;
     this.shown = false;
+    this.current = '';
     ctx.services.get('render').stage = null;
     this.studio.close();
     this.view.close();

@@ -4,6 +4,7 @@ import type { SaveData } from '@/sim/save';
 import { openingView } from '@/game/opening';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
 import { CHALLENGES, TUTORIAL_KEY, guideWanted, openChapter } from './Chapter';
+import { playFounding } from './founding';
 import { challengeOf } from '@/sim/objectives';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
@@ -200,12 +201,16 @@ export const tutorialModule: GameModule = {
     const tut = new Tutorial(ctx);
     ctx.systems.add({ id: 'tutorial', phase: 'render', order: 140, update: (_c, f) => tut.update(f.dt) });
 
-    /** Founds the city behind the loading screen; the opening fly-in starts as it lifts. */
+    /**
+     * Founds the city behind the loading screen. A fresh island's film starts the moment the island exists, over the
+     * loading screen (D-184), so the city is first seen after it; anything else flies in as the screen lifts.
+     */
     const found = (
       scenario: string,
       seed: number,
       difficulty: DifficultyId,
       name?: string,
+      guide = false,
     ): Promise<void> =>
       ctx.services.get('loader').run(
         scenario === 'fresh-island' ? `Founding ${name ?? 'a new island'}` : scenario === 'founding-city' ? 'Opening the showcase city' : `Opening ${CHALLENGES.find((c) => c.id === scenario)?.name ?? 'the challenge'}`,
@@ -215,6 +220,7 @@ export const tutorialModule: GameModule = {
           ctx.engine.speed = 1;
           const v = openingView(ctx.city);
           ctx.cameraCtl.lookAt(v.x, v.z, v.distance, true);
+          if (scenario === 'fresh-island') premiere(ctx.city.growth.name || name || 'Your city', difficulty, guide);
         },
         () => {
           const v = openingView(ctx.city);
@@ -222,10 +228,42 @@ export const tutorialModule: GameModule = {
         },
       );
 
-    const founded = (name: string, difficulty: DifficultyId, guide: boolean) => {
-      ctx.bus.emit('toast', { text: `${name} is founded: a fishing hamlet on a quiet island (${DIFFICULTIES[difficulty].label})`, tone: 'ok' });
-      if (guide) afterFlyIn(() => tut.begin());
+    /**
+     * "First Light" (D-183) for a city just founded, started at once (D-184): it covers whatever loading screen is
+     * up; when it ends the camera flies in over the hamlet, the founding toast shows and the guide starts.
+     */
+    const premiere = (name: string, difficulty: DifficultyId, guide: boolean) => {
+      // The fly-in starts as the film fades, so the city is first seen already in flight.
+      const flyIn = () => {
+        const v = openingView(ctx.city);
+        ctx.cameraCtl.intro(v.x, v.z, v.distance, 5, v);
+      };
+      const after = () => {
+        ctx.bus.emit('toast', { text: `${name} is founded: a fishing hamlet on a quiet island (${DIFFICULTIES[difficulty].label})`, tone: 'ok' });
+        if (guide) afterFlyIn(() => tut.begin());
+      };
+      const moments = ctx.services.tryGet('moments');
+      if (!moments) return flyIn(), after();
+      moments.stageNow('founding', (finish) =>
+        playFounding(
+          ctx,
+          () => {
+            finish();
+            after();
+          },
+          { instant: true, leaving: flyIn },
+        ),
+      );
     };
+    ctx.services.tryGet('moments')?.film({
+      id: 'founding',
+      title: 'First Light',
+      icon: 'sparkle',
+      blurb: 'The founding of an island: a boat at night, a seed of light, the first hamlet, and your city’s name. Cast from the island you are on.',
+      // Every growing island was founded; the showcase was not.
+      earned: () => ctx.city.growth.progression,
+      run: (finish) => playFounding(ctx, finish),
+    });
     /** Runs `fn` once the opening fly-in has settled, so "Look around" is not completed by the camera itself. */
     const afterFlyIn = (fn: () => void) => {
       const cam = ctx.cameraCtl;
@@ -281,7 +319,7 @@ export const tutorialModule: GameModule = {
             return ok;
           }),
         found(name, seed, difficulty, guide) {
-          void found('fresh-island', seed, difficulty, name).then(() => founded(name, difficulty, guide));
+          void found('fresh-island', seed, difficulty, name, guide);
         },
         showcase(scenario) {
           void found(scenario, SHOWCASE_SEED, ctx.city.steward.difficulty).then(showcaseToast);
@@ -294,16 +332,26 @@ export const tutorialModule: GameModule = {
       guide: () => tut.begin(),
       island: (name, difficulty) => {
         const seed = Math.floor(Math.random() * 1e6) + 1;
-        return found('fresh-island', seed, difficulty, name).then(() => founded(name, difficulty, false));
+        return found('fresh-island', seed, difficulty, name, false);
+      },
+      premiere: () => {
+        if (!freshStart || premiered) return false;
+        premiered = true;
+        premiere(ctx.city.growth.name || s!.name || 'Your city', s!.difficulty, !!s!.guide);
+        return true;
       },
     });
-    // A city chosen on the welcome screen (D-148) is greeted once it is in view.
+    // A city chosen on the welcome screen (D-148): a fresh island's film starts before the boot screen lifts
+    // (`premiere`, called by boot); the showcase is greeted once it is in view.
     const s = ctx.start;
+    const freshStart = s?.kind === 'scenario' && s.chosen && s.scenario === 'fresh-island';
+    let premiered = false;
     if (s?.kind === 'scenario' && s.chosen) {
       const greet = () => {
         if (!document.body.classList.contains('booted')) return void setTimeout(greet, 200);
         if (s.scenario !== 'fresh-island') showcaseToast();
-        else founded(ctx.city.growth.name || s.name || 'Your city', s.difficulty, !!s.guide);
+        // A boot that never asked for the premiere still gets the film, late.
+        else if (!premiered) ctx.services.get('wizard').premiere();
       };
       setTimeout(greet, 200);
     }
@@ -319,6 +367,11 @@ declare module '@/core/Services' {
       guide(): void;
       /** Founds a fresh island at once (new seed, no guide): the steward's "try again" after game over. */
       island(name: string, difficulty: DifficultyId): Promise<void>;
+      /**
+       * Boot calls this just before its screen lifts (D-184): a fresh island chosen on the welcome screen starts its
+       * founding film now, over the boot screen. True when a film started (boot then skips its own fly-in).
+       */
+      premiere(): boolean;
     };
   }
 }

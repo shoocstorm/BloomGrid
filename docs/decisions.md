@@ -3408,3 +3408,36 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   again).
 - **Why**: the stray took 8 s of sim time plus up to a pulse after the click, a dead pause between pressing Adopt and
   the film.
+
+## D-183 — "First Light", the founding film; 2D exhibits in the gallery (2026-11-21)
+
+- **Film**: founding a fresh island (welcome screen, New Chapter, "try again") plays "First Light"
+  (`modules/tutorial/founding.ts`, ~20 s, DOM / SVG / CSS like "The Stray"): night sea and a lantern boat, dawn
+  and the island's real silhouette (per column, the highest ground across it, from `grid.heightAt`), a seed of light
+  that greens the land, the founding hamlet (one shape per real building at its own ground height), a hologram of the
+  island's real map (`drawIsland` + `mapOfCity`), then the city's name and **Begin**. Staged through
+  `moments.stage`; the opening fly-in, the founding toast and the guide wait for it. Skip / Esc; a film (D-181), so
+  it replays from Goals → Replays and the gallery. Class prefix `ftl-`: `fd-` was already Flora's dormant card
+  (a second clash after `.ch-note`; check a new prefix with grep across `src/**/*.css` first).
+- **Gallery**: a `GalleryEntry` may give `panel(level)` instead of `build` (a 2D exhibit: a DOM panel over the
+  empty stage, lighting / turntable / clean view hidden). The island cat is one (the city's rig large, cycling its
+  acts, coats as levels, a click mews); every film registered with `moments.film` hangs in a **Cutscenes** hall
+  with a poster and Play (all films, seen or not: the gallery is the archive). Wonder films are titled "… rises" so
+  they don't read as the wonder models.
+
+## D-184 — The founding film opens before any city frame; refinements (2026-11-21)
+
+- **Order**: "First Light" starts the moment a fresh island exists, on top of whatever loading screen is up: in the
+  city loader's `work` (New Chapter, "try again") and, for a city chosen on the welcome screen, from `bootGame` just
+  before the boot screen lifts (`wizard.premiere()`). `moments.stageNow` starts it at once (not at the next frame's
+  turn); the film opens `instant` on black at z 1001 (above the boot screen and the loader). The loader sees a film
+  playing and leaves it the clock and the reveal; the camera's fly-in starts as the film fades (`leaving`), then the
+  toast and the guide. Measured frame by frame: loader → film and boot screen → film, with no city frame between.
+- **Details**: a crescent moon that sets at dawn and a shooting star; the boat (now visible: the island's
+  `.ftl-island svg` rule also hid the boat's SVG, scoped to `> svg`) sails to the water in front of the hamlet with
+  a wake and its lantern's light on the water, and the seed leaves from that lantern; the sun's glitter path on the
+  sea; the green spreads as a circle from the seed with the trees popping as the wave reaches them; the hamlet
+  rises in golden morning light (windows lit), full day comes with the hologram (lights off, lantern out); fishing
+  docks draw as a jetty with a dinghy, solar spires as a mast under three solar petals; a "you are here" ring on the
+  hologram map; long names wrap between words and shrink to fit; on phones the island box centres on the hamlet.
+  The film's clock can be held (`filmClock`) so scenes capture exact frames (headless screenshots land seconds late).

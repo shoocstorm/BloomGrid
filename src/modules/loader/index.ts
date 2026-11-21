@@ -71,13 +71,16 @@ class Loader implements LoaderService {
       // `work` may have set its own speed (a new city starts at 1×, a closed dialog restores its own); otherwise
       // the old one resumes. Either way the city holds still until it is revealed.
       const next = engine.speed || speed;
-      engine.speed = 0;
+      // A film started by `work` (the founding film, D-184) is already over the screen: it holds the clock and
+      // takes the reveal (the city appears when it ends, not under it).
+      const film = !!this.ctx.services.tryGet('moments')?.playing;
+      if (!film) engine.speed = 0;
       await screen.stage('Lighting the skyline', 0.95);
       for (let i = 0; i < SETTLE_FRAMES; i++) await frame();
-      engine.speed = next;
+      if (!film) engine.speed = next;
       // The new city's first seconds rebuild and grow in: judge the render scale after them.
       this.ctx.services.tryGet('render')?.dynamicResolution.hold(5);
-      await screen.finish(reveal);
+      await screen.finish(film ? undefined : reveal);
       return result;
     } catch (e) {
       if (engine.speed === 0) engine.speed = speed;
