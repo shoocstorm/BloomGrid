@@ -3534,3 +3534,11 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
 - **The stray** (D-178) visits only once "Befriend the stray" is no longer Locked (`projectStatus` ≠ `blocked`,
   checked once a second). Once seen unlocked on a city it keeps visiting, even if credits dip. While locked,
   `Cat.away` keeps it off the roofs (`come()` refuses too, so a talk or a call can't fetch it).
+
+## D-191 The Tidesong waits for the Grove era
+
+- The `cruise` project (D-144) gains an era criterion: the island must have reached `CRUISE_ERA` (`grove`,
+  `src/sim/projects.ts`) before the Tidesong cruise line can start, on top of 4,000 residents, a risen sea
+  wonder, a Weather Radar and the credits. Grove (1,000 residents + one charter tier) fits the existing
+  resident bar; Canopy (10,000 + four tiers) would have pushed the ferry past the Sky Guard jet.
+- Showcase and tests are unchanged: without progression every project is already open.

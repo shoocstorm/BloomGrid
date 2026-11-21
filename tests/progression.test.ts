@@ -123,6 +123,10 @@ describe('fresh island start (Phase 16, D-072)', () => {
         .filter((k) => !k.ok)
         .map((k) => k.label);
     expect(unmet('cruise').some((l) => /sea wonder/.test(l))).toBe(true);
+    // The cruise line also waits for the Grove era (D-191).
+    expect(unmet('cruise').some((l) => /Grove era/.test(l))).toBe(true);
+    c.charters.era = 1;
+    expect(unmet('cruise').some((l) => /Grove era/.test(l))).toBe(false);
     expect(unmet('skyguard').some((l) => /Aegis Watch/.test(l))).toBe(true);
     // Every unmet building criterion names a building to build (the Goals tab turns it into a Build button).
     for (const id of ['police', 'cruise', 'skyguard'] as const)

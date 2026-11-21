@@ -3,6 +3,7 @@ import { buildings } from '@/content';
 import type { City } from './City';
 import type { SimCtx } from './systems';
 import { DAY_LENGTH, PULSE_TICKS } from './pulseConst';
+import { ERAS, eraOf } from './eras';
 import { startWonders } from './wonders';
 import { UNLOCK_NAMES, isOpen, type ProjectRun, type UnlockId } from './growthState';
 
@@ -186,7 +187,7 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
   cruise: {
     id: 'cruise',
     verb: "Launch the Tidesong",
-    readyLine: "A wonder has risen and the radar is up: the Tidesong can set sail.",
+    readyLine: "The town has come of age, a wonder has risen and the radar is up: the Tidesong can set sail.",
     residents: 4000,
     name: 'Tidesong cruise line',
     icon: 'ferry',
@@ -196,8 +197,16 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
     days: 1.5,
     criteria: (city) => {
       const risen = city.growth.wonders.length - startWonders().length;
+      // A cruise line is a town's pride: the island must have reached the Grove era first.
+      const era = eraOf(city);
+      const need = ERAS.findIndex((e) => e.id === CRUISE_ERA);
       return [
         residents(city, 4000),
+        {
+          label: `The ${ERAS[need]!.name} era (now ${era.name})`,
+          ok: city.charters.era >= need,
+          progress: Math.min(1, city.charters.era / need),
+        },
         { label: `A sea wonder risen beyond the lighthouse and the whales (${Math.max(0, risen)})`, ok: risen >= 1 },
         building(city, 'weather-radar', 'A Weather Radar to forecast the crossings'),
       ];
@@ -223,6 +232,9 @@ export const PROJECTS: Record<UnlockId, ProjectDef> = {
     ],
   },
 };
+
+/** The era the Tidesong cruise line waits for (D-191). */
+export const CRUISE_ERA = 'grove';
 
 export const PROJECT_IDS = Object.keys(PROJECTS) as UnlockId[];
 

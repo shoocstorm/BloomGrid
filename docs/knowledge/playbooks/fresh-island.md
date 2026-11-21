@@ -32,7 +32,8 @@ Three late projects in the Goals tab. Live costs and days: [Rules of play](kb:re
 
 - **Aegis Watch charter**: residents, an Ember Watch Station and harmony 60. Unlocks the Aegis Watch Precinct
   (drone sorties, fire response) and the drone patrols over the bay.
-- **Tidesong cruise line**: residents, a sea wonder risen beyond the lighthouse and the whales, and a Weather Radar.
+- **Tidesong cruise line**: residents, the Grove era (1,000 residents and a charter tier claimed), a sea wonder
+  risen beyond the lighthouse and the whales, and a Weather Radar.
   Brings the cruise ferry and her pier.
 - **Sky Guard air wing**: more residents, the Aegis Watch charter, a Zephyr Airship Port and a Weather Radar.
   Brings the Sky Guard jet (chase cam, rolls, display smoke).
