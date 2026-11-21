@@ -41,7 +41,16 @@
 }
 .cs-root.out {
   opacity: 0;
-  transition-duration: 0.65s;
+  transition-duration: 0.9s;
+}
+/* With the lead-in (D-194) the iris and the letterbox bring it in. */
+.cs-root.fx-intro {
+  opacity: 1;
+  transition: none;
+}
+.cs-root.fx-intro.out {
+  opacity: 0;
+  transition: opacity 0.9s ease;
 }
 
 /* ── The night (and the dawn that breaks over it) ── */
@@ -691,6 +700,7 @@
   position: absolute;
   left: 0;
   right: 0;
+  z-index: 4;
   height: 10vh;
   background: #000;
   transition: transform 0.8s cubic-bezier(0.3, 0.8, 0.3, 1);

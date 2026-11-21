@@ -11,7 +11,7 @@ import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { SYSTEM_ORDER } from '@/sim/indicators';
 import { Ceremony, type MomentSpec } from './Ceremony';
 import { openReel, type Reel, type ReelOptions } from './reel';
-import { finishFilm } from './finish';
+import { finishFilm, leadIn } from './finish';
 import { playMaidenFlight } from './films/flight';
 import { playSomethingStirs } from './films/stirs';
 import { playWhatTheSeaRemembers } from './films/remembers';
@@ -82,6 +82,8 @@ export interface MomentsService {
   reel(opts: ReelOptions, done: () => void): Reel;
   /** The cinematic finish (grade, drift, vignette, grain; D-188) for a film that builds its own root. */
   finish(root: HTMLElement, set: HTMLElement, leak?: string): void;
+  /** The lead-in (D-194) for a film with its own root: resolves when the iris has closed to black (start there). */
+  leadIn(root: HTMLElement): Promise<void>;
   mode: MomentsMode;
   readonly playing: boolean;
   /** Registers a replayable film (a later call with the same id replaces it). */
@@ -380,7 +382,7 @@ export const momentsModule: GameModule = {
           emblem: 'ferry',
           eyebrow: 'Unlock · maiden voyage',
           title: 'The Tidesong',
-          lines: ['Cruise ferry commissioned', 'Tidesong Pier open', 'Voyages to the sea wonders'],
+          lines: ['The Drift returns: cruise ferry commissioned', 'Tidesong Pier open', 'Voyages to the sea wonders, with a Drift singer aboard'],
           sub: p.unlocks,
           at: ctx.services.tryGet('ferry')?.position ?? heart(ctx),
           sound: 'triumph',
@@ -433,10 +435,10 @@ export const momentsModule: GameModule = {
         scale: 'grand',
         tone: 'sea',
         emblem: 'gem',
-        eyebrow: 'Sea wonder · risen',
+        eyebrow: 'Sea wonder · risen · the Choir answers',
         title: name,
         lines: [...(city().growth.progression ? [`${city().growth.wonders.length} sea wonders found`] : []), `Day ${city().day} · ${fmt(city().stats.population)} residents`],
-        sub: 'It rose from the sea where your city could see it. Residents flock to the shore, and harmony rises.',
+        sub: 'The sea gave it back to a city that keeps the promises. Residents flock to the shore, and harmony rises.',
         // Framed whole: a wonder is far bigger than the buildings ceremonies usually frame.
         ...(site ? { at: { x: site[0] * S, z: site[1] * S, y: 0, height: 30, size: 70 } } : {}),
         camera: true,
@@ -471,7 +473,7 @@ export const momentsModule: GameModule = {
         blurb:
           w.id === 'colonnade'
             ? 'The Sunken Colonnade rises, and with it the island’s oldest story: Halcyon, Meridian and the Long Tide.'
-            : `Something stirs off the coast, and an old fisher sleeps right through it: ${w.name} rises.`,
+            : `Something stirs off the coast, and the same old fisher misses it again: ${w.name} rises.`,
         earned: () => city().growth.wonders.includes(w.id),
         run: wonderFilm(w.id, w.name),
       });
@@ -525,6 +527,10 @@ export const momentsModule: GameModule = {
       stageNow: (_id: string, run: (finish: () => void) => void) => runStaged(run),
       reel: (opts: ReelOptions, done: () => void) => openReel(ctx, opts, done),
       finish: (root: HTMLElement, set: HTMLElement, leak?: string) => finishFilm(root, set, leak),
+      leadIn: (root: HTMLElement) => {
+        ctx.bus.emit('film:hit', { hit: 'iris' });
+        return leadIn(root).then(() => ctx.bus.emit('film:hit', { hit: 'open' }));
+      },
       film,
       films: () => [...films.values()].filter((f) => f.earned()),
       replay,

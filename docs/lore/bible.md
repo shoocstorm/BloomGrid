@@ -307,9 +307,9 @@ limits keeps the second. A city with happy residents and a green skyline is, to 
 here in a hundred years. The Choir answers by waking what it put to sleep: the Gates, the Lotus, the Geode, Turtle
 Isle.
 
-This is why the founding film ends with *the grid woke, and it needed a steward*, and why "Something Stirs" (the
-first wonder's film) is a fisher catching a boot and throwing it back: *some things belong to the sea*. The Choir
-noticed.
+This is why the founding film ends with *the old grid hummed back to life, and it needed a steward*, and why
+"Something Stirs" (the first wonder's film) is a fisher catching a boot and throwing it back: *some things belong to
+the sea*. The Choir noticed: in the film its light runs in under the water to where the boot went down.
 
 ### Hazards: the old wounds
 
@@ -574,12 +574,26 @@ each answer only after the right progress (`FRAGMENTS` in `src/sim/chronicle.ts`
 | Lore | Where |
 | --- | --- |
 | This bible | `docs/lore/bible.md` (team only, not bundled) |
-| Chronicle pages (discovered in play) | `FRAGMENTS` in `src/sim/chronicle.ts`; state `city.chronicle` (`src/sim/chronicleState.ts`) |
+| Chronicle pages (discovered in play) | `PAGES` in `src/sim/chronicle.ts`; state `city.chronicle` (`src/sim/chronicleState.ts`) |
 | Chronicle UI, toasts, Flora tool | `src/modules/chronicle/` |
 | Chronicle docs in the Seedvault | `docs/knowledge/lore/*.md` (category `lore`) |
 | Sea wonder tales | `LORE` in `src/modules/scenery/lore.ts`; `docs/knowledge/basics/sea-wonders.md` |
 | Era lines | `ERAS` in `src/sim/eras.ts` |
 | Hero building descriptions | `src/content/buildings/<id>.ts` (`aurora-gemini`, `wellspring-spire`, `harmony-gate`, `aegis-precinct`, `elder-banyan`) |
 | Resident arcs (Diver, Envoy, Archivist) | `ARCS` in `src/sim/stories.ts`; `docs/knowledge/systems/stories.md` |
-| Films | "First Light" `src/modules/tutorial/founding.ts`; "Something Stirs" `src/modules/moments/films/stirs.ts`; "Hello, World" `src/modules/assistant/hello.ts`; "What the Sea Remembers" `src/modules/moments/films/remembers.ts` |
+| Films | see "The story in the films" below |
 | The steward and the Compact | `docs/knowledge/basics/steward-role.md`; game over `src/modules/crises/GameOver.ts` |
+
+### The story in the films
+
+Every cutscene carries a piece of the canon. Keep them in step with it when either changes.
+
+| Film | Where | What it tells |
+| --- | --- | --- |
+| **First Light** (founding) | `src/modules/tutorial/founding.ts` | An older city sleeping under the sea; Ama Reyes lights the Tidewatch Lighthouse on the north rock; the fishers follow it; Halcyon's columns stand in the bay at dawn; a child plants the first seed and the Seedvault's door lights in the hill; the old grid hums back; the Island Compact chooses the steward |
+| **Something Stirs** (every sea wonder but the colonnade) | `src/modules/moments/films/stirs.ts` | A serial: the same old fisher, one per city, misses each wonder in a new way (dozing over a boot, binoculars on a gull, a camera on the lighthouse, his granddaughter who sees it all, a blink after three coffees) until the sixth, when he sees it and tips his hat. Every episode something goes over the side (the second promise: the sea's gifts go back); under the sea the Choir's light runs in to it and something vast stirs; dolphins (its scouts) leap as the wonder rises; the card: "the Choir answers", and the Tidekin saying *keep the promises, and the sea gives back* |
+| **Hello, World** (Flora wakes) | `src/modules/assistant/hello.ts` | Her boot log: the Seedvault's wake signal (a seed in the soil), asleep since LT 0, a sealed memory archive whose origin she cannot read (Meridian), and her one directive, *plan for the tide, not for today* (Flora's one saying of it); she thinks she is a gardener |
+| **What the Sea Remembers** (Sunken Colonnade) | `src/modules/moments/films/remembers.ts` | Halcyon, Meridian, One More Wall, the Long Tide, the vault, the Tidekin's Three Promises (the Tide Gates' three rings) and the flame that never went out |
+| **Maiden Flight** (Sky-lanes) | `src/modules/moments/films/flight.ts` | Comedy; the Drift will be singing about the gull for years |
+| **The Stray** (the island's cat) | `src/modules/charm/cutscene.ts` | Folklore: the cat insists it descends from Ama Reyes's ship's cat (every Drift boat carries one). Nobody can prove otherwise |
+| Ceremonies | `src/modules/moments/index.ts` | A sea wonder's ceremony: "the Choir answers", the sea gives it back to a city that keeps the promises; the Tidesong: "the Drift returns", a Drift singer aboard |

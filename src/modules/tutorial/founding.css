@@ -936,3 +936,140 @@
   inset: 0;
   overflow: hidden;
 }
+
+/* ── The story (D-192): Ama Reyes's light, Halcyon's drowned columns, the Seedvault's door ── */
+/* The Tidewatch Lighthouse on the north rock: a silhouette in the night, lit at `beacon`, its beam sweeping. */
+.ftl-light {
+  position: absolute;
+  bottom: 13.5%;
+  width: calc(var(--h) * 0.14);
+  height: calc(var(--h) * 0.37);
+  translate: -50% 0;
+}
+.ftl-light svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.ftl-light .rock {
+  fill: #0c1622;
+  transition: fill 2.4s ease;
+}
+.ftl-light .tower,
+.ftl-light .cap,
+.ftl-light .gallery {
+  fill: #1a2433;
+  transition: fill 2.4s ease;
+}
+.ftl-light .band {
+  fill: #2a2430;
+  transition: fill 2.4s ease;
+}
+.ftl-light .lantern {
+  fill: #121a26;
+}
+.ftl-light .lamp {
+  fill: #3a3a3a;
+  transition:
+    fill 0.4s ease,
+    filter 0.4s ease;
+}
+.ftl-root.beacon .ftl-light .lamp {
+  fill: #fff6c8;
+  filter: drop-shadow(0 0 3px #ffd76a) drop-shadow(0 0 9px rgba(255, 215, 106, 0.8));
+}
+.ftl-root.dawn .ftl-light .rock {
+  fill: #3a3e4c;
+}
+.ftl-root.dawn .ftl-light .tower,
+.ftl-root.dawn .ftl-light .cap,
+.ftl-root.dawn .ftl-light .gallery {
+  fill: #ece6dc;
+}
+.ftl-root.dawn .ftl-light .band {
+  fill: #d0574a;
+}
+.ftl-light .beam {
+  position: absolute;
+  left: 50%;
+  top: 15.6%;
+  width: calc(var(--h) * 1.2);
+  height: calc(var(--h) * 0.06);
+  translate: 0 -50%;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, rgba(255, 240, 180, 0.75), rgba(255, 230, 160, 0.18) 55%, transparent);
+  clip-path: polygon(0 45%, 100% 0, 100% 100%, 0 55%);
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+.ftl-root.beacon .ftl-light .beam {
+  opacity: 1;
+  animation: ftl-sweep 3.2s ease-in-out infinite;
+}
+.ftl-root.noon .ftl-light .beam {
+  opacity: 0;
+}
+@keyframes ftl-sweep {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(-1);
+  }
+}
+
+/* Halcyon's columns in the bay: hidden in the dark, pale marble at dawn. */
+.ftl-ruins {
+  position: absolute;
+  bottom: 12.5%;
+  width: calc(var(--h) * 0.46);
+  height: calc(var(--h) * 0.17);
+  translate: -50% 0;
+  opacity: 0;
+  transition: opacity 2.4s ease 0.6s;
+}
+.ftl-ruins svg {
+  width: 100%;
+  height: 100%;
+  fill: #e9e2d6;
+}
+.ftl-root.dawn .ftl-ruins {
+  opacity: 0.75;
+}
+.ftl-root.noon .ftl-ruins {
+  opacity: 0.9;
+}
+
+/* The Seedvault's door, in the hillside under the seed: it lights as the green spreads. */
+.ftl-vault {
+  position: absolute;
+  width: calc(var(--h) * 0.035);
+  height: calc(var(--h) * 0.05);
+  translate: -50% 0;
+  border-radius: 50% 50% 0 0 / 60% 60% 0 0;
+  background: #fff3b0;
+  box-shadow:
+    0 0 1vmin 0.3vmin #ffd76a,
+    0 0 5vmin 1.4vmin rgba(255, 215, 106, 0.45);
+  opacity: 0;
+  transform: scaleY(0.1);
+  transform-origin: 50% 100%;
+}
+.ftl-root.bloom .ftl-vault {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.8s ease 0.5s,
+    transform 0.9s cubic-bezier(0.2, 0.8, 0.3, 1) 0.5s;
+}
+.ftl-root.homes .ftl-vault {
+  opacity: 0.7;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ftl-root.beacon .ftl-light .beam {
+    animation: none;
+  }
+}

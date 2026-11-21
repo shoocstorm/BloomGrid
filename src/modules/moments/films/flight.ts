@@ -33,7 +33,7 @@ const K = 1.7;
 export function playMaidenFlight(ctx: GameContext, done: () => void): void {
   const { city } = ctx;
   const pilot = PILOTS[Math.abs(city.seed) % PILOTS.length]!;
-  const reel = openReel(ctx, { scene: 'mf', label: 'Maiden Flight' }, done);
+  const reel = openReel(ctx, { scene: 'mf', label: 'Maiden Flight', key: 5 }, done);
 
   // ── The set (D-188): sun and rays, two decks of cumulus, a skyline in three depths, a park, the pad and dock ──
   const rand = seeded(city.seed * 7 + 11);
@@ -150,6 +150,8 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
 
   const film = async () => {
     // 1. The pad and the checklist.
+    reel.bed('wind', 0.35, 2);
+    reel.hit('gulls', 1.2);
     reel.say('Sky-lane charter: approved. Test pilot: …available.');
     if (!(await reel.wait(1700))) return;
     reel.on('list');
@@ -170,12 +172,17 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
     }
     count.textContent = '';
     reel.on('launch');
+    // The score (D-195): the wind of the sky lane, the lift-off, a crowd at the dock.
+    reel.bed('wind', 0.8, 1);
+    reel.hit('swell', 0, 2.5);
     fly.beginElement();
     reel.cue('cs-whoosh');
     reel.say('One small hop for a pod…');
     // 3. A passenger nobody booked.
     if (!(await reel.wait((GULL_LANDS - 1.5) * 1000))) return;
     reel.on('gull');
+    reel.hit('gulls', 0.3);
+    reel.hit('wings', 1.1);
     gullIn.beginElement();
     if (!(await reel.wait(1500))) return;
     reel.on('aboard');
@@ -189,10 +196,15 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
 
     // 5. Touchdown, cheers, and a theft.
     reel.on('landed');
+    reel.bed('wind', 0.25, 1);
+    reel.hit('thud');
+    reel.hit('crowd', 0.2);
     reel.cue('cs-fanfare');
     reel.say('Touchdown! The crowd goes mild. Then wild.');
     if (!(await reel.wait(1500))) return;
     reel.on('heist');
+    reel.hit('wings', 0.1);
+    reel.hit('gulls', 0.3);
     gullOut.beginElement();
     reel.cue('cs-munch');
     reel.say('Sky-lanes: open. Hats: at your own risk.');
@@ -205,7 +217,12 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
       title: 'Sky-lanes',
       drop: true,
       sub: 'Commuters can fly now instead of jamming the streets.',
-      lines: ['Pod Docks near busy homes', 'Pod Interchanges and the Skylane Nexus', `${pilot} would like a word about the gull`],
+      lines: [
+        'Pod Docks near busy homes',
+        'Pod Interchanges and the Skylane Nexus',
+        `${pilot} would like a word about the gull`,
+        'The Drift will be singing about that gull for years',
+      ],
       button: 'Clear for take-off',
       confetti: ['#8fc0ff', '#c8a8ff', '#ffffff', '#5ff2da'],
     });

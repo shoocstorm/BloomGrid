@@ -359,7 +359,7 @@
   height: 9vmin;
   translate: -50% -100%;
   opacity: 0;
-  transition: opacity 1.2s ease 1s;
+  transition: opacity 1.2s ease 0.2s;
 }
 .hal-flame i {
   position: absolute;
@@ -403,8 +403,11 @@
   opacity: 0;
 }
 .hal.s-deep .hal-deep,
-.hal.s-deep .hal-motes,
-.hal.s-deep .hal-flame {
+.hal.s-deep .hal-motes {
+  opacity: 1;
+}
+/* The flame shows only after the promises: the last thing the film reveals. */
+.hal.s-flame .hal-flame {
   opacity: 1;
 }
 
@@ -415,4 +418,32 @@
   .hal-clouds svg {
     animation: none;
   }
+}
+
+/* The Three Promises (D-192): the Tide Gates' three pearl rings glow in the water, one by one, then give way to the flame. */
+.hal-gates {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.hal-gates svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.hal-gates circle {
+  fill: none;
+  stroke: #d9fff6;
+  stroke-width: 10;
+  filter: drop-shadow(0 0 10px #7ff2e0);
+  opacity: 0;
+  transition: opacity 0.9s ease calc(0.5s + var(--i) * 0.7s);
+}
+.hal.s-deep .hal-gates circle {
+  opacity: 0.75;
+}
+.hal.s-flame .hal-gates circle {
+  opacity: 0;
+  transition-delay: 0s;
 }

@@ -93,3 +93,46 @@
     animation: none;
   }
 }
+
+/* ── The lead-in (D-194): an iris closes on the frozen city, then opens on the film ── */
+@property --fx-iris {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 120%;
+}
+.fx-iris {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(circle farthest-corner at 50% 48%, transparent var(--fx-iris), #000 calc(var(--fx-iris) + 14%));
+  animation: fx-iris 2.5s both;
+}
+@keyframes fx-iris {
+  0% {
+    --fx-iris: 120%;
+    animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0.3);
+  }
+  /* Black at LEAD_BLACK (1.1 s), a held beat, then open on the film. */
+  44%,
+  52% {
+    --fx-iris: -16%;
+    animation-timing-function: cubic-bezier(0.25, 0.6, 0.3, 1);
+  }
+  100% {
+    --fx-iris: 120%;
+  }
+}
+/* Until the black point the film is set but unseen, and its motion waits. */
+.fx-intro:not(.fx-lit) .fx-set {
+  visibility: hidden;
+}
+.fx-intro:not(.fx-lit) .fx-set,
+.fx-intro:not(.fx-lit) .fx-set * {
+  animation-play-state: paused !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-iris {
+    animation-duration: 1.6s;
+  }
+}

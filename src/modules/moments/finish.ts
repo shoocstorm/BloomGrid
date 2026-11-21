@@ -38,6 +38,31 @@ function grainPlate(): string {
   return grain;
 }
 
+/** When the lead-in's iris has closed to black (ms): the film's own clock starts there. */
+export const LEAD_BLACK = 1100;
+
+/**
+ * The lead-in (D-194): a film never cuts in over the city out of the blue. The city freezes, the letterbox slides
+ * in and an iris closes on the live view to black; there the film's set is lit and the iris opens again on it. Until
+ * then the set is hidden and its CSS animations wait (`fx-intro` without `fx-lit`), so the film starts where the
+ * player can see it. Resolves at the black point; the iris removes itself when it has opened.
+ */
+export function leadIn(root: HTMLElement): Promise<void> {
+  const iris = h('div', { class: 'fx-iris' });
+  // Over the art and the finish's overlays, under the letterbox (which slides in over the city meanwhile).
+  const after = root.querySelector(':scope > .fx-grain') ?? root.firstElementChild;
+  if (after) after.after(iris);
+  else root.append(iris);
+  iris.addEventListener('animationend', () => iris.remove());
+  root.classList.add('fx-intro');
+  return new Promise((resolve) =>
+    setTimeout(() => {
+      root.classList.add('fx-lit');
+      resolve();
+    }, LEAD_BLACK),
+  );
+}
+
 /**
  * Finishes a film's root: `set` is the layer that drifts and is graded (the film's art, not its letterbox or card).
  * `warm` tints the light leak (default amber).

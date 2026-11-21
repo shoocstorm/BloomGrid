@@ -1,6 +1,7 @@
 import type { GameContext } from '@/game/context';
 import type { JuiceSound } from '@/modules/juice';
 import { h } from '@/ui/dom';
+import type { FilmHit } from '@/modules/moments/score';
 import { CAT_SIDE_SVG, CAT_SVG, type Coat } from './art';
 import './cutscene.css';
 
@@ -153,12 +154,13 @@ export function playAdoption(ctx: GameContext, cast: Cast, done: () => void): vo
     alive = false;
     current = null;
     root.classList.add('out');
+    ctx.bus.emit('film:state', { on: false });
     ctx.engine.speed = speed;
     setTimeout(() => {
       root.remove();
       document.body.classList.remove('cutscene-on');
       done();
-    }, 700);
+    }, 950);
   };
   current = { skip: finish };
 
@@ -167,7 +169,16 @@ export function playAdoption(ctx: GameContext, cast: Cast, done: () => void): vo
     at(76);
     pose();
     look(-0.4, 0.3);
+    // The score (D-195): a night breeze over the rooftops; the city's music ducks under it.
+    const hit = (h: FilmHit, delay?: number, dur?: number) => alive && ctx.bus.emit('film:hit', { hit: h, delay, dur });
+    ctx.bus.emit('film:state', { on: true, key: -2 });
+    ctx.bus.emit('film:bed', { bed: 'wind', level: 0.3, fade: 2 });
+    ctx.bus.emit('film:bed', { bed: 'drone', level: 0.12, fade: 3 });
+    // The lead-in (D-194): the city freezes, the letterbox slides in, an iris closes, and the night opens.
+    const lead = ctx.services.tryGet('moments')?.leadIn(root);
     requestAnimationFrame(() => root.classList.add('in'));
+    if (lead) await lead;
+    if (!alive) return;
     cue('cs-night');
     await wait(900);
     if (!alive) return;
@@ -226,6 +237,7 @@ export function playAdoption(ctx: GameContext, cast: Cast, done: () => void): vo
     at(50, 0.7);
     jump.classList.add('leap');
     cue('cs-whoosh');
+    hit('thud', 0.55);
     say('');
     await wait(380);
     if (!alive) return;
@@ -249,6 +261,9 @@ export function playAdoption(ctx: GameContext, cast: Cast, done: () => void): vo
 
     // 5. Dawn, and the coat.
     root.classList.add('dawn');
+    hit('swell', 0, 2.4);
+    hit('shimmer', 0.4);
+    ctx.bus.emit('film:bed', { bed: 'drone', level: 0, fade: 2 });
     flash.classList.add('show');
     for (let i = 0; i < 26; i++) {
       const a = (Math.PI * 2 * i) / 26 + Math.random() * 0.3;
@@ -284,6 +299,7 @@ export function playAdoption(ctx: GameContext, cast: Cast, done: () => void): vo
     );
     title.classList.add('show');
     cue('cs-fanfare');
+    hit('resolve', 0.3);
     await wait(1700);
     if (!alive) return;
     cat.classList.add('collared');
@@ -309,6 +325,7 @@ export function playAdoption(ctx: GameContext, cast: Cast, done: () => void): vo
         h('li', {}, 'Follows you across the rooftops'),
         h('li', {}, 'Talks to you, and warns you of trouble'),
         h('li', {}, 'Loves a pet (and brings the odd gift)'),
+        h('li', {}, 'Descended, it insists, from Ama Reyes’s ship’s cat'),
       ),
       h('button', { class: 'cs-go', onClick: () => finish() }, `Welcome home, ${cast.name}`),
     );

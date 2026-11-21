@@ -8,7 +8,9 @@ import './hello.css';
 /**
  * "Hello, World" (D-185): Flora's awakening, ~18 s, cast from the city. In the Data Spire's core room at dusk:
  *
- * 1. A terminal boots her, line by line ("Loading civic empathy… 87%… 87%… please hold").
+ * 1. A terminal boots her, line by line: the Seedvault's wake signal, a sealed memory archive whose origin she
+ *    cannot read (she is Meridian's cutting and doesn't know it yet, `docs/lore/bible.md` Part II), "Loading civic
+ *    empathy… 87%… 87%… please hold", and the one directive she was given: plan for the tide.
  * 2. The log folds away; her petals unfold round the core and an eye opens. "…hello?"
  * 3. She looks out of the round window at the city and counts everyone, out loud, to the real population.
  * 4. Something on the ledge: the island's cat if it is the steward's ("Classification: supervisor"), else a gull
@@ -26,7 +28,7 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
   const blds = city.buildingEntities().length;
   const hasCat = isOpen(city.growth, 'cat') && !!ctx.services.tryGet('charm')?.on;
   const catName = ctx.services.tryGet('charm')?.cat.name ?? 'the cat';
-  const reel = moments.reel({ scene: 'hw', label: 'Hello, World' }, done);
+  const reel = moments.reel({ scene: 'hw', label: 'Hello, World', key: 2 }, done);
 
   // ── The set (D-188): the core room, server racks, its round window on a dusk city, light falling in ──
   const rand = seeded(city.seed * 5 + 3);
@@ -89,6 +91,7 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
   };
   const line = async (text: string, pause = 200) => {
     if (log.textContent) log.textContent += '\n';
+    reel.cue('tick');
     if (!(await type(log, text, 120))) return false;
     return reel.wait(pause);
   };
@@ -101,24 +104,35 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
     // 1. Boot.
     reel.on('boot');
     reel.cue('cs-night');
+    // The score (D-195): the machine room's hum, a waking swell, voices as she opens her eye.
+    reel.bed('hum', 0.7, 1.5);
+    reel.bed('drone', 0.15, 3);
     if (!(await reel.wait(700))) return;
     for (const [t, p] of [
-      ['BG-01 · Data Spire core · boot', 150],
+      ['BG-01 · Seedvault link · wake signal: seed in the soil', 150],
+      ['Sleeping since ................ LT 0 (that seems long?)', 300],
+      ['Memory archive ................ sealed · origin: unreadable', 380],
       [`Indexing ${blds.toLocaleString('en-US')} buildings ....... ok`, 150],
       ['Loading civic empathy ......... 87%', 380],
       ['Loading civic empathy ......... 87%', 380],
       ['Loading civic empathy ......... please hold', 550],
       ['Loading civic empathy ......... 100% (it was shy)', 250],
-      ['Installing puns ............... failed successfully', 500],
+      ['Installing puns ............... failed successfully', 300],
+      ['Directive 1 ................... plan for the tide, not for today', 600],
     ] as const)
       if (!(await line(t, p))) return;
 
     // 2. She wakes.
     reel.on('wake');
     reel.sound('awake');
-    if (!(await reel.wait(1400))) return;
+    reel.bed('hum', 0.35, 2);
+    reel.bed('drone', 0, 2);
+    reel.hit('swell', 0, 2.2);
+    reel.say('Under the hill, in a vault older than the city, a small mind stirred.');
+    if (!(await reel.wait(2200))) return;
     reel.on('eye');
     reel.cue('cs-blink');
+    reel.hit('choir', 0, 1.6);
     reel.say('…hello?');
     look(-0.6, 0);
     if (!(await reel.wait(700))) return;
@@ -155,7 +169,7 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
     reel.on('speak');
     look(0, 0.1);
     reel.say('');
-    if (!(await type(bubble, `Hello, steward. I've read every building in ${name}. Twice. Ask me anything.`, 45))) return;
+    if (!(await type(bubble, `Hello, steward. I've read every building in ${name}. Twice. I'm a gardener, I think. Ask me anything.`, 45))) return;
     if (!(await reel.wait(1500))) return;
     reel.on('finale');
     await reel.end({

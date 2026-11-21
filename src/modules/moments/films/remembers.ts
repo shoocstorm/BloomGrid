@@ -14,7 +14,8 @@ import './remembers.css';
  * 3. One More Wall: the sea rises, the walls rise to meet it, step by step.
  * 4. The Long Tide: storm, rain, and the sea comes in behind the walls.
  * 5. The vault: a seed of light sinks into the western hill; the door closes.
- * 6. Under the sea: the drowned columns, the reef's glow, and a flame that never went out.
+ * 6. Under the sea: the drowned columns and the reef's glow (the Tidekin who stayed, and their Three Promises),
+ *    and a flame that never went out.
  * 7. The card: the colonnade's name and the chapter found.
  *
  * CSS prefix `hal-` (unique across the stylesheets); stage classes `.s-*` on `.reel.hal` direct it.
@@ -27,7 +28,7 @@ export function playWhatTheSeaRemembers(ctx: GameContext, done: () => void): voi
   const { city } = ctx;
   const reel = openReel(
     ctx,
-    { scene: 'hal', label: 'What the Sea Remembers', leak: 'rgba(120, 190, 255, 0.14)' },
+    { scene: 'hal', label: 'What the Sea Remembers', leak: 'rgba(120, 190, 255, 0.14)', key: -3 },
     done,
   );
   const rand = seeded(city.seed * 31 + 7);
@@ -107,6 +108,11 @@ export function playWhatTheSeaRemembers(ctx: GameContext, done: () => void): voi
     )
     .join('');
   deep.innerHTML = `<svg viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${cols}<path d="M640 600 V380 H960 V600Z M620 380 A180 120 0 0 1 980 380Z" class="hal-dcol"/><rect x="660" y="560" width="280" height="40" class="hal-dcol"/><path d="M0 600 Q200 560 400 590 T800 580 T1200 590 T1600 570 V600Z" class="hal-reef"/></svg>`;
+  // The Three Promises made solid: the Tide Gates' rings of living pearl, glowing in the water as the Tidekin sing.
+  const gates = h('div', { class: 'hal-gates' });
+  gates.innerHTML = `<svg viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${[560, 800, 1040]
+    .map((x, i) => `<circle cx="${x}" cy="${230 - (i % 2) * 24}" r="${92 - (i % 2) * 12}" style="--i:${i}"/>`)
+    .join('')}</svg>`;
   const flame = h(
     'div',
     { class: 'hal-flame' },
@@ -139,35 +145,71 @@ export function playWhatTheSeaRemembers(ctx: GameContext, done: () => void): voi
     seed,
     deep,
     motes,
+    gates,
     flame,
   );
 
   const film = async () => {
     reel.on('marble');
+    // The score (D-195): a calm harbour, then a mind, walls, a storm, a vault, the deep and the flame.
+    reel.bed('sea', 0.5, 2);
+    reel.bed('wind', 0.2, 2);
+    reel.hit('gulls', 1.2);
     reel.say('Before this city there was another. Its name was Halcyon.');
     if (!(await reel.wait(3400))) return;
 
     reel.on('mind');
     reel.cue('cs-reveal');
+    reel.hit('choir', 0.3, 2.8);
+    reel.bed('drone', 0.2, 2);
     reel.say('It was run by a mind called Meridian, which made every day better than the last.');
     if (!(await reel.wait(3600))) return;
 
     reel.on('walls');
+    reel.bed('drone', 0.45, 2);
+    reel.bed('wind', 0.4, 2);
+    for (let i = 0; i < 5; i++) reel.hit('thud', 0.55 + i * 0.55);
     reel.say('When the seas rose, it built one more wall. And one more. And one more.');
     if (!(await reel.wait(3400))) return;
 
     reel.on('tide');
     reel.cue('cs-whoosh');
+    reel.bed('rain', 1, 0.8);
+    reel.bed('wind', 0.9, 1);
+    reel.bed('sea', 1, 1);
+    reel.hit('thunder', 0.3);
+    reel.hit('riser', 0.2, 1.5);
+    reel.hit('boom', 1.75);
+    reel.hit('thunder', 2.4);
     reel.say('Then came the Long Tide. Halcyon drowned in eleven hours.');
     if (!(await reel.wait(3800))) return;
 
     reel.on('vault');
     reel.cue('cs-blink');
+    reel.bed('rain', 0.25, 1.5);
+    reel.bed('wind', 0.3, 1.5);
+    reel.bed('sea', 0.3, 1.5);
+    reel.bed('drone', 0.3, 1.5);
+    reel.hit('sting', 0.2);
+    reel.hit('shimmer', 0.6);
+    reel.hit('thud', 2.5);
     reel.say('In its last hour, Meridian sealed a seed of itself in the hill, and waited.');
     if (!(await reel.wait(3800))) return;
 
     reel.on('deep');
-    reel.sound('wonder');
+    reel.hit('plunge');
+    for (const b of ['rain', 'wind', 'sea'] as const) reel.bed(b, 0, 0.3);
+    reel.bed('deep', 1, 0.4);
+    reel.bed('choir', 0.6, 2.5);
+    reel.hit('bubbles', 1.2, 2);
+    reel.say('The few who stayed learned to listen to the sea, and swore it three promises.');
+    if (!(await reel.wait(3400))) return;
+    reel.on('flame');
+    reel.cue('cs-reveal');
+    reel.hit('swell', 0, 3);
+    reel.hit('shimmer', 0.8);
+    reel.bed('choir', 0.9, 1.5);
+    reel.bed('drone', 0, 2);
     reel.say('And under the sea, one flame never went out.');
     if (!(await reel.wait(3600))) return;
     reel.say('');

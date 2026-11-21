@@ -3560,8 +3560,55 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   (to the reader and to Flora's search) once any is found; `KnowledgeBase.setGate` / `refresh`. Flora reads found
   pages through `chronicle_status` (hints only for the rest), so she never tells a story the city hasn't earned.
 - **Film.** "What the Sea Remembers" (`moments/films/remembers.ts`, CSS prefix `hal-`) plays in place of
-  "Something Stirs" when the Sunken Colonnade rises, then the wonder's ceremony as before (D-187).
+  "Something Stirs" when the Sunken Colonnade rises, then the wonder's ceremony as before (D-187). Every other
+  cutscene carries canon too (First Light: Ama Reyes's lighthouse, Halcyon's columns, the Seedvault door; Something
+  Stirs: the Choir's light; Hello, World: Flora's sealed origin; the cat's folklore; wonder and Tidesong
+  ceremonies), listed in the bible's "The story in the films" so films and canon change together.
 - **Arcs.** Three resident stories carry the plot into play: the Diver, the Concord's offer, the Lantern
   archivist; their endings write Chronicle pages.
 - Rejected: storing found pages per viewer in `localStorage` (a save would lose its history and the hash would
   miss it); hiding lore in the guides behind a spoiler toggle (Flora would read spoilers).
+
+## D-193: "Something Stirs" is a serial, shot like film
+
+- **Why.** It plays for six of the seven sea wonders (the colonnade has its own film, D-192), so players saw the same
+  17 seconds six times. It is now a six-episode serial with one recurring character: the city's old fisher (one name
+  per city from the seed) misses each wonder in a new way, and in the sixth he finally sees one. Episodes follow
+  the order this city found its wonders (`episodeOf`; the showcase uses `WONDERS` order).
+- **Look per wonder.** Each wonder has its hour (`LOOKS`: sky, sea, sun or moon, clouds, a mood layer: rain that
+  clears into a rainbow, mist that parts, night with stars and glowing plankton, an aurora), passed to CSS as custom
+  properties, so one stylesheet draws all six.
+- **Shots.** The camera is one wrapper (`.sw-cam`) whose `data-shot` selects a CSS animation: a new shot is a hard
+  cut and the animation is that shot's move (wide push-in, close-up on the fisher with the horizon out of focus, a
+  low tilt-up with shake for the rise, a two-shot, a pull-out). The underwater shot (`su-` prefix) follows what went
+  over the side down to the reef, where the Choir's light gathers and something vast stirs (canon, bible Part IV).
+- Rejected: picking a gag at random (a replay would differ from the first viewing, and two wonders could repeat a
+  gag); a separate film per wonder (six films to keep in step for one premise).
+
+## D-194: Films lead in with an iris, not a cut
+
+- **Why.** A wonder's film or the cat's adoption started mid-game straight over the city: the reel faded in for
+  0.8 s and its timeline ran from the first frame, so it felt like it came out of nowhere.
+- **How.** `leadIn(root)` (`moments/finish.ts`): the city freezes, the letterbox slides in and an iris closes on
+  the live view to black (`--fx-iris`, a registered custom property, so the gradient animates); at the black point
+  (`LEAD_BLACK`, 1.1 s) the film's set is shown (`fx-lit`) and the iris opens on it. Until then the set is hidden
+  and its CSS animations are paused, and the reel's `wait` holds its clock, so a film's own timing starts where the
+  player can see it. Films with their own root (the cat's) await `moments.leadIn`. Endings fade back over 0.9 s
+  with the letterbox leaving first. `instant` reels (the founding film over the loading screen) skip it.
+- Rejected: a longer cross-fade (still a dissolve of two unrelated pictures); a pre-roll title card (one more thing
+  to click past on the sixth wonder).
+
+## D-195: The films are scored
+
+- **Why.** The films had only short UI-style cues; nothing carried the drama (a wonder breaking the surface sounded
+  like a chime).
+- **How.** A film speaks a small vocabulary on the bus (`moments/score.ts`): `film:state` (on/off and a key),
+  `film:bed` (sea, wind, rain, deep, drone, choir, hum: continuous layers it fades) and `film:hit` (the lead-in's
+  iris, risers, booms, splashes, plunges, bubbles, heartbeats, thunder, swells, a choir, shimmer, dolphins, gulls,
+  a reel ratchet, a sneeze, a shutter, a crowd, the end card's resolve). `audio/film.ts` synthesises them like the
+  rest of the game's sound (D-077): beds are noise and oscillators under filters and slow LFOs, built on first use
+  and freed after the film; hits are envelopes on a film bus at the effects level with their own voice budget. While
+  a film plays the city's music and ambience duck to a tenth. Something Stirs plays each wonder's episode in its own
+  key. Films stay free of audio imports: they only emit events.
+- Rejected: audio files (licensing, download size, and the game has none); scoring inside each film with Web Audio
+  directly (every film would need the audio context and the levels).

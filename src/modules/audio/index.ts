@@ -6,6 +6,7 @@ import { Building, Problem, Service } from '@/ecs/components';
 import { isHero } from '@/content/heroes';
 import { MOODS, makeRandom, midiHz, pickMood, type Mood } from './music';
 import { selectionCue, type BuildingState, type Played, type Selected } from './cues';
+import { FilmScore } from './film';
 
 const KEY = 'bloomgrid.audio';
 /** Most sound effects playing at once (music and ambience are separate). */
@@ -75,6 +76,10 @@ class Sound {
   private music!: GainNode;
   private amb!: GainNode;
   private sfx!: GainNode;
+  /** The films' score (D-195): its own bus at the effects level; music and ambience duck under it. */
+  private film!: GainNode;
+  score: FilmScore | null = null;
+  filming = false;
   private noise!: AudioBuffer;
   private beds: Record<
     'surf' | 'hum' | 'wind' | 'rain' | 'rail' | 'pod' | 'fire',
@@ -116,12 +121,14 @@ class Sound {
     this.music = ac.createGain();
     this.amb = ac.createGain();
     this.sfx = ac.createGain();
-    for (const g of [this.music, this.amb, this.sfx]) g.connect(this.master);
+    this.film = ac.createGain();
+    for (const g of [this.music, this.amb, this.sfx, this.film]) g.connect(this.master);
     // Two seconds of white noise, looped by every noise voice.
     this.noise = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
     const d = this.noise.getChannelData(0);
     const r = makeRandom(3);
     for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1;
+    this.score = new FilmScore(ac, this.film, this.noise);
     this.padFilter = ac.createBiquadFilter();
     this.padFilter.type = 'lowpass';
     this.padFilter.Q.value = 0.7;
@@ -172,9 +179,12 @@ class Sound {
     const t = this.ac.currentTime;
     const L = this.levels;
     this.master.gain.setTargetAtTime(L.muted ? 0 : L.master, t, 0.05);
-    this.music.gain.setTargetAtTime(L.music * 0.5, t, 0.2);
-    this.amb.gain.setTargetAtTime(L.ambience, t, 0.2);
+    // A film ducks the city's music and ambience to a murmur (over ~1.5 s), and gives them back as it ends.
+    const duck = this.filming ? 0.1 : 1;
+    this.music.gain.setTargetAtTime(L.music * 0.5 * duck, t, this.filming ? 0.5 : 0.8);
+    this.amb.gain.setTargetAtTime(L.ambience * duck, t, this.filming ? 0.5 : 0.8);
     this.sfx.gain.setTargetAtTime(L.sfx, t, 0.05);
+    this.film.gain.setTargetAtTime(L.sfx * 1.1, t, 0.05);
   }
 
   // ── Music ──
@@ -696,6 +706,18 @@ export const audioModule: GameModule = {
       const v = Math.max(0.3, h.vol);
       s.burst(burner ? 3.2 : 2.4, (burner ? 0.16 : 0.11) * v, 'lowpass', burner ? 1400 : 2200, burner ? 180 : 320, h.delay);
       s.burst(1.6, 0.05 * v, 'bandpass', 3200, 900, h.delay + 0.1);
+    });
+    // The films' score (D-195): a film starts the score in its key and ducks the city; beds and hits as it asks.
+    bus.on('film:state', ({ on, key }) => {
+      if (on) s.start();
+      s.filming = on;
+      s.applyLevels();
+      if (on) s.score?.begin(key);
+      else s.score?.end();
+    });
+    bus.on('film:bed', ({ bed, level, fade }) => s.score?.bed(bed, level, fade));
+    bus.on('film:hit', ({ hit, delay, dur }) => {
+      if (!s.levels.muted) s.score?.hit(hit, delay, dur);
     });
     bus.on('crisis:forecast', () => {
       s.tone(440, 0.35, 0.08, 'square', undefined, 0);

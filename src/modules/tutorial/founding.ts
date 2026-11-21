@@ -2,6 +2,7 @@ import type { GameContext } from '@/game/context';
 import type { JuiceSound } from '@/modules/juice';
 import { DIFFICULTIES } from '@/sim/difficulty';
 import { h } from '@/ui/dom';
+import type { FilmBed, FilmHit } from '@/modules/moments/score';
 import { drawIsland } from './islandMap';
 import { mapOfCity } from './cityMap';
 import './founding.css';
@@ -10,13 +11,15 @@ import './founding.css';
  * "First Light" (D-183): the film that plays when a fresh island is founded. About twenty seconds, illustrated in
  * DOM / SVG / CSS over the paused city, and cast from the city itself:
  *
- * 1. Night sea, letterboxed. A lantern-lit boat glides in from the left.
+ * 1. Night sea, letterboxed; under it, an older city sleeps. Ama Reyes lights the Tidewatch Lighthouse on its rock
+ *    (canon: `docs/lore/bible.md` Part VI), and a lantern-lit boat follows the light in from the left.
  * 2. Dawn breaks, the mist parts and the island rises: its real silhouette (the terrain's skyline seen from the
- *    south, `profile`).
- * 3. A seed of light arcs from the lantern onto the hills; green sweeps out from where it lands and trees pop up.
+ *    south, `profile`), with Halcyon's drowned columns standing in the bay.
+ * 3. A seed of light arcs from the lantern onto the hills; green sweeps out from where it lands, trees pop up, and
+ *    a door in the hillside lights: the Seedvault wakes.
  * 4. The founding hamlet rises: one shape per real building, at its real place along the island, windows lighting.
- * 5. A hologram scan unfolds the island's real map with the hamlet on it: Island OS online.
- * 6. The city's name drops in, "Founded · Day 1", petals fall, and **Begin** ends it.
+ * 5. A hologram scan unfolds the island's real map with the hamlet on it: the old grid is back on.
+ * 6. The city's name drops in, "Founded · Day 1", chosen by the Island Compact, petals fall, and **Begin** ends it.
  *
  * Skip with the button or Esc; replayable from Build → Goals → Replays and the gallery (a film, D-181). The city's
  * name only ever reaches the DOM as text; the SVG is built from numbers. A founding plays it `instant` (D-184): it
@@ -155,6 +158,10 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
   const speed = ctx.engine.speed;
   ctx.engine.speed = 0;
   const cue = (sound: JuiceSound) => ctx.bus.emit('juice', { sound });
+  // The score (D-195): night surf and wind; a light, dawn's swell, the vault's voices; the city's music ducks under it.
+  const bed = (b: FilmBed, level: number, fade?: number) => ctx.bus.emit('film:bed', { bed: b, level, fade });
+  const hit = (h: FilmHit, delay?: number, dur?: number) => alive && ctx.bus.emit('film:hit', { hit: h, delay, dur });
+  ctx.bus.emit('film:state', { on: true, key: 0 });
   let alive = true;
   // Waits `ms` of film time: the clock stands still while `filmClock.held`.
   const wait = async (ms: number) => {
@@ -204,8 +211,19 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
     h('i', {}),
   );
   const ring = h('div', { class: 'ftl-ring', style: `left:${(seedX / 10).toFixed(2)}%;top:${((seedY / 300) * 100).toFixed(2)}%` });
+  // The Seedvault's door, in the hillside under where the seed lands: it lights as the vault wakes.
+  const vault = h('div', { class: 'ftl-vault', style: `left:${(seedX / 10).toFixed(2)}%;top:${((seedY / 300) * 100 + 3).toFixed(2)}%` });
+  // Ama Reyes's light on the north rock, at the island's far end from the hamlet; Halcyon's columns in the bay
+  // between it and the boat's course.
+  const hx = hamletX / 10;
+  const lx = hx < 50 ? 92 : 8;
+  const light = h('div', { class: 'ftl-light', style: `left:${lx}%` }, h('i', { class: 'beam' }));
+  light.insertAdjacentHTML('afterbegin', LIGHTHOUSE_SVG);
+  const rx = hx < 50 ? Math.min(82, Math.max(hx + 22, 60)) : Math.max(18, Math.min(hx - 22, 40));
+  const ruins = h('div', { class: 'ftl-ruins', style: `left:${rx.toFixed(1)}%` });
+  ruins.innerHTML = RUINS_SVG;
   // One box in the SVG's own proportions: the boat, the sea and the seed share its coordinates.
-  island.append(sea, sail, seed, ring);
+  island.append(ruins, sea, light, sail, seed, ring, vault);
   const birds = h('div', { class: 'ftl-birds' }, ...Array.from({ length: 5 }, (_, i) => h('i', { style: `--i:${i}` })));
 
   // The hologram: the island's real map with the hamlet on it.
@@ -225,7 +243,7 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
       map,
       h('div', { class: 'ftl-grid' }),
       here,
-      h('div', { class: 'ftl-tag' }, h('i', {}), `Island #${city.seed} · Island OS online`),
+      h('div', { class: 'ftl-tag' }, h('i', {}), `Island #${city.seed} · Seedvault grid online`),
     ),
   );
 
@@ -267,6 +285,7 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
     alive = false;
     current = null;
     root.classList.add('out');
+    ctx.bus.emit('film:state', { on: false });
     ctx.engine.speed = speed;
     opts.leaving?.();
     setTimeout(() => {
@@ -281,20 +300,34 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
     // 1. Night sea, and a boat.
     requestAnimationFrame(() => on('in'));
     cue('cs-night');
+    bed('sea', 0.7, 2.5);
+    bed('wind', 0.35, 2.5);
+    bed('drone', 0.15, 3);
     await wait(700);
     if (!alive) return;
-    say('Before the city, there was only the sea.');
-    await wait(1300);
+    say('Before the city, there was only the sea. Under it, an older city slept.');
+    await wait(1900);
+    if (!alive) return;
+    on('beacon');
+    cue('cs-blink');
+    hit('shimmer', 0.1);
+    hit('open', 0.2);
+    say('Then a Drift fisher, Ama Reyes, lit a light on the north rock.');
+    await wait(2000);
     if (!alive) return;
     on('sail');
-    say('One boat. One lantern. A handful of fishers.');
+    say('One boat, one lantern, a handful of fishers followed it home…');
     await wait(2300);
     if (!alive) return;
 
     // 2. Dawn, and the island.
     on('dawn');
     cue('cs-whoosh');
-    say('…and an island no map had named.');
+    bed('drone', 0, 2);
+    bed('wind', 0.2, 2);
+    hit('swell', 0.4, 3);
+    hit('gulls', 2.2);
+    say('…to an island no map had named.');
     await wait(1100);
     if (!alive) return;
     on('rise');
@@ -305,12 +338,15 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
     // 3. The seed.
     on('seed');
     cue('cs-blink');
-    say('They planted the first seed.');
+    say('A child planted the first seed.');
     await wait(1000);
     if (!alive) return;
     on('bloom');
     cue('cs-reveal');
-    await wait(1600);
+    hit('thud', 0.5);
+    hit('choir', 0.6, 2.4);
+    say('Deep in the hill, something old felt it, and woke.');
+    await wait(2000);
     if (!alive) return;
 
     // 4. The hamlet, in the golden morning (its lights show).
@@ -323,7 +359,8 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
     // 5. Island OS, in full day.
     on('holo', 'noon');
     cue('ready');
-    say('The grid woke, and it needed a steward.');
+    hit('shimmer', 0.2);
+    say('The old grid hummed back to life, and it needed a steward.');
     await wait(2600);
     if (!alive) return;
 
@@ -342,11 +379,12 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
         { class: 'ftl-name', style: `--len:${longest};--all:${Math.max(10, name.length)}` },
         ...words.map((w) => h('span', { class: 'ftl-word' }, ...[...w].map((ch) => h('span', { style: `--i:${li++}` }, ch)))),
       ),
-      h('p', { class: 'ftl-sub' }, 'Grow it gently, steward.'),
+      h('p', { class: 'ftl-sub' }, 'The Island Compact chose you. Grow it gently, steward.'),
       h('button', { class: 'ftl-go', onClick: () => finish() }, 'Begin'),
     );
     title.classList.add('show');
     cue('cs-fanfare');
+    hit('resolve', 0.3);
     say('');
     for (let i = 0; i < 40; i++)
       petals.append(
@@ -364,6 +402,25 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
 }
 
 const PETALS = ['#ffd6e8', '#ffb3cf', '#fff3c4', '#c9f2d4', '#ffffff'];
+
+/** The Tidewatch Lighthouse on its rock: coral-red and pearl-white bands, a gallery and the lamp (30 × 80). */
+const LIGHTHOUSE_SVG = `<svg viewBox="0 0 30 80" aria-hidden="true">
+<path class="rock" d="M0 80 Q2 66 9 64 Q15 60 22 64 Q29 67 30 80Z"/>
+<path class="tower" d="M10 64 L12 18 H18 L20 64Z"/>
+<path class="band" d="M10.6 50 H19.4 L19.7 57 H10.3Z M11.4 34 H18.6 L18.9 41 H11.1Z M11.9 22 H18.1 L18.3 27 H11.7Z"/>
+<rect class="gallery" x="9.5" y="16" width="11" height="2.4"/>
+<rect class="lantern" x="12" y="9" width="6" height="7"/>
+<circle class="lamp" cx="15" cy="12.5" r="2.4"/>
+<path class="cap" d="M11 9 L15 4 L19 9Z"/>
+</svg>`;
+
+/** Halcyon's drowned harbour: marble columns standing in the bay, one still bearing a lintel (80 × 30). */
+const RUINS_SVG = `<svg viewBox="0 0 80 30" aria-hidden="true">
+<rect x="4" y="10" width="6" height="20"/><rect x="2.5" y="8" width="9" height="2.6"/>
+<rect x="18" y="4" width="6" height="26"/><rect x="30" y="4" width="6" height="26"/><path d="M15 1.4 H39 V4.4 H15Z"/>
+<rect x="48" y="14" width="6" height="16"/><path d="M47 14 l3 -3 l3 2 l2 -1 v2z"/>
+<rect x="66" y="19" width="6" height="11"/>
+</svg>`;
 
 /** A small sailing boat with a lantern, and the lantern's light on the water under it (60 × 44). */
 const BOAT_SVG = `<svg viewBox="0 0 60 44" aria-hidden="true">

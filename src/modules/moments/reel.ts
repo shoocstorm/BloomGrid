@@ -2,7 +2,8 @@ import type { GameContext } from '@/game/context';
 import type { JuiceSound } from '@/modules/juice';
 import type { MomentSound } from './Ceremony';
 import { h } from '@/ui/dom';
-import { finishFilm } from './finish';
+import { finishFilm, leadIn } from './finish';
+import type { FilmBed, FilmHit } from './score';
 import './reel.css';
 
 /**
@@ -33,6 +34,8 @@ export interface ReelOptions {
   leaving?: () => void;
   /** The light leak's colour (the finish, D-188); amber by default. */
   leak?: string;
+  /** The score's key (D-195), semitones from A: the resolve and swells sit in it. */
+  key?: number;
 }
 
 export interface EndCard {
@@ -65,6 +68,10 @@ export interface Reel {
   on(...cls: string[]): void;
   /** A juice cue (the cutscene score) or a ceremony sound. */
   cue(sound: JuiceSound): void;
+  /** The score (D-195): fades a bed (sea, wind, rain, deep, drone, choir, hum) to `level` over `fade` s. */
+  bed(bed: FilmBed, level: number, fade?: number): void;
+  /** The score: a stinger, `delay` s from now (`dur` for risers and swells). */
+  hit(hit: FilmHit, delay?: number, dur?: number): void;
   sound(sound: MomentSound): void;
   /** Re-runs a one-shot animation on an element (removes and re-adds `cls`). */
   pop(el: Element, cls?: string): void;
@@ -114,6 +121,17 @@ export function openReel(ctx: GameContext, opts: ReelOptions, done: () => void):
   document.body.append(root);
   document.body.classList.add('cutscene-on');
   if (!opts.instant) requestAnimationFrame(() => root.classList.add('in'));
+  // The score begins (D-195): the city's music and ambience duck under the film.
+  ctx.bus.emit('film:state', { on: true, key: opts.key ?? 0 });
+  // Over the city, the lead-in (D-194): the film's clock and captions start once the iris has closed to black.
+  let caption = '';
+  if (!opts.instant) ctx.bus.emit('film:hit', { hit: 'iris' });
+  const ready = opts.instant
+    ? Promise.resolve()
+    : leadIn(root).then(() => {
+        if (alive) ctx.bus.emit('film:hit', { hit: 'open' });
+        if (alive && caption) reel.say(caption);
+      });
 
   const reel: Reel = {
     root,
@@ -122,6 +140,7 @@ export function openReel(ctx: GameContext, opts: ReelOptions, done: () => void):
       return alive;
     },
     async wait(ms) {
+      await ready;
       let left = ms;
       while (left > 0 && alive) {
         const step = Math.min(50, left);
@@ -131,6 +150,7 @@ export function openReel(ctx: GameContext, opts: ReelOptions, done: () => void):
       return alive;
     },
     say(text) {
+      caption = text;
       cap.classList.remove('show');
       void cap.offsetWidth;
       cap.textContent = text;
@@ -138,6 +158,8 @@ export function openReel(ctx: GameContext, opts: ReelOptions, done: () => void):
     },
     on: (...cls) => root.classList.add(...cls.map((c) => `s-${c}`)),
     cue: (sound) => ctx.bus.emit('juice', { sound }),
+    bed: (bed, level, fade) => alive && ctx.bus.emit('film:bed', { bed, level, fade }),
+    hit: (hit, delay, dur) => alive && ctx.bus.emit('film:hit', { hit, delay, dur }),
     sound: (sound) => ctx.bus.emit('moment', { id: opts.scene, sound }),
     pop(el, cls = 'go') {
       el.classList.remove(cls);
@@ -148,6 +170,7 @@ export function openReel(ctx: GameContext, opts: ReelOptions, done: () => void):
       if (!alive) return;
       reel.say('');
       skip.classList.add('hidden');
+      ctx.bus.emit('film:hit', { hit: 'resolve', delay: 0.15 });
       let i = 0;
       card.replaceChildren(
         ...(c.kicker ? [h('div', { class: 'reel-kick' }, c.kicker)] : []),
@@ -183,13 +206,14 @@ export function openReel(ctx: GameContext, opts: ReelOptions, done: () => void):
       alive = false;
       if (current === reel) current = null;
       root.classList.add('out');
+      ctx.bus.emit('film:state', { on: false });
       ctx.engine.speed = speed;
       opts.leaving?.();
       setTimeout(() => {
         root.remove();
         if (!current) document.body.classList.remove('cutscene-on');
         done();
-      }, 700);
+      }, 950);
     },
   };
   current = reel;

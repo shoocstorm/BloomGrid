@@ -20,7 +20,30 @@
 .reel.out,
 .reel.instant.out {
   opacity: 0;
-  transition: opacity 0.65s ease;
+  transition: opacity 0.9s ease;
+}
+/* With a lead-in (D-194) the reel is there at once (its iris and letterbox do the fading in) and its own black
+   unveil is not needed; it still fades out to the city at the end. */
+.reel.fx-intro {
+  opacity: 1;
+  transition: none;
+}
+.reel.fx-intro.out {
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.reel.fx-intro::after {
+  display: none;
+}
+.reel.fx-intro:not(.fx-lit) .reel-cap {
+  visibility: hidden;
+}
+/* The letterbox leaves first as the film fades. */
+.reel.out .reel-bar.top {
+  transform: translateY(-100%);
+}
+.reel.out .reel-bar.bot {
+  transform: translateY(100%);
 }
 /* Opens on black, then the scene comes up. */
 .reel::after {
