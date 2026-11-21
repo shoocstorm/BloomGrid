@@ -1,7 +1,7 @@
 import { BoxGeometry, CylinderGeometry, Group, Mesh, TorusGeometry, type ColorRepresentation } from 'three/webgpu';
 
 const BOX = new BoxGeometry(1, 1, 1);
-import { BALL, Blend, Blinker, CONE, HEMI, ROD, glow, hard, joint, part, soft } from './rig';
+import { BALL, Blend, Blinker, CONE, HEMI, ROD, compact, glow, hard, joint, part, soft } from './rig';
 
 /**
  * A person for 3D films (D-197): a fisher, a test pilot, a lighthouse keeper, a cheering crowd. Storybook proportions
@@ -182,6 +182,11 @@ export class Person3D {
     this.dress(look.hat ?? 'none', look.hatColour ?? look.top, hair);
     this.head.add(this.hat);
     this.holdProp(look.prop ?? 'none');
+    // The face's moving parts stay separate (and cast no shadow); the rest merges per joint.
+    const face = new Set<import('three/webgpu').Object3D>([...this.eyes, ...this.brows, this.mouth]);
+    if (this.lamp) face.add(this.lamp);
+    for (const f of face) f.castShadow = false;
+    compact(this.root, face);
   }
 
   private dress(hat: Hat, col: ColorRepresentation, hair: ReturnType<typeof soft>): void {

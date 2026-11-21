@@ -3639,7 +3639,7 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   everyone's); a 2D cat billboarded in a 3D set (it only reads side-on); a GLB cat (GLB parts don't light or weather
   like the kit, and the game has no asset pipeline for characters).
 
-## D-197: Every film moves to 3D (in progress)
+## D-197: Every film moves to 3D
 
 - **Done.** The Stray, Maiden Flight, Hello World, What the Sea Remembers and all six Something Stirs episodes play
   on the 3D film stage (D-196); their 2D sets and CSS are gone (DOM stays for captions, checklists, logs, labels and
@@ -3647,5 +3647,13 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   cast hall. The stage gained location shooting (`openLocation`, render-only `world.timeOverride`), a sea, fog
   (set up before the stage opens), rain, clouds, tinted buildings, a sky toggle, handheld drift, and a look `env`
   factor that dims reflections and image light (`scene.environmentIntensity` for the film's own materials).
-- **Left.** "First Light" (`tutorial/founding.ts`) is still 2D: the plan is to shoot it on location over the real
-  island, held on black until the boot screen lifts, closing the stage before its `leaving` fly-in.
+- **First Light** is shot on location over the player's own island (`openLocation`): the real terrain, sea,
+  Tidewatch Lighthouse and hamlet, the hour animated for the film only. Ama's boat comes in over open water (a
+  course with sea all the way out, not a lagoon); the seed lands on the highest ground near the hamlet. A founding
+  holds the reel on black (`.hold`) until `.boot-screen` has gone; the stage closes in `leaving` before the fly-in.
+  The 2D drawing helpers (`moments/films/art.ts`) are gone.
+- **Draw calls.** Actors merge each joint's parts by material (`compact` in `actors/rig.ts`; face parts stay separate
+  and cast no shadow) and crowds cast no shadows. Peak draws per film (WebGPU and WebGL alike): The Stray 108, Hello
+  204, Remembers 225, Something Stirs 216, Maiden Flight 317, First Light 367. First Light's peaks are the city's own
+  shadow refresh while the sun moves or the camera travels (the city at an overview draws ~100, the film ~110–250
+  between them); Maiden Flight's are its crowd and skyline.

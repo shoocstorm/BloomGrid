@@ -21,7 +21,7 @@ import { LOOKS, type StageLook } from '@/render/stageUniforms';
 import { Person3D } from '../actors/person';
 import { Gull3D } from '../actors/gull';
 import { CAST, crowdLook } from '../actors/cast';
-import { BALL, glow, hard, part } from '../actors/rig';
+import { BALL, glow, hard, noShadows, part } from '../actors/rig';
 import { CylinderGeometry, TorusGeometry } from 'three/webgpu';
 
 const DISC = new CylinderGeometry(1, 1, 1, 48);
@@ -92,8 +92,6 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
     ['garden-residence', 1, -3, 4, 1.57],
     ['garden-residence', 2, 2.5, 4.5, -1.57],
     ['living-studio', 0, -11, 5, 0],
-    ['pocket-park', 0, 0, 0.2, 0],
-    ['pocket-park', 0, 3.5, 0.5, 0],
     ['canopy-tower', 1, 13, -1, -0.3],
   ];
   for (const [id, tier, x, z, yaw] of towers) stage.addBuilding(id, tier, O.x + x, O.z + z, yaw, base);
@@ -192,16 +190,18 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
   gull.root.scale.setScalar(0.7);
   stage.add(gull.root);
   // The crowd at the dock, on the plaza in front of it.
-  const crowd = Array.from({ length: 7 }, (_, i) => {
+  const crowd = Array.from({ length: 5 }, (_, i) => {
     const p = new Person3D(crowdLook(i + city.seed));
     p.root.scale.setScalar(0.55);
     // A crescent on the plaza in front of the pad, facing it.
-    const a = Math.PI * (0.25 + (i / 6) * 0.62);
+    const a = Math.PI * (0.25 + (i / 4) * 0.62);
     const r = 1.9 + (i % 2) * 0.35;
     p.root.position.set(dockTop.x + Math.cos(a) * r, base, dockTop.z + Math.sin(a) * r);
     p.root.rotation.y = Math.atan2(Math.sin(a), -Math.cos(a)) + Math.PI;
     p.act('stand', { headPitch: -0.2 });
     p.pose.snap();
+    // Small and many: they cast no shadow (the draw budget goes to the pod and the pilot).
+    noShadows(p.root);
     stage.add(p.root);
     return p;
   });

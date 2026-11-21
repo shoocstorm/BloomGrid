@@ -13,6 +13,7 @@ import {
   type Material,
   type Object3D,
 } from 'three/webgpu';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /**
  * The film actors' kit (D-197): shared shapes, soft materials and a pose blender, so every 3D film character (the
@@ -137,4 +138,49 @@ export class Blinker {
     if (b > this.len + this.hold) this.t = -1;
     return lid;
   }
+}
+
+/**
+ * Merges each joint's leaf parts that share a material into one mesh (D-197): an actor is built from dozens of
+ * primitives for clarity, but it draws (and casts shadows) as a few meshes per joint. Parts a rig animates on their
+ * own (eyes, brows, a mouth: `keep`), parts with children, and joints themselves stay as they are.
+ */
+export function compact(root: Object3D, keep: Set<Object3D>): void {
+  const joints: Object3D[] = [];
+  root.traverse((o) => {
+    if (!(o as Mesh).isMesh) joints.push(o);
+  });
+  for (const j of joints) {
+    const byMat = new Map<Material, Mesh[]>();
+    for (const c of j.children) {
+      const m = c as Mesh;
+      if (!m.isMesh || m.children.length || keep.has(m) || Array.isArray(m.material)) continue;
+      const list = byMat.get(m.material as Material) ?? [];
+      list.push(m);
+      byMat.set(m.material as Material, list);
+    }
+    for (const [mat, list] of byMat) {
+      if (list.length < 2) continue;
+      const geos = list.map((m) => {
+        m.updateMatrix();
+        const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+        for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
+        if (!g.attributes.uv) g.deleteAttribute('uv');
+        return g.applyMatrix4(m.matrix);
+      });
+      // Every part needs the same attribute set to merge: drop uv where any lacks it.
+      if (geos.some((g) => !g.attributes.uv)) for (const g of geos) if (g.attributes.uv) g.deleteAttribute('uv');
+      const merged = new Mesh(mergeGeometries(geos), mat);
+      for (const g of geos) g.dispose();
+      merged.castShadow = list.some((m) => m.castShadow);
+      merged.receiveShadow = list.some((m) => m.receiveShadow);
+      for (const m of list) j.remove(m);
+      j.add(merged);
+    }
+  }
+}
+
+/** Stops `root` and everything in it from casting shadows (a crowd far from the key light's interest). */
+export function noShadows(root: Object3D): void {
+  root.traverse((o) => ((o as Mesh).castShadow = false));
 }

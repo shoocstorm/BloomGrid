@@ -1,5 +1,5 @@
 import { Color, Group, Mesh, TorusGeometry } from 'three/webgpu';
-import { BALL, Blinker, glow, hard, joint, part, soft } from './rig';
+import { BALL, Blinker, compact, glow, hard, joint, part, soft } from './rig';
 
 /**
  * Flora in 3D (D-197), the city's civic intelligence as she wakes in "Hello, World": a floating flower of six petals
@@ -57,6 +57,7 @@ export class Flora3D {
     part(BALL, this.irisMat, this.iris, 0, 0, 0, 0.075, 0.075, 0.03);
     part(BALL, hard(0x061418, 0.2), this.iris, 0, 0, 0.018, 0.035, 0.035, 0.016);
     part(BALL, glow(0xffffff, 1.5), this.iris, 0.025, 0.025, 0.03, 0.012);
+    compact(this.root, new Set([this.core, this.halo]));
   }
 
   look(x: number, y: number): void {

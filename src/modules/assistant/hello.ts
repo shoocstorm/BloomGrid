@@ -2,6 +2,7 @@ import {
   AdditiveBlending,
   BoxGeometry,
   BufferAttribute,
+  CatmullRomCurve3,
   ConeGeometry,
   CylinderGeometry,
   DoubleSide,
@@ -15,6 +16,7 @@ import {
   Shape,
   ShapeGeometry,
   TorusGeometry,
+  TubeGeometry,
   Vector3,
   type BufferGeometry,
 } from 'three/webgpu';
@@ -31,7 +33,7 @@ import { orbit, type Framing, type Shot, type V3 } from '@/modules/moments/shots
 import { LOOKS, type StageLook } from '@/render/stageUniforms';
 import { Flora3D } from '@/modules/moments/actors/flora';
 import { Gull3D } from '@/modules/moments/actors/gull';
-import { BALL, hard, part } from '@/modules/moments/actors/rig';
+import { hard, part } from '@/modules/moments/actors/rig';
 import { hash2 } from '@/sim/random';
 import './hello.css';
 
@@ -153,17 +155,19 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
   const leds = new Mesh(mergeGeometries(ledParts), ledMat);
   for (const g of ledParts) g.dispose();
   room.add(leds);
-  // Cables sagging between the racks overhead.
+  // Cables sagging between the racks overhead (one mesh: a tube per cable).
+  const cables: BufferGeometry[] = [];
   for (let k = 0; k < 7; k++) {
     const x0 = -ROOM.r * 0.85 + hash2(k, 3) * 1.2;
     const x1 = ROOM.r * 0.85 - hash2(k, 4) * 1.2;
     const z = -ROOM.r * 0.4 + k * 0.9;
-    for (let i = 0; i < 16; i++) {
-      const u = i / 15;
-      const y = ROOM.h - 0.3 - Math.sin(u * Math.PI) * (0.7 + hash2(k, 5) * 0.6);
-      part(BALL, hard(0x0b1f22, 0.6), room, x0 + (x1 - x0) * u, y, z, 0.07, 0.035, 0.035);
-    }
+    const sag = 0.7 + hash2(k, 5) * 0.6;
+    const pts = Array.from({ length: 9 }, (_, i) => new Vector3(x0 + ((x1 - x0) * i) / 8, ROOM.h - 0.3 - Math.sin((i / 8) * Math.PI) * sag, z));
+    cables.push(new TubeGeometry(new CatmullRomCurve3(pts), 32, 0.035, 6));
   }
+  const cableMesh = new Mesh(mergeGeometries(cables), hard(0x0b1f22, 0.6));
+  for (const c of cables) c.dispose();
+  room.add(cableMesh);
   // Light falling in through the window: a cone of dusty light, and the dust in it.
   const beamMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, fog: false });
   beamMat.colorNode = vec3(1, 0.7, 0.45).mul(float(0.06).mul(float(1).sub(uv().y)));

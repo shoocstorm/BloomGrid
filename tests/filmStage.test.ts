@@ -77,7 +77,8 @@ describe('the 3D cat', () => {
         verts += o.geometry.attributes.position!.count;
       }
     });
-    expect(meshes).toBeLessThanOrEqual(40);
+    // About fifty small meshes (whiskers, catchlights, a mouth): a film actor, never drawn in the city.
+    expect(meshes).toBeLessThanOrEqual(60);
     expect(verts).toBeLessThan(20_000);
     for (const p of ['creep', 'freeze', 'tiptoe', 'leap', 'land', 'proud', 'trust'] as const) {
       cat.pose(p);

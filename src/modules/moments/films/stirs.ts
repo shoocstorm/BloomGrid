@@ -34,6 +34,7 @@ import { Person3D, type Look as PersonLook } from '../actors/person';
 import { Gull3D } from '../actors/gull';
 import { CAST } from '../actors/cast';
 import { BALL, glow, hard, joint, part, soft } from '../actors/rig';
+import { rowboat } from '../actors/boat';
 import './stirs.css';
 
 /**
@@ -207,38 +208,6 @@ export function episodeOf(city: City, id: string): number {
 
 const BOX = new BoxGeometry(1, 1, 1);
 const CYL = new CylinderGeometry(1, 1, 1, 16);
-const DISC = new CylinderGeometry(1, 1, 1, 40);
-
-/** The rowboat: a clinker hull, two thwarts, oars, a lantern at the bow (≈3.2 long along z, bow at +z). */
-function rowboat(): { root: Group; lamp: ReturnType<typeof glow> } {
-  const root = new Group();
-  const wood = soft(0x8a5a3a, 0.7, 0.2);
-  const dark = hard(0x5e3a22, 0.8);
-  const paint = soft(0x2f6d8a, 0.6, 0.2);
-  const hull = part(new SphereGeometry(1, 40, 14, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), wood, root, 0, 0, 0, 0.78, 0.52, 1.62);
-  (hull.material as typeof wood).side = DoubleSide;
-  // A painted band along the sheer and a darker inside floor.
-  part(new SphereGeometry(1, 40, 4, 0, Math.PI * 2, Math.PI / 2, 0.18), paint, root, 0, 0, 0, 0.785, 0.52, 1.625);
-  part(DISC, dark, root, 0, -0.36, 0, 0.5, 0.02, 1.0);
-  const rim = part(new TorusGeometry(1, 0.045, 8, 64), dark, root, 0, 0.005, 0, 0.78, 1.62, 1);
-  rim.rotation.x = Math.PI / 2;
-  for (const z of [-0.75, 0.55]) part(BOX, wood, root, 0, -0.12, z, 1.36 - Math.abs(z) * 0.3, 0.05, 0.26);
-  // Oars resting along the gunwales.
-  for (const s of [1, -1]) {
-    const oar = joint(root, s * 0.62, 0.02, -0.1);
-    oar.rotation.set(0.1, 0, s * 0.12);
-    part(CYL, wood, oar, 0, 0, 0, 0.022, 2.4, 0.022).rotation.x = Math.PI / 2;
-    part(BOX, wood, oar, 0, 0, -1.25, 0.012, 0.16, 0.42);
-  }
-  // A lantern on a post at the bow.
-  part(CYL, dark, root, 0, 0.25, 1.25, 0.018, 0.5, 0.018);
-  const lamp = glow(0xffc46a, 2);
-  part(BALL, lamp, root, 0, 0.47, 1.25, 0.06, 0.08, 0.06);
-  part(CYL, dark, root, 0, 0.56, 1.25, 0.05, 0.02, 0.05);
-  // A bucket.
-  part(new CylinderGeometry(0.11, 0.09, 0.2, 16, 1, true), hard(0x7a8a9a, 0.4, 0.6), root, 0.35, -0.22, -1.1, 1);
-  return { root, lamp };
-}
 
 /** What goes over the side in each episode. */
 function itemFor(id: Bit['id']): Group {

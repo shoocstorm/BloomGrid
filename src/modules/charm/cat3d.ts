@@ -10,7 +10,7 @@ import {
   type BufferGeometry,
 } from 'three/webgpu';
 import type { Coat } from './art';
-import { glow, soft } from '@/modules/moments/actors/rig';
+import { compact, glow, soft } from '@/modules/moments/actors/rig';
 
 /** A whisker: a hair-thin rod 0.2 long, from its root along +y. */
 const _white = new Color(0xffffff);
@@ -160,6 +160,8 @@ export class Cat3D {
     this.collar.visible = false;
     // A ruff of pale fur on the chest.
     part(BALL, this.belly, this.neck, 0.04, -0.04, 0, 0.11, 0.13, 0.13);
+    // Each joint draws as a few meshes; the eyes' parts stay separate (they blink and dilate).
+    compact(this.root, new Set(this.pupils));
 
     // Legs: shoulders and hips; a pale sock at each paw.
     for (const [x, z] of [[0.3, 0.11], [0.3, -0.11], [-0.28, 0.12], [-0.28, -0.12]] as const) {

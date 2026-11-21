@@ -26,7 +26,7 @@ import { hash2 } from '@/sim/random';
 import { openReel } from '../reel';
 import { FilmStage } from '../FilmStage';
 import { orbit, type Framing, type Shot, type V3 } from '../shots';
-import { glow, hard, part, soft } from '../actors/rig';
+import { glow, hard, noShadows, part, soft } from '../actors/rig';
 import { Person3D } from '../actors/person';
 import { CAST } from '../actors/cast';
 import './remembers.css';
@@ -122,6 +122,7 @@ export function playWhatTheSeaRemembers(ctx: GameContext, done: () => void): voi
     p.root.position.set(O.x - 6 + i * 2.7 + hash2(i, 3), base + 0.16, O.z + 1.1 + hash2(i, 4) * 0.5);
     p.root.rotation.y = -Math.PI / 2 + (hash2(i, 5) - 0.5) * 1.6;
     p.act(i % 2 ? 'stand' : 'walk');
+    noShadows(p.root);
     stage.add(p.root);
     return p;
   });

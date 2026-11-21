@@ -1,5 +1,5 @@
 import { Group } from 'three/webgpu';
-import { BALL, CONE, Blinker, hard, joint, part, soft } from './rig';
+import { BALL, Blinker, CONE, compact, hard, joint, part, soft } from './rig';
 
 /**
  * A gull for 3D films (D-197): the island's comic relief (it steals caps, it doesn't buy tickets). A white body, grey
@@ -58,6 +58,7 @@ export class Gull3D {
       this.legs.push(l);
     }
     this.carry = joint(this.body, 0.0, -0.17, 0);
+    compact(this.root, new Set());
   }
 
   update(dt: number): void {
