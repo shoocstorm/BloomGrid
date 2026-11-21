@@ -1,32 +1,59 @@
+import {
+  AdditiveBlending,
+  BoxGeometry,
+  BufferAttribute,
+  ConeGeometry,
+  CylinderGeometry,
+  DoubleSide,
+  Group,
+  Mesh,
+  MeshBasicNodeMaterial,
+  PlaneGeometry,
+  SphereGeometry,
+  TorusGeometry,
+  Vector3,
+  type BufferGeometry,
+  type Object3D,
+} from 'three/webgpu';
+import { attribute, float, fract, mix, positionLocal, sin, smoothstep, uniform, uv, vec3 } from 'three/tsl';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { City } from '@/sim/City';
 import type { GameContext } from '@/game/context';
 import { LORE } from '@/modules/scenery/lore';
+import { WONDER_MODELS } from '@/modules/scenery/SeaWonders';
+import { dolphinSchool } from '@/modules/scenery/SeaLife';
+import { getMaterial } from '@/render/materials/library';
+import { U } from '@/render/uniforms';
+import { LOOKS as STAGE_LOOKS, type StageLook } from '@/render/stageUniforms';
 import { WONDERS } from '@/sim/wonders';
-import { h } from '@/ui/dom';
+import { hash2 } from '@/sim/random';
 import { openReel } from '../reel';
-import { cloud, seeded } from './art';
+import { FilmStage } from '../FilmStage';
+import { orbit, type Framing, type Shot, type V3 } from '../shots';
+import { Person3D, type Look as PersonLook } from '../actors/person';
+import { Gull3D } from '../actors/gull';
+import { CAST } from '../actors/cast';
+import { BALL, glow, hard, joint, part, soft } from '../actors/rig';
 import './stirs.css';
 
 /**
- * "Something Stirs" (D-185, D-193): a sea wonder rises, ~19 s. It plays for six of the seven wonders, so it is a
- * serial, not a rerun: the same old fisher (one per city) misses every wonder in a new way, and on the sixth he
- * finally sees one. Each episode is shot like film:
+ * "Something Stirs" (D-185, D-193, in 3D since D-197): a sea wonder rises, ~22 s. It plays for six of the seven
+ * wonders, so it is a serial, not a rerun: the same old fisher (one per city) misses every wonder in a new way, and on
+ * the sixth he finally sees one. Each episode is a 3D set at sea: his rowboat, the far island with the Tidewatch
+ * Lighthouse, and the wonder itself (the game's own model, `WONDER_MODELS`) rising out of the water:
  *
- * 1. **Wide**, a slow push-in: the boat at sea, in the light of that wonder's hour (`LOOKS`: the Tide Gates after a
- *    storm, the Lotus at dawn, the Stacks in mist, the Dome at night, the Turtle at noon, the Geode under an aurora).
- * 2. **Close** on the fisher: the episode's gag (`BITS`; a `tease` beat first where it needs suspense, as the
- *    float nibbling before the boot comes up), which always ends with something going over the side.
- * 3. **Under the sea** (a hard cut): the thing sinks past the hull, a school of fish, light shafts; the camera tilts
- *    down after it to the reef, where the Choir's light (`docs/lore/bible.md` Part IV) runs in, gathers and flares,
- *    and something vast stirs.
- * 4. **Rise**, low and wide: the camera tilts up as the wonder breaks the surface, shaking; a ring of swell runs out,
- *    spray, water sheeting off it, gulls scatter, dolphins (the Choir's scouts) leap, and the swell lifts the boat.
- * 5. **Reaction**, a medium two-shot with the wonder behind him: the gag's payoff.
+ * 1. **Wide**: the boat at sea, in the light of that wonder's hour (`HOURS`: the Tide Gates after a storm in the
+ *    rain, the Lotus at dawn, the Stacks in mist, the Dome at night, the Turtle at noon, the Geode under an aurora).
+ * 2. **Close** on the fisher: the episode's gag (`BITS`, with a `tease` beat where it needs suspense), which always
+ *    ends with something going over the side.
+ * 3. **Under the sea** (a hard cut): the thing sinks past the hull; the camera tilts down after it, to where the
+ *    Choir's light (`docs/lore/bible.md` Part IV) runs in, gathers round something vast, and flares.
+ * 4. **Rise**, low and wide: the wonder breaks the surface, the camera shaking; a ring of swell runs out, spray,
+ *    gulls scatter, dolphins (the Choir's scouts) leap, and the swell lifts the boat.
+ * 5. **Reaction**, a two-shot with the wonder behind him: the gag's payoff.
  * 6. **Final**, a wide pull-out, then the card (name, tagline, the keeper's line, a Tidekin saying, the episode).
  *
- * Episodes follow the order this city found its wonders (the showcase: `WONDERS` order). The camera is one wrapper
- * (`.sw-cam`) whose shot (`data-shot`) is a CSS animation, so a new shot is a hard cut and a shot's own animation is
- * its camera move. The CSS prefixes are `sw-` (the surface) and `su-` (under the sea).
+ * Episodes follow the order this city found its wonders (the showcase: `WONDERS` order).
  */
 
 /** Each wonder's episode in its own key (D-195), semitones from A. */
@@ -34,129 +61,73 @@ const KEYS: Record<string, number> = { tideGates: 0, lotus: 2, stacks: -2, dome:
 
 const FISHERS = ['Marlo', 'Pim', 'Teodor', 'Kofi', 'Bram', 'Anselm', 'Joaquim', 'Hamish'];
 
-/** A wonder's hour: sky, sea, sun (or moon), clouds, and a mood layer. */
-interface Look {
+/** A wonder's hour: the light at the surface and under it, the sea's colours, a mood. */
+interface Hour {
   /** "A quiet ___": the time of day in words. */
   word: string;
-  /** The sky from the zenith (`top`) down to the sea line. */
-  top: string;
-  sky: string;
-  sea: [string, string, string];
-  under: [string, string];
-  /** Sun: across (vw), height above the sea line (vh), core and glow colours, rays' strength. */
-  sun: { x: number; y: number; core: string; glow: string; rays: number };
-  cloud: [string, string];
-  isle: string;
-  /** The wonder's silhouette and its lit details. */
-  ink: string;
-  hi: string;
+  look: StageLook;
+  under: StageLook;
+  sea: [deep: number, shallow: number];
   mood?: 'rain' | 'mist' | 'night' | 'aurora';
-  /** The boat and fisher's light (night is dim). */
-  dim?: number;
 }
 
-const GOLDEN: Look = {
+const under = (top: number, low: number): StageLook => ({ ...STAGE_LOOKS.night, env: 0.25, night: 0.75, sunDir: [0.1, 1, 0.15], key: 0x7fd8e8, keyI: 0.5, rimI: 0.2, hemiI: 0.3, top, low, zenith: top, horizon: low, bloom: 1.1 });
+
+const GOLDEN: Hour = {
   word: 'afternoon',
-  top: '#4a6fa8',
-  sky: 'linear-gradient(#4a6fa8 0%, #8a8fc0 40%, #e7a6a2 72%, #ffc98f 88%, #ffe2a8 100%)',
-  sea: ['#5c93b8', '#2f6d96', '#174a6e'],
-  under: ['#1f6f94', '#03141f'],
-  sun: { x: 74, y: 9, core: '#fffdf0', glow: 'rgba(255, 220, 150, 0.85)', rays: 0.5 },
-  cloud: ['#ffe3c9', '#e6a3a0'],
-  isle: '#8a6f8f',
-  ink: '#3c5a78',
-  hi: '#c7f1ff',
+  look: { ...STAGE_LOOKS.day, env: 0.8, sunDir: [0.6, 0.35, 0.7], sun: 0xffe2a8, key: 0xffe2b8, keyI: 2.0, hemiI: 0.8, top: 0x4a6fa8, low: 0xffc98f, zenith: 0x8a8fc0, horizon: 0xffd2a0, bloom: 0.6 },
+  under: under(0x1f6f94, 0x03141f),
+  sea: [0x174a6e, 0x5c93b8],
 };
 
-export const LOOKS: Record<string, Look> = {
+export const HOURS: Record<string, Hour> = {
   tideGates: {
     word: 'evening after the storm',
-    top: '#2f394f',
-    sky: 'linear-gradient(#2f394f 0%, #56607c 38%, #a88a8c 70%, #f0b27a 88%, #ffd8a0 100%)',
-    sea: ['#5a7f98', '#2c5674', '#123349'],
-    under: ['#1c5a78', '#04151f'],
-    sun: { x: 76, y: 5, core: '#fff1cf', glow: 'rgba(255, 190, 120, 0.75)', rays: 0.6 },
-    cloud: ['#c9b5b8', '#5c5a72'],
-    isle: '#5d5870',
-    ink: '#30475e',
-    hi: '#dff6ff',
+    look: { ...STAGE_LOOKS.dusk, env: 0.45, night: 0.35, sunDir: [0.75, 0.1, 0.65], sun: 0xffd8a0, key: 0xffc890, keyI: 1.3, rimI: 0.6, hemiI: 0.45, top: 0x2f394f, low: 0xf0b27a, zenith: 0x56607c, horizon: 0xf0b27a, bloom: 0.8 },
+    under: under(0x1c5a78, 0x04151f),
+    sea: [0x123349, 0x5a7f98],
     mood: 'rain',
   },
   lotus: {
     word: 'dawn',
-    top: '#2e3a6b',
-    sky: 'linear-gradient(#2e3a6b 0%, #7a6aa8 34%, #f09ab0 66%, #ffc3a0 86%, #fff0c8 100%)',
-    sea: ['#8a9cc8', '#4f6aa0', '#23345e'],
-    under: ['#2a4f86', '#060f22'],
-    sun: { x: 24, y: 3, core: '#fff7e6', glow: 'rgba(255, 170, 170, 0.8)', rays: 0.5 },
-    cloud: ['#ffd0dc', '#b77f9e'],
-    isle: '#8a6f9a',
-    ink: '#3c4f78',
-    hi: '#fff0f6',
+    look: { ...STAGE_LOOKS.dusk, env: 0.55, night: 0.25, sunDir: [-0.7, 0.08, 0.7], sun: 0xfff0c8, key: 0xffc0b0, keyI: 1.6, rimI: 0.8, hemiI: 0.55, top: 0x2e3a6b, low: 0xffc3a0, zenith: 0x7a6aa8, horizon: 0xf09ab0, bloom: 0.9 },
+    under: under(0x2a4f86, 0x060f22),
+    sea: [0x23345e, 0x8a9cc8],
   },
   stacks: {
     word: 'morning',
-    top: '#8fb0c2',
-    sky: 'linear-gradient(#8fb0c2 0%, #b9cfd2 50%, #e4e2cf 85%, #f3ead2 100%)',
-    sea: ['#8fb0ae', '#5c8a8c', '#2c5458'],
-    under: ['#2f6a6a', '#06191a'],
-    sun: { x: 66, y: 22, core: '#fffbe8', glow: 'rgba(255, 250, 220, 0.6)', rays: 0.2 },
-    cloud: ['#f4f4ec', '#b8c6c4'],
-    isle: '#7f9894',
-    ink: '#3d5a56',
-    hi: '#e8fff4',
+    look: { ...STAGE_LOOKS.day, env: 0.8, sunDir: [0.4, 0.5, 0.7], sun: 0xfffbe8, key: 0xfff6e0, keyI: 1.5, rimI: 0.5, hemiI: 0.95, top: 0x8fb0c2, low: 0xe4e2cf, zenith: 0xb9cfd2, horizon: 0xe4e2cf, bloom: 0.45 },
+    under: under(0x2f6a6a, 0x06191a),
+    sea: [0x2c5458, 0x8fb0ae],
     mood: 'mist',
   },
   dome: {
     word: 'night',
-    top: '#040919',
-    sky: 'linear-gradient(#040919 0%, #0c1a3c 50%, #1d3160 85%, #2c4470 100%)',
-    sea: ['#1e3a5c', '#0f2440', '#050d1c'],
-    under: ['#08263c', '#01060c'],
-    sun: { x: 70, y: 26, core: '#f4f6ff', glow: 'rgba(190, 210, 255, 0.45)', rays: 0 },
-    cloud: ['#34446a', '#151f3a'],
-    isle: '#141f38',
-    ink: '#1c3550',
-    hi: '#9ff6ff',
+    look: { ...STAGE_LOOKS.night, env: 0.35, sunDir: [0.5, 0.55, 0.65], key: 0x9fb8ff, keyI: 0.55, rimI: 0.6, hemiI: 0.25, top: 0x040919, low: 0x1d3160, zenith: 0x0c1a3c, horizon: 0x2c4470, bloom: 1.1 },
+    under: under(0x08263c, 0x01060c),
+    sea: [0x050d1c, 0x1e3a5c],
     mood: 'night',
-    dim: 0.7,
   },
   turtle: {
     word: 'noon',
-    top: '#2f8fd8',
-    sky: 'linear-gradient(#2f8fd8 0%, #5fb4ea 45%, #a8dcf2 85%, #dff4f6 100%)',
-    sea: ['#3fc2c8', '#1f94b0', '#0c5a7c'],
-    under: ['#1a8aa0', '#03222e'],
-    sun: { x: 80, y: 40, core: '#ffffff', glow: 'rgba(255, 255, 230, 0.7)', rays: 0.35 },
-    cloud: ['#ffffff', '#c8dcea'],
-    isle: '#5f9a8a',
-    ink: '#2f5a48',
-    hi: '#bff7d0',
+    look: { ...STAGE_LOOKS.day, env: 0.9, sunDir: [0.45, 0.85, 0.3], sun: 0xffffff, key: 0xffffff, keyI: 2.2, rimI: 0.7, hemiI: 1.0, top: 0x2f8fd8, low: 0xa8dcf2, zenith: 0x5fb4ea, horizon: 0xdff4f6, bloom: 0.45 },
+    under: under(0x1a8aa0, 0x03222e),
+    sea: [0x0c5a7c, 0x3fc2c8],
   },
   geode: {
     word: 'dusk',
-    top: '#120c2c',
-    sky: 'linear-gradient(#120c2c 0%, #2c1f5c 40%, #6a3f88 70%, #c0709a 90%, #f0a08a 100%)',
-    sea: ['#5c4f8a', '#2e2a5c', '#120f2a'],
-    under: ['#2a2060', '#05030f'],
-    sun: { x: 30, y: 1, core: '#ffe6d0', glow: 'rgba(255, 150, 170, 0.6)', rays: 0.3 },
-    cloud: ['#b07fb0', '#4c3570'],
-    isle: '#3a2c5a',
-    ink: '#2a2450',
-    hi: '#f0c8ff',
+    look: { ...STAGE_LOOKS.night, env: 0.4, night: 0.8, sunDir: [-0.7, 0.05, 0.6], sun: 0xffe6d0, key: 0xf0a0c0, keyI: 0.7, rimI: 0.6, hemiI: 0.3, top: 0x120c2c, low: 0xc0709a, zenith: 0x2c1f5c, horizon: 0x6a3f88, bloom: 1.0 },
+    under: under(0x2a2060, 0x05030f),
+    sea: [0x120f2a, 0x5c4f8a],
     mood: 'aurora',
-    dim: 0.85,
   },
 };
 
 /** One episode's gag: what he does instead of watching, and what goes over the side. */
 interface Bit {
   id: 'boot' | 'bino' | 'camera' | 'kid' | 'coffee' | 'fish';
-  /** What sinks in the under-the-sea shot (`ITEMS`), and where it went in (share of the boat's width). */
-  item: keyof typeof ITEMS;
-  ix: number;
   open: (f: string, word: string) => string;
-  /** A beat before the gag lands (stage `hook` follows it), ~2 s. */
+  /** A beat before the gag lands (~2 s). */
   tease?: string;
   a: string;
   b: string;
@@ -169,8 +140,6 @@ interface Bit {
 export const BITS: Bit[] = [
   {
     id: 'boot',
-    item: 'boot',
-    ix: 0.96,
     open: (f, w) => `A quiet ${w}. The fish weren't biting. Neither was ${f}.`,
     tease: 'Something nibbled at the line…',
     a: 'A bite! …a boot. Again.',
@@ -181,8 +150,6 @@ export const BITS: Bit[] = [
   },
   {
     id: 'bino',
-    item: 'sandwich',
-    ix: 0.5,
     open: (f) => `${f} had heard the stories. This time, he would keep watch.`,
     a: 'He kept a very close watch. On a gull.',
     b: 'The gull took his sandwich. Then dropped it in the sea.',
@@ -192,8 +159,6 @@ export const BITS: Bit[] = [
   },
   {
     id: 'camera',
-    item: 'cap',
-    ix: 0.22,
     open: (f) => `This time, ${f} brought a camera.`,
     a: 'He framed the lighthouse. Steady… steady…',
     b: 'Achoo.',
@@ -203,8 +168,6 @@ export const BITS: Bit[] = [
   },
   {
     id: 'kid',
-    item: 'paper',
-    ix: 0.84,
     open: (f) => `${f} brought his granddaughter. She had questions.`,
     a: '“Grandpa, why is the sea glowing?” “Sea does that, love.”',
     b: 'She sent her paper boat down, for whoever was there.',
@@ -214,8 +177,6 @@ export const BITS: Bit[] = [
   },
   {
     id: 'coffee',
-    item: 'mug',
-    ix: 0.58,
     open: (f) => `${f} would not sleep through it this time. Third coffee.`,
     a: 'He did not blink. Not once.',
     b: 'His hands shook. The mug went over the side.',
@@ -225,8 +186,6 @@ export const BITS: Bit[] = [
   },
   {
     id: 'fish',
-    item: 'fish',
-    ix: 0.3,
     open: (f) => `${f} caught a fish at last. A real one.`,
     a: 'He told it all about his day.',
     b: 'The fish had seen something over his shoulder.',
@@ -236,180 +195,428 @@ export const BITS: Bit[] = [
   },
 ];
 
+/** The wonders a film can be for (every rising wonder but the colonnade, which has its own film). */
+const SERIAL = ['tideGates', 'lotus', 'stacks', 'dome', 'turtle', 'geode'];
+
 /** The episode a wonder's film is: the order this city found its wonders (every one but the colonnade's). */
 export function episodeOf(city: City, id: string): number {
-  const ids = (city.growth.progression ? city.growth.wonders : WONDERS.map((w) => w.id)).filter((w) => w in SHAPES && w !== 'colonnade');
+  const ids = (city.growth.progression ? city.growth.wonders : WONDERS.map((w) => w.id)).filter((w) => SERIAL.includes(w));
   const i = ids.indexOf(id);
   return (i < 0 ? ids.length : i) % BITS.length;
+}
+
+const BOX = new BoxGeometry(1, 1, 1);
+const CYL = new CylinderGeometry(1, 1, 1, 16);
+const DISC = new CylinderGeometry(1, 1, 1, 40);
+
+/** The rowboat: a clinker hull, two thwarts, oars, a lantern at the bow (≈3.2 long along z, bow at +z). */
+function rowboat(): { root: Group; lamp: ReturnType<typeof glow> } {
+  const root = new Group();
+  const wood = soft(0x8a5a3a, 0.7, 0.2);
+  const dark = hard(0x5e3a22, 0.8);
+  const paint = soft(0x2f6d8a, 0.6, 0.2);
+  const hull = part(new SphereGeometry(1, 40, 14, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), wood, root, 0, 0, 0, 0.78, 0.52, 1.62);
+  (hull.material as typeof wood).side = DoubleSide;
+  // A painted band along the sheer and a darker inside floor.
+  part(new SphereGeometry(1, 40, 4, 0, Math.PI * 2, Math.PI / 2, 0.18), paint, root, 0, 0, 0, 0.785, 0.52, 1.625);
+  part(DISC, dark, root, 0, -0.36, 0, 0.5, 0.02, 1.0);
+  const rim = part(new TorusGeometry(1, 0.045, 8, 64), dark, root, 0, 0.005, 0, 0.78, 1.62, 1);
+  rim.rotation.x = Math.PI / 2;
+  for (const z of [-0.75, 0.55]) part(BOX, wood, root, 0, -0.12, z, 1.36 - Math.abs(z) * 0.3, 0.05, 0.26);
+  // Oars resting along the gunwales.
+  for (const s of [1, -1]) {
+    const oar = joint(root, s * 0.62, 0.02, -0.1);
+    oar.rotation.set(0.1, 0, s * 0.12);
+    part(CYL, wood, oar, 0, 0, 0, 0.022, 2.4, 0.022).rotation.x = Math.PI / 2;
+    part(BOX, wood, oar, 0, 0, -1.25, 0.012, 0.16, 0.42);
+  }
+  // A lantern on a post at the bow.
+  part(CYL, dark, root, 0, 0.25, 1.25, 0.018, 0.5, 0.018);
+  const lamp = glow(0xffc46a, 2);
+  part(BALL, lamp, root, 0, 0.47, 1.25, 0.06, 0.08, 0.06);
+  part(CYL, dark, root, 0, 0.56, 1.25, 0.05, 0.02, 0.05);
+  // A bucket.
+  part(new CylinderGeometry(0.11, 0.09, 0.2, 16, 1, true), hard(0x7a8a9a, 0.4, 0.6), root, 0.35, -0.22, -1.1, 1);
+  return { root, lamp };
+}
+
+/** What goes over the side in each episode. */
+function itemFor(id: Bit['id']): Group {
+  const g = new Group();
+  if (id === 'boot') {
+    const leather = soft(0x6b4a33, 0.7, 0.3);
+    part(BOX, leather, g, 0, 0.14, 0, 0.12, 0.28, 0.13);
+    part(BOX, leather, g, 0.07, 0.03, 0, 0.26, 0.08, 0.14);
+    part(BOX, hard(0x3a281c, 0.8), g, 0.07, -0.015, 0, 0.27, 0.02, 0.15);
+  } else if (id === 'bino') {
+    part(BOX, soft(0xe8c48a, 0.8, 0.2), g, 0, 0, 0, 0.22, 0.03, 0.14);
+    part(BOX, soft(0x7cc26a, 0.7, 0.2), g, 0, 0.025, 0, 0.21, 0.02, 0.13);
+    part(BOX, soft(0xe85a4f, 0.7, 0.2), g, 0, 0.04, 0, 0.2, 0.012, 0.12);
+    part(BOX, soft(0xe8c48a, 0.8, 0.2), g, 0, 0.06, 0, 0.22, 0.03, 0.14);
+  } else if (id === 'camera') {
+    part(CYL, hard(0x23272e, 0.3, 0.5), g, 0, 0, 0, 0.06, 0.015, 0.06).rotation.x = Math.PI / 2;
+  } else if (id === 'kid') {
+    const paper = soft(0xfdfdf6, 0.9, 0.2);
+    part(BOX, paper, g, 0, 0, 0, 0.26, 0.05, 0.1);
+    const sail = part(new ConeGeometry(0.08, 0.16, 3), paper, g, 0, 0.1, 0, 1);
+    sail.rotation.y = 0.5;
+  } else if (id === 'coffee') {
+    part(new CylinderGeometry(0.05, 0.045, 0.11, 16), soft(0xe85a4f, 0.5, 0.2), g, 0, 0, 0, 1);
+    part(new TorusGeometry(0.03, 0.01, 6, 16), soft(0xe85a4f, 0.5, 0.2), g, 0.055, 0, 0, 1);
+  } else {
+    part(BALL, soft(0x8fd0e8, 0.35, 0.5), g, 0, 0, 0, 0.16, 0.06, 0.045);
+    part(new ConeGeometry(0.06, 0.08, 4), soft(0x6fb6d2, 0.4, 0.4), g, -0.18, 0, 0, 1).rotation.z = Math.PI / 2;
+    part(BALL, hard(0x1d2a33, 0.3), g, 0.11, 0.02, 0.035, 0.012);
+  }
+  return g;
 }
 
 export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name: string }, done: () => void): void {
   const { city } = ctx;
   const lore = LORE[wonder.id];
-  const look = LOOKS[wonder.id] ?? GOLDEN;
+  const hour = HOURS[wonder.id] ?? GOLDEN;
   const ep = episodeOf(city, wonder.id);
   const bit = BITS[ep]!;
   // One fisher per city: the same man misses every wonder.
   const fisher = `Old ${FISHERS[Math.abs(Math.floor(city.seed)) % FISHERS.length]!}`;
-  const reel = openReel(ctx, { scene: `sw sw-${wonder.id} sw-bit-${bit.id}${look.mood ? ` sw-mood-${look.mood}` : ''}`, label: `Something Stirs: ${wonder.name}`, key: KEYS[wonder.id] ?? 0 }, done);
-  const root = reel.root;
-  const css = (k: string, v: string) => root.style.setProperty(k, v);
-  css('--sky-top', look.top);
-  css('--sky', look.sky);
-  css('--sea-a', look.sea[0]);
-  css('--sea-b', look.sea[1]);
-  css('--sea-c', look.sea[2]);
-  css('--under-a', look.under[0]);
-  css('--under-b', look.under[1]);
-  css('--sun-x', String(look.sun.x));
-  css('--sun-y', String(look.sun.y));
-  css('--sun-core', look.sun.core);
-  css('--sun-glow', look.sun.glow);
-  css('--rays', String(look.sun.rays));
-  css('--isle', look.isle);
-  css('--ink', look.ink);
-  css('--hi', look.hi);
-  css('--dim', String(look.dim ?? 1));
-  css('--ix', String(bit.ix));
-  const shot = (name: 'wide' | 'close' | 'under' | 'rise' | 'medium' | 'final') => (root.dataset.shot = name);
+  const stage = FilmStage.get(ctx);
+  stage.clear();
+  const reel = openReel(
+    ctx,
+    { scene: `sw sw-${wonder.id} sw-bit-${bit.id}`, label: `Something Stirs: ${wonder.name}`, key: KEYS[wonder.id] ?? 0, leaving: () => stage.close() },
+    done,
+  );
+  const day = hour.mood !== 'night' && hour.mood !== 'aurora';
 
-  const rand = seeded(city.seed * 13 + wonder.id.length);
-  const art = SHAPES[wonder.id] ?? SHAPES.dome!;
-  const svg = (cls: string, markup: string, box = '0 0 400 260') => {
-    const el = h('div', { class: cls });
-    el.innerHTML = `<svg viewBox="${box}" aria-hidden="true">${markup}</svg>`;
-    return el;
+  // ── The set: open sea at the island's heart (the stage's own sea, the seabed far below). ──
+  const cx = city.size / 2;
+  const SEA = Math.max(0, city.grid.heightAt(cx, cx)) + 2;
+  const B = new Vector3(cx, SEA, cx);
+  const W = new Vector3(cx - 6, SEA, cx - 78);
+  const v = (p: Vector3, dy = 0): V3 => [p.x, p.y + dy, p.z];
+  const sea = stage.addSea(B, SEA, 1400, hour.sea[0], hour.sea[1]);
+  void sea;
+
+  // The wonder: the game's model, deep under the sea until it rises.
+  const make = WONDER_MODELS[wonder.id] ?? WONDER_MODELS.dome!;
+  const wonderMesh = new Mesh(make(city.size).b.build(), getMaterial('wonder'));
+  wonderMesh.castShadow = wonderMesh.receiveShadow = true;
+  wonderMesh.geometry.computeBoundingBox();
+  const wb = wonderMesh.geometry.boundingBox!;
+  const H = wb.max.y - wb.min.y;
+  const deepY = SEA - wb.max.y - 10;
+  wonderMesh.position.set(W.x, deepY, W.z);
+  stage.add(wonderMesh);
+  const top = new Vector3(W.x, SEA + wb.max.y * 0.6, W.z);
+  // The far island with the Tidewatch Lighthouse, in front of the boat: the city is just over there.
+  const isle = new Mesh(WONDER_MODELS.lighthouse!(city.size).b.build(), getMaterial('wonder'));
+  isle.position.set(cx + 60, SEA, cx + 260);
+  isle.rotation.y = 2.4;
+  stage.add(isle);
+  stage.frame(new Vector3(cx, SEA + 6, cx - 30), 26, new Vector3(-0.3, 0.25, 1), SEA - 18);
+  stage.groundColour(0x2a3a3a);
+  stage.look = { ...hour.look, sunDir: [...hour.look.sunDir] };
+  if (day) stage.addClouds(new Vector3(cx, SEA, cx - 40), 12, 90, 260, 26, 50, 7, wonder.id.length * 7);
+  // Fog from the start (D-196): aerial haze at the surface, mist for the Stacks, the deep's murk under the sea.
+  const haze = { col: hour.look.horizon, near: hour.mood === 'mist' ? 14 : 160, far: hour.mood === 'mist' ? 150 : 900 };
+  stage.setFog(haze.col, haze.near, haze.far);
+  const rain = stage.addRain(new Vector3(cx, SEA - 1, cx), 14, 12, 2600);
+  rain.visible = hour.mood === 'rain';
+
+  // An aurora over the Geode: three ribbons of light waving across the north.
+  if (hour.mood === 'aurora') {
+    const ribbons: BufferGeometry[] = [];
+    for (let i = 0; i < 3; i++) {
+      const g = new PlaneGeometry(260, 46, 64, 1);
+      g.translate(0, 23, 0);
+      g.rotateY((i - 1) * 0.3);
+      g.translate((i - 1) * 60, 30 + i * 8, -300 - i * 40);
+      g.setAttribute('aSeed', new BufferAttribute(new Float32Array(g.attributes.position!.count).fill(i / 3), 1));
+      ribbons.push(g);
+    }
+    const am = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, fog: false });
+    const sd = attribute('aSeed', 'float');
+    am.positionNode = positionLocal.add(vec3(0, 0, sin(positionLocal.x.mul(0.03).add(U.clock.mul(0.4)).add(sd.mul(6))).mul(18)));
+    const fall = smoothstep(0, 0.25, uv().y).mul(float(1).sub(uv().y));
+    am.colorNode = mix(vec3(0.2, 1, 0.6), vec3(0.75, 0.4, 1), uv().y).mul(fall.mul(0.5)).mul(sin(uv().x.mul(40).add(U.clock)).mul(0.25).add(0.75));
+    const aurora = new Mesh(mergeGeometries(ribbons), am);
+    for (const g of ribbons) g.dispose();
+    aurora.position.set(cx, SEA, cx);
+    aurora.frustumCulled = false;
+    stage.add(aurora);
+  }
+
+  // ── The boat and the fisher (facing +z, his back to where the wonder will rise). ──
+  const boat = rowboat();
+  boat.root.position.copy(B).setY(SEA + 0.2);
+  stage.add(boat.root);
+  boat.lamp.emissiveIntensity = day ? 0.6 : 2.6;
+  const old = new Person3D({ ...(CAST.fisher as PersonLook), prop: bit.id === 'boot' ? 'rod' : 'none' });
+  old.root.scale.setScalar(0.85);
+  old.root.position.set(0, -0.09 - 0.37 * 0.85, -0.75);
+  old.root.rotation.y = -Math.PI / 2;
+  boat.root.add(old.root);
+  old.act(bit.id === 'boot' ? 'fish' : 'sit');
+  old.pose.snap();
+  const kid =
+    bit.id === 'kid'
+      ? new Person3D({ skin: 0xc68e62, hair: 0x2a1d16, top: 0xf2c23a, bottom: 0x3e5a7a, long: true, hat: 'none', shoes: 0xe85a4f })
+      : null;
+  if (kid) {
+    kid.root.scale.setScalar(0.55);
+    kid.root.position.set(0, -0.09 - 0.37 * 0.55, 0.55);
+    kid.root.rotation.y = Math.PI;
+    boat.root.add(kid.root);
+    kid.act('sit', { headYaw: -0.4 });
+    kid.pose.snap();
+  }
+
+  // The episode's props, and the thing that goes over the side.
+  const item = itemFor(bit.id);
+  const props = new Group();
+  boat.root.add(props);
+  let line: Mesh | null = null;
+  const float_ = part(BALL, soft(0xe85a4f, 0.4, 0.2), stage.set, 0, 0, 0, 0.05);
+  float_.visible = false;
+  let gull: Gull3D | null = null;
+  const tripod = new Group();
+  if (bit.id === 'boot') {
+    line = part(CYL, hard(0xe9e4d4, 0.9), stage.set, 0, 0, 0, 0.004, 1, 0.004);
+    float_.visible = true;
+    item.visible = false;
+    stage.add(item);
+  } else if (bit.id === 'bino') {
+    // Binoculars at his eyes; the sandwich on the thwart; a gull on the bow, looking at it.
+    const bino = joint(old.head, 0.18, 0.15, 0);
+    for (const s of [1, -1]) part(CYL, hard(0x2a2d33, 0.4, 0.4), bino, 0.04, 0, 0.045 * s, 0.03, 0.12, 0.03).rotation.z = Math.PI / 2;
+    old.act('sit', { headPitch: -0.15 });
+    old.pose.to({ armRup: 2.0, elbowR: 2.4, armLup: 2.0, elbowL: 2.4, armRout: 0.25, armLout: 0.25 });
+    props.add(item);
+    item.position.set(0.25, -0.08, 0.55);
+    gull = new Gull3D();
+    gull.root.scale.setScalar(0.75);
+    gull.pose = 'stand';
+    gull.root.position.set(0, 0.02, 1.5);
+    gull.root.rotation.y = Math.PI / 2 + 0.6;
+    boat.root.add(gull.root);
+  } else if (bit.id === 'camera') {
+    // A camera on a tripod at the bow, aimed at the lighthouse; the lens cap is what goes over.
+    tripod.position.set(0.1, -0.12, 0.25);
+    for (let i = 0; i < 3; i++) {
+      const leg = part(CYL, hard(0x2a2d33, 0.4, 0.5), tripod, 0, 0.35, 0, 0.01, 0.7, 0.01);
+      leg.rotation.set(Math.cos((i / 3) * Math.PI * 2) * 0.25, 0, Math.sin((i / 3) * Math.PI * 2) * 0.25);
+    }
+    part(BOX, hard(0x23272e, 0.35, 0.4), tripod, 0, 0.75, 0, 0.18, 0.12, 0.12);
+    part(CYL, hard(0x15181d, 0.2, 0.6), tripod, 0, 0.76, 0.1, 0.05, 0.1, 0.05).rotation.x = Math.PI / 2;
+    props.add(tripod);
+    tripod.add(item);
+    item.position.set(0, 0.76, 0.16);
+    old.act('sit', { headPitch: 0.2 });
+    old.pose.to({ armRup: 1.4, elbowR: 0.6, armLup: 1.3, elbowL: 0.6, lean: 0.25 });
+  } else if (bit.id === 'kid') {
+    kid!.hand.add(item);
+    item.scale.setScalar(0.9);
+  } else if (bit.id === 'coffee') {
+    old.hand.add(item);
+    item.position.set(0.04, -0.05, 0);
+    old.act('sit', { brows: 1 });
+    old.pose.to({ armRup: 1.2, elbowR: 1.4 });
+  } else {
+    old.hand.add(item);
+    item.position.set(0.05, 0.02, 0);
+    old.act('sit', { smile: 0.8, mouth: 0.4 });
+    old.pose.to({ armRup: 1.8, elbowR: 1.0, headYaw: -0.3 });
+  }
+  old.pose.snap();
+
+  // ── Things that happen: the toss over the side, the rise, swell, spray, gulls, dolphins. ──
+  const splashAt = new Vector3(B.x + 1.3, SEA, B.z + 0.6);
+  const toss = { at: -1, from: new Vector3(), dur: 1.1 };
+  const ringMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, fog: false });
+  const ringOn = uniform(0);
+  ringMat.colorNode = vec3(1, 1, 1).mul(ringOn.mul(0.6));
+  const splashRing = part(new TorusGeometry(1, 0.02, 6, 48), ringMat, stage.set, splashAt.x, SEA + 0.02, splashAt.z, 0.1);
+  splashRing.rotation.x = Math.PI / 2;
+  const swellMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, fog: false });
+  const swellOn = uniform(0);
+  swellMat.colorNode = vec3(0.9, 0.97, 1).mul(swellOn.mul(0.5));
+  const swell = part(new TorusGeometry(1, 0.012, 6, 128), swellMat, stage.set, W.x, SEA + 0.05, W.z, 1);
+  swell.rotation.x = Math.PI / 2;
+  // Spray: droplets thrown up and out round the wonder, posed in the shader from one clock (`sprayT`).
+  const sprayT = uniform(-1);
+  const drops: BufferGeometry[] = [];
+  for (let i = 0; i < 900; i++) {
+    const g = new SphereGeometry(0.08 + hash2(i, 1) * 0.14, 6, 4);
+    const a = hash2(i, 2) * Math.PI * 2;
+    const r = (wb.max.x - wb.min.x) * (0.25 + hash2(i, 3) * 0.3);
+    g.translate(Math.cos(a) * r, 0, Math.sin(a) * r);
+    g.setAttribute('aSeed', new BufferAttribute(new Float32Array(g.attributes.position!.count).fill(hash2(i, 4)), 1));
+    g.setAttribute('aDir', new BufferAttribute(new Float32Array(g.attributes.position!.count * 3).map((_, k) => [Math.cos(a), 0, Math.sin(a)][k % 3]!), 3));
+    drops.push(g);
+  }
+  const sprayMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, fog: false });
+  const ss = attribute('aSeed', 'float');
+  const dir = attribute('aDir', 'vec3');
+  const st = sprayT.sub(ss.mul(0.5)).max(0);
+  sprayMat.positionNode = positionLocal.add(dir.mul(st.mul(float(3).add(ss.mul(9))))).add(vec3(0, st.mul(float(10).add(ss.mul(24))).sub(st.mul(st).mul(9.8)), 0));
+  sprayMat.colorNode = vec3(0.9, 0.96, 1).mul(float(1).sub(st.div(2.6)).max(0).mul(sprayT.greaterThan(0).select(0.35, 0)));
+  const spray = new Mesh(mergeGeometries(drops), sprayMat);
+  for (const g of drops) g.dispose();
+  spray.position.set(W.x, SEA, W.z);
+  spray.frustumCulled = false;
+  stage.add(spray);
+  // Dolphins (the Choir's scouts), leaping in the shader near the wonder once it has risen.
+  const dolphins = dolphinSchool(0, 0, 0);
+  dolphins.position.set(W.x + 30, SEA, W.z + 30);
+  dolphins.visible = false;
+  stage.add(dolphins);
+  // Gulls scattering off it.
+  const flock = Array.from({ length: 4 }, (_, i) => {
+    const g = new Gull3D();
+    g.root.scale.setScalar(2.2);
+    g.pose = 'fly';
+    g.root.visible = false;
+    stage.add(g.root);
+    return { g, a: (i / 4) * Math.PI * 2 + 0.4 };
+  });
+
+  // Under the sea: a school of fish, the Choir's light gathering, a flare.
+  const gather = uniform(0);
+  const motes: BufferGeometry[] = [];
+  for (let i = 0; i < 300; i++) {
+    const g = new SphereGeometry(0.12 + hash2(i, 5) * 0.12, 6, 4);
+    const a = hash2(i, 6) * Math.PI * 2;
+    const r = 18 + hash2(i, 7) * 40;
+    const p = [Math.cos(a) * r, (hash2(i, 8) - 0.5) * 20, Math.sin(a) * r];
+    g.setAttribute('aFrom', new BufferAttribute(new Float32Array(g.attributes.position!.count * 3).map((_, k) => p[k % 3]!), 3));
+    g.setAttribute('aSeed', new BufferAttribute(new Float32Array(g.attributes.position!.count).fill(hash2(i, 9)), 1));
+    motes.push(g);
+  }
+  const moteMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, fog: false });
+  const from = attribute('aFrom', 'vec3');
+  const ms = attribute('aSeed', 'float');
+  const g0 = gather.sub(ms.mul(0.3)).clamp(0, 1);
+  moteMat.positionNode = positionLocal.add(from.mul(float(1).sub(g0.mul(g0)))).add(vec3(sin(U.clock.mul(1.3).add(ms.mul(30))).mul(0.6), 0, 0));
+  moteMat.colorNode = vec3(0.45, 1, 0.9).mul(float(0.6).add(g0));
+  const moteMesh = new Mesh(mergeGeometries(motes), moteMat);
+  for (const g of motes) g.dispose();
+  moteMesh.position.set(W.x, deepY + H * 0.6, W.z);
+  moteMesh.frustumCulled = false;
+  moteMesh.visible = false;
+  stage.add(moteMesh);
+  const flare = part(new SphereGeometry(1, 24, 16), glow(0x9ffff0, 0), stage.set, W.x, deepY + H * 0.6, W.z, 6);
+  flare.castShadow = false;
+  const school: BufferGeometry[] = [];
+  for (let i = 0; i < 60; i++) {
+    const g = new SphereGeometry(1, 8, 6).scale(0.07, 0.025, 0.02);
+    g.translate((hash2(i, 11) - 0.5) * 3, (hash2(i, 12) - 0.5) * 1.5, (hash2(i, 13) - 0.5) * 3);
+    g.setAttribute('aSeed', new BufferAttribute(new Float32Array(g.attributes.position!.count).fill(hash2(i, 14)), 1));
+    school.push(g);
+  }
+  const fishMat = new MeshBasicNodeMaterial();
+  const fs = attribute('aSeed', 'float');
+  fishMat.positionNode = positionLocal.add(vec3(fract(U.clock.mul(0.08).add(fs)).sub(0.5).mul(12), sin(U.clock.mul(2).add(fs.mul(20))).mul(0.1), 0));
+  fishMat.colorNode = vec3(0.35, 0.55, 0.65).mul(0.35);
+  const fishes = new Mesh(mergeGeometries(school), fishMat);
+  for (const g of school) g.dispose();
+  fishes.position.set(B.x + 1, SEA - 4, B.z - 4);
+  fishes.visible = false;
+  fishes.frustumCulled = false;
+  stage.add(fishes);
+
+  // ── Per-frame direction ──
+  let riseAt = -1;
+  let underAt = -1;
+  let tease = -1;
+  let hooked = -1;
+  let sneezeAt = -1;
+  let shakeHands = false;
+  const tmp = new Vector3();
+  const tip = new Vector3();
+  const sinkFrom = new Vector3();
+  stage.onFrame = (t, dt) => {
+    // The boat rocks; after the rise the swell lifts it.
+    const swellHit = riseAt >= 0 ? Math.max(0, Math.min(1, (t - riseAt - 1.2) / 0.6)) * Math.max(0, 1 - (t - riseAt - 1.8) / 3) : 0;
+    boat.root.position.y = SEA + 0.2 + Math.sin(t * 1.3) * 0.05 + Math.sin(t * 2.1 + 1) * 0.02 + swellHit * Math.sin((t - riseAt) * 3) * 0.5;
+    boat.root.rotation.x = Math.sin(t * 1.1) * 0.03 + swellHit * Math.sin((t - riseAt) * 3 + 0.8) * 0.12;
+    boat.root.rotation.z = Math.sin(t * 0.9 + 2) * 0.04;
+    old.update(dt);
+    kid?.update(dt);
+    gull?.update(dt);
+    // Sneeze: a sharp jolt of the head and shoulders.
+    if (sneezeAt >= 0) old.head.rotation.z += Math.max(0, 1 - (t - sneezeAt) * 3) * Math.sin((t - sneezeAt) * 30) * 0.3;
+    if (shakeHands) old.hand.rotation.x = Math.sin(t * 40) * 0.25;
+    // The fishing line: rod tip to the float (or the hooked boot).
+    if (line && old.rodTip) {
+      old.rodTip.getWorldPosition(tip);
+      if (hooked < 0) {
+        tmp.set(B.x - 0.4, SEA + 0.03 + (tease >= 0 ? Math.max(0, Math.sin((t - tease) * 14)) * -0.08 : Math.sin(t * 2) * 0.01), B.z + 3.2);
+        float_.position.copy(tmp);
+      } else if (toss.at < 0) {
+        const k = Math.min(1, (t - hooked) / 0.8);
+        tmp.set(B.x - 0.4, SEA - 0.2, B.z + 3.2).lerp(tip.clone().add(new Vector3(0, -0.45, 0)), k * k * (3 - 2 * k));
+        item.position.copy(tmp);
+        item.visible = true;
+        float_.position.copy(tmp).add(new Vector3(0, 0.3, 0));
+      }
+      const end = toss.at < 0 && hooked >= 0 ? float_.position : float_.position;
+      line.position.copy(tip).add(end).multiplyScalar(0.5);
+      line.scale.set(0.004, tip.distanceTo(end), 0.004);
+      line.lookAt(end);
+      line.rotateX(Math.PI / 2);
+    }
+    // Over the side: an arc to the splash point, a ring on the water.
+    if (toss.at >= 0) {
+      const k = Math.min(1, (t - toss.at) / toss.dur);
+      if (k < 1) {
+        item.position.lerpVectors(toss.from, splashAt, k);
+        item.position.y += Math.sin(k * Math.PI) * 0.9;
+        item.rotation.z += dt * 8;
+      } else item.visible = false;
+      const r = Math.max(0, t - toss.at - toss.dur);
+      splashRing.scale.setScalar(0.1 + r * 0.9);
+      ringOn.value = k >= 1 ? Math.max(0, 1 - r / 1.4) : 0;
+    }
+    // Under the sea: the light gathers round the shape below, then flares.
+    if (underAt >= 0) {
+      const u = t - underAt;
+      item.position.copy(sinkFrom).add(new Vector3(Math.sin(u * 1.4) * 0.3, -u * 1.9, 0));
+      item.rotation.set(u * 0.6, u * 0.4, u * 0.9);
+      gather.value = Math.min(1.2, Math.max(0, (u - 0.6) / 2.4));
+      (flare.material as ReturnType<typeof glow>).emissiveIntensity = Math.max(0, (u - 2.6) * 3) * (1 + Math.sin(u * 9) * 0.2);
+    }
+    // The rise: out of the deep, past the surface, settling with a little bob.
+    if (riseAt >= 0) {
+      const k = Math.min(1, (t - riseAt) / 3.2);
+      const e = 1 - (1 - k) ** 3;
+      wonderMesh.position.y = deepY + (SEA - deepY) * e + Math.sin(k * Math.PI) * 1.5 * (1 - k);
+      stage.shake = 1 + Math.max(0, 1 - (t - riseAt) / 2.8) * 5;
+      sprayT.value = t - riseAt - 0.4;
+      const sw = Math.max(0, t - riseAt - 0.3);
+      swell.scale.setScalar(4 + sw * 26);
+      swellOn.value = Math.max(0, 1 - sw / 3.5);
+      for (const f of flock) {
+        const fk = Math.max(0, t - riseAt - 0.5);
+        f.g.root.visible = fk > 0 && fk < 6;
+        f.g.root.position.set(W.x + Math.cos(f.a) * (8 + fk * 9), SEA + wb.max.y * 0.7 + fk * 3, W.z + Math.sin(f.a) * (8 + fk * 9));
+        f.g.root.rotation.y = -f.a;
+        f.g.update(dt);
+      }
+    }
+  };
+  const throwOver = (from: Object3D) => {
+    from.getWorldPosition(toss.from);
+    stage.add(item);
+    item.position.copy(toss.from);
+    item.visible = true;
+    toss.at = stage.t;
   };
 
-  // ── The surface ──
-  const clouds = h('div', { class: 'sw-clouds' });
-  clouds.innerHTML = `<svg viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${Array.from({ length: 7 }, (_, i) => {
-    const x = (i / 7) * 1900 - 150 + rand() * 120;
-    const y = 120 + rand() * 300;
-    return `<g transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${(0.8 + rand() * 0.9).toFixed(2)} ${(0.5 + rand() * 0.3).toFixed(2)})">${cloud(rand, look.cloud[0], look.cloud[1])}</g>`;
-  }).join('')}</svg>`;
-  // The far island with the Tidewatch Lighthouse: the city is just over there.
-  const isle = svg('sw-isle', `<path d="M0 60 Q40 30 90 34 Q140 14 190 30 Q250 22 300 60Z"/><rect x="226" y="6" width="6" height="22"/><path d="M224 6 h10 l-5 -6z"/><circle class="beam" cx="229" cy="8" r="3"/>`, '0 0 300 60');
-  const stars = h('div', { class: 'sw-stars' }, ...Array.from({ length: 80 }, () => h('i', { style: `left:${(rand() * 100).toFixed(1)}%;top:${(rand() * 52).toFixed(1)}vh;--d:${(rand() * 3).toFixed(2)}s;--z:${(0.4 + rand()).toFixed(2)}` })));
-  const aurora = h('div', { class: 'sw-aurora' }, h('i', {}), h('i', {}), h('i', {}));
-  const mist = h('div', { class: 'sw-mist' }, h('i', {}), h('i', {}), h('i', {}));
-  const rain = h('div', { class: 'sw-rain' }, ...Array.from({ length: 60 }, (_, i) => h('i', { style: `--x:${((i * 37) % 100).toFixed(0)}%;--d:${((i * 0.131) % 1).toFixed(2)}s` })));
-  const gulls = h('div', { class: 'sw-gulls' }, ...Array.from({ length: 7 }, (_, i) => h('i', { style: `--i:${i}` })));
-  const swell = h('div', { class: 'sw-swell' });
-  swell.innerHTML = `<svg viewBox="0 0 1600 400" preserveAspectRatio="none" aria-hidden="true">${Array.from({ length: 9 }, (_, i) => {
-    const y = 14 + i * i * 4.4;
-    const a = 2 + i * 0.9;
-    let d = `M-100 ${y}`;
-    for (let x = -100; x <= 1700; x += 60) d += ` Q${x + 15} ${(y - a).toFixed(1)} ${x + 30} ${y} T${x + 60} ${y}`;
-    return `<path d="${d}" style="--i:${i}" stroke-width="${(0.8 + i * 0.35).toFixed(2)}"/>`;
-  }).join('')}</svg>`;
-  // The Choir's light under the surface, gathering where the thing went down.
-  const lumen = h('div', { class: 'sw-lumen' });
-  lumen.innerHTML = `<svg viewBox="0 0 1600 400" preserveAspectRatio="none" aria-hidden="true">${Array.from({ length: 8 }, (_, i) => {
-    const left = i % 2 === 0;
-    const y0 = 60 + rand() * 300;
-    return `<path d="M${left ? -40 : 1640} ${y0.toFixed(0)} C ${left ? 400 : 1200} ${(y0 + (rand() - 0.5) * 200).toFixed(0)} ${left ? 600 : 1000} ${(120 + rand() * 160).toFixed(0)} 800 ${(90 + rand() * 40).toFixed(0)}" style="--i:${i}"/>`;
-  }).join('')}</svg>`;
-  const biolum = h('div', { class: 'sw-biolum' }, ...Array.from({ length: 34 }, () => h('i', { style: `--x:${(rand() * 100).toFixed(1)}%;--y:${(rand() * 40).toFixed(1)}vh;--d:${(rand() * 3).toFixed(2)}s` })));
-  const dolphins = h('div', { class: 'sw-dolphins' }, ...[0, 1, 2].map((i) => {
-    const d = h('i', { style: `--i:${i}` });
-    d.innerHTML = DOLPHIN_SVG;
-    return d;
-  }));
-  const spray = h('div', { class: 'sw-spray' }, ...Array.from({ length: 22 }, (_, i) => {
-    const a = -Math.PI * (0.1 + 0.8 * (i / 21)) + (rand() - 0.5) * 0.2;
-    const r = 14 + rand() * 20;
-    return h('i', { style: `--x:${(Math.cos(a) * r).toFixed(1)}vmin;--y:${(Math.sin(a) * r).toFixed(1)}vmin;--d:${(rand() * 0.5).toFixed(2)}s;--s:${(0.5 + rand()).toFixed(2)}` });
-  }));
-  const boat = h('div', { class: 'sw-boat' });
-  boat.innerHTML = BOAT_SVG;
-  const zzz = h('div', { class: 'sw-zzz' }, h('i', {}, 'z'), h('i', {}, 'z'), h('i', {}, 'Z'));
-  const bang = h('div', { class: 'sw-bang' }, '!');
-  const boot = h('div', { class: 'sw-boot' });
-  boot.innerHTML = ITEMS.boot;
-
-  const rig = h(
-    'div',
-    { class: 'sw-rig' },
-    h('div', { class: 'sw-sky' }),
-    stars,
-    aurora,
-    h('div', { class: 'sw-far' }, h('div', { class: 'sw-sun' }, h('i', { class: 'rays' }), h('i', { class: 'disc' })), clouds, isle, gulls),
-    h('div', { class: 'sw-godrays' }),
-    svg('sw-wonder', art),
-    h('div', { class: 'sw-glow' }),
-    dolphins,
-    h(
-      'div',
-      { class: 'sw-sea' },
-      h('div', { class: 'sw-glitter' }),
-      svg('sw-reflect', art),
-      swell,
-      biolum,
-      h('i', { class: 'w1' }),
-      h('i', { class: 'w2' }),
-      h('i', { class: 'w3' }),
-    ),
-    h('div', { class: 'sw-ring' }, h('i', {}), h('i', {})),
-    lumen,
-    h('div', { class: 'sw-foam' }),
-    h('div', { class: 'sw-cascade' }, ...Array.from({ length: 12 }, (_, i) => h('i', { style: `--i:${i}` }))),
-    spray,
-    mist,
-    h('div', { class: 'sw-ripples' }, h('i', {}), h('i', {}), h('i', {})),
-    h('div', { class: 'sw-float' }),
-    h('div', { class: 'sw-lift' }, h('div', { class: 'sw-rocker' }, boat, zzz, bang)),
-    boot,
-    h('div', { class: 'sw-hat' }),
-    rain,
-    h('div', { class: 'sw-rainbow' }),
-  );
-
-  // ── Under the sea ──
-  const fish = h('div', { class: 'su-school' }, ...Array.from({ length: 16 }, (_, i) => {
-    const el = h('i', { style: `--y:${(44 + rand() * 30).toFixed(1)}vh;--d:${(rand() * 0.9).toFixed(2)}s;--s:${(0.6 + rand() * 0.6).toFixed(2)};--k:${i % 3}` });
-    el.innerHTML = FISH_SVG;
-    return el;
-  }));
-  const kelp = Array.from({ length: 14 }, (_, i) => {
-    const x = 40 + i * 115 + rand() * 60;
-    const tall = 120 + rand() * 160;
-    return `<path class="su-kelp" style="--i:${i}" d="M${x.toFixed(0)} 420 q-18 ${(-tall / 3).toFixed(0)} 0 ${(-tall * 0.66).toFixed(0)} t0 ${(-tall / 3).toFixed(0)}"/>`;
-  }).join('');
-  const floor = h('div', { class: 'su-floor' });
-  floor.innerHTML = `<svg viewBox="0 0 1600 420" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${kelp}<path class="su-reef" d="M0 420 V330 Q80 290 150 320 Q220 260 300 310 Q360 330 420 300 Q520 250 600 320 L1000 320 Q1080 250 1180 300 Q1260 330 1320 290 Q1400 260 1470 310 Q1540 330 1600 300 V420Z"/><g class="su-ruin"><rect x="250" y="236" width="34" height="90" transform="rotate(-8 267 326)"/><rect x="240" y="226" width="54" height="12" transform="rotate(-8 267 326)"/><rect x="1300" y="270" width="110" height="26" rx="3" transform="rotate(6 1355 283)"/></g>${Array.from({ length: 10 }, (_, i) => `<circle class="su-coral" cx="${(80 + i * 160 + rand() * 60).toFixed(0)}" cy="${(320 + rand() * 30).toFixed(0)}" r="${(8 + rand() * 10).toFixed(0)}" style="--i:${i}"/>`).join('')}</svg>`;
-  const threads = h('div', { class: 'su-lumen' });
-  threads.innerHTML = `<svg viewBox="0 0 1600 600" preserveAspectRatio="none" aria-hidden="true">${Array.from({ length: 12 }, (_, i) => {
-    const left = i % 2 === 0;
-    const y0 = 80 + rand() * 460;
-    return `<path d="M${left ? -40 : 1640} ${y0.toFixed(0)} C ${left ? 300 : 1300} ${(y0 + (rand() - 0.5) * 300).toFixed(0)} ${left ? 600 : 1000} ${(380 + rand() * 120).toFixed(0)} 800 470" style="--i:${i}"/>`;
-  }).join('')}</svg>`;
-  const item = h('div', { class: `su-item su-item-${bit.item}` });
-  item.innerHTML = ITEMS[bit.item];
-  const under = h(
-    'div',
-    { class: 'sw-under' },
-    h(
-      'div',
-      { class: 'su-cam' },
-      h('div', { class: 'su-water' }),
-      h('div', { class: 'su-shafts' }),
-      h('div', { class: 'su-surface' }),
-      svg('su-hull', `<path d="M10 0 Q180 60 350 0Z"/><path class="su-line" d="M346 0 V170"/><circle class="su-hook" cx="346" cy="172" r="3"/>`, '0 0 360 200'),
-      h('div', { class: 'su-splash' }, h('i', {}), h('i', {})),
-      fish,
-      svg('su-shape', art),
-      threads,
-      h('div', { class: 'su-heart' }),
-      floor,
-      item,
-      h('div', { class: 'su-motes' }, ...Array.from({ length: 30 }, () => h('i', { style: `--x:${(rand() * 100).toFixed(1)}%;--y:${(rand() * 140).toFixed(1)}vh;--d:${(rand() * 4).toFixed(2)}s` }))),
-    ),
-  );
-
-  reel.set.append(h('div', { class: 'sw-cam' }, rig), under, h('div', { class: 'sw-flash' }));
-
-  const day = look.mood !== 'night' && look.mood !== 'aurora';
+  const cut = (from: Framing, to?: Framing, dur = 0, opts: Partial<Shot> = {}) => {
+    stage.shots = [{ at: stage.t, dur, from, to, ...opts }];
+  };
+  const boatC: V3 = [B.x, SEA + 0.6, B.z];
+  const head = () => v(old.headAt(new Vector3()));
   /** The gag's sounds (D-195), per bit and beat. */
   const gagSound = (beat: 'tease' | 'hook' | 'b' | 'react') => {
     const k = `${bit.id}:${beat}`;
@@ -440,29 +647,43 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
   };
 
   const film = async () => {
-    // 1. Wide: the boat at sea, and the sound of the hour.
-    shot('wide');
+    // 1. Wide: the boat small on the sea, the place where the wonder will rise behind it.
+    cut({ pos: [B.x + 16, SEA + 6, B.z + 14], look: [B.x - 2, SEA + 1, B.z - 22], fov: 40 }, { pos: [B.x + 11, SEA + 4.2, B.z + 10], look: [B.x - 1, SEA + 1, B.z - 16], fov: 38 }, 3.4);
     reel.on('open');
     reel.bed('sea', day ? 1 : 0.6, 2);
-    reel.bed('wind', look.mood === 'rain' ? 0.7 : look.mood === 'mist' ? 0.5 : 0.25, 2);
-    if (look.mood === 'rain') reel.bed('rain', 1, 1.5);
+    reel.bed('wind', hour.mood === 'rain' ? 0.7 : hour.mood === 'mist' ? 0.5 : 0.25, 2);
+    if (hour.mood === 'rain') reel.bed('rain', 1, 1.5);
     if (!day) reel.bed('drone', 0.25, 3);
+    if (!(await reel.wait(0))) return;
+    stage.open();
     if (day) reel.hit('gulls', 1.4);
-    if (look.mood === 'night') reel.cue('cs-night');
-    reel.say(bit.open(fisher, look.word));
+    if (hour.mood === 'night') reel.cue('cs-night');
+    reel.say(bit.open(fisher, hour.word));
     if (!(await reel.wait(2900))) return;
 
     // 2. Close: the gag, and something over the side.
-    shot('close');
+    cut(orbit(head(), 2.6, 0.55, 0.12, 34), orbit(head(), 2.2, 0.4, 0.1, 32), 6);
     reel.on('a');
-    // A beat of suspense first (the float nibbling, for the boot), then the gag lands.
     if (bit.tease) {
       reel.say(bit.tease);
+      tease = stage.t;
       gagSound('tease');
       if (!(await reel.wait(2000))) return;
     }
     reel.on('hook');
     gagSound('hook');
+    if (bit.id === 'boot') {
+      hooked = stage.t;
+      old.act('fish', { brows: 0.8, mouth: 0.6 });
+    } else if (bit.id === 'bino' && gull) {
+      gull.pose = 'squawk';
+    } else if (bit.id === 'kid') {
+      kid!.act('point', { mouth: 0.6 });
+    } else if (bit.id === 'coffee') {
+      old.pose.to({ brows: 1, mouth: 0 });
+    } else if (bit.id === 'fish') {
+      old.pose.to({ mouth: 0.7 });
+    }
     reel.cue(bit.id === 'boot' ? 'cs-boing' : bit.id === 'coffee' ? 'tick' : 'cs-sneak');
     reel.say(bit.a);
     if (!(await reel.wait(bit.tease ? 2100 : 2500))) return;
@@ -471,12 +692,58 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     reel.bed('drone', 0.35, 2);
     reel.cue(bit.id === 'camera' ? 'cs-freeze' : 'cs-whoosh');
     reel.say(bit.b);
+    if (bit.id === 'boot') {
+      line!.visible = float_.visible = false;
+      throwOver(item);
+      old.act('sit', { smile: 0.2 });
+    } else if (bit.id === 'bino' && gull) {
+      // The gull takes the sandwich, flaps off, drops it.
+      gull.pose = 'fly';
+      gull.carry.add(item);
+      item.position.set(0, 0, 0);
+      const g = gull;
+      const t0 = stage.t;
+      const prev = stage.onFrame!;
+      stage.onFrame = (t, dt) => {
+        prev(t, dt);
+        const k = t - t0;
+        if (k < 1.1) g.root.position.set(Math.sin(k * 3) * 0.6, 0.02 + k * 1.4, 1.5 + k * 1.2);
+        else if (toss.at < 0) throwOver(item);
+      };
+    } else if (bit.id === 'camera') {
+      sneezeAt = stage.t;
+      old.act('sit', { brows: 1, mouth: 1 });
+      if (!(await reel.wait(250))) return;
+      throwOver(item);
+    } else if (bit.id === 'kid') {
+      kid!.act('stand', { smile: 1 });
+      throwOver(item);
+    } else if (bit.id === 'coffee') {
+      shakeHands = true;
+      if (!(await reel.wait(600))) return;
+      throwOver(item);
+    } else {
+      old.act('startled');
+      throwOver(item);
+    }
+    // Watch it go in.
+    cut(orbit(v(splashAt, 0.3), 4.5, 0.9, 0.35, 36), orbit(v(splashAt, 0.1), 3.8, 1.0, 0.3, 34), 2.1);
     if (!(await reel.wait(2100))) return;
 
     // 3. Under the sea: it sinks, and the Choir notices.
-    shot('under');
     reel.on('under');
-    // Into the water: the surface goes silent, the deep roars, a heartbeat, the Choir's voices, a riser to the cut.
+    underAt = stage.t;
+    sinkFrom.set(splashAt.x, SEA - 0.5, splashAt.z);
+    stage.add(item);
+    item.visible = true;
+    item.scale.setScalar(bit.id === 'kid' ? 0.9 : 1);
+    stage.look = { ...hour.under, sunDir: [...hour.under.sunDir] };
+    stage.showSky(false);
+    stage.setFog(hour.under.low, 2, 70);
+    rain.visible = false;
+    moteMesh.visible = fishes.visible = true;
+    stage.shake = 0.7;
+    cut({ pos: [splashAt.x + 2.5, SEA - 2, splashAt.z + 4], look: [splashAt.x, SEA - 2.5, splashAt.z], fov: 46 }, { pos: [splashAt.x + 3, SEA - 6, splashAt.z + 6], look: [W.x, deepY + H * 0.6, W.z], fov: 50 }, 3.8);
     reel.hit('plunge');
     for (const b of ['sea', 'wind', 'rain'] as const) reel.bed(b, 0, 0.2);
     reel.bed('deep', 1, 0.3);
@@ -489,17 +756,25 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     reel.say(bit.under);
     if (!(await reel.wait(3800))) return;
 
-    // 4. It rises.
-    shot('rise');
+    // 4. It rises: low and wide on the surface, the camera shaking.
     reel.on('rise');
-    // It breaks the surface: the impact, water, the swell of the score, the Choir in full; dolphins, gulls.
+    underAt = -1;
+    item.visible = moteMesh.visible = fishes.visible = false;
+    (flare.material as ReturnType<typeof glow>).emissiveIntensity = 0;
+    stage.look = { ...hour.look, sunDir: [...hour.look.sunDir] };
+    stage.showSky(true);
+    stage.setFog(haze.col, haze.near, haze.far);
+    rain.visible = hour.mood === 'rain';
+    riseAt = stage.t;
+    dolphins.visible = true;
+    cut({ pos: [B.x + 9, SEA + 1.4, B.z + 16], look: [W.x, SEA + H * 0.35, W.z], fov: 44 }, { pos: [B.x + 8, SEA + 1.0, B.z + 13], look: [W.x, SEA + H * 0.5, W.z], fov: 46 }, 3.6);
     reel.bed('deep', 0, 0.3);
     reel.bed('sea', 1, 0.6);
     reel.bed('wind', 0.3, 1);
     reel.bed('rain', 0, 2.5);
     reel.bed('choir', 1, 1.5);
     reel.bed('drone', 0.2, 2);
-    if (look.mood === 'rain') reel.hit('thunder', 0.05);
+    if (hour.mood === 'rain') reel.hit('thunder', 0.05);
     reel.hit('boom', 0.3);
     reel.hit('splash', 0.55);
     reel.hit('swell', 0.2, 3);
@@ -508,25 +783,42 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     reel.say('');
     if (!(await reel.wait(3700))) return;
 
-    // 5. The payoff.
-    shot('medium');
+    // 5. The payoff: a two-shot, the wonder behind him.
     reel.on('react');
+    stage.shake = 1;
+    shakeHands = false;
+    if (bit.id === 'boot') old.act('shrug', { headYaw: 0 });
+    else if (bit.id === 'bino') old.act('sit', { brows: -0.3, smile: 0.3 });
+    else if (bit.id === 'camera') old.act('sit', { smile: 1, mouth: 0.5 });
+    else if (bit.id === 'kid') {
+      kid!.act('cheer');
+      old.act('sit', { smile: 0.5 });
+    } else if (bit.id === 'coffee') {
+      old.blink(0.3, 0.1);
+      old.act('think', { brows: 0.6 });
+    } else {
+      // He turns round at last, and tips his hat.
+      old.root.rotation.y = Math.PI / 2;
+      old.act('wave', { smile: 1, mouth: 0.6 });
+    }
+    cut({ pos: [B.x + 1.6, SEA + 1.6, B.z + 4.6], look: [B.x - 0.5, SEA + 2.4, B.z - 10], fov: 46 }, { pos: [B.x + 1.3, SEA + 1.5, B.z + 4.0], look: [B.x - 0.8, SEA + 2.8, B.z - 12], fov: 46 }, 3.2);
+    gagSound('react');
     reel.bed('choir', 0.35, 1.5);
     reel.bed('drone', 0, 2);
-    gagSound('react');
     reel.cue(bit.id === 'camera' ? 'cs-blink' : bit.id === 'fish' ? 'cs-fanfare' : 'cs-freeze');
     if (!(await reel.wait(700))) return;
     reel.say(bit.react(fisher));
     if (!(await reel.wait(2400))) return;
 
     // 6. Wide, pulling out, then the card.
-    shot('final');
     reel.on('final');
+    cut(orbit(boatC, 18, 0.7, 0.18, 42), orbit([(B.x + W.x) / 2, SEA + 4, (B.z + W.z) / 2], 70, 0.5, 0.3, 44), 16, { ease: 'out' });
     reel.bed('sea', 0.7, 2);
     reel.bed('choir', 0.5, 2);
     reel.say('');
     if (!(await reel.wait(1500))) return;
     reel.on('finale');
+    void top;
     await reel.end({
       kicker: 'Sea wonder · risen · the Choir answers',
       title: wonder.name,
@@ -538,117 +830,8 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
         `Episode ${ep + 1} · day ${city.day} · ${Math.round(city.stats.population).toLocaleString('en-US')} residents · ${bit.tag(fisher)}`,
       ],
       button: 'Behold',
-      confetti: [look.hi, '#ffffff', '#5ff2da', '#ffe9a8'],
+      confetti: ['#ffffff', '#5ff2da', '#ffe9a8', '#9fd8ff'],
     });
   };
   void film();
 }
-
-/** The wonders as silhouettes (400 × 260, sitting on y = 260); `.hi` marks their lighter details. */
-export const SHAPES: Record<string, string> = {
-  // Three rings of living pearl, standing in the surf.
-  tideGates: [90, 200, 310]
-    .map((x, i) => `<circle cx="${x}" cy="${150 - (i % 2) * 14}" r="${62 - (i % 2) * 8}" fill="none" stroke-width="16" class="ring"/><circle class="hi" cx="${x}" cy="${88 - (i % 2) * 22}" r="5"/>`)
-    .join(''),
-  // A lotus as big as a reef: petals round a glowing heart, on its pad.
-  lotus: `<ellipse cx="200" cy="252" rx="190" ry="20"/>${[-70, -40, -12, 12, 40, 70]
-    .map((a) => `<ellipse cx="200" cy="170" rx="34" ry="84" transform="rotate(${a} 200 250)"/>`)
-    .join('')}<circle class="hi" cx="200" cy="200" r="22"/>`,
-  // Three wooded sea stacks.
-  stacks: `<path d="M40 260 L60 90 L120 84 L130 260Z M150 260 L170 30 L240 26 L250 260Z M270 260 L282 120 L340 116 L356 260Z"/><g class="hi">${[
-    [90, 84],
-    [205, 26],
-    [311, 116],
-  ]
-    .map(([x, y]) => `<circle cx="${x! - 14}" cy="${y! - 10}" r="16"/><circle cx="${x! + 12}" cy="${y! - 14}" r="18"/>`)
-    .join('')}</g>`,
-  // A glass dome with a cupola, a dish and solar petals at its rim.
-  dome: `<rect x="50" y="200" width="300" height="60" rx="8"/><path d="M80 200 A120 120 0 0 1 320 200Z"/><path class="hi" d="M120 200 A80 80 0 0 1 280 200" fill="none" stroke-width="5"/><rect x="190" y="60" width="20" height="30"/><path d="M178 60 q22 -26 44 0z"/><path d="M232 74 l30 -22 l6 10z"/>${[60, 100, 300, 340]
-    .map((x) => `<ellipse cx="${x}" cy="196" rx="10" ry="22" transform="rotate(${x < 200 ? -30 : 30} ${x} 210)"/>`)
-    .join('')}`,
-  // A turtle the size of an island, a palm on its shell.
-  turtle: `<ellipse cx="200" cy="220" rx="160" ry="80"/><path class="hi" d="M120 200 q80 -70 160 0 M160 160 l-10 60 M240 160 l10 60 M200 150 v70" fill="none" stroke-width="5"/><ellipse cx="368" cy="226" rx="30" ry="20"/><circle class="eye" cx="380" cy="220" r="4"/><path d="M60 250 q-30 10 -40 -10 q20 -6 40 0z M340 254 q30 10 40 -6 q-20 -8 -40 0z"/><path d="M200 150 q4 -60 -6 -90" fill="none" stroke-width="7"/><path d="M194 60 q-40 -10 -60 14 M194 60 q40 -14 62 8 M194 60 q-20 -30 -46 -26 M194 60 q24 -30 50 -22" fill="none" stroke-width="10" stroke-linecap="round"/>`,
-  // A colonnade the sea gave back: columns and a broken beam.
-  colonnade: `${[40, 110, 180, 250, 320]
-    .map((x, i) => `<rect x="${x}" y="${70 + (i === 4 ? 50 : 0)}" width="36" height="${190 - (i === 4 ? 50 : 0)}"/><rect x="${x - 6}" y="${60 + (i === 4 ? 50 : 0)}" width="48" height="12"/>`)
-    .join('')}<path d="M30 48 L280 48 L300 60 L30 60Z"/><path class="hi" d="M50 90 v150 M120 90 v150 M190 90 v150 M260 90 v150" stroke-width="3"/>`,
-  // A geode split open: crystals catching the light.
-  geode: `<path d="M40 260 Q60 140 200 130 Q340 140 360 260Z"/>${[
-    [140, 70, -14],
-    [190, 30, 0],
-    [240, 60, 12],
-    [280, 110, 24],
-    [110, 120, -28],
-  ]
-    .map(([x, y, r]) => `<path class="hi" d="M${x} ${y} l18 30 l-8 100 l-20 0 l-8 -100z" transform="rotate(${r} ${x} 200)"/>`)
-    .join('')}`,
-};
-
-/** A gull standing, beak to +x (40 × 30, feet at the origin). */
-const GULL = `<path d="M-4 0 v4 M4 0 v4" stroke="#ffb43a" stroke-width="2"/><ellipse cx="0" cy="-8" rx="13" ry="8" fill="#fbfbfb" stroke="#6f7f8f"/><path class="wing" d="M-12 -10 q8 -6 18 -2 l-8 6z" fill="#c9d3dc"/><circle cx="9" cy="-17" r="6" fill="#fbfbfb" stroke="#6f7f8f"/><path d="M14 -17 l8 2 l-8 2z" fill="#ffb43a"/><circle cx="10.5" cy="-18.5" r="1.2" fill="#1f2a33"/>`;
-
-/**
- * The rowboat and its fisher (360 × 200), facing left (away from where the wonders rise), with every episode's props
- * (`.prop`, shown by `.sw-bit-*`): binoculars and a gull with designs on his sandwich, a camera on a tripod, his
- * granddaughter at the bow with a paper boat, a coffee mug and wide eyes, a fish.
- */
-const BOAT_SVG = `<svg viewBox="0 0 360 200" aria-hidden="true">
-<defs>
-  <linearGradient id="sw-hullg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8714a"/><stop offset="1" stop-color="#5e3a22"/></linearGradient>
-  <linearGradient id="sw-coatg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4d82a6"/><stop offset="1" stop-color="#2f5a78"/></linearGradient>
-</defs>
-<path class="oar" d="M60 128 L-6 170 M-6 170 l-14 10 l6 6 l14 -10z"/>
-<g class="rod-g"><path class="line" d="M300 40 Q 340 90 352 160" fill="none"/><path class="rod" d="M170 120 L300 40" fill="none"/><circle class="spool" cx="186" cy="111" r="6"/></g>
-<g class="prop p-cam"><path class="tripod" d="M108 140 L112 108 L116 140 M112 108 L104 140"/><rect class="body" x="98" y="94" width="26" height="15" rx="2.5"/><rect class="body" x="104" y="90" width="8" height="5" rx="1"/><rect class="lens" x="87" y="96" width="12" height="11" rx="2"/><rect class="p-cap" x="83.5" y="96" width="4" height="11" rx="1.2"/><circle class="p-flash" cx="118" cy="92" r="3.4"/></g>
-<g class="sw-fisher">
-  <path class="coat" d="M118 150 q4 -46 34 -50 q30 4 34 50z" fill="url(#sw-coatg)"/>
-  <path d="M150 104 l-4 46 M154 104 l4 46" stroke="#24465e" stroke-width="2" fill="none" opacity="0.6"/>
-  <path class="prop p-bino arm-alt" d="M140 118 Q126 112 132 94"/>
-  <path class="prop p-cam arm-alt" d="M138 120 Q126 118 120 108"/>
-  <path class="prop p-fish arm-alt" d="M140 118 Q122 116 124 100"/>
-  <g class="sw-head">
-    <circle class="skin" cx="152" cy="86" r="18"/><circle cx="144" cy="92" r="4" fill="#f0a98a" opacity="0.6"/>
-    <circle class="nose" cx="135.5" cy="89" r="3.6"/>
-    <path class="beard" d="M136 90 q16 26 32 0 q-16 8 -32 0z"/>
-    <path class="eyes shut" d="M141 84 q4 3 8 0 M155 84 q4 3 8 0" fill="none"/>
-    <g class="eyes open"><circle cx="144" cy="84" r="2.6"/><circle cx="158" cy="84" r="2.6"/></g>
-    <g class="prop p-wide"><circle cx="145" cy="83" r="5" fill="#fff" stroke="#2a2a2a" stroke-width="1.4"/><circle cx="159" cy="83" r="5" fill="#fff" stroke="#2a2a2a" stroke-width="1.4"/><circle cx="143.4" cy="83" r="2.2" fill="#2a2a2a"/><circle cx="157.4" cy="83" r="2.2" fill="#2a2a2a"/><path d="M139 76 l10 -1 M153 75 l10 1" stroke="#9a8a7a" stroke-width="1.6"/></g>
-    <g class="hat-on"><ellipse class="hat" cx="152" cy="72" rx="30" ry="7"/><path class="hat" d="M138 72 q14 -26 28 0z"/><rect x="138" y="66" width="28" height="4" fill="#c0503c"/></g>
-    <g class="prop p-bino"><rect x="118" y="77" width="18" height="7.5" rx="2.4"/><rect x="118" y="86" width="18" height="7.5" rx="2.4"/><rect x="132" y="79" width="6" height="12" rx="1.2"/><circle class="glint" cx="119.5" cy="80" r="1.4"/></g>
-  </g>
-  <path class="arm" d="M168 116 L188 108" fill="none"/>
-  <g class="prop p-mug"><rect x="185" y="97" width="13" height="14" rx="2"/><path class="handle" d="M198 100 q6 0 6 4.5 q0 4.5 -6 4.5" fill="none"/><path class="steam" d="M188 92 q3 -4 0 -8 q-3 -4 0 -8 M194 92 q3 -4 0 -8 q-3 -4 0 -8" fill="none"/></g>
-  <g class="prop p-fish"><g class="p-fish-g"><path class="body" d="M100 92 q12 -12 26 0 q-12 12 -26 0z"/><path class="fin" d="M126 92 l9 -7 v14z"/><circle class="p-fisheye" cx="105" cy="90.5" r="1.6"/><path d="M110 86 q4 6 0 12" stroke="#5c9ab8" stroke-width="1" fill="none"/></g></g>
-</g>
-<g class="bkt"><path class="bucket" d="M220 120 h26 l-4 24 h-18z"/><path d="M220 120 q13 -12 26 0" fill="none" stroke="#5a6a7a" stroke-width="2"/></g>
-<g class="lantern"><rect x="78" y="112" width="12" height="18" rx="2"/><circle class="glow" cx="84" cy="121" r="5"/><path d="M84 112 v-6" stroke="#3a281c" stroke-width="2"/></g>
-<g class="prop p-sand"><path d="M190 132 h20 l-2 5 h-16z" fill="#e8c48a"/><rect x="191" y="129" width="18" height="3" rx="1" fill="#7cc26a"/><rect x="191" y="127.5" width="18" height="2" fill="#e85a4f"/><path d="M190 127.5 h20 l-3 -5 h-14z" fill="#f2d39a"/></g>
-<g class="prop p-kid">
-  <path class="kid-coat" d="M262 144 q2 -30 15 -32 q13 2 15 32z"/>
-  <circle class="skin" cx="277" cy="101" r="11"/>
-  <circle cx="281.5" cy="100" r="1.7" fill="#2a2a2a"/><path d="M279 106 q3 2 6 0" stroke="#a0524a" stroke-width="1.2" fill="none"/>
-  <path class="kid-hat" d="M264 99 q13 -20 26 0z M262 99 h30" />
-  <g class="kid-arm"><path class="kid-sleeve" d="M284 122 L300 112"/><path class="p-paper" d="M295 112 h15 l-3 5 h-9z M302 112 v-9 l6 9z"/></g>
-</g>
-<path class="hull" d="M40 140 L320 140 Q300 186 180 188 Q60 186 40 140Z" fill="url(#sw-hullg)"/>
-<path class="plank" d="M48 152 Q180 160 312 152 M62 166 Q180 174 300 166" fill="none"/>
-<path class="trim" d="M40 140 L320 140" fill="none"/>
-<path class="wet" d="M58 176 Q180 196 302 176" fill="none"/>
-<g class="prop p-gull"><g transform="translate(46 139) scale(1.25)"><g class="p-gull-a">${GULL}</g></g></g>
-</svg>`;
-
-/** What goes over the side, as it sinks (40 × 40). */
-const ITEMS = {
-  boot: `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M10 4 h14 v20 l12 4 q4 2 2 8 h-30z" fill="#6b4a33" stroke="#3a281c" stroke-width="2"/><path d="M8 36 h32" stroke="#3a281c" stroke-width="3"/></svg>`,
-  sandwich: `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M4 22 h32 l-3 8 h-26z" fill="#e8c48a"/><rect x="5" y="17" width="30" height="5" rx="2" fill="#7cc26a"/><rect x="5" y="15" width="30" height="3" fill="#e85a4f"/><path d="M4 15 h32 l-5 -8 h-22z" fill="#f2d39a"/></svg>`,
-  cap: `<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="13" fill="#23272e" stroke="#5a6470" stroke-width="2.4"/><circle cx="20" cy="20" r="6" fill="#343a44"/><path d="M12 14 q4 -4 10 -4" stroke="#7a8490" stroke-width="1.6" fill="none"/></svg>`,
-  paper: `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M3 22 h34 l-7 9 h-20z" fill="#fdfdf6" stroke="#b8c0c8"/><path d="M20 22 v-17 l11 17z" fill="#f4f4ea" stroke="#b8c0c8"/><path d="M20 22 v-12 l-8 12z" fill="#ffffff" stroke="#b8c0c8"/></svg>`,
-  mug: `<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="8" y="10" width="20" height="22" rx="3" fill="#e85a4f" stroke="#a83a30" stroke-width="1.5"/><path d="M28 15 q8 0 8 6 q0 6 -8 6" fill="none" stroke="#e85a4f" stroke-width="3"/><rect x="11" y="16" width="14" height="3" fill="#fff" opacity="0.7"/></svg>`,
-  fish: `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M4 20 q16 -16 30 0 q-14 16 -30 0z" fill="#8fd0e8"/><path d="M33 20 l7 -7 v14z" fill="#6fb6d2"/><circle cx="10" cy="18" r="2" fill="#1d2a33"/></svg>`,
-};
-
-/** A small fish of the school, nose to +x (30 × 14). */
-const FISH_SVG = `<svg viewBox="0 0 30 14" aria-hidden="true"><path d="M2 7 q11 -9 22 0 q-11 9 -22 0z"/><path d="M23 7 l7 -5 v10z"/><circle class="e" cx="6" cy="6" r="1"/></svg>`;
-
-/** A dolphin mid-leap, nose to +x (80 × 34). */
-const DOLPHIN_SVG = `<svg viewBox="0 0 80 34" aria-hidden="true"><path d="M2 20 q20 -18 52 -12 q10 -10 14 -6 q-3 5 -5 9 q10 3 15 9 q-12 0 -18 -2 q-8 10 -12 10 q2 -5 0 -9 q-24 6 -46 1z"/><path class="belly" d="M10 21 q20 4 44 -3" fill="none"/><circle class="e" cx="68" cy="16" r="1.2"/></svg>`;

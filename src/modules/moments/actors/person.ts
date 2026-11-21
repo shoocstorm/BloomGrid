@@ -96,7 +96,8 @@ export class Person3D {
   readonly root = new Group();
   private hips: Group;
   private torso: Group;
-  private head: Group;
+  /** The head (films attach binoculars, a sneeze's jolt, a hat). */
+  readonly head: Group;
   private legs: [Group, Group][] = [];
   private arms: [Group, Group][] = [];
   /** The right hand: where a prop is held. */
@@ -112,6 +113,8 @@ export class Person3D {
   private time = Math.random() * 10;
   /** A lantern's light (`prop: 'lantern'`), for films to brighten or dim. */
   lamp: Mesh | null = null;
+  /** The rod's tip (`prop: 'rod'`), where a fishing line hangs from. */
+  rodTip: Group | null = null;
 
   constructor(look: Look) {
     const skin = soft(look.skin, 0.7, 0.35);
@@ -220,6 +223,7 @@ export class Person3D {
       rod.rotation.z = -2.2;
       part(ROD, hard(0x8a5a3a, 0.6), rod, 0, 0.1, 0, 0.008, 1.4, 0.008).rotation.z = Math.PI;
       part(BALL, hard(0x3a3a40, 0.3, 0.7), rod, 0, 0.05, 0.025, 0.02, 0.02, 0.012);
+      this.rodTip = joint(rod, 0, 1.5, 0);
     } else if (prop === 'lantern') {
       const l = joint(h, 0, -0.05, 0);
       part(ROD, hard(0x2e2a26, 0.4, 0.6), l, 0, 0, 0, 0.005, 0.06, 0.005);
