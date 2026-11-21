@@ -14,13 +14,10 @@ import { SYSTEMS } from '@/sim/pulseState';
 import { isOpen } from '@/sim/growthState';
 import { projectStatus } from '@/sim/projects';
 import { playAdoption } from './cutscene';
-import { playAdoption3D } from './cutscene3d';
 import { addCatExhibit } from './exhibit';
 import { noteText } from './notes';
 import './charm.css';
 
-/** `?film3d=1`: adoption plays the 3D film (D-196) while it is compared with the 2D one. */
-const FILM_3D = typeof location !== 'undefined' && new URLSearchParams(location.search).get('film3d') === '1';
 
 /**
  * Little charms (D-175): small, harmless things that make the island feel lived in and reward a curious click.
@@ -172,15 +169,6 @@ class Charm {
       earned: () => this.adopted && ctx.city.growth.progression,
       run: (finish) => playAdoption(ctx, this.cast(), finish),
     });
-    // The same film on the 3D stage (D-196), alongside the 2D one while the two are compared.
-    ctx.services.tryGet('moments')?.film({
-      id: 'project:cat-3d',
-      title: 'The Stray (3D)',
-      icon: 'happy',
-      blurb: 'The stray’s film on a real night rooftop: the same cat, fish and dawn, in 3D.',
-      earned: () => this.adopted && ctx.city.growth.progression,
-      run: (finish) => playAdoption3D(ctx, this.cast(), finish),
-    });
     addCatExhibit(ctx);
     this.world.append(this.cat.el);
     this.adopt();
@@ -252,9 +240,8 @@ class Charm {
   cutscene(): void {
     const moments = this.ctx.services.tryGet('moments');
     this.filming = true;
-    const play = FILM_3D ? playAdoption3D : playAdoption;
     const run = (finish: () => void) => {
-      play(
+      playAdoption(
         this.ctx,
         this.cast(),
         () => {

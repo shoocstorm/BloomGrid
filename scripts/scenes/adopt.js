@@ -27,8 +27,8 @@
   charm.cutscene();
   await wait(window.T ?? 9000);
   return {
-    on: !!document.querySelector('.cs-root'),
-    cap: document.querySelector('.cs-cap')?.textContent,
-    cat: document.querySelector('.cs-cat')?.className,
+    on: !!document.querySelector('.reel.sx'),
+    cap: document.querySelector('.reel-cap')?.textContent,
+    stage: !!window.bloomgrid.services.get('render').stage,
   };
 })();

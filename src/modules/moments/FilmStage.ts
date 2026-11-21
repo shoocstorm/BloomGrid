@@ -72,6 +72,8 @@ export class FilmStage {
   private ground: Mesh;
   private stars: Mesh;
   private moon: Mesh;
+  private sun: Mesh;
+  private sunOn = uniform(0);
   private skyTop = uniform(new Color());
   private skyLow = uniform(new Color());
   private starsOn = uniform(1);
@@ -79,6 +81,7 @@ export class FilmStage {
   private solids: Box3[] = [];
   private spins: { h: InstanceHandle; p: DesignPiece; m: Matrix4 }[] = [];
   private shadowIn = 0;
+  private skyR = 6;
   private resume: { speed: number; suspended: boolean; camera: boolean } | null = null;
   /** On location (D-197): the real city is the set, seen through the city camera; else the stage's own scene. */
   private location = false;
@@ -146,7 +149,13 @@ export class FilmStage {
     moonMat.colorNode = vec3(1, 0.96, 0.84).mul(this.starsOn.mul(1.4));
     this.moon = new Mesh(new SphereGeometry(1, 24, 16), moonMat);
     this.moon.renderOrder = -1;
-    this.scene.add(this.dome, this.ground, this.stars, this.moon);
+    // The sun: a warm disc with a halo (bloom) that comes up as the night lifts, along the look's sun direction.
+    const sunMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, fog: false });
+    sunMat.colorNode = vec3(1.6, 1.15, 0.7).mul(this.sunOn);
+    this.sun = new Mesh(new SphereGeometry(1, 24, 16), sunMat);
+    this.sun.renderOrder = -1;
+    this.sun.frustumCulled = false;
+    this.scene.add(this.dome, this.ground, this.stars, this.moon, this.sun);
   }
 
   /** Takes the set down (the previous film's buildings and actors). */
@@ -212,6 +221,8 @@ export class FilmStage {
     this.ground.scale.setScalar(r * 12);
     this.moon.position.copy(moon).normalize().multiplyScalar(r * 30).add(c);
     this.moon.scale.setScalar(r * 0.7);
+    this.sun.scale.setScalar(r * 1.1);
+    this.skyR = r;
     const sc = this.key.shadow.camera;
     sc.left = sc.bottom = -r * 1.4;
     sc.right = sc.top = r * 1.4;
@@ -384,6 +395,13 @@ export class FilmStage {
     this.skyLow.value.setHex(L.low);
     this.starsOn.value = Math.max(0, Math.min(1, (L.night - 0.35) / 0.6));
     this.stars.visible = this.moon.visible = this.starsOn.value > 0.004;
+    // The sun shows once the night is mostly gone, low on the sky where the look puts it.
+    this.sunOn.value = Math.max(0, Math.min(1, (0.6 - L.night) / 0.4));
+    this.sun.visible = this.sunOn.value > 0.004;
+    if (this.sun.visible) {
+      _v.set(L.sunDir[0], Math.max(0.04, L.sunDir[1] * 0.45), L.sunDir[2]).normalize();
+      this.sun.position.copy(this.centre).addScaledVector(_v, this.skyR * 30);
+    }
     this.scene.environment = this.ctx.scene.environment;
     withStageLook(L, this.camera.position, () => this.fx.render());
   }
