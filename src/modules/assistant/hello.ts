@@ -1,24 +1,76 @@
+import {
+  AdditiveBlending,
+  BoxGeometry,
+  BufferAttribute,
+  ConeGeometry,
+  CylinderGeometry,
+  DoubleSide,
+  Group,
+  Matrix4,
+  Mesh,
+  MeshBasicNodeMaterial,
+  MeshStandardNodeMaterial,
+  Path,
+  PointLight,
+  Shape,
+  ShapeGeometry,
+  TorusGeometry,
+  Vector3,
+  type BufferGeometry,
+} from 'three/webgpu';
+import { attribute, float, fract, sin, step, uv, vec3 } from 'three/tsl';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { GameContext } from '@/game/context';
 import { isOpen } from '@/sim/growthState';
-import { CAT_SIDE_SVG, CAT_SVG, COATS } from '@/modules/charm/art';
+import { COATS } from '@/modules/charm/art';
+import { Cat3D } from '@/modules/charm/cat3d';
 import { h } from '@/ui/dom';
-import { cloud, seeded, skyline } from '@/modules/moments/films/art';
+import { U } from '@/render/uniforms';
+import { FilmStage } from '@/modules/moments/FilmStage';
+import { orbit, type Framing, type Shot, type V3 } from '@/modules/moments/shots';
+import { LOOKS, type StageLook } from '@/render/stageUniforms';
+import { Flora3D } from '@/modules/moments/actors/flora';
+import { Gull3D } from '@/modules/moments/actors/gull';
+import { BALL, hard, part } from '@/modules/moments/actors/rig';
+import { hash2 } from '@/sim/random';
 import './hello.css';
 
 /**
- * "Hello, World" (D-185): Flora's awakening, ~18 s, cast from the city. In the Data Spire's core room at dusk:
+ * "Hello, World" (D-185, in 3D since D-197): Flora's awakening, ~20 s, cast from the city. In the Data Spire's core
+ * room at dusk, a 3D set: server racks with blinking lights round the walls, cables overhead, and a round window on
+ * the city (real buildings outside it):
  *
- * 1. A terminal boots her, line by line: the Seedvault's wake signal, a sealed memory archive whose origin she
- *    cannot read (she is Meridian's cutting and doesn't know it yet, `docs/lore/bible.md` Part II), "Loading civic
- *    empathy… 87%… 87%… please hold", and the one directive she was given: plan for the tide.
- * 2. The log folds away; her petals unfold round the core and an eye opens. "…hello?"
- * 3. She looks out of the round window at the city and counts everyone, out loud, to the real population.
- * 4. Something on the ledge: the island's cat if it is the steward's ("Classification: supervisor"), else a gull
- *    ("Threat level: snacks"). Her eye follows it.
+ * 1. A terminal boots her, line by line (DOM over the frame): the Seedvault's wake signal, a sealed memory archive
+ *    whose origin she cannot read (she is Meridian's cutting and doesn't know it yet, `docs/lore/bible.md` Part II),
+ *    "Loading civic empathy… 87%… please hold", and the one directive she was given: plan for the tide.
+ * 2. The bud in the middle of the room glows; her petals unfold; an eye opens. "…hello?"
+ * 3. She turns to the window and counts everyone, out loud, to the real population.
+ * 4. Something on the ledge outside: the island's cat if it is the steward's ("Classification: supervisor"), else a
+ *    gull ("Threat level: snacks"). Her eye follows it.
  * 5. Her first words, typed into a bubble; then the card, and her console opens.
  *
- * Text from the city (its name) reaches the DOM only as text; the SVG is static markup we wrote.
+ * Text from the city (its name) reaches the DOM only as text.
  */
+
+/** Dusk through the window: a low warm sun, a violet sky. */
+const DUSK: StageLook = {
+  ...LOOKS.dusk,
+  sunDir: [-0.2, 0.22, -1],
+  key: 0xffb27a,
+  keyI: 2.2,
+  rimI: 0.5,
+  hemiI: 0.22,
+  top: 0x3a3a78,
+  low: 0xf2a47a,
+  zenith: 0x4a5a9a,
+  horizon: 0xffb48a,
+  night: 0.55,
+  bloom: 0.8,
+};
+
+/** The room: radius of the floor, wall height, the window's centre height and radius. */
+const ROOM = { r: 6, h: 5.2, wy: 2.7, wr: 1.9 };
+
 export function playHelloWorld(ctx: GameContext, done: () => void, notice?: string): void {
   const moments = ctx.services.tryGet('moments');
   if (!moments) return done();
@@ -28,59 +80,170 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
   const blds = city.buildingEntities().length;
   const hasCat = isOpen(city.growth, 'cat') && !!ctx.services.tryGet('charm')?.on;
   const catName = ctx.services.tryGet('charm')?.cat.name ?? 'the cat';
-  const reel = moments.reel({ scene: 'hw', label: 'Hello, World', key: 2 }, done);
+  const stage = FilmStage.get(ctx);
+  stage.clear();
+  const reel = moments.reel({ scene: 'hw', label: 'Hello, World', key: 2, leaving: () => stage.close() }, done);
 
-  // ── The set (D-188): the core room, server racks, its round window on a dusk city, light falling in ──
-  const rand = seeded(city.seed * 5 + 3);
-  const city2 =
-    skyline({ x0: -20, x1: 420, ground: 400, tall: 150, count: 14, face: '#6b5a7e', side: '#58496b', glass: '#8f7fa6', lit: '#ffd98a', litShare: 0, green: '#5f8a6e', detail: false }, rand) +
-    skyline({ x0: -10, x1: 410, ground: 400, tall: 200, count: 9, face: '#3d3552', side: '#2f2843', glass: '#55496e', lit: '#ffd98a', litShare: 0.3, green: '#4d7a5e', detail: true }, rand);
-  const window_ = h('div', { class: 'hw-window' });
-  window_.innerHTML = `<svg viewBox="0 0 400 400" aria-hidden="true"><defs><clipPath id="hw-round"><circle cx="200" cy="200" r="200"/></clipPath><linearGradient id="hw-skyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a5a9a"/><stop offset="0.45" stop-color="#d98a8a"/><stop offset="0.75" stop-color="#f6b57c"/><stop offset="1" stop-color="#ffd9a0"/></linearGradient></defs><g clip-path="url(#hw-round)"><rect width="400" height="400" fill="url(#hw-skyg)"/><circle class="hw-sun" cx="290" cy="290" r="36"/><g opacity="0.85"><g transform="translate(90 110) scale(0.6 0.4)">${cloud(rand, '#ffd2c0', '#c98fa0')}</g><g transform="translate(300 80) scale(0.45 0.3)">${cloud(rand, '#ffd2c0', '#c98fa0')}</g></g><g class="hw-city">${city2}</g><rect y="388" width="400" height="12" fill="#2a2338"/></g><circle cx="200" cy="200" r="198" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="3"/><path d="M60 90 A170 170 0 0 1 150 36" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="5" stroke-linecap="round"/></svg>`;
-  // Server racks on both walls, their lights blinking; cables hanging between them.
-  const rack = (side: 'l' | 'r') => {
-    let leds = '';
+  // ── The set, at the island's heart: the room faces the window (−z), the city beyond it. ──
+  const cx = city.size / 2;
+  const base = Math.max(0, city.grid.heightAt(cx, cx));
+  const O = new Vector3(cx, base, cx);
+  const P = (x: number, y: number, z: number) => new Vector3(O.x + x, base + y, O.z + z);
+  const room = new Group();
+  room.position.copy(O);
+  stage.add(room);
+
+  const wallMat = new MeshStandardNodeMaterial({ color: 0x0c2226, roughness: 0.7, metalness: 0.3, side: DoubleSide });
+  const trimMat = glow(0x5ff2da, 0.6);
+  // Floor: dark polished disc with a lit inlay ring; ceiling.
+  const floor = part(DISC, new MeshStandardNodeMaterial({ color: 0x0a1a1d, roughness: 0.25, metalness: 0.5 }), room, 0, -0.05, 0, ROOM.r, 0.1, ROOM.r);
+  floor.receiveShadow = true;
+  part(RING, trimMat, room, 0, 0.005, 0, 1.6).rotation.x = Math.PI / 2;
+  part(RING, trimMat, room, 0, 0.005, 0, 2.6).rotation.x = Math.PI / 2;
+  part(DISC, wallMat, room, 0, ROOM.h, 0, ROOM.r, 0.1, ROOM.r);
+  // The window wall: a flat wall with a round hole, a thick frame and a ledge outside it.
+  const shape = new Shape();
+  const W = ROOM.r * 1.6;
+  shape.moveTo(-W, 0);
+  shape.lineTo(W, 0);
+  shape.lineTo(W, ROOM.h);
+  shape.lineTo(-W, ROOM.h);
+  shape.lineTo(-W, 0);
+  const hole = new Path();
+  hole.absarc(0, ROOM.wy, ROOM.wr, 0, Math.PI * 2, true);
+  shape.holes.push(hole);
+  const wall = new Mesh(new ShapeGeometry(shape, 48), wallMat);
+  wall.position.set(0, 0, -ROOM.r * 0.8);
+  wall.castShadow = wall.receiveShadow = true;
+  room.add(wall);
+  const frame = part(new TorusGeometry(ROOM.wr, 0.12, 12, 64), hard(0x2a4a50, 0.35, 0.7), room, 0, ROOM.wy, -ROOM.r * 0.8, 1);
+  frame.castShadow = false;
+  part(new TorusGeometry(ROOM.wr + 0.16, 0.025, 8, 64), trimMat, room, 0, ROOM.wy, -ROOM.r * 0.8 + 0.06, 1);
+  const ledgeY = ROOM.wy - ROOM.wr - 0.06;
+  part(BOX, hard(0x8a9aa0, 0.6, 0.2), room, 0, ledgeY, -ROOM.r * 0.8 - 0.5, 4.4, 0.12, 1.0);
+  // Side and back walls, and the racks along them (cabinets facing into the room, rows of LEDs on their fronts).
+  const S = ROOM.r * 0.97;
+  for (const sx of [1, -1]) part(BOX, wallMat, room, sx * S, ROOM.h / 2, 0.4, 0.12, ROOM.h, ROOM.r * 2.4);
+  part(BOX, wallMat, room, 0, ROOM.h / 2, ROOM.r * 1.05, S * 2, ROOM.h, 0.12);
+  const racks: [number, number, number][] = [];
+  for (const sx of [1, -1]) for (let k = 0; k < 5; k++) racks.push([sx * (S - 0.45), -3.6 + k * 1.75, sx > 0 ? -Math.PI / 2 : Math.PI / 2]);
+  for (let k = 0; k < 4; k++) racks.push([-3.3 + k * 2.2, ROOM.r * 1.05 - 0.45, Math.PI]);
+  const ledParts: BufferGeometry[] = [];
+  const led = new BoxGeometry(0.06, 0.035, 0.02);
+  const m = new Matrix4();
+  const local = new Matrix4();
+  racks.forEach(([rx, rz, yaw], k) => {
+    const rack = part(BOX, hard(0x081719, 0.4, 0.5), room, rx, 1.35, rz, 1.1, 2.7, 0.55);
+    rack.rotation.y = yaw;
+    m.makeRotationY(yaw).setPosition(rx, 0, rz);
     for (let r = 0; r < 14; r++)
-      for (let c = 0; c < 3; c++)
-        if (rand() < 0.7) leds += `<circle class="hw-led" style="--d:${(rand() * 2).toFixed(2)}s;--c:${LEDS[Math.floor(rand() * LEDS.length)]}" cx="${18 + c * 10}" cy="${20 + r * 22}" r="2"/>`;
-    const units = Array.from({ length: 14 }, (_, r) => `<rect x="8" y="${12 + r * 22}" width="64" height="18" rx="2" fill="#0d2226" stroke="#1d3a40"/>`).join('');
-    const el = h('div', { class: `hw-rack ${side}` });
-    el.innerHTML = `<svg viewBox="0 0 80 330" aria-hidden="true"><rect width="80" height="330" rx="4" fill="#081719"/>${units}${leds}</svg>`;
-    return el;
-  };
-  const cables = h('div', { class: 'hw-cables' });
-  cables.innerHTML = `<svg viewBox="0 0 1600 200" preserveAspectRatio="none" aria-hidden="true"><path d="M0 20 Q300 150 620 40 M980 30 Q1300 170 1600 24 M0 50 Q220 120 420 70" fill="none" stroke="#0b1f22" stroke-width="6"/><path d="M0 20 Q300 150 620 40" fill="none" stroke="#1f6b66" stroke-width="1.5" opacity="0.6"/></svg>`;
-  const beam = h('div', { class: 'hw-beam' }, ...Array.from({ length: 14 }, () => h('i', { style: `--x:${(rand() * 100).toFixed(1)}%;--y:${(rand() * 100).toFixed(1)}%;--d:${(rand() * 6).toFixed(2)}s;--s:${(0.5 + rand()).toFixed(2)}` })));
-  const count = h('div', { class: 'hw-count' }, h('b', {}), h('span', {}, 'residents'));
-  const ledge = h('div', { class: 'hw-ledge' });
-
-  // The visitor on the ledge: the steward's cat (the city's own rig and coat) or a gull.
-  let visitor: HTMLElement;
-  if (hasCat) {
-    const coat = COATS[Math.floor((Math.abs(Math.floor(city.seed)) || 1) / 7) % COATS.length]!;
-    const front = h('span', { class: 'ch-cat-in' });
-    front.innerHTML = CAT_SVG;
-    const side = h('span', { class: 'ch-side' });
-    side.innerHTML = CAT_SIDE_SVG;
-    front.append(side);
-    visitor = h('div', { class: 'ch-cat pose-side act-walk' }, front);
-    visitor.style.setProperty('--fur', coat.fur);
-    visitor.style.setProperty('--belly', coat.belly);
-    visitor.style.setProperty('--mark', coat.mark);
-    visitor.style.setProperty('--eye', coat.eye ?? '#1f2a24');
-  } else {
-    visitor = h('div', { class: 'hw-gull' });
-    visitor.innerHTML = GULL_SVG;
+      for (let c = 0; c < 4; c++) {
+        if (hash2(k * 97 + r * 7, c) > 0.72) continue;
+        const g = led.clone().applyMatrix4(local.multiplyMatrices(m, local.makeTranslation((c - 1.5) * 0.2, 0.35 + r * 0.17, 0.29)));
+        g.setAttribute('aSeed', new BufferAttribute(new Float32Array(g.attributes.position!.count).fill(hash2(k * 31 + r, c * 13)), 1));
+        ledParts.push(g);
+      }
+  });
+  const ledMat = new MeshBasicNodeMaterial();
+  const sd = attribute('aSeed', 'float');
+  const hue = fract(sd.mul(7.31));
+  const ledCol = vec3(0.37, 0.95, 0.85).mul(step(hue, 0.6)).add(vec3(0.55, 0.94, 0.48).mul(step(0.6, hue).mul(step(hue, 0.8)))).add(vec3(1, 0.84, 0.42).mul(step(0.8, hue)));
+  const on = step(0.2, sin(U.clock.mul(float(2).add(sd.mul(6))).add(sd.mul(40))));
+  ledMat.colorNode = ledCol.mul(on.mul(1.4).add(0.15));
+  const leds = new Mesh(mergeGeometries(ledParts), ledMat);
+  for (const g of ledParts) g.dispose();
+  room.add(leds);
+  // Cables sagging between the racks overhead.
+  for (let k = 0; k < 7; k++) {
+    const x0 = -ROOM.r * 0.85 + hash2(k, 3) * 1.2;
+    const x1 = ROOM.r * 0.85 - hash2(k, 4) * 1.2;
+    const z = -ROOM.r * 0.4 + k * 0.9;
+    for (let i = 0; i < 16; i++) {
+      const u = i / 15;
+      const y = ROOM.h - 0.3 - Math.sin(u * Math.PI) * (0.7 + hash2(k, 5) * 0.6);
+      part(BALL, hard(0x0b1f22, 0.6), room, x0 + (x1 - x0) * u, y, z, 0.07, 0.035, 0.035);
+    }
   }
-  const guest = h('div', { class: 'hw-guest' }, visitor);
-  const label = h('div', { class: 'hw-label' });
+  // Light falling in through the window: a cone of dusty light, and the dust in it.
+  const beamMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, fog: false });
+  beamMat.colorNode = vec3(1, 0.7, 0.45).mul(float(0.06).mul(float(1).sub(uv().y)));
+  const beam = new Mesh(new ConeGeometry(ROOM.wr * 1.15, ROOM.r * 1.3, 32, 1, true).translate(0, -ROOM.r * 0.65, 0), beamMat);
+  beam.position.set(0, ROOM.wy, -ROOM.r * 0.8);
+  beam.rotation.x = -Math.PI / 2 + 0.28;
+  room.add(beam);
 
-  // Flora: her petals, the core, the eye.
-  const flora = h('div', { class: 'hw-flora' });
-  flora.innerHTML = FLORA_SVG;
+  // The city outside the window: real buildings at dusk, windows lighting up.
+  const out: [string, number, number, number, number][] = [
+    ['canopy-tower', 2, -5, -16, 0.3],
+    ['helix-spire', 1, 3, -20, 0],
+    ['vertical-forest', 1, 9, -24, 0.1],
+    ['solar-spire', 1, -11, -22, -0.4],
+    ['garden-residence', 1, -2, -10.5, 0],
+    ['garden-residence', 2, 3, -11, 0.5],
+    ['mycelium-towers', 0, 16, -30, 0.5],
+    ['data-spire', 1, -18, -30, 0],
+    ['living-studio', 0, 7, -14, 0],
+  ];
+  for (const [id, tier, x, z, yaw] of out) stage.addBuilding(id, tier, O.x + x, O.z + z, yaw, base);
+  stage.frame(P(0, 2.5, -8), 10, new Vector3(0, 0.25, -1), base);
+  stage.addClouds(P(0, 0, -30), 8, 10, 26, 10, 16, 2.2, 7);
+  stage.look = { ...DUSK, sunDir: [...DUSK.sunDir] };
+  stage.groundColour(0x2a3a3a);
+
+  // Lights in the room: the core's cyan, rising as she wakes; a warm spill under the window.
+  const coreLight = new PointLight(0x5ff2da, 0, 12, 1.6);
+  coreLight.position.set(0, 2.4, 0);
+  const spill = new PointLight(0xffb27a, 6, 10, 1.4);
+  spill.position.set(0, ROOM.wy, -ROOM.r * 0.6);
+  room.add(coreLight, spill);
+
+  // ── Flora, floating in the middle of the room, facing the camera side (+z). ──
+  const flora = new Flora3D();
+  flora.root.position.set(0, 2.4, 0.4);
+  flora.root.scale.setScalar(0.6);
+  room.add(flora.root);
+
+  // ── The visitor on the ledge outside: the steward's cat, or a gull. ──
+  const ledge = P(0, ledgeY + 0.06, -ROOM.r * 0.8 - 0.5);
+  const cat = hasCat ? new Cat3D() : null;
+  const gull = hasCat ? null : new Gull3D();
+  if (cat) {
+    const coat = COATS[Math.floor((Math.abs(Math.floor(city.seed)) || 1) / 7) % COATS.length]!;
+    cat.paintCoat(coat);
+    cat.root.scale.setScalar(0.42);
+    cat.pose('creep');
+    stage.add(cat.root);
+  } else if (gull) {
+    gull.root.scale.setScalar(0.9);
+    gull.pose = 'stand';
+    stage.add(gull.root);
+  }
+  const visitor = (cat?.root ?? gull?.root)!;
+  visitor.position.set(ledge.x + 3.5, ledge.y, ledge.z);
+  visitor.rotation.y = Math.PI;
+  const guest = { from: ledge.x + 3.5, to: ledge.x + 3.5, t0: 0, dur: 1 };
+
+  let wakeAt = -1;
+  stage.onFrame = (t, dt) => {
+    if (wakeAt >= 0) {
+      const k = Math.min(1, (t - wakeAt) / 2.2);
+      flora.wake = k * k * (3 - 2 * k);
+      flora.open = Math.min(1, Math.max(0, (t - wakeAt - 0.4) / 1.8));
+      coreLight.intensity = flora.wake * 4;
+    }
+    flora.update(dt);
+    const k = Math.min(1, (t - guest.t0) / guest.dur);
+    visitor.position.x = guest.from + (guest.to - guest.from) * (k * k * (3 - 2 * k));
+    cat?.update(dt);
+    gull?.update(dt);
+  };
+
+  // ── DOM over the frame: the boot log, the count, the label, her words. ──
   const log = h('pre', { class: 'hw-log' });
+  const count = h('div', { class: 'hw-count' }, h('b', {}), h('span', {}, 'residents'));
+  const label = h('div', { class: 'hw-label' });
   const bubble = h('div', { class: 'hw-bubble' });
-  reel.set.append(h('div', { class: 'hw-room' }), cables, rack('l'), rack('r'), beam, window_, h('div', { class: 'hw-floorglow' }), count, ledge, guest, label, flora, log, bubble);
+  reel.set.append(log, count, label, bubble);
 
   const type = async (el: HTMLElement, text: string, cps = 60) => {
     for (let i = 0; i < text.length; i++) {
@@ -95,18 +258,20 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
     if (!(await type(log, text, 120))) return false;
     return reel.wait(pause);
   };
-  const look = (x: number, y: number) => {
-    flora.style.setProperty('--lx', String(x));
-    flora.style.setProperty('--ly', String(y));
+  const cut = (from: Framing, to?: Framing, dur = 0, opts: Partial<Shot> = {}) => {
+    stage.shots = [{ at: stage.t, dur, from, to, ...opts }];
   };
+  const F = (): V3 => [O.x + flora.root.position.x, base + flora.root.position.y, O.z + flora.root.position.z];
 
   const film = async () => {
-    // 1. Boot.
+    // 1. Boot: a slow push across the dark room toward the bud.
+    cut(orbit(F(), 7.5, 0.55, 0.12, 40), orbit(F(), 5, 0.25, 0.06, 36), 9);
     reel.on('boot');
-    reel.cue('cs-night');
-    // The score (D-195): the machine room's hum, a waking swell, voices as she opens her eye.
     reel.bed('hum', 0.7, 1.5);
     reel.bed('drone', 0.15, 3);
+    if (!(await reel.wait(0))) return;
+    stage.open();
+    reel.cue('cs-night');
     if (!(await reel.wait(700))) return;
     for (const [t, p] of [
       ['BG-01 · Seedvault link · wake signal: seed in the soil', 150],
@@ -122,27 +287,35 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
     ] as const)
       if (!(await line(t, p))) return;
 
-    // 2. She wakes.
+    // 2. She wakes: the core lights, the petals open, the room turns cyan.
     reel.on('wake');
     reel.sound('awake');
     reel.bed('hum', 0.35, 2);
     reel.bed('drone', 0, 2);
     reel.hit('swell', 0, 2.2);
+    wakeAt = stage.t;
+    cut(orbit(F(), 4.6, 0.3, 0.02, 38), orbit(F(), 3.8, -0.25, 0.05, 36), 2.6);
     reel.say('Under the hill, in a vault older than the city, a small mind stirred.');
     if (!(await reel.wait(2200))) return;
+    // The eye opens, close.
     reel.on('eye');
+    cut(orbit(F(), 1.9, 0.12, 0.04, 30), orbit(F(), 1.6, 0.05, 0.02, 28), 2);
+    flora.eyeOpen = 1;
     reel.cue('cs-blink');
     reel.hit('choir', 0, 1.6);
     reel.say('…hello?');
-    look(-0.6, 0);
+    flora.look(-0.8, 0);
     if (!(await reel.wait(700))) return;
-    look(0.6, 0);
-    if (!(await reel.wait(700))) return;
+    flora.look(0.8, 0.1);
+    if (!(await reel.wait(500))) return;
+    flora.blink();
+    if (!(await reel.wait(300))) return;
 
-    // 3. She counts the city.
+    // 3. She turns to the window and counts the city (over her shoulder, the city beyond the glass).
     reel.on('count');
-    // The window is to her right.
-    look(0.8, -0.2);
+    flora.look(0, 0.3);
+    flora.root.rotation.y = Math.PI;
+    cut({ pos: [O.x + 1.2, base + 3.0, O.z + 3.6], look: [O.x - 0.2, base + ROOM.wy, O.z - ROOM.r], fov: 40 }, { pos: [O.x + 0.8, base + 2.9, O.z + 2.6], look: [O.x - 0.1, base + ROOM.wy, O.z - ROOM.r], fov: 38 }, 3.4);
     reel.say('First, she counted everyone. Out loud.');
     const n = count.querySelector('b')!;
     const steps = 22;
@@ -155,23 +328,34 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
     reel.pop(count, 'again');
     if (!(await reel.wait(1300))) return;
 
-    // 4. A visitor on the ledge.
+    // 4. A visitor on the ledge outside.
     reel.on('guest');
     reel.cue(hasCat ? 'meow' : 'cs-boing');
-    look(0.9, 0.5);
+    guest.from = visitor.position.x;
+    guest.to = ledge.x + 0.4;
+    guest.t0 = stage.t;
+    guest.dur = 1.6;
+    if (gull) gull.pose = 'stand';
+    const sill: V3 = [ledge.x + 0.5, ledge.y + 0.3, ledge.z];
+    cut(orbit(sill, 3.2, 0.25, 0.1, 34), orbit(sill, 2.7, 0.15, 0.08, 32), 3.6);
     if (!(await reel.wait(1700))) return;
+    if (cat) cat.pose('trust');
+    if (gull) gull.pose = 'squawk';
     label.textContent = hasCat ? `Unknown resident: ${catName}. Classification: …supervisor.` : 'Unknown resident: gull. Threat level: snacks.';
     reel.on('label');
     reel.cue('cs-freeze');
     if (!(await reel.wait(2000))) return;
 
-    // 5. Her first words.
+    // 5. Her first words, turned back to the room.
     reel.on('speak');
-    look(0, 0.1);
+    flora.root.rotation.y = 0;
+    flora.look(0, 0.05);
+    cut(orbit(F(), 3.6, 0.45, 0.06, 36), orbit(F(), 3.2, 0.35, 0.05, 34), 6);
     reel.say('');
     if (!(await type(bubble, `Hello, steward. I've read every building in ${name}. Twice. I'm a gardener, I think. Ask me anything.`, 45))) return;
     if (!(await reel.wait(1500))) return;
     reel.on('finale');
+    cut(orbit(F(), 4.4, 0.3, 0.1, 38), orbit(F(), 5.6, -0.3, 0.14, 40), 14, { ease: 'linear' });
     await reel.end({
       kicker: 'Civic intelligence · BG-01 · online',
       title: 'Flora',
@@ -190,15 +374,14 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
   void film();
 }
 
-const LEDS = ['#5ff2da', '#5ff2da', '#8ef07a', '#ffd76a', '#ff6b6b'];
+const DISC = new CylinderGeometry(1, 1, 1, 64);
+const RING = new TorusGeometry(1, 0.015, 6, 96);
+const BOX = new BoxGeometry(1, 1, 1);
 
-/** Flora's sigil: six petals round a core, and an eye (its lids and pupil move with `--lx`, `--ly`). */
-const FLORA_SVG = `<svg viewBox="-60 -60 120 120" aria-hidden="true">
-<circle class="hw-halo" r="52"/>
-<g class="hw-petals">${Array.from({ length: 6 }, (_, i) => `<g transform="rotate(${i * 60})"><ellipse class="hw-petal" style="--i:${i}" rx="9" ry="21" cy="-27"/></g>`).join('')}</g>
-<circle class="hw-core" r="17"/>
-<g class="hw-eye"><ellipse class="hw-white" rx="11" ry="8"/><g class="hw-look"><circle class="hw-iris" r="5"/><circle class="hw-pupil" r="2.4"/><circle class="hw-glint" cx="1.6" cy="-1.6" r="1"/></g><rect class="hw-lid top" x="-12" y="-9" width="24" height="9"/><rect class="hw-lid bot" x="-12" y="0" width="24" height="9"/></g>
-</svg>`;
+function glow(col: number, k: number): MeshStandardNodeMaterial {
+  const m = new MeshStandardNodeMaterial({ color: col, roughness: 0.4, metalness: 0 });
+  m.emissive.setHex(col);
+  m.emissiveIntensity = k;
+  return m;
+}
 
-/** A gull standing (40 × 30). */
-const GULL_SVG = `<svg viewBox="-20 -26 40 30" aria-hidden="true"><path d="M-4 0 v4 M4 0 v4" stroke="#ffb43a" stroke-width="2"/><ellipse cx="0" cy="-8" rx="13" ry="8" fill="#fbfbfb" stroke="#6f7f8f"/><path d="M-12 -10 q8 -6 18 -2 l-8 6z" fill="#c9d3dc"/><circle cx="9" cy="-17" r="6" fill="#fbfbfb" stroke="#6f7f8f"/><path d="M14 -17 l8 2 l-8 2z" fill="#ffb43a"/><circle cx="10.5" cy="-18.5" r="1.2" fill="#1f2a33"/></svg>`;

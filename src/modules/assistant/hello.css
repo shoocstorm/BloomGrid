@@ -1,169 +1,6 @@
-/* "Hello, World" (D-185): Flora's awakening. The Data Spire's core room at dusk: a round window on the city, her
-   sigil waking in the middle, a terminal on the left. Stage classes (`.s-*`) on `.reel.hw` direct it. */
+/* "Hello, World" (D-185, 3D since D-197): the DOM over the 3D core room. The boot terminal, the resident count,
+   the visitor's label and Flora's first words. Prefix `hw-`; stage classes `.s-*` on `.reel.hw`. */
 
-.hw {
-  --reel-accent: #1f9c86;
-  --reel-ink: #d9fff6;
-}
-.hw-room {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 50% 46%, rgba(95, 242, 218, 0.12), transparent 55%),
-    radial-gradient(ellipse at 50% 120%, #10343a, #061416 60%, #030a0b 100%);
-}
-.hw-room::after {
-  /* Floor grid. */
-  content: '';
-  position: absolute;
-  left: -20%;
-  right: -20%;
-  bottom: 10vh;
-  height: 26vh;
-  background:
-    linear-gradient(rgba(95, 242, 218, 0.12) 1px, transparent 1px) 0 0 / 100% 3vh,
-    linear-gradient(90deg, rgba(95, 242, 218, 0.12) 1px, transparent 1px) 0 0 / 4vw 100%;
-  transform: perspective(500px) rotateX(60deg);
-  transform-origin: 50% 100%;
-}
-
-/* The round window on the city, right of centre. */
-.hw-window {
-  position: absolute;
-  right: 8vw;
-  top: 17vh;
-  width: min(44vmin, 380px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 1.2vmin solid #1b3a40;
-  box-shadow:
-    0 0 0 0.4vmin #2f6b70,
-    0 0 6vmin rgba(255, 170, 110, 0.18);
-  overflow: hidden;
-  opacity: 0.35;
-  transition: opacity 1.2s;
-}
-.hw.s-wake .hw-window {
-  opacity: 1;
-}
-.hw-window svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.hw-sun {
-  fill: #ffe09a;
-  opacity: 0.85;
-}
-/* As she counts, the city in the window seems to light up. */
-.hw-city {
-  filter: brightness(0.85);
-  transition: filter 1.4s;
-}
-.hw.s-count .hw-city {
-  filter: brightness(1.15) saturate(1.1);
-}
-
-/* Server racks on both walls, their status lights blinking. */
-.hw-rack {
-  position: absolute;
-  bottom: 10vh;
-  width: min(13vmin, 120px);
-  opacity: 0.95;
-}
-.hw-rack svg {
-  display: block;
-  width: 100%;
-}
-.hw-rack.l {
-  left: 1vw;
-}
-.hw-rack.r {
-  right: 1vw;
-  opacity: 0.55;
-}
-.hw-led {
-  fill: var(--c);
-  filter: drop-shadow(0 0 2px var(--c));
-  animation: hw-led 1.6s steps(1) var(--d) infinite;
-}
-@keyframes hw-led {
-  40% {
-    opacity: 0.15;
-  }
-  70% {
-    opacity: 1;
-  }
-}
-.hw-cables {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 10vh;
-  height: 16vh;
-}
-.hw-cables svg {
-  width: 100%;
-  height: 100%;
-}
-/* Dusk light falling from the window to the floor, dust drifting in it. */
-.hw-beam {
-  position: absolute;
-  right: calc(8vw + min(6vmin, 50px));
-  top: calc(17vh + min(22vmin, 190px));
-  width: min(40vmin, 340px);
-  height: 70vh;
-  background: linear-gradient(rgba(255, 190, 140, 0.22), rgba(255, 190, 140, 0) 85%);
-  transform: skewX(28deg);
-  transform-origin: 50% 0;
-  -webkit-mask: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
-  mask: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
-  opacity: 0.4;
-  transition: opacity 1.2s;
-}
-.hw.s-wake .hw-beam {
-  opacity: 1;
-}
-.hw-beam i {
-  position: absolute;
-  left: var(--x);
-  top: var(--y);
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: #ffe9c8;
-  scale: var(--s);
-  opacity: 0.7;
-  animation: hw-dust 7s ease-in-out var(--d) infinite alternate;
-}
-@keyframes hw-dust {
-  to {
-    transform: translate(2vw, -6vh);
-    opacity: 0.15;
-  }
-}
-/* Her glow on the floor. */
-.hw-floorglow {
-  position: absolute;
-  left: 36%;
-  bottom: 12vh;
-  width: min(60vmin, 520px);
-  height: 8vh;
-  translate: -50% 0;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(95, 242, 218, 0.35), transparent 70%);
-  opacity: 0.2;
-  transition: opacity 1.4s;
-}
-.hw.s-wake .hw-floorglow {
-  opacity: 1;
-}
-@media (orientation: portrait) {
-  .hw-floorglow {
-    left: 34%;
-  }
-}
-/* The count, over the window. */
 .hw-count {
   position: absolute;
   right: calc(8vw + min(22vmin, 190px));
@@ -191,60 +28,6 @@
 .hw-count.again {
   animation: hw-again 0.6s ease-out;
 }
-@keyframes hw-again {
-  30% {
-    transform: scale(1.15);
-  }
-}
-/* The ledge under the window, and who comes along it. */
-.hw-ledge {
-  position: absolute;
-  right: 4vw;
-  top: calc(17vh + min(44vmin, 380px) + 1vh);
-  width: calc(min(44vmin, 380px) + 8vw);
-  height: 1.4vmin;
-  border-radius: 1vmin;
-  background: #2f6b70;
-}
-.hw-guest {
-  /* Its feet on the ledge (the cat's side pose sits ~2.6vmin high in its rig). */
-  position: absolute;
-  right: calc(4vw + min(30vmin, 260px));
-  top: calc(17vh + min(44vmin, 380px) + 1vh + 2.6vmin);
-  transform: translateX(40vw);
-  transition: transform 2s cubic-bezier(0.3, 0.6, 0.4, 1);
-}
-.hw.s-guest .hw-guest {
-  transform: none;
-}
-.hw-guest .ch-cat-in {
-  --s: 3.2;
-  /* No finger padding: scaled with the cat it would lift it off the ledge. */
-  padding: 0;
-  margin: 0;
-  top: -34px;
-}
-.hw-guest .ch-cat .ch-side {
-  scale: -1 1;
-}
-.hw.s-label .hw-guest .ch-cat {
-  /* It sits and stares back. */
-  animation: none;
-}
-.hw-gull svg {
-  position: absolute;
-  left: -6vmin;
-  bottom: 2.6vmin;
-  width: 12vmin;
-}
-.hw.s-guest .hw-gull svg {
-  animation: hw-hop 0.5s ease-in-out 4 alternate;
-}
-@keyframes hw-hop {
-  to {
-    transform: translateY(-1vmin);
-  }
-}
 .hw-label {
   position: absolute;
   right: 4vw;
@@ -265,127 +48,6 @@
   opacity: 1;
   transform: none;
 }
-
-/* Flora: dim and folded while she boots, then the petals unfold and the eye opens. */
-.hw-flora {
-  position: absolute;
-  left: 36%;
-  top: 46%;
-  width: min(42vmin, 360px);
-  aspect-ratio: 1;
-  translate: -50% -50%;
-  --lx: 0;
-  --ly: 0;
-}
-.hw-flora svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-.hw-halo {
-  fill: none;
-  stroke: rgba(95, 242, 218, 0.35);
-  stroke-width: 0.8;
-  stroke-dasharray: 3 5;
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: hw-spin 18s linear infinite;
-}
-.hw.s-wake .hw-halo {
-  opacity: 1;
-  transition: opacity 1s;
-}
-@keyframes hw-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.hw-petal {
-  fill: rgba(95, 242, 218, 0.22);
-  stroke: #5ff2da;
-  stroke-width: 1;
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-  transform: scale(0.15);
-  opacity: 0.3;
-}
-.hw.s-wake .hw-petal {
-  transform: none;
-  opacity: 1;
-  transition:
-    transform 0.8s cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--i) * 0.1s),
-    opacity 0.4s ease calc(var(--i) * 0.1s);
-}
-.hw-core {
-  fill: #0b2a2e;
-  stroke: #5ff2da;
-  stroke-width: 1.2;
-  transition: fill 0.8s;
-}
-.hw.s-wake .hw-core {
-  fill: #12474b;
-  filter: drop-shadow(0 0 6px #5ff2da);
-}
-.hw-white {
-  fill: #eafffb;
-}
-.hw-iris {
-  fill: #2fcfb6;
-}
-.hw-pupil {
-  fill: #062024;
-}
-.hw-glint {
-  fill: #fff;
-}
-.hw-look {
-  transform: translate(calc(var(--lx) * 4px), calc(var(--ly) * 3px));
-  transition: transform 0.35s ease;
-}
-/* The lids: shut until she opens her eye; a blink now and then after. */
-.hw-lid {
-  /* The core's own colour, asleep and awake: shut lids read as the core, not a square on it. */
-  fill: #0b2a2e;
-  transform-box: fill-box;
-  transition: fill 0.8s;
-}
-.hw.s-wake .hw-lid {
-  fill: #12474b;
-}
-.hw-lid.top {
-  transform-origin: 50% 0;
-}
-.hw-lid.bot {
-  transform-origin: 50% 100%;
-}
-.hw.s-eye .hw-lid {
-  transform: scaleY(0);
-  transition: transform 0.5s cubic-bezier(0.3, 1.4, 0.5, 1);
-  animation: hw-blink 4.2s ease-in-out 1.6s infinite;
-}
-@keyframes hw-blink {
-  0%,
-  92%,
-  100% {
-    transform: scaleY(0);
-  }
-  96% {
-    transform: scaleY(1);
-  }
-}
-/* Wide-eyed at the visitor. */
-.hw.s-label .hw-white {
-  animation: hw-wide 0.5s ease-out both;
-}
-@keyframes hw-wide {
-  to {
-    transform: scale(1.18);
-  }
-}
-
-/* The terminal. */
 .hw-log {
   position: absolute;
   left: 5vw;
@@ -407,17 +69,10 @@
   content: '▌';
   animation: hw-cursor 0.8s steps(1) infinite;
 }
-@keyframes hw-cursor {
-  50% {
-    opacity: 0;
-  }
-}
 .hw.s-wake .hw-log {
   opacity: 0;
   transform: translateX(-4vw) scale(0.96);
 }
-
-/* Her first words. */
 .hw-bubble {
   position: absolute;
   left: calc(36% + min(18vmin, 150px));
@@ -442,24 +97,6 @@
   opacity: 1;
   transform: none;
 }
-/* The card has the stage: the words and labels step back. */
-.hw.s-finale .hw-bubble,
-.hw.s-finale .hw-label,
-.hw.s-finale .hw-count {
-  opacity: 0;
-  transition: opacity 0.5s;
-}
-.hw.s-finale .reel-set {
-  filter: blur(2px) brightness(0.7);
-  transition: filter 1s;
-}
-
-/* Portrait phones: the window and its ledge on top, Flora below with her words beside her. */
-@media (orientation: portrait) {
-  .hw-flora {
-    left: 34%;
-    top: 66%;
-  }
   .hw-bubble {
     left: calc(34% + 17vmin);
     top: calc(66% - 16vmin);
@@ -468,11 +105,58 @@
   .hw-log {
     max-width: 88vw;
   }
+@keyframes hw-again {
+  30% {
+    transform: scale(1.15);
+  }
+}
+@keyframes hw-cursor {
+  50% {
+    opacity: 0;
+  }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .hw-halo,
-  .hw-lid {
-    animation: none !important;
+/* Where the overlays sit over the 3D frame: the count over the window, the label under it, her words beside her. */
+.hw-count {
+  right: auto;
+  left: 50%;
+  top: 14vh;
+  translate: -50% 0;
+}
+.hw-label {
+  right: auto;
+  left: 50%;
+  top: auto;
+  bottom: 15vh;
+  translate: -50% 0;
+}
+.hw-bubble {
+  left: 58%;
+  top: 22vh;
+}
+.reel.hw .reel-card::before {
+  content: '';
+  position: absolute;
+  inset: -10vmin -14vmin;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgba(2, 14, 16, 0.62), rgba(2, 14, 16, 0.32) 60%, transparent);
+  pointer-events: none;
+}
+@media (orientation: portrait) {
+  .hw-bubble {
+    left: 12vw;
+    top: auto;
+    bottom: 18vh;
+    max-width: 76vw;
   }
+  .hw-log {
+    max-width: 88vw;
+  }
+}
+/* The card has the stage: the words and labels step back. */
+.hw.s-finale .hw-bubble,
+.hw.s-finale .hw-label,
+.hw.s-finale .hw-count {
+  opacity: 0;
+  transition: opacity 0.5s;
 }

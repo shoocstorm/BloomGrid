@@ -3,6 +3,7 @@ import { Cat3D, type CatPose } from '@/modules/charm/cat3d';
 import { COATS } from '@/modules/charm/art';
 import { Person3D, type Look, type PersonPose } from './person';
 import { Gull3D, type GullPose } from './gull';
+import { Flora3D } from './flora';
 
 /**
  * The films' recurring cast (D-197), one look each, and their exhibits in the model gallery's "Film cast" hall
@@ -80,6 +81,21 @@ export function addCastExhibits(ctx: GameContext): void {
       g.pose = GULL_POSES[level] ?? 'stand';
       g.root.rotation.y = -0.5;
       return { object: g.root, update: (_t, dt) => g.update(dt) };
+    },
+  });
+  gallery.add({
+    id: 'cast:flora',
+    name: 'Flora',
+    group: 'Film cast',
+    blurb: 'Hello, World: the city’s civic intelligence as she wakes, a bloom of six petals round a core with one eye.',
+    levels: ['Bud', 'Waking', 'In bloom'],
+    build: (level) => {
+      const f = new Flora3D();
+      f.open = level / 2;
+      f.wake = level / 2;
+      f.eyeOpen = level > 0 ? 1 : 0;
+      f.root.rotation.y = 0.5;
+      return { object: f.root, update: (_t, dt) => f.update(dt) };
     },
   });
   gallery.add({
