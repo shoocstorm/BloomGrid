@@ -36,6 +36,7 @@ import { CAST } from '../actors/cast';
 import { BALL, glow, hard, joint, part, soft } from '../actors/rig';
 import { rowboat } from '../actors/boat';
 import './stirs.css';
+import { INTROS } from '@/modules/moments/loading';
 
 /**
  * "Something Stirs" (D-185, D-193, in 3D since D-197): a sea wonder rises, ~22 s. It plays for six of the seven
@@ -625,6 +626,7 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     if (!day) reel.bed('drone', 0.25, 3);
     if (!(await reel.wait(0))) return;
     stage.open();
+    if (!(await stage.ready(reel, INTROS.stirs))) return;
     if (day) reel.hit('gulls', 1.4);
     if (hour.mood === 'night') reel.cue('cs-night');
     reel.say(bit.open(fisher, hour.word));

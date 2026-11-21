@@ -30,6 +30,7 @@ import { glow, hard, noShadows, part, soft } from '../actors/rig';
 import { Person3D } from '../actors/person';
 import { CAST } from '../actors/cast';
 import './remembers.css';
+import { INTROS } from '@/modules/moments/loading';
 
 /**
  * "What the Sea Remembers" (D-192, in 3D since D-197): the Sunken Colonnade rises, and with it the island's oldest
@@ -320,6 +321,7 @@ export function playWhatTheSeaRemembers(ctx: GameContext, done: () => void): voi
     reel.bed('wind', 0.2, 2);
     if (!(await reel.wait(0))) return;
     stage.open();
+    if (!(await stage.ready(reel, INTROS.remembers))) return;
     reel.hit('gulls', 1.2);
     reel.say('Before this city there was another. Its name was Halcyon.');
     if (!(await reel.wait(3400))) return;

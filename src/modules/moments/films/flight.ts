@@ -23,6 +23,7 @@ import { Gull3D } from '../actors/gull';
 import { CAST, crowdLook } from '../actors/cast';
 import { BALL, glow, hard, noShadows, part } from '../actors/rig';
 import { CylinderGeometry, TorusGeometry } from 'three/webgpu';
+import { INTROS } from '@/modules/moments/loading';
 
 const DISC = new CylinderGeometry(1, 1, 1, 48);
 const RING = new TorusGeometry(1, 0.02, 6, 64);
@@ -313,6 +314,7 @@ export function playMaidenFlight(ctx: GameContext, done: () => void): void {
     reel.bed('wind', 0.35, 2);
     if (!(await reel.wait(0))) return;
     stage.open();
+    if (!(await stage.ready(reel, INTROS.flight))) return;
     reel.hit('gulls', 1.2);
     reel.say('Sky-lane charter: approved. Test pilot: …available.');
     if (!(await reel.wait(1700))) return;

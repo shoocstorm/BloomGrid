@@ -8,6 +8,7 @@ import { LOOKS, type StageLook } from '@/render/stageUniforms';
 import { Cat3D, Fish3D, type CatPose } from './cat3d';
 import type { Coat } from './art';
 import './cutscene.css';
+import { INTROS } from '@/modules/moments/loading';
 
 /** Who plays the stray: the island's own cat, and the island. */
 export interface Cast {
@@ -159,6 +160,7 @@ export function playAdoption(ctx: GameContext, cast: Cast, done: () => void): vo
     reel.bed('drone', 0.12, 3);
     if (!(await reel.wait(0))) return;
     stage.open();
+    if (!(await stage.ready(reel, INTROS.stray))) return;
     reel.cue('cs-night');
     if (!(await reel.wait(900))) return;
     reel.say('Every island has a secret…');

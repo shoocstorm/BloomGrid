@@ -35,7 +35,8 @@ import { LOOKS, mixLook, withStageLook, type StageLook } from '@/render/stageUni
 import type { QualitySettings } from '@/render/Quality';
 import { designPieces, spinPose, type DesignPiece } from '@/modules/construction/BuildingRenderer';
 import { hash2 } from '@/sim/random';
-import { reelClock } from './reel';
+import { reelClock, type Reel } from './reel';
+import { playIntro, type FilmIntro } from './loading';
 import { shotAt, type Shot } from './shots';
 
 /**
@@ -421,6 +422,28 @@ export class FilmStage {
     render.dynamicResolution.hold(3);
     this.shadowIn = 0;
     this.update(0);
+  }
+
+  /**
+   * The film's loading beat (D-198): shows `intro` over the reel while the first shot is prepared (its shaders built,
+   * a few frames drawn), then opens onto it. Call right after `open` / `openLocation`; resolves false if skipped. The
+   * shots set before it are pushed back by the time it took, so the opening move starts as the iris opens.
+   */
+  async ready(reel: Reel, intro: FilmIntro): Promise<boolean> {
+    const t0 = this.t;
+    const prepared = (async () => {
+      try {
+        await this.ctx.renderer.compileAsync(this.location ? this.ctx.scene : this.scene, this.cam);
+      } catch {
+        /* compiled on first draw instead */
+      }
+      const f0 = this.ctx.engine.frames;
+      for (let i = 0; i < 80 && this.ctx.engine.frames < f0 + 4; i++) await new Promise((r) => setTimeout(r, 50));
+    })();
+    const ok = await playIntro(reel, intro, prepared);
+    const hidden = this.t - t0;
+    for (const s of this.shots) s.at += hidden;
+    return ok;
   }
 
   close(): void {

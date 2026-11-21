@@ -1,0 +1,398 @@
+/* The films' loading beat (D-198): a themed emblem lit over black while a 3D film's first shot is prepared, then an
+   iris out of its light. Prefix `ld-`. Colours from `--ld-a` (accent) and `--ld-g` (glow). Transform and opacity only
+   (plus the iris mask), so it keeps moving while shaders compile. Over the lead-in's iris (z 3), under the letterbox;
+   it appears at the lead-in's black point, so its backdrop needs no fade in (its contents rise out of it). */
+
+@property --ld-iris {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+.ld {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.ld-back {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 55% at 50% 44%, color-mix(in srgb, var(--ld-g) 14%, #070b14), #03050a 60%, #000);
+}
+.ld.open .ld-back {
+  mask-image: radial-gradient(circle at 50% 44%, transparent var(--ld-iris), #000 calc(var(--ld-iris) + 22%));
+  animation: ld-iris 1.5s cubic-bezier(0.55, 0, 0.3, 1) both;
+}
+@keyframes ld-iris {
+  from {
+    --ld-iris: 0%;
+  }
+  to {
+    --ld-iris: 140%;
+  }
+}
+.ld-stage {
+  position: relative;
+  width: min(40vmin, 330px);
+  aspect-ratio: 1;
+  margin-top: -4vh;
+}
+.ld-glow {
+  position: absolute;
+  inset: 0;
+}
+.ld-glow > i,
+.ld-stage > i,
+.ld-motes {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  translate: -50% -50%;
+}
+.ld-bloom {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--ld-g) 55%, transparent) 0%, color-mix(in srgb, var(--ld-g) 20%, transparent) 30%, transparent 68%);
+  opacity: 0;
+  animation:
+    ld-bloom 1.2s cubic-bezier(0.2, 0.9, 0.3, 1) 0.25s both,
+    ld-breathe 2.4s ease-in-out 1.45s infinite alternate;
+}
+@keyframes ld-bloom {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes ld-breathe {
+  to {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}
+.ld-rays {
+  width: 160%;
+  height: 160%;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--ld-g) 12%, transparent) 0deg 4deg, transparent 4deg 18deg);
+  mask-image: radial-gradient(circle, #000 8%, rgba(0, 0, 0, 0.5) 30%, transparent 62%);
+  opacity: 0;
+  animation:
+    ld-fade 1.4s ease 0.4s both,
+    ld-turn 36s linear infinite;
+}
+@keyframes ld-fade {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ld-turn {
+  to {
+    rotate: 360deg;
+  }
+}
+.ld-ring {
+  width: 34%;
+  height: 34%;
+  border: 1px solid color-mix(in srgb, var(--ld-a) 70%, transparent);
+  opacity: 0;
+  animation: ld-ring 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) 0.45s infinite;
+}
+.ld-ring.r2 {
+  animation-delay: 1.25s;
+}
+.ld-ring.r3 {
+  animation-delay: 2.05s;
+}
+@keyframes ld-ring {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+/* The emblem: comes up out of the dark, then floats; its parts carry their own small motions (below). */
+.ld-emblem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  color: var(--ld-a);
+  filter: drop-shadow(0 0 1.2vmin color-mix(in srgb, var(--ld-g) 70%, transparent));
+  animation:
+    ld-emblem 0.9s cubic-bezier(0.3, 1.4, 0.5, 1) 0.15s both,
+    ld-float 3s ease-in-out 1.05s infinite alternate;
+}
+.ld-emblem svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+@keyframes ld-emblem {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+@keyframes ld-float {
+  to {
+    transform: translateY(-3%);
+  }
+}
+/* Emblem parts: petals unfolding, eyes blinking, a pod gliding, a seal turning, a pearl pulsing. */
+.ld-emblem .unfold {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ld-unfold 0.9s cubic-bezier(0.3, 1.5, 0.5, 1) calc(0.35s + var(--k, 0) * 0.06s) both;
+}
+@keyframes ld-unfold {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+.ld-emblem .blink {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ld-blink 3.2s ease-in-out 0.9s infinite;
+}
+@keyframes ld-blink {
+  0%,
+  44%,
+  52%,
+  100% {
+    transform: scaleY(1);
+  }
+  48% {
+    transform: scaleY(0.08);
+  }
+}
+.ld-emblem .glide {
+  animation: ld-glide 2.2s ease-in-out infinite alternate;
+}
+@keyframes ld-glide {
+  from {
+    transform: translate(-6px, 2px) rotate(-4deg);
+  }
+  to {
+    transform: translate(6px, -2px) rotate(3deg);
+  }
+}
+.ld-emblem .turn {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ld-turn 24s linear infinite;
+}
+.ld-emblem .pulse {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ld-pulse 1.6s ease-in-out infinite alternate;
+}
+@keyframes ld-pulse {
+  to {
+    transform: scale(1.15);
+    opacity: 0.8;
+  }
+}
+/* Motes: embers rising, stars twinkling, bubbles drifting up and swaying. */
+.ld-motes {
+  width: 0;
+  height: 0;
+}
+.ld-motes i {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 0.5vmin;
+  height: 0.5vmin;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ld-a) 70%, #fff);
+  box-shadow: 0 0 0.8vmin 0.2vmin color-mix(in srgb, var(--ld-g) 80%, transparent);
+  opacity: 0;
+  scale: var(--s);
+  animation: ld-rise var(--t) ease-out calc(0.5s + var(--d)) infinite;
+}
+@keyframes ld-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 6vmin);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), -16vmin);
+  }
+}
+.ld-motes.twinkle i {
+  animation-name: ld-twinkle;
+  animation-timing-function: ease-in-out;
+}
+@keyframes ld-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+.ld-motes.drift i {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--ld-a) 80%, #fff);
+  width: 0.9vmin;
+  height: 0.9vmin;
+  animation-name: ld-drift;
+}
+@keyframes ld-drift {
+  0% {
+    opacity: 0;
+    transform: translate(0, 8vmin);
+  }
+  25% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(var(--drift), 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, -14vmin);
+  }
+}
+/* The flare the emblem's light becomes as the film opens. */
+.ld-flare {
+  width: 30%;
+  height: 30%;
+  background: radial-gradient(circle, #fff 0%, color-mix(in srgb, var(--ld-g) 80%, transparent) 25%, color-mix(in srgb, var(--ld-g) 25%, transparent) 50%, transparent 70%);
+  opacity: 0;
+}
+.ld.open .ld-flare {
+  animation: ld-burst 1.4s cubic-bezier(0.3, 0.6, 0.3, 1) both;
+}
+@keyframes ld-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  22% {
+    opacity: 1;
+    transform: scale(2.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(10);
+  }
+}
+.ld.open .ld-glow,
+.ld.open .ld-words {
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+/* The words. */
+.ld-words {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 3vh;
+}
+.ld-kick {
+  margin: 0;
+  font: 600 clamp(10px, 1.7vmin, 13px) / 1 var(--mono);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(205, 218, 238, 0.6);
+  opacity: 0;
+  animation: ld-fade 1s ease 0.2s both;
+}
+.ld-title {
+  margin: 1.6vh 0 0;
+  font: 600 clamp(18px, 3.6vmin, 30px) / 1.1 var(--ui);
+  letter-spacing: 0.12em;
+  color: color-mix(in srgb, var(--ld-a) 55%, #fff);
+  text-shadow:
+    0 0 1.6vmin color-mix(in srgb, var(--ld-g) 60%, transparent),
+    0 0 0.3vmin rgba(255, 255, 255, 0.5);
+}
+.ld-word {
+  display: inline-block;
+  margin: 0 0.28em;
+  white-space: nowrap;
+}
+.ld-word > span {
+  display: inline-block;
+  opacity: 0;
+  animation: ld-letter 0.65s ease-out calc(0.45s + var(--i) * 0.04s) both;
+}
+@keyframes ld-letter {
+  from {
+    opacity: 0;
+    transform: translateY(0.4em);
+    filter: blur(0.25em);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+/* A machine booting: a scan sweeping a thin track. */
+.ld-scan {
+  position: relative;
+  width: min(30vw, 260px);
+  height: 2px;
+  margin-top: 2.2vh;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ld-a) 18%, transparent);
+}
+.ld-scan::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, var(--ld-a), transparent);
+  animation: ld-sweep 1.1s ease-in-out infinite;
+}
+@keyframes ld-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(290%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ld *,
+  .ld {
+    animation-duration: 0.01s !important;
+    animation-iteration-count: 1 !important;
+  }
+  .ld-motes,
+  .ld-ring,
+  .ld-rays,
+  .ld-scan {
+    display: none;
+  }
+  .ld.open .ld-back {
+    mask-image: none;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+}

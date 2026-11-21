@@ -36,6 +36,7 @@ import { Gull3D } from '@/modules/moments/actors/gull';
 import { hard, part } from '@/modules/moments/actors/rig';
 import { hash2 } from '@/sim/random';
 import './hello.css';
+import { INTROS } from '@/modules/moments/loading';
 
 /**
  * "Hello, World" (D-185, in 3D since D-197): Flora's awakening, ~20 s, cast from the city. In the Data Spire's core
@@ -103,7 +104,7 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
   part(RING, trimMat, room, 0, 0.005, 0, 1.6).rotation.x = Math.PI / 2;
   part(RING, trimMat, room, 0, 0.005, 0, 2.6).rotation.x = Math.PI / 2;
   part(DISC, wallMat, room, 0, ROOM.h, 0, ROOM.r, 0.1, ROOM.r);
-  // The window wall: a flat wall with a round hole, a thick frame and a ledge outside it.
+  // The window wall: a flat wall with a round hole and a thick frame.
   const shape = new Shape();
   const W = ROOM.r * 1.6;
   shape.moveTo(-W, 0);
@@ -121,8 +122,8 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
   const frame = part(new TorusGeometry(ROOM.wr, 0.12, 12, 64), hard(0x2a4a50, 0.35, 0.7), room, 0, ROOM.wy, -ROOM.r * 0.8, 1);
   frame.castShadow = false;
   part(new TorusGeometry(ROOM.wr + 0.16, 0.025, 8, 64), trimMat, room, 0, ROOM.wy, -ROOM.r * 0.8 + 0.06, 1);
+  // Outside, the visitor walks along the window's lower rim (no sill: a thin slab there flickered as the camera moved).
   const ledgeY = ROOM.wy - ROOM.wr - 0.06;
-  part(BOX, hard(0x8a9aa0, 0.6, 0.2), room, 0, ledgeY, -ROOM.r * 0.8 - 0.5, 4.4, 0.12, 1.0);
   // Side and back walls, and the racks along them (cabinets facing into the room, rows of LEDs on their fronts).
   const S = ROOM.r * 0.97;
   for (const sx of [1, -1]) part(BOX, wallMat, room, sx * S, ROOM.h / 2, 0.4, 0.12, ROOM.h, ROOM.r * 2.4);
@@ -275,6 +276,7 @@ export function playHelloWorld(ctx: GameContext, done: () => void, notice?: stri
     reel.bed('drone', 0.15, 3);
     if (!(await reel.wait(0))) return;
     stage.open();
+    if (!(await stage.ready(reel, INTROS.flora))) return;
     reel.cue('cs-night');
     if (!(await reel.wait(700))) return;
     for (const [t, p] of [

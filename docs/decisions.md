@@ -3662,3 +3662,15 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   204, Remembers 225, Something Stirs 216, Maiden Flight 317, First Light 367. First Light's peaks are the city's own
   shadow refresh while the sun moves or the camera travels (the city at an overview draws ~100, the film ~110–250
   between them); Maiden Flight's are its crowd and skyline.
+
+## D-198: Every 3D film opens with a loading beat
+
+- **Why.** After the lead-in's iris (D-194) a 3D film switches the stage in and its first frames compile shaders:
+  on a slower GPU that read as a black or frozen screen.
+- **How.** `FilmStage.ready(reel, intro)`, called right after `open` / `openLocation`, shows a themed beat over the
+  reel (`moments/loading.ts`, `INTROS`: the stray's lamp eyes, a pod on its lane, Flora's bloom with a scan line,
+  Meridian's seal, a pearl in the swell) while the first shot compiles (`compileAsync`) and draws a few frames, at
+  least `INTRO_MIN_MS` (1.3 s) so it never flashes, then opens as an iris out of the emblem's burst. The shots set
+  before it are pushed back by the time it took. Transform and opacity only (plus the iris mask), so it keeps moving
+  during a compile stall. "First Light" keeps its own lantern beat (it plays over the loading screen).
+- Hello World's window lost its stone sill: a thin slab under the window flickered as the camera moved.
