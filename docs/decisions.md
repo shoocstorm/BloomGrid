@@ -3638,3 +3638,14 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
 - Rejected: shooting in the live city (its state, time and weather differ per island, and the city camera is
   everyone's); a 2D cat billboarded in a 3D set (it only reads side-on); a GLB cat (GLB parts don't light or weather
   like the kit, and the game has no asset pipeline for characters).
+
+## D-197: Every film moves to 3D (in progress)
+
+- **Done.** The Stray, Maiden Flight, Hello World, What the Sea Remembers and all six Something Stirs episodes play
+  on the 3D film stage (D-196); their 2D sets and CSS are gone (DOM stays for captions, checklists, logs, labels and
+  end cards). Film actors (`moments/actors/`: Person3D, Gull3D, Flora3D, Cat3D) are reviewed in the gallery's Film
+  cast hall. The stage gained location shooting (`openLocation`, render-only `world.timeOverride`), a sea, fog
+  (set up before the stage opens), rain, clouds, tinted buildings, a sky toggle, handheld drift, and a look `env`
+  factor that dims reflections and image light (`scene.environmentIntensity` for the film's own materials).
+- **Left.** "First Light" (`tutorial/founding.ts`) is still 2D: the plan is to shoot it on location over the real
+  island, held on black until the boot screen lifts, closing the stage before its `leaving` fly-in.
