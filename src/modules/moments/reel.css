@@ -1,6 +1,17 @@
 /* The film kit (D-185): every cutscene's frame. A reel sits in the body (the 100dvh screen box: fixed stops short of
    the iPhone home bar) above the boot screen and the city loader (z 50 / 1000), so a film can open over either. */
 
+/* While a film plays, every layer between the 3D frame and the reel steps aside: the HUD and its panels, open
+   dialogs, cards, banners and body-level overlays (D-216). The film's 3D is drawn on the city canvas under them and
+   the reel's middle is clear, so anything left showing would sit over the picture. Hidden, not removed, so each comes
+   back as it was when the film ends. The boot screen and the city loader stay: a film may open over them. */
+body.cutscene-on > :not(.reel):not(#game):not(.boot-screen):not(.bt-loader) {
+  /* Opacity too: a child that sets its own `visibility: visible` would otherwise show through. */
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .reel {
   position: absolute;
   inset: 0;

@@ -137,9 +137,12 @@ const GOLDEN_LIFE = 18;
 const SHOWER_CHANCE = 0.2;
 /** The milestone card reads "Almost there" from here. */
 const NEAR = 0.8;
-/** Move-in chips (D-173): only while the city is small (or progressing), at most this many per scan. */
+/** Move-in chips (D-173): only while the city is small (or progressing). */
 const MOVE_IN_POP = 2500;
-const MOVE_IN_MAX = 3;
+/** Scans (≈1 s each) a home gathers new residents before its chip floats, so arrivals add up into one "+N". */
+const MOVE_IN_HOLD = 6;
+/** Scans between two chips anywhere on screen: one at a time, never a rain of "+1"s. */
+const MOVE_IN_GAP = 3;
 /** Seconds a First badge or the Day recap stays up. */
 const FIRST_SHOW = 4.2;
 const RECAP_SHOW = IDLE_SECONDS.recap;
@@ -215,6 +218,10 @@ class Juice {
   private prime = true;
   // Move-in chips: residents last shown per home.
   private homes = new Map<number, number>();
+  /** Residents gathered per home since its last chip, and the scan the first of them arrived. */
+  private arrivals = new Map<number, { n: number; since: number }>();
+  private scan = 0;
+  private lastMoveIn = -MOVE_IN_GAP;
   // Day recap: the day's start and what happened since.
   private day = 0;
   private dayStart = { pop: 0, credits: 0, tips: 0, tipIncome: 0, fish: 0, firsts: 0 };
@@ -347,6 +354,7 @@ class Juice {
         this.prime = true;
         this.firstQueue = [];
         this.homes.clear();
+        this.arrivals.clear();
         this.newDay();
         // A loaded or new city's finished milestones are not news: only ones reached from here on chime.
         this.ready = new Set(claimableMilestones(ctx.city).map((m) => m.id));
@@ -631,30 +639,53 @@ class Juice {
     );
   }
 
-  /** Homes that gained whole residents since the last scan float "+N" (a few at a time, in view only). */
+  /**
+   * Homes that gained whole residents float "+N" (D-173). Arrivals gather per home for `MOVE_IN_HOLD` scans, and
+   * only one chip floats per `MOVE_IN_GAP` scans (the biggest gain in view), so a growing town reads as a few
+   * "+4"s rather than a stream of "+1"s.
+   */
   private moveIns(): void {
     const { city, camera } = this.ctx;
     if (!this.live || !(city.growth.progression || city.stats.population < MOVE_IN_POP)) return;
-    // Screen spots taken this scan (px): neighbouring homes don't pile their chips up.
-    const taken: [number, number][] = [];
+    const scan = ++this.scan;
+    const seen = new Set<number>();
     for (const eid of city.buildingEntities()) {
       const def = city.buildingDef(eid);
       if (def.category !== 'residential' || def.stats.population <= 0) continue;
+      seen.add(eid);
       const now = Math.floor(def.stats.population * size(eid) * (Service.occupancy[eid] ?? 0));
       const was = this.homes.get(eid);
       this.homes.set(eid, now);
-      if (was === undefined || now <= was || taken.length >= MOVE_IN_MAX) continue;
+      if (was === undefined || now <= was) continue;
+      const a = this.arrivals.get(eid);
+      if (a) a.n += now - was;
+      else this.arrivals.set(eid, { n: now - was, since: scan });
+    }
+    if (scan - this.lastMoveIn < MOVE_IN_GAP) return;
+    // The biggest gathered gain in view; one that waited long out of view is let go (old news by then).
+    let best = -1;
+    let bestN = 0;
+    let at: [number, number, number] = [0, 0, 0];
+    for (const [eid, a] of this.arrivals) {
+      if (!seen.has(eid) || scan - a.since > MOVE_IN_HOLD * 4) {
+        this.arrivals.delete(eid);
+        continue;
+      }
+      if (scan - a.since < MOVE_IN_HOLD || a.n <= bestN) continue;
       const cx = Building.x[eid]! + Building.w[eid]! / 2;
       const cz = Building.z[eid]! + Building.d[eid]! / 2;
       const y = city.grid.heightAt(cx, cz) + 3;
       this.ndc.set(cx, y, cz).project(camera);
       if (this.ndc.z > 1 || Math.abs(this.ndc.x) > 0.9 || Math.abs(this.ndc.y) > 0.9) continue;
-      const sx = ((this.ndc.x + 1) * innerWidth) / 2;
-      const sy = ((1 - this.ndc.y) * innerHeight) / 2;
-      if (taken.some(([x, y]) => Math.abs(x - sx) < 64 && Math.abs(y - sy) < 28)) continue;
-      taken.push([sx, sy]);
-      this.anchor(h('div', { class: 'jc-movein' }, icon('people'), `+${now - was}`), cx, y, cz, 2);
+      best = eid;
+      bestN = a.n;
+      at = [cx, y, cz];
     }
+    if (best < 0) return;
+    this.arrivals.delete(best);
+    this.lastMoveIn = scan;
+    const [cx, y, cz] = at;
+    this.anchor(h('div', { class: 'jc-movein' }, icon('people'), `+${bestN}`), cx, y, cz, 2);
   }
 
   /** Marks a First (progression cities only); `quiet` marks it without a badge. */

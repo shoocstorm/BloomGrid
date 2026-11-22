@@ -19,6 +19,14 @@ export function isTouchDevice(): boolean {
   return query(TOUCH_QUERY)?.matches ?? false;
 }
 
+/**
+ * Phones and tablets: a phone-sized layout, or a finger as the primary pointer (iPads and other tablets, whatever
+ * their width). The inspector shows no 3D stage there, so selecting a building opens at once.
+ */
+export function isHandheld(): boolean {
+  return isCompact() || isTouchDevice();
+}
+
 const listeners: ((compact: boolean) => void)[] = [];
 
 /** Called when the layout switches between phone and desktop (rotation, window resize). */

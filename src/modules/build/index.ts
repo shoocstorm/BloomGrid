@@ -56,6 +56,8 @@ export const buildModule: GameModule = {
       if (open) {
         pulseWasOpen = !pulse.collapsed && !isCompact();
         pulse.fold(true);
+        // Building wants the map: an open inspector closes (and stays hidden while build mode is open, build.css).
+        ctx.bus.emit('selection:changed', { eid: null });
       }
       panel.setOpen(open);
       document.body.classList.toggle('building', open);

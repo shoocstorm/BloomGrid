@@ -41,6 +41,11 @@
   border-radius: 4px;
   opacity: 0.6;
 }
+/* Build mode keeps the map clear: the building inspector stays hidden until build mode closes. */
+body.building .rightcol > .info {
+  display: none;
+}
+
 body.building .build-fab {
   display: none;
 }

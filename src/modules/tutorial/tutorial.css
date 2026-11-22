@@ -452,9 +452,59 @@ body.chapter-open .pulse {
   opacity: 0.6;
 }
 
-/* Phones: path cards as a compact row, the map smaller beside nothing (stacked), the action full width. */
-.compact .ch {
+/* Phones: path cards as a compact row, the map smaller beside nothing (stacked), the action full width.
+   The sheet is a column: header and paths on top, only the chosen pane scrolls, and the footer (the start button)
+   stays pinned at the bottom on every path, so one tap starts. `.modal.ch` outranks `.compact .modal`'s scroll. */
+.compact .modal.ch {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 16px 14px;
+}
+.compact .ch > * {
+  flex: none;
+}
+.compact .ch > .ch-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+/* Only the chosen pane takes space, so a short pane has no blank scroll under it (the pinned footer keeps the
+   button still when the sheet's height changes). */
+.compact .ch-pane:not(.on) {
+  display: none;
+}
+/* Short landscape phones: header and paths as slim strips, so the pane keeps room between them and the button. */
+@media (max-height: 500px) {
+  .compact .modal.ch {
+    padding: 10px 14px;
+  }
+  .compact .ch .hh-emblem,
+  .compact .ch .hh-sub {
+    display: none;
+  }
+  .compact .ch .hh-title {
+    font-size: 18px;
+  }
+  .compact .ch .ch-paths {
+    margin-top: 8px;
+  }
+  .compact .ch .ch-path {
+    grid-template-columns: auto auto;
+    justify-content: center;
+    padding: 6px 8px;
+  }
+  .compact .ch .ch-path-ico {
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+  }
+  .compact .ch .ch-stage,
+  .compact .ch .ch-foot {
+    margin-top: 8px;
+  }
 }
 .compact .ch-paths {
   gap: 5px;

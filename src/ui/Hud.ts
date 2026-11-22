@@ -23,7 +23,7 @@ import { buildingReport, type BuildingReport, type FlowKey, type FlowLine } from
 import { rulesFor } from '@/sim/consequences';
 import { INDICATOR_NAMES as N } from '@/sim/indicators';
 import type { GameContext, GameModule } from '@/game/context';
-import { isCompact, isTouchDevice, onCompactChange } from '@/platform/device';
+import { isCompact, isHandheld, isTouchDevice, onCompactChange } from '@/platform/device';
 import { h, setText } from './dom';
 import { icon } from './icons';
 import { closeX } from './closeX';
@@ -517,8 +517,8 @@ class Hud {
     if (!this.group.length) return this.select(null);
     this.showInfo();
     const def = city.buildingDef(this.group[0]!);
-    // Phones: no 3D stage, so the sheet's height goes to the details.
-    const preview = isCompact() ? null : ctx.services.tryGet('preview');
+    // Phones and tablets: no 3D stage, so selecting is instant and the sheet's height goes to the details.
+    const preview = isHandheld() ? null : ctx.services.tryGet('preview');
     this.info.classList.toggle('staged', !!preview);
     setText(this.stageName, `${this.group.length} × ${def.name}`);
     if (preview) preview.showDef(this.stage, def.id);
@@ -579,10 +579,10 @@ class Hud {
     this.infoBody.replaceChildren(h('div', { class: 'ix-scroll' }, ...parts), foot ?? '');
   }
 
-  /** Shows the 3D stage for a building, or folds it away (networks, nothing selected, and always on phones). */
+  /** Shows the 3D stage for a building, or folds it away (networks, nothing selected, and always on phones and tablets). */
   private stageFor(eid: number | null): void {
     const preview = this.ctx.services.tryGet('preview');
-    const on = eid !== null && !!preview && !isCompact();
+    const on = eid !== null && !!preview && !isHandheld();
     this.info.classList.toggle('staged', on);
     if (on) setText(this.stageName, this.ctx.city.buildingDef(eid!).name);
     if (on) preview!.show(this.stage, eid!);

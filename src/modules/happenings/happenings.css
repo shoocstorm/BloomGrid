@@ -37,3 +37,17 @@
   cursor: var(--cur-pointer, pointer);
   margin-bottom: 0;
 }
+/* Desktops: folded, it is the milestone pill's twin: the same height, and (by script, `matchFolded`) the same width
+   and right edge; the ✕ sits in the right padding, clear of the time left. */
+body:not(.compact) .jc-m.hp.mini {
+  width: auto;
+  padding: 7px 30px 7px 12px;
+}
+body:not(.compact) .jc-m.hp.mini > .jc-m-head {
+  min-height: 13px;
+  white-space: nowrap;
+}
+body:not(.compact) .jc-m.hp.mini > .pop-x.icon-btn {
+  top: 50%;
+  transform: translateY(-50%);
+}

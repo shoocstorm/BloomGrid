@@ -2755,7 +2755,9 @@ body:not(.booted) .holo::after {
 /* ── Inspector stage: a transparent window the preview module draws the selected building into ────────
  * The panel drops its own background while staged (the canvas must show through the stage); the details sheet
  * below carries the holo glass instead. The stage paints only a frame and a vignette over the 3D view. */
-.rightcol:has(> .info.staged:not(.hidden)) {
+.rightcol:has(> .info.staged:not(.hidden)),
+/* Tablets have no stage (D-213) but keep the same width, so the four fact cards stay on one row. */
+body.touch:not(.compact) .rightcol:has(> .info:not(.hidden)) {
   width: 450px;
 }
 .info > .ix-close {

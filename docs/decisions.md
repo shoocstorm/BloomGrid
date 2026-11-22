@@ -3859,3 +3859,33 @@ hotkeys (D-101). Putting either down (Exit, Esc, right-click) leaves build mode 
 - **Upgrade all:** highway mode's banner has **Upgrade all ◈N**: every highway tile one level, raw tracks first
   (`upgradeAllPlan`), one `upgradeRoad` command (one undo). Disabled while the treasury is short, hidden when every
   highway is a boulevard.
+
+## D-213 — No inspector 3D stage on phones or tablets
+
+Selecting a building on a touch tablet waited on the inspector's 3D stage (reading the building's pieces back,
+compiling the stage's shader variants, a second scissored render each frame). Phones already skipped it
+(`isCompact`); tablets are wider than the compact query, so they didn't. `isHandheld()` (`platform/device.ts`:
+compact **or** a coarse primary pointer) now gates the stage in `Hud.stageFor` and `selectGroup`: on phones and
+tablets the inspector opens straight to its details. Touch-screen laptops keep a fine primary pointer and the stage. Without the stage the inspector would fall back to the 360 px column and wrap its four fact cards, so on tablets
+(`body.touch:not(.compact)`) it keeps the staged 450 px width.
+The Build panel's floating preview is unchanged (still desktop and tablet). The preview module's background
+warm-up is skipped while compact, since phones never open a stage.
+
+## D-214 — Build mode hides the building inspector
+
+Opening build mode clears the selection, so an open inspector closes, and `body.building .rightcol > .info` keeps
+it hidden while build mode stays open (a building clicked meanwhile shows nothing until Done). Building wants the
+whole map; the inspector covered the right side of it. Picking up a tool already cleared it (D-206).
+
+## D-215 — Move-in chips gather, one at a time
+
+Move-in chips (D-173) floated up to three "+1"s every second in a growing town. Now each home gathers its new
+residents for `MOVE_IN_HOLD` scans (≈6 s) and only one chip floats per `MOVE_IN_GAP` scans (≈3 s): the biggest
+gathered gain in view, as "+N". Gains that wait out of view for four holds are dropped (`modules/juice`).
+
+## D-216 — Films hide every layer over the picture
+
+A film's 3D is drawn on the city canvas, under the HUD, and the reel's middle is clear, so an open Build panel,
+inspector, card or dialog sat over the picture. While `body.cutscene-on` (set by every reel) each body child but the
+reel, `#game`, the boot screen and the city loader is hidden (`opacity` + `visibility`, rule in
+`moments/reel.css`), and comes back as it was when the film ends. Hidden, not closed: no panel state to restore.

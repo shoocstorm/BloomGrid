@@ -21,6 +21,7 @@ import { getPiece, pieceIds } from '@/assets/kit/pieces';
 import { ChunkedInstancer } from '@/render/Instancer';
 import { U } from '@/render/uniforms';
 import { buildings } from '@/content';
+import { isCompact } from '@/platform/device';
 
 export interface PreviewService {
   /** Shows building `eid` on the stage `host` (an element whose box is a transparent window in the HUD). */
@@ -254,7 +255,8 @@ class Preview {
   update(dt: number): void {
     const host = this.host;
     if (!host || !host.isConnected || host.offsetParent === null) {
-      if (!this.host && this.cold?.length !== 0) this.warm(dt);
+      // Phones never open a stage (inspector or Build panel), so nothing is worth compiling there.
+      if (!this.host && this.cold?.length !== 0 && !isCompact()) this.warm(dt);
       return;
     }
     if (this.retry > 0 && (this.retry -= dt) <= 0) this.load();

@@ -77,9 +77,13 @@ class HappeningsCard {
   /** `id|status` the steward closed (D-128): it stays away until the request changes (met, or a new one). */
   private dismissed = '';
   private fold: ReturnType<typeof autoCollapse>;
+  private head: HTMLElement;
+  /** The milestone card whose width this card's folded strip shares (`matchFolded`). */
+  private twin: HTMLElement | null = null;
 
   constructor(private ctx: GameContext) {
     const head = h('header', { class: 'jc-m-head hp-head' }, icon('sparkle'), this.kicker, this.left);
+    this.head = head;
     this.card = h(
       'section',
       { class: 'jc-m hp panel holo hidden', 'aria-label': 'Happening', 'aria-live': 'polite' },
@@ -193,6 +197,34 @@ class HappeningsCard {
     return ok[0]?.id ?? null;
   }
 
+  /**
+   * Desktops: while this card is folded to its strip and the milestone card shows only its pill, the two take one
+   * width (the wider one's natural width) and one right edge, so the pair reads as a set. Natural widths come from
+   * the contents (the pill button, the header's children), never from the cards, so a shorter text shrinks them.
+   */
+  private matchFolded(above: HTMLElement | null, r?: DOMRect, box?: DOMRect): void {
+    const pill = above?.querySelector<HTMLElement>(':scope > .jc-m-pill');
+    const on = !!above && !!pill && pill.offsetWidth > 0 && this.card.classList.contains('mini');
+    if (this.twin && (!on || this.twin !== above)) this.twin.style.minWidth = '';
+    if (!on) {
+      this.twin = null;
+      this.card.style.minWidth = '';
+      this.card.style.right = '';
+      return;
+    }
+    this.twin = above;
+    const cs = getComputedStyle(this.card);
+    const kids = [...this.head.children] as HTMLElement[];
+    const head =
+      kids.reduce((w, k) => w + k.getBoundingClientRect().width, 0) +
+      (kids.length - 1) * (parseFloat(getComputedStyle(this.head).columnGap) || 0);
+    const own = Math.ceil(head + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight));
+    const w = `${Math.max(own, Math.ceil(pill.getBoundingClientRect().width))}px`;
+    this.card.style.minWidth = w;
+    above.style.minWidth = w;
+    this.card.style.right = `${box!.right - r!.right}px`;
+  }
+
   update(dt: number): void {
     if ((this.slow -= dt) > 0) return;
     this.slow = 0.2;
@@ -205,7 +237,7 @@ class HappeningsCard {
       !c.services.tryGet('moments')?.playing;
     const closed = !!hp && this.dismissed === `${hp.id}|${hp.status}`;
     this.card.classList.toggle('hidden', !hp || !live || closed);
-    if (!hp || !live || closed) return;
+    if (!hp || !live || closed) return this.matchFolded(null);
     // Sit under the milestone card when it shows.
     // On desktops it may sit in the right column (D-130), not in the HUD itself: compare screen rectangles.
     const above = document.querySelector<HTMLElement>('.jc-m:not(.hp):not(.hidden)');
@@ -217,6 +249,7 @@ class HappeningsCard {
     this.card.style.top = r && r.height > 0 && box && !compact ? `${r.bottom - box.top + 8}px` : '';
     const stack = r && r.height > 0 && box && compact && innerHeight > innerWidth;
     this.card.style.bottom = stack ? `${box!.bottom - r!.top + 8}px` : '';
+    this.matchFolded(!compact && r && box ? above! : null, r, box);
     const total = HAPPENING_SECONDS[hp.kind] * PULSE_TICKS;
     const remain = Math.max(0, hp.endTick - c.city.tick);
     const secs = Math.ceil(remain / PULSE_TICKS);
