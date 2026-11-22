@@ -3679,3 +3679,9 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   the fisher each gag's business (sips, binocular sweeps, fussing with the camera, chatting to the fish or his
   granddaughter). The rowboat's floorboards are cut to the hull's cross-section above the waterline (`BOAT_FLOAT`),
   so the sea never shows inside it.
+- Something Stirs talks: speech bubbles pinned over the speakers (`LINES` per episode and beat: the fisher, the
+  granddaughter, the gull, the fish), the caption bar keeps the narration. The granddaughter stands in the bow, the
+  boot comes up slowly to dangle beside his face (filmed in profile), the sunk item settles on the wonder asleep below
+  (a cut: it sleeps under the splash, then rises at its own site) where the Choir's light flares, and during the rise
+  he grabs the gunwales with the wonder looming behind him. His sou'wester sits back with the brim up, clear of the
+  eyes.

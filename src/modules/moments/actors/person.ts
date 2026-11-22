@@ -206,8 +206,12 @@ export class Person3D {
     if (hat === 'none') return;
     const m = soft(col, 0.6, 0.4);
     if (hat === 'souwester') {
+      // Worn back on the head with the brim turned up at the front (a sou'wester's long brim droops behind), so the
+      // eyes stay clear of it.
+      h.position.set(-0.025, 0.185, 0);
+      h.rotation.z = 0.12;
       part(HEMI, m, h, -0.01, 0.03, 0, 0.165, 0.15, 0.162);
-      part(new CylinderGeometry(1, 1, 1, 24), m, h, -0.02, 0.025, 0, 0.24, 0.012, 0.23).rotation.z = -0.12;
+      part(new CylinderGeometry(1, 1, 1, 24), m, h, -0.03, 0.025, 0, 0.23, 0.012, 0.22).rotation.z = 0.2;
     } else if (hat === 'cap') {
       part(HEMI, m, h, -0.005, 0.03, 0, 0.158, 0.11, 0.155);
       part(BALL, m, h, 0.15, 0.045, 0, 0.1, 0.01, 0.1);

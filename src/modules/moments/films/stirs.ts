@@ -9,6 +9,7 @@ import {
   Mesh,
   MeshBasicNodeMaterial,
   PlaneGeometry,
+  PointLight,
   SphereGeometry,
   TorusGeometry,
   Vector3,
@@ -27,6 +28,7 @@ import { U } from '@/render/uniforms';
 import { LOOKS as STAGE_LOOKS, type StageLook } from '@/render/stageUniforms';
 import { WONDERS } from '@/sim/wonders';
 import { hash2 } from '@/sim/random';
+import { h } from '@/ui/dom';
 import { openReel } from '../reel';
 import { FilmStage } from '../FilmStage';
 import { orbit, type Framing, type Shot, type V3 } from '../shots';
@@ -34,7 +36,7 @@ import { Person3D, type Look as PersonLook } from '../actors/person';
 import { Gull3D } from '../actors/gull';
 import { CAST } from '../actors/cast';
 import { BALL, glow, hard, joint, part, soft } from '../actors/rig';
-import { BOAT_FLOAT, SEAT, rowboat } from '../actors/boat';
+import { BOAT_FLOAT, DECK, SEAT, rowboat } from '../actors/boat';
 import './stirs.css';
 import { INTROS } from '@/modules/moments/loading';
 
@@ -134,7 +136,10 @@ interface Bit {
   a: string;
   b: string;
   under: string;
-  react: (f: string) => string;
+  /** The payoff: what he says (a speech bubble), what she shouts (the granddaughter), and any narration. */
+  says: string;
+  kidSays?: string;
+  aside?: string;
   /** The card's last line. */
   tag: (f: string) => string;
 }
@@ -147,7 +152,7 @@ export const BITS: Bit[] = [
     a: 'A bite! …a boot. Again.',
     b: 'He threw it back. Some things belong to the sea.',
     under: 'Far below, the reef’s old light stirred. Something had noticed.',
-    react: () => '…huh.',
+    says: '…huh. Big wave.',
     tag: (f) => `${f} saw nothing`,
   },
   {
@@ -156,7 +161,7 @@ export const BITS: Bit[] = [
     a: 'He kept a very close watch. On a gull.',
     b: 'The gull took his sandwich. Then dropped it in the sea.',
     under: 'Far below, the Choir’s light gathered. It knows a gift when it sees one.',
-    react: (f) => `“Nothing out here but gulls,” said ${f}.`,
+    says: 'Nothing out here but gulls.',
     tag: (f) => `${f} saw one gull. Up close`,
   },
   {
@@ -165,7 +170,8 @@ export const BITS: Bit[] = [
     a: 'He framed the lighthouse. Steady… steady…',
     b: 'Achoo.',
     under: 'The sea keeps everything it is given. And sometimes, it gives back.',
-    react: () => '“Got it!” He had. The lighthouse came out beautifully.',
+    says: 'Got it!',
+    aside: 'He had. The lighthouse came out beautifully.',
     tag: (f) => `${f} took a lovely photo of the lighthouse`,
   },
   {
@@ -174,7 +180,8 @@ export const BITS: Bit[] = [
     a: '“Grandpa, why is the sea glowing?” “Sea does that, love.”',
     b: 'She sent her paper boat down, for whoever was there.',
     under: 'Down where no light reaches, a light answered.',
-    react: () => '“GRANDPA!” “Mm. Lovely, dear.”',
+    kidSays: 'GRANDPA!',
+    says: 'Mm. Lovely, dear.',
     tag: () => 'His granddaughter saw everything',
   },
   {
@@ -183,7 +190,7 @@ export const BITS: Bit[] = [
     a: 'He did not blink. Not once.',
     b: 'His hands shook. The mug went over the side.',
     under: 'The Choir noticed. It always notices.',
-    react: () => '…was that there before?',
+    says: '…was that there before?',
     tag: (f) => `${f} blinked. Once`,
   },
   {
@@ -192,10 +199,57 @@ export const BITS: Bit[] = [
     a: 'He told it all about his day.',
     b: 'The fish had seen something over his shoulder.',
     under: 'It swam home, and told the deep what it had seen.',
-    react: () => 'For once, he saw it. He tipped his hat. It seemed only polite.',
+    says: 'Well. Hello there.',
+    aside: 'For once, he saw it. He tipped his hat. It seemed only polite.',
     tag: (f) => `${f} saw it. Finally`,
   },
 ];
+
+type Who = 'old' | 'kid' | 'gull' | 'fish';
+type Beat = 'open' | 'tease' | 'hook' | 'b' | 'rise';
+/**
+ * What the characters say to each other, per episode and beat (speech bubbles over their heads; the narration stays in
+ * the caption bar): `[who, line, ms after the beat starts]`.
+ */
+const LINES: Record<Bit['id'], Partial<Record<Beat, [Who, string, number][]>>> = {
+  boot: {
+    open: [['old', 'Come on, little fishies…', 300], ['old', 'Grandma’s recipe, this bait.', 1700]],
+    tease: [['old', 'Ooh. Ooh!', 300]],
+    hook: [['old', 'Not again.', 900]],
+    b: [['old', 'Back you go, old friend.', 200]],
+    rise: [['old', 'Whoa, whoa, whoa!', 150]],
+  },
+  bino: {
+    open: [['old', 'Eyes on the sea. Nothing gets past me.', 300]],
+    hook: [['gull', 'Squawk.', 200], ['old', 'You’re not a sea wonder.', 1000]],
+    b: [['old', 'Oi! That’s my lunch!', 250], ['gull', 'SQUAWK.', 1300]],
+    rise: [['old', 'Hold on, hold on!', 150]],
+  },
+  camera: {
+    open: [['old', 'Say cheese, lighthouse.', 400]],
+    hook: [['old', 'Steady… steady…', 300]],
+    b: [['old', 'Ah… ah… ACHOO!', 0]],
+    rise: [['old', 'Mind the camera!', 150]],
+  },
+  kid: {
+    open: [['kid', 'Is this where the stories happen?', 300], ['old', 'Only on quiet days, love.', 1600]],
+    hook: [['kid', 'Grandpa, why is the sea glowing?', 100], ['old', 'Sea does that, love.', 1300]],
+    b: [['kid', 'This boat’s for you, sea!', 0]],
+    rise: [['kid', 'GRANDPA, LOOK!', 100], ['old', 'Hold on tight, dear!', 900]],
+  },
+  coffee: {
+    open: [['old', 'Third cup. Wide awake.', 400], ['old', 'Not. Blinking.', 1900]],
+    hook: [['old', 'Any… second… now…', 300]],
+    b: [['old', 'Whoops—', 500]],
+    rise: [['old', 'Whoa! My coffee!', 150]],
+  },
+  fish: {
+    open: [['old', 'A real one! Finally!', 300]],
+    hook: [['old', 'So then I said to the harbourmaster…', 100], ['fish', '…', 1500]],
+    b: [['fish', '!!', 0], ['old', 'Hey! Where are you—', 700]],
+    rise: [['old', 'Whoa!', 150]],
+  },
+};
 
 /** The wonders a film can be for (every rising wonder but the colonnade, which has its own film). */
 const SERIAL = ['tideGates', 'lotus', 'stacks', 'dome', 'turtle', 'geode'];
@@ -333,11 +387,12 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
       ? new Person3D({ skin: 0xc68e62, hair: 0x2a1d16, top: 0xf2c23a, bottom: 0x3e5a7a, long: true, hat: 'none', shoes: 0xe85a4f })
       : null;
   if (kid) {
-    kid.root.scale.setScalar(0.55);
-    kid.root.position.set(0, SEAT + 0.025 - 0.37 * 0.55, 0.55);
-    kid.root.rotation.y = Math.PI;
+    // She stands on the floorboards in the bow, facing her grandfather.
+    kid.root.scale.setScalar(0.62);
+    kid.root.position.set(0.12, DECK, 0.72);
+    kid.root.rotation.y = Math.PI / 2;
     boat.root.add(kid.root);
-    kid.act('sit', { headYaw: -0.4 });
+    kid.act('stand', { headPitch: -0.1 });
     kid.pose.snap();
   }
 
@@ -402,7 +457,7 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
 
   // ── Things that happen: the toss over the side, the rise, swell, spray, gulls, dolphins. ──
   const splashAt = new Vector3(B.x + 1.3, SEA, B.z + 0.6);
-  const toss = { at: -1, from: new Vector3(), dur: 1.1 };
+  const toss = { at: -1, from: new Vector3(), dur: 1.6 };
   const ringMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, fog: false });
   const ringOn = uniform(0);
   ringMat.colorNode = vec3(1, 1, 1).mul(ringOn.mul(0.6));
@@ -475,8 +530,13 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
   moteMesh.frustumCulled = false;
   moteMesh.visible = false;
   stage.add(moteMesh);
-  const flare = part(new SphereGeometry(1, 24, 16), glow(0x9ffff0, 0), stage.set, W.x, deepY + H * 0.6, W.z, 6);
+  const flareMat = glow(0x9ffff0, 0);
+  const flare = part(new SphereGeometry(1, 24, 16), flareMat, stage.set, W.x, deepY + H * 0.6, W.z, 1.1);
   flare.castShadow = false;
+  // The Choir's light where the thing touches down, lighting the wonder from above (in the set from the start: a light
+  // added mid-film would rebuild every shader).
+  const deepLight = new PointLight(0x9ffff0, 0, 60, 1.2);
+  stage.add(deepLight);
   const school: BufferGeometry[] = [];
   for (let i = 0; i < 60; i++) {
     const g = new SphereGeometry(1, 8, 6).scale(0.07, 0.025, 0.02);
@@ -509,6 +569,9 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
   const tmp = new Vector3();
   const tip = new Vector3();
   const sinkFrom = new Vector3();
+  const touch = new Vector3();
+  const dangle = new Vector3();
+  const fwd = new Vector3();
   stage.onFrame = (t, dt) => {
     // The boat rocks; after the rise the swell lifts it.
     const swellHit = riseAt >= 0 ? Math.max(0, Math.min(1, (t - riseAt - 1.2) / 0.6)) * Math.max(0, 1 - (t - riseAt - 1.8) / 3) : 0;
@@ -553,9 +616,13 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
         tmp.set(B.x - 0.4, SEA + 0.03 + (tease >= 0 ? Math.max(0, Math.sin((t - tease) * 14)) * -0.08 : Math.sin(t * 2) * 0.01), B.z + 3.2);
         float_.position.copy(tmp);
       } else if (toss.at < 0) {
-        const k = Math.min(1, (t - hooked) / 0.8);
-        tmp.set(B.x - 0.4, SEA - 0.2, B.z + 3.2).lerp(tip.clone().add(new Vector3(0, -0.45, 0)), k * k * (3 - 2 * k));
+        // Reeled in slowly, then dangling in front of his face, turning on the line.
+        const k = Math.min(1, (t - hooked) / 1.8);
+        old.headAt(dangle).add(fwd.set(0, -0.08, 0.62).applyQuaternion(boat.root.quaternion));
+        tmp.set(B.x - 0.4, SEA - 0.2, B.z + 3.2).lerp(dangle, k * k * (3 - 2 * k));
+        tmp.x += Math.sin(t * 2.6) * 0.05 * k;
         item.position.copy(tmp);
+        item.rotation.y = Math.sin(t * 1.9) * 0.8;
         item.visible = true;
         float_.position.copy(tmp).add(new Vector3(0, 0.3, 0));
       }
@@ -570,7 +637,7 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
       const k = Math.min(1, (t - toss.at) / toss.dur);
       if (k < 1) {
         item.position.lerpVectors(toss.from, splashAt, k);
-        item.position.y += Math.sin(k * Math.PI) * 0.9;
+        item.position.y += Math.sin(k * Math.PI) * 1.2;
         item.rotation.z += dt * 8;
       } else item.visible = false;
       const r = Math.max(0, t - toss.at - toss.dur);
@@ -579,11 +646,17 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     }
     // Under the sea: the light gathers round the shape below, then flares.
     if (underAt >= 0) {
+      // It sinks, swaying, and settles on the thing asleep below; where it touches, the Choir's light gathers and flares.
       const u = t - underAt;
-      item.position.copy(sinkFrom).add(new Vector3(Math.sin(u * 1.4) * 0.3, -u * 1.9, 0));
-      item.rotation.set(u * 0.6, u * 0.4, u * 0.9);
-      gather.value = Math.min(1.2, Math.max(0, (u - 0.6) / 2.4));
-      (flare.material as ReturnType<typeof glow>).emissiveIntensity = Math.max(0, (u - 2.6) * 3) * (1 + Math.sin(u * 9) * 0.2);
+      const sk = Math.min(1, u / 2.3);
+      item.position.lerpVectors(sinkFrom, touch, 1 - (1 - sk) ** 2);
+      item.position.x += Math.sin(u * 1.4) * 0.3 * (1 - sk);
+      if (sk < 1) item.rotation.set(u * 0.6, u * 0.4, u * 0.9);
+      gather.value = Math.min(1.2, Math.max(0, (u - 1.4) / 1.8));
+      const f = Math.max(0, u - 2.3);
+      flareMat.emissiveIntensity = f > 0 ? Math.min(1.4, f * 3) * (1 + Math.sin(u * 9) * 0.15) : 0;
+      deepLight.intensity = f > 0 ? Math.min(9, f * 18) : 0;
+      stage.anchor.copy(item.position);
     }
     // The rise: out of the deep, past the surface, settling with a little bob.
     if (riseAt >= 0) {
@@ -617,6 +690,59 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
   };
   const boatC: V3 = [B.x, SEA + 0.6, B.z];
   const head = () => v(old.headAt(new Vector3()));
+
+  // ── Speech bubbles over the speakers' heads (DOM pinned to the set) ──
+  const pins = h('div', { class: 'sw-pins' });
+  reel.root.insertBefore(pins, reel.root.querySelector('.reel-confetti'));
+  const bubbles = new Map<Who, { el: HTMLElement; text: HTMLElement; until: number }>();
+  const anchorOf = (who: Who, out: Vector3): boolean => {
+    if (who === 'old') return (old.headAt(out).y += 0.3), true;
+    if (who === 'kid' && kid) return (kid.headAt(out).y += 0.24), true;
+    if (who === 'gull' && gull) return (gull.root.getWorldPosition(out).y += 0.45), true;
+    if (who === 'fish') return (item.getWorldPosition(out).y += 0.25), true;
+    return false;
+  };
+  const speak = (who: Who, text: string, ms = 1700 + text.length * 45) => {
+    let b = bubbles.get(who);
+    if (!b) {
+      const t = h('span', {});
+      const el = h('div', { class: `sw-bubble by-${who}` }, h('div', { class: 'sw-b' }, t));
+      pins.append(el);
+      bubbles.set(who, (b = { el, text: t, until: 0 }));
+    }
+    b.text.textContent = text;
+    b.until = stage.t + ms / 1000;
+    reel.pop(b.el, 'show');
+    if (who === 'old') old.talk = 1;
+    if (who === 'kid' && kid) kid.talk = 1;
+  };
+  /** Plays a beat's lines on the film's clock (skipped with the film). */
+  const lines = (beat: Beat) => {
+    const l = LINES[bit.id][beat];
+    if (!l) return;
+    void (async () => {
+      let at = 0;
+      for (const [who, text, ms] of l) {
+        if (!(await reel.wait(Math.max(0, ms - at)))) return;
+        at = ms;
+        speak(who, text);
+      }
+    })();
+  };
+  const pinAt = new Vector3();
+  stage.onPins = () => {
+    for (const [who, b] of bubbles) {
+      const on = stage.t < b.until && anchorOf(who, pinAt);
+      b.el.classList.toggle('gone', !on);
+      if (!on) {
+        if (who === 'old') old.talk = 0;
+        if (who === 'kid' && kid) kid.talk = 0;
+        continue;
+      }
+      const p = stage.project(pinAt);
+      b.el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
+    }
+  };
   /** The gag's sounds (D-195), per bit and beat. */
   const gagSound = (beat: 'tease' | 'hook' | 'b' | 'react') => {
     const k = `${bit.id}:${beat}`;
@@ -660,10 +786,14 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     if (day) reel.hit('gulls', 1.4);
     if (hour.mood === 'night') reel.cue('cs-night');
     reel.say(bit.open(fisher, hour.word));
+    lines('open');
     if (!(await reel.wait(2900))) return;
 
     // 2. Close: the gag, and something over the side.
-    cut(orbit(head(), 2.6, 0.55, 0.12, 34), orbit(head(), 2.2, 0.4, 0.1, 32), 6);
+    if (kid) {
+      const both = new Vector3().fromArray(head()).lerp(kid.headAt(new Vector3()), 0.5);
+      cut(orbit(v(both), 3.2, 1.25, 0.14, 36), orbit(v(both), 2.8, 1.1, 0.12, 34), 6);
+    } else cut(orbit(head(), 2.6, 0.55, 0.12, 34), orbit(head(), 2.2, 0.4, 0.1, 32), 6);
     reel.on('a');
     beat = 'a';
     if (bit.tease) {
@@ -671,6 +801,7 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
       old.jig = 0.2;
       old.pose.to({ lean: 0.25, headPitch: 0.35, brows: 0.5 });
       reel.say(bit.tease);
+      lines('tease');
       tease = stage.t;
       gagSound('tease');
       if (!(await reel.wait(2000))) return;
@@ -690,8 +821,17 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
       old.pose.to({ mouth: 0.7 });
     }
     reel.cue(bit.id === 'boot' ? 'cs-boing' : bit.id === 'coffee' ? 'tick' : 'cs-sneak');
-    reel.say(bit.a);
-    if (!(await reel.wait(bit.tease ? 2100 : 2500))) return;
+    // The granddaughter's line is said, not narrated: it goes in the bubbles.
+    reel.say(bit.id === 'kid' ? '' : bit.a);
+    lines('hook');
+    if (bit.id === 'boot') {
+      // Frame him and the boot coming up to dangle in front of his face; he eyes it.
+      // In profile, from the side: him on one side of the frame, the boot turning on its line on the other.
+      const hd = new Vector3().fromArray(head()).add(new Vector3(0, -0.04, 0.31));
+      cut(orbit(v(hd), 2.5, Math.PI / 2 + 0.15, 0.08, 34), orbit(v(hd), 2.2, Math.PI / 2 + 0.1, 0.06, 32), 3);
+      old.pose.to({ headPitch: 0.05, brows: -0.4, smile: -0.4 });
+    }
+    if (!(await reel.wait(bit.tease ? 2800 : 2500))) return;
     reel.on('b');
     beat = 'b';
     old.talk = 0;
@@ -701,6 +841,7 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     reel.bed('drone', 0.35, 2);
     reel.cue(bit.id === 'camera' ? 'cs-freeze' : 'cs-whoosh');
     reel.say(bit.b);
+    lines('b');
     if (bit.id === 'boot') {
       line!.visible = float_.visible = false;
       throwOver(item);
@@ -742,7 +883,16 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     // 3. Under the sea: it sinks, and the Choir notices.
     reel.on('under');
     underAt = stage.t;
+    // The toss is over (it would keep hiding the item); the ring on the surface is out of shot now.
+    toss.at = -1;
+    ringOn.value = 0;
     sinkFrom.set(splashAt.x, SEA - 0.5, splashAt.z);
+    // A cut, not a map: down here the wonder sleeps right under where it went in (it rises at its own place after).
+    touch.set(splashAt.x, SEA - 7, splashAt.z);
+    wonderMesh.position.set(splashAt.x - (wb.min.x + wb.max.x) / 2, touch.y - wb.max.y + 0.4, splashAt.z - (wb.min.z + wb.max.z) / 2);
+    flare.position.copy(touch);
+    moteMesh.position.copy(touch);
+    deepLight.position.copy(touch).setY(touch.y + 2);
     stage.add(item);
     item.visible = true;
     item.scale.setScalar(bit.id === 'kid' ? 0.9 : 1);
@@ -752,7 +902,8 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     rain.visible = false;
     moteMesh.visible = fishes.visible = true;
     stage.shake = 0.7;
-    cut({ pos: [splashAt.x + 2.5, SEA - 2, splashAt.z + 4], look: [splashAt.x, SEA - 2.5, splashAt.z], fov: 46 }, { pos: [splashAt.x + 3, SEA - 6, splashAt.z + 6], look: [W.x, deepY + H * 0.6, W.z], fov: 50 }, 3.8);
+    // Following it down…
+    cut({ pos: [1.3, 0.5, 2.1], look: [0, -0.5, 0], fov: 44 }, { pos: [1.7, 0.8, 2.6], look: [0, -0.9, 0], fov: 46 }, 2.3, { rel: true });
     reel.hit('plunge');
     for (const b of ['sea', 'wind', 'rain'] as const) reel.bed(b, 0, 0.2);
     reel.bed('deep', 1, 0.3);
@@ -763,13 +914,19 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     reel.hit('choir', 2.4, 1.6);
     reel.hit('shimmer', 2.5);
     reel.say(bit.under);
-    if (!(await reel.wait(3800))) return;
+    if (!(await reel.wait(2300))) return;
+    // …until it touches something vast, and the light runs in and flares.
+    stage.shake = 2.5;
+    cut({ pos: [touch.x + 16, touch.y + 3, touch.z + 24], look: [touch.x, touch.y - H * 0.25, touch.z], fov: 50 }, { pos: [touch.x + 20, touch.y + 2, touch.z + 30], look: [touch.x, touch.y - H * 0.35, touch.z], fov: 52 }, 2.4);
+    if (!(await reel.wait(2300))) return;
 
     // 4. It rises: low and wide on the surface, the camera shaking.
     reel.on('rise');
     underAt = -1;
     item.visible = moteMesh.visible = fishes.visible = false;
-    (flare.material as ReturnType<typeof glow>).emissiveIntensity = 0;
+    flareMat.emissiveIntensity = 0;
+    deepLight.intensity = 0;
+    wonderMesh.position.set(W.x, deepY, W.z);
     stage.look = { ...hour.look, sunDir: [...hour.look.sunDir] };
     stage.showSky(true);
     stage.setFog(haze.col, haze.near, haze.far);
@@ -790,18 +947,18 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     reel.hit('dolphins', 1.6);
     if (day) reel.hit('gulls', 0.7);
     reel.say('');
-    if (!(await reel.wait(3700))) return;
+    if (!(await reel.wait(1700))) return;
+    // The swell reaches the boat: he grabs the gunwales, his back to the thing rising behind him.
+    old.act('grip', { brows: 1, mouth: 0.8, smile: 0 });
+    if (kid) kid.act('startled');
+    const hp = old.headAt(new Vector3());
+    cut({ pos: [hp.x + 1.0, hp.y + 0.3, hp.z + 2.7], look: [hp.x - 0.4, hp.y + 1.6, hp.z - 9], fov: 48 }, { pos: [hp.x + 0.8, hp.y + 0.35, hp.z + 2.4], look: [hp.x - 0.4, hp.y + 2.2, hp.z - 9], fov: 48 }, 2);
+    lines('rise');
+    if (!(await reel.wait(2000))) return;
 
     // 5. The payoff: a two-shot, the wonder behind him.
     reel.on('react');
     beat = 'after';
-    // The payoff line is spoken (the fisher's, or the granddaughter's shout).
-    if (bit.id === 'kid' && kid) kid.talk = 1;
-    else if (bit.id === 'bino' || bit.id === 'camera') old.talk = 1;
-    setTimeout(() => {
-      old.talk = 0;
-      if (kid) kid.talk = 0;
-    }, 2600);
     stage.shake = 1;
     shakeHands = false;
     if (bit.id === 'boot') old.act('shrug', { headYaw: 0 });
@@ -823,9 +980,15 @@ export function playSomethingStirs(ctx: GameContext, wonder: { id: string; name:
     reel.bed('choir', 0.35, 1.5);
     reel.bed('drone', 0, 2);
     reel.cue(bit.id === 'camera' ? 'cs-blink' : bit.id === 'fish' ? 'cs-fanfare' : 'cs-freeze');
-    if (!(await reel.wait(700))) return;
-    reel.say(bit.react(fisher));
-    if (!(await reel.wait(2400))) return;
+    if (!(await reel.wait(500))) return;
+    // The payoff, said aloud (and shouted, by the one who saw it all).
+    if (bit.kidSays && kid) {
+      speak('kid', bit.kidSays, 1500);
+      if (!(await reel.wait(1100))) return;
+    }
+    speak('old', bit.says);
+    reel.say(bit.aside ?? '');
+    if (!(await reel.wait(bit.kidSays ? 1900 : 2600))) return;
 
     // 6. Wide, pulling out, then the card.
     reel.on('final');

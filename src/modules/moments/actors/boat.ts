@@ -11,6 +11,8 @@ const DISC = new CylinderGeometry(1, 1, 1, 48);
 /** The floorboards' height and the thwarts' (seat tops at `SEAT + 0.025`), in boat units. */
 const FLOOR = -0.26;
 export const SEAT = -0.08;
+/** The top of the floorboards (where someone stands in the boat), in boat units. */
+export const DECK = FLOOR + 0.015;
 /** How high the boat's origin floats above the water, in boat units: the floor stays dry with room to rock. */
 export const BOAT_FLOAT = 0.34;
 

@@ -9,3 +9,75 @@
   background: radial-gradient(closest-side, rgba(4, 14, 26, 0.6), rgba(4, 14, 26, 0.3) 60%, transparent);
   pointer-events: none;
 }
+
+/* Speech bubbles over the speakers' heads (pinned to the 3D set: a zero-size anchor at a projected point; the bubble
+   hangs above it, its tail pointing down at the speaker). Pops animate `scale` only, so they never fight the
+   placement transform. */
+.sw-pins {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+.sw-bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+.sw-bubble.gone {
+  visibility: hidden;
+}
+.sw-b {
+  position: absolute;
+  left: 0;
+  bottom: 1.4vmin;
+  translate: -28% 0;
+  max-width: min(34vmin, 300px);
+  width: max-content;
+  padding: 0.9vmin 1.4vmin;
+  border-radius: 1.6vmin;
+  background: #fffdf6;
+  color: #1d2630;
+  font: 700 clamp(12px, 2.1vmin, 17px) / 1.25 var(--ui);
+  box-shadow: 0 0.6vmin 1.8vmin rgba(0, 20, 40, 0.28);
+  transform-origin: 28% 110%;
+}
+.sw-b::after {
+  content: '';
+  position: absolute;
+  left: 24%;
+  bottom: -1vmin;
+  border: 0.6vmin solid transparent;
+  border-top: 1vmin solid #fffdf6;
+  border-bottom: 0;
+}
+.sw-bubble.show .sw-b {
+  animation: sw-pop 0.38s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes sw-pop {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+}
+/* Who is speaking: the granddaughter's bubbles are warm, the gull's and the fish's are small and odd. */
+.sw-bubble.by-kid .sw-b {
+  background: #fff3c8;
+  color: #3a2a0a;
+}
+.sw-bubble.by-kid .sw-b::after {
+  border-top-color: #fff3c8;
+}
+.sw-bubble.by-gull .sw-b,
+.sw-bubble.by-fish .sw-b {
+  font-size: clamp(11px, 1.8vmin, 15px);
+  font-style: italic;
+  background: #e8f6ff;
+}
+.sw-bubble.by-gull .sw-b::after,
+.sw-bubble.by-fish .sw-b::after {
+  border-top-color: #e8f6ff;
+}
