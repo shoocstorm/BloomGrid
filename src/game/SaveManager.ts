@@ -1,6 +1,7 @@
 import { deserializeCity, serializeCity, type SaveData } from '@/sim/save';
 import type { GameContext } from './context';
 import { deleteSave, listSaves, newSlot, type SaveEntry, type SaveInfo } from './saves';
+import type { StageCreep } from '@/ui/Boot';
 
 export interface ModuleSaveHook {
   id: string;
@@ -107,11 +108,12 @@ export class SaveManager {
   }
 
   /** `stage` advances a loading screen between reading and rebuilding (the loader service passes its own). */
-  async load(slot: string, stage?: (label: string, progress: number) => Promise<void>): Promise<boolean> {
+  async load(slot: string, stage?: (label: string, progress: number, creep?: StageCreep) => Promise<void>): Promise<boolean> {
     await stage?.('Reading the saved city', 0.1);
     const data = await this.ctx.platform.storage.get<SaveData>(`save:${slot}`);
     if (!data) return false;
-    await stage?.('Rebuilding streets and towers', 0.35);
+    // One synchronous restore (the renderers rebuild with it): the bar creeps on meanwhile (D-217).
+    await stage?.('Rebuilding streets and towers', 0.35, { to: 0.76, ms: 4000 });
     this.restore(data);
     this.slot = slot;
     await stage?.('Waking the residents', 0.8);

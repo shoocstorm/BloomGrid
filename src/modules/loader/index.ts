@@ -1,9 +1,10 @@
 import type { GameContext, GameModule } from '@/game/context';
 import { createBootScreen } from '@/ui/Boot';
 import { isTouchDevice } from '@/platform/device';
+import type { StageCreep } from '@/ui/Boot';
 
 /** Advances the loading screen to a stage (0..1) and lets it paint before the next block of work. */
-export type LoadStage = (label: string, progress: number) => Promise<void>;
+export type LoadStage = (label: string, progress: number, creep?: StageCreep) => Promise<void>;
 
 export interface LoaderService {
   /**
@@ -75,7 +76,8 @@ class Loader implements LoaderService {
       // takes the reveal (the city appears when it ends, not under it).
       const film = !!this.ctx.services.tryGet('moments')?.playing;
       if (!film) engine.speed = 0;
-      await screen.stage('Lighting the skyline', 0.95);
+      // The settle frames build what the new city shows first (node builds on the main thread).
+      await screen.stage('Lighting the skyline', 0.95, { to: 0.99, ms: 1500 });
       for (let i = 0; i < SETTLE_FRAMES; i++) await frame();
       if (!film) engine.speed = next;
       // The new city's first seconds rebuild and grow in: judge the render scale after them.

@@ -3909,6 +3909,9 @@ founding / restoring, seeding (modules) and the warm-up; boot time is unchanged.
 **Consequences:** Verified with a Chrome screencast at 6×: compositor frames keep coming at 60 Hz through the warm-up and
 the bar moves 75% → ≈88%. Headless screenshots wait for the main thread, so they can't show this. Real cuts to the
 warm-up need fewer node builds (fewer meshes or materials in the first frame), not more frames.
+The city loader (`LoadStage`) takes creeps too: an in-game founding's "Raising the island" (the reset rebuilds terrain and
+greenery, ≈1.1 s at 4×), the scenario stage (`FoundStage.creep` in `game/newCity.ts`), a save's "Rebuilding streets and
+towers" (`SaveManager.load`) and the loader's settle frames.
 
 ## D-218 — Films prepare their first shot with real frames when bloom is on (2026-11-22)
 

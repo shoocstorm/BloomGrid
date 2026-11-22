@@ -3,6 +3,7 @@ import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
 import { PULSE_TICKS } from '@/sim/pulseConst';
 import type { GameContext } from './context';
 import { rememberDifficulty } from './start';
+import type { StageCreep } from '@/ui/Boot';
 
 export { SHOWCASE_SEED, preferredDifficulty } from './start';
 
@@ -11,6 +12,8 @@ export interface FoundStage {
   label: string;
   /** Progress when the stage starts (0..1). */
   progress: number;
+  /** A stage that blocks the page for long: the bar creeps on meanwhile (D-217). */
+  creep?: StageCreep;
 }
 
 type FoundCtx = Pick<GameContext, 'city' | 'engine' | 'commands'> & Partial<Pick<GameContext, 'loading'>>;
@@ -37,13 +40,13 @@ export async function foundCityStaged(
   seed: number,
   difficulty: DifficultyId,
   scenario: string,
-  stage: (label: string, progress: number) => Promise<void>,
+  stage: (label: string, progress: number, creep?: StageCreep) => Promise<void>,
 ): Promise<Founded> {
   const it = foundSteps(ctx, seed, difficulty, scenario);
   for (;;) {
     const r = it.next();
     if (r.done) return r.value;
-    await stage(r.value.label, r.value.progress);
+    await stage(r.value.label, r.value.progress, r.value.creep);
   }
 }
 
@@ -54,11 +57,16 @@ function* foundSteps(ctx: FoundCtx, seed: number, difficulty: DifficultyId, scen
   const { city } = ctx;
   (ctx as GameContext).loading = true;
   try {
-    yield { label: 'Raising the island', progress: 0.08 };
+    // The reset rebuilds terrain and greenery: ≈1.1 s at 4× CPU, the longest step of an in-game founding.
+    yield { label: 'Raising the island', progress: 0.08, creep: { to: 0.28, ms: 3000 } };
     city.reset(seed, difficulty);
     let r = { buildings: 0, roads: 0 };
     if (scenario !== 'empty') {
-      yield { label: scenario === 'fresh-island' ? 'Settling the first hamlet' : 'Raising streets and towers', progress: 0.3 };
+      yield {
+        label: scenario === 'fresh-island' ? 'Settling the first hamlet' : 'Raising streets and towers',
+        progress: 0.3,
+        creep: { to: 0.53, ms: scenario === 'fresh-island' ? 1000 : 4000 },
+      };
       r = applyScenario(city, scenario);
       city.credits *= DIFFICULTIES[difficulty].creditMul;
       // Settle occupancy, utilities and harmony.
