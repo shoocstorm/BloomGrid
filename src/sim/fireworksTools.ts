@@ -2,6 +2,7 @@ import type { AgentTool } from '@/core/AgentTools';
 import type { ActionCtx } from './actionTools';
 import { buildingId } from './inventory';
 import {
+  BUY_MARKUP,
   FIREWORK_DEFS,
   GRAND_SHELLS,
   MIN_SHELLS,
@@ -9,8 +10,11 @@ import {
   SHOW_SHELLS,
   clockOf,
   launchBlocker,
+  buyBlocker,
+  buyQuote,
   launchSites,
   novelty,
+  rackSize,
   stockTotal,
   storage,
 } from './fireworks';
@@ -21,6 +25,12 @@ import { SKY_TEXT_MAX, skyText } from '@/content/skyFont';
  * Fireworks tools for the city assistant and scripts (D-068): stock, shows and their effects; launching a
  * show; switching the nightly show. Plain JSON in and out; changes go through undoable commands.
  */
+/** A rough price for a show's worth of shells, for the tool description (the kinds' mean material cost). */
+function buyPriceHint(): number {
+  const mean = FIREWORK_KINDS.reduce((a, k) => a + FIREWORK_DEFS[k].cost, 0) / FIREWORK_KINDS.length;
+  return Math.round(mean * BUY_MARKUP * SHOW_SHELLS);
+}
+
 export const fireworksTools: AgentTool<ActionCtx, never>[] = [
   {
     name: 'fireworks_status',
@@ -38,6 +48,9 @@ export const fireworksTools: AgentTool<ActionCtx, never>[] = [
         stock: Object.fromEntries(FIREWORK_KINDS.map((k) => [FIREWORK_DEFS[k].name, fw.stock[k]])),
         shells: stockTotal(fw.stock),
         storage: storage(city),
+        racks: rackSize(city),
+        bought: fw.bought,
+        buyPrice: `${buyQuote(city, SHOW_SHELLS).cost} credits for ${SHOW_SHELLS} shells`,
         nightlyShow: fw.auto ? `on, at 21:00 when ${SHOW_SHELLS}+ shells are in stock` : 'off',
         showNow: fw.show
           ? { shells: fw.show.shells, fired: fw.show.fired, grand: fw.show.grand, launchedBy: fw.show.cause }
@@ -65,7 +78,7 @@ export const fireworksTools: AgentTool<ActionCtx, never>[] = [
   {
     name: 'launch_fireworks',
     option: 'Launch a fireworks show now, optionally writing a message or featuring a shape',
-    description: `Launches a fireworks show now from a Fireworks Factory: ${SHOW_SHELLS} shells, or ${GRAND_SHELLS} for a grand show (needs ${MIN_SHELLS}+ in stock; uses what there is). Shows mix in shaped shells (hearts, the five Olympic rings, butterflies); \`shape\` features one of them. \`text\` writes a message in the sky in sparks (up to ${SKY_TEXT_MAX} letters, digits, spaces, ♥ ! ? & - +), e.g. "HAPPY BIRTHDAY". Crew fee ${SHOW_FEE} credits. Lifts harmony and draws visitors, but adds smoke, and shows in quick succession tire residents. Undoable.`,
+    description: `Launches a fireworks show now from a Fireworks Factory (or a barge offshore if the city has none): ${SHOW_SHELLS} shells, or ${GRAND_SHELLS} for a grand show (needs ${MIN_SHELLS}+ in stock; uses what there is). Shows mix in shaped shells (hearts, the five Olympic rings, butterflies); \`shape\` features one of them. \`text\` writes a message in the sky in sparks (up to ${SKY_TEXT_MAX} letters, digits, spaces, ♥ ! ? & - +), e.g. "HAPPY BIRTHDAY". Crew fee ${SHOW_FEE} credits. Lifts harmony and draws visitors, but adds smoke, and shows in quick succession tire residents. Undoable.`,
     keywords: [
       'fireworks',
       'firework',
@@ -123,6 +136,33 @@ export const fireworksTools: AgentTool<ActionCtx, never>[] = [
         fee: show.fee,
         left: stockTotal(city.fireworks.stock),
       };
+    },
+  },
+  {
+    name: 'buy_fireworks',
+    option: 'Buy fireworks shells from a supplier',
+    description: `Buys fireworks shells from a supplier, delivered at once and mixed across the kinds, at ${BUY_MARKUP}× a factory's material cost (about ${buyPriceHint()} credits for ${SHOW_SHELLS}). No factory needed: without one, shows launch from a barge offshore. Up to the racks' room (factory storage, at least ${GRAND_SHELLS}). Undoable.`,
+    keywords: ['fireworks', 'firework', 'buy', 'purchase', 'order', 'shells', 'supplier', 'stock up'],
+    llmArgs: ['shells'],
+    input: {
+      type: 'object',
+      properties: {
+        shells: {
+          type: 'integer',
+          description: `How many shells to buy (${SHOW_SHELLS} for a show, ${GRAND_SHELLS} for a grand one).`,
+        },
+      },
+      required: ['shells'],
+    },
+    effect: 'mutate',
+    run({ city, commands }, { shells }: { shells: number }) {
+      const n = Math.round(shells);
+      const why = buyBlocker(city, n);
+      if (why) throw new Error(why);
+      const { cost } = buyQuote(city, n);
+      if (!commands.execute('buyFireworks', { shells: n }))
+        throw new Error('The shells could not be bought.');
+      return { bought: n, cost, inStock: stockTotal(city.fireworks.stock), racks: rackSize(city) };
     },
   },
   {

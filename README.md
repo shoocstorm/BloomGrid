@@ -234,7 +234,9 @@ come online over the Data Spire.
 palm and crackle shells (materials cost credits) and fires a show over the city every night at 21:00. Launch one
 yourself any time with the fireworks button in the top bar (it shows the shells in stock; shift-click for a grand
 show), from the dashboard's **Fireworks** tab (**K**, then Fireworks: stock, shows so far, effects, nightly on/off),
-or ask Flora ("launch the fireworks", "how many fireworks shows have we had?"). Shows mix in shaped shells:
+or ask Flora ("launch the fireworks", "how many fireworks shows have we had?"). No factory, or not enough shells?
+Buy a crate of 30 or 60 in the Fireworks tab (or ask Flora to "buy some fireworks"): a supplier delivers at once at
+2.5× the factory's material cost, and a city without a factory launches its shows from a barge offshore. Shows mix in shaped shells:
 hearts, the five Olympic rings and butterflies. Ask Flora for a message in the sky ("fireworks that say HAPPY
 BIRTHDAY") or type `/launch_fireworks text="I <3 BLOOMGRID" shape=heart grand=true` in her console (up to 18
 letters, digits, spaces, ♥ and ! ? & - +; `shape` = heart, rings or butterfly). Shows lift harmony and draw visitors,

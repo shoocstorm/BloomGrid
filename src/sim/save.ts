@@ -16,7 +16,7 @@ import { createHappeningState, type HappeningState } from './happeningState';
 import { builderCode, builderFromCode } from './builders';
 import { loadBridges, saveBridges, type BridgeSave } from './bridges';
 
-export const SAVE_VERSION = 26;
+export const SAVE_VERSION = 27;
 
 export interface SaveData {
   version: number;
@@ -216,6 +216,11 @@ export function migrateSave(data: SaveData): SaveData {
     // The Chronicle (v26, D-192): no pages yet; the ones the city has already earned are found on the next checks.
     data.chronicle = createChronicleState();
     data.version = 26;
+  }
+  if (data.version === 26) {
+    // Bought fireworks shells (v27, D-211): none bought yet.
+    data.fireworks.bought ??= 0;
+    data.version = 27;
   }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;

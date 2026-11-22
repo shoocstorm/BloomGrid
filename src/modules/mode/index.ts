@@ -15,9 +15,6 @@ interface ModeInfo {
   tone: Tone;
 }
 
-/** Tools drawn across the map that get the whole screen (D-206): the panels hide while one is in hand. */
-const FULL_VIEW = new Set(['road']);
-
 /** What each tool in hand is called on the banner, what it does, and its colour (D-202). */
 const MODES: Record<string, ModeInfo> = {
   build: {
@@ -98,9 +95,10 @@ export const modeModule: GameModule = {
       // A tool in hand: an open inspector (often a building clicked by accident) steps aside.
       if (id !== 'select') ctx.bus.emit('selection:changed', { eid: null });
       show(id);
-      // Full view for drawing (D-206): the panels fade away while the tool is in hand and come back as they were
-      // when it is put down (Exit, Esc, right-click or another tool); the banner keeps the way out on screen.
-      document.body.classList.toggle('view-max', FULL_VIEW.has(id));
+      // Full view (D-206, D-210): every tool in hand (placing a building, highways, removing, shaping) gets the whole
+      // map; the panels fade away and come back as they were when it is put down (Exit, Esc, right-click or another
+      // tool); the banner keeps the way out on screen.
+      document.body.classList.toggle('view-max', id in MODES);
     });
     // Films, explore modes and dialogs that suspend tools hide the banner with them.
     ctx.systems.add({

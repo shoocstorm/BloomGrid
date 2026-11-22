@@ -29,6 +29,10 @@ import {
  * visitors (a little income) and costs a crew fee; the smoke adds to pollution while it clears, and on dry
  * nights a stray shell can set a roof alight. Every show also adds novelty fatigue: a nightly show stays a
  * treat, but shows fired back to back stop delighting and, past a point, the noise grates.
+ *
+ * Shells can also be bought (D-211): a supplier delivers a mixed crate at once, at `BUY_MARKUP` times the
+ * factory's material cost, up to the racks' room (factory storage, or `BUY_RACK` without a factory). A city
+ * without a factory launches its shows from a barge offshore (`bargeSite`).
  */
 
 export interface FireworkKindDef {
@@ -67,6 +71,12 @@ const SMOG_CLEAR = 0.985;
 const FIRE_RISK = 0.003;
 const FIRE_REACH = 8;
 const HISTORY_CAP = 12;
+/** Bought shells cost this many times the factory's material cost (D-211). */
+export const BUY_MARKUP = 2.5;
+/** Shells a city can hold without (or beyond small) factory storage: room for one grand show. */
+export const BUY_RACK = GRAND_SHELLS;
+/** Crate sizes offered by the HUD (Flora may ask for any number up to the room). */
+export const BUY_PACKS = [SHOW_SHELLS, GRAND_SHELLS] as const;
 
 const GLOW_DECAY = Math.pow(0.5, 1 / GLOW_HALF_LIFE);
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
@@ -94,13 +104,78 @@ export function storage(city: City): number {
   return cap;
 }
 
+/** Shells the racks can hold, bought or made: factory storage, but never less than one grand show. */
+export const rackSize = (city: City) => Math.max(storage(city), BUY_RACK);
+
+/** A crate of `n` shells spread evenly over the kinds (the scarcest first), and what it costs. */
+export function buyQuote(city: City, n: number): { load: Stock; cost: number } {
+  const stock = city.fireworks.stock;
+  const order = [...FIREWORK_KINDS].sort(
+    (a, b) => stock[a] - stock[b] || FIREWORK_KINDS.indexOf(a) - FIREWORK_KINDS.indexOf(b),
+  );
+  const load = emptyStock();
+  let cost = 0;
+  for (let i = 0; i < n; i++) {
+    const k = order[i % order.length]!;
+    load[k]++;
+    cost += FIREWORK_DEFS[k].cost * BUY_MARKUP;
+  }
+  return { load, cost: Math.round(cost) };
+}
+
+/** Why `n` shells can't be bought now, or null. */
+export function buyBlocker(city: City, n: number): string | null {
+  if (!Number.isInteger(n) || n < 1) return 'Buy at least one shell.';
+  const room = rackSize(city) - stockTotal(city.fireworks.stock);
+  if (room <= 0) return `The racks are full (${rackSize(city)} shells).`;
+  if (n > room) return `Room for only ${room} more shells (racks hold ${rackSize(city)}).`;
+  const { cost } = buyQuote(city, n);
+  if (city.credits < cost) return `Not enough credits: ${n} shells cost ${cost}.`;
+  return null;
+}
+
+/**
+ * Where a city without a factory launches: the sea tile nearest the middle of its buildings with open water all
+ * round (a barge), so sparks fall on water. Searched in square rings; deterministic.
+ */
+export function bargeSite(city: City): [number, number] {
+  const ents = city.buildingEntities();
+  let cx = city.grid.w / 2;
+  let cz = city.grid.h / 2;
+  if (ents.length) {
+    cx = cz = 0;
+    for (const e of ents) {
+      cx += Building.x[e]! + Building.w[e]! / 2;
+      cz += Building.z[e]! + Building.d[e]! / 2;
+    }
+    cx = Math.floor(cx / ents.length);
+    cz = Math.floor(cz / ents.length);
+  }
+  const open = (x: number, z: number) => {
+    for (let dz = -3; dz <= 3; dz += 3)
+      for (let dx = -3; dx <= 3; dx += 3) if (!city.isWaterTile(x + dx, z + dz)) return false;
+    return true;
+  };
+  const max = Math.max(city.grid.w, city.grid.h);
+  for (let r = 0; r < max; r++)
+    for (let dz = -r; dz <= r; dz++)
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.abs(dx) !== r && Math.abs(dz) !== r) continue;
+        const x = cx + dx;
+        const z = cz + dz;
+        if (x >= 3 && z >= 3 && x < city.grid.w - 3 && z < city.grid.h - 3 && open(x, z))
+          return [x + 0.5, z + 0.5];
+      }
+  return [cx + 0.5, cz + 0.5];
+}
+
 /** Why a show can't launch now, or null. */
 export function launchBlocker(city: City): string | null {
   const fw = city.fireworks;
   if (fw.show) return 'A show is already in the sky.';
-  if (!launchSites(city).length) return 'Build a Fireworks Factory first: shows launch from its yard.';
   const n = stockTotal(fw.stock);
-  if (n < MIN_SHELLS) return `Not enough shells: ${n} in stock, ${MIN_SHELLS} needed.`;
+  if (n < MIN_SHELLS)
+    return `Not enough shells: ${n} in stock, ${MIN_SHELLS} needed. Buy some (Dashboard → Fireworks) or build a Fireworks Factory.`;
   if (city.credits < SHOW_FEE) return `Not enough credits for the crew fee (${SHOW_FEE}).`;
   return null;
 }
@@ -133,7 +208,8 @@ export function startShow(
 ): FireworkShow {
   const fw = city.fireworks;
   const sites = launchSites(city);
-  const [, x, z] = sites[fw.shows % sites.length]!;
+  const site = sites[fw.shows % Math.max(1, sites.length)];
+  const [x, z] = site ? [site[1], site[2]] : bargeSite(city);
   const load = takeShells(fw.stock, grand ? GRAND_SHELLS : SHOW_SHELLS);
   const shells = stockTotal(load);
   const seconds = Math.max(15, Math.round(shells * (grand ? 0.5 : 0.65)));
@@ -352,6 +428,35 @@ export function registerFireworksCommands(stack: CommandStack<SimCtx>): void {
       fw.shows = Math.max(0, fw.shows - 1);
       city.credits += u.fee;
       fw.spent -= u.fee;
+    },
+  });
+
+  stack.register<{ shells: number }, { load: Stock; cost: number }>('buyFireworks', {
+    apply({ city }, p) {
+      if (buyBlocker(city, p.shells)) return null;
+      const { load, cost } = buyQuote(city, p.shells);
+      const fw = city.fireworks;
+      for (const k of FIREWORK_KINDS) fw.stock[k] += load[k];
+      fw.bought += p.shells;
+      fw.spent += cost;
+      city.credits -= cost;
+      return { load, cost };
+    },
+    revert({ city }, _p, u) {
+      // Returns what of the crate is still in the racks; the refund matches the shells sent back.
+      const fw = city.fireworks;
+      let back = 0;
+      let all = 0;
+      for (const k of FIREWORK_KINDS) {
+        const n = Math.min(fw.stock[k], u.load[k]);
+        fw.stock[k] -= n;
+        back += n;
+        all += u.load[k];
+      }
+      const refund = all ? (u.cost * back) / all : 0;
+      fw.bought -= back;
+      fw.spent -= refund;
+      city.credits += refund;
     },
   });
 

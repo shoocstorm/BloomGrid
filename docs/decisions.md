@@ -3816,3 +3816,21 @@ separate save browser (the dialog already shows maps and is where a city is chos
   view) and **Back to where you were** (`setView` of the old view), then a toast with ⌖ Show to the place. Shown only
   when the camera moved ≥ 45 tiles; Esc / × / Stay here / the call-out idle time put it away; the ready call-out hides
   while it is up. The wonder ceremony also names the coast it rose off.
+
+## D-210: Full view for every tool in hand
+
+D-206 gave only the highway tool the whole screen. Players wanted the same for everything picked from the Build
+panel: placing a building, removing, channels, retrofit, mist, reclaiming and the Green Weaver. Now any tool with a
+`MODES` entry sets `body.view-max`, so the panel and cards fade out the moment an item or action is chosen and come
+back when the tool is put down (Exit, Esc, right-click). The building's ghost on the map is the preview; the mode
+banner names what is being placed and keeps the way out. Supersedes D-206's "other tools keep the panels".
+
+## D-211: Buying fireworks shells
+
+Players wanted fireworks without (or on top of) a Fireworks Factory. `buyFireworks { shells }` (undoable: what of
+the crate is still racked goes back, refunded pro rata) delivers a crate at once, spread over the kinds scarcest
+first, at `BUY_MARKUP` (2.5×) the factory's material cost, so a factory stays the cheap way. Racks hold
+`rackSize` = max(factory storage, `BUY_RACK` = one grand show). A city with no factory launches from `bargeSite`:
+the sea tile nearest its buildings' centre with open water three tiles round, so stray sparks fall on water (the
+launch rises from the water surface, not the seabed). `fireworks.bought` is saved (v27) and hashed. Dashboard →
+Fireworks has Buy 30 / Buy 60; Flora has `buy_fireworks`.

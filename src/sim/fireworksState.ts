@@ -58,8 +58,10 @@ export interface FireworksState {
   nextShowId: number;
   /** Day of the last nightly show (one per night). */
   lastNight: number;
-  /** Lifetime totals: shells made and fired, credits spent (materials and crews) and earned (visitors). */
+  /** Lifetime totals: shells made, bought (D-211) and fired, credits spent (materials, purchases and crews) and
+   * earned (visitors). */
   produced: number;
+  bought: number;
   fired: number;
   spent: number;
   revenue: number;
@@ -91,6 +93,7 @@ export function createFireworksState(): FireworksState {
     nextShowId: 1,
     lastNight: 0,
     produced: 0,
+    bought: 0,
     fired: 0,
     spent: 0,
     revenue: 0,

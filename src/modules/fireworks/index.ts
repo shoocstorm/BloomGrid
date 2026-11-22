@@ -9,7 +9,7 @@ import {
 import type { GameModule } from '@/game/context';
 import { getMaterial } from '@/render/materials/library';
 import { U } from '@/render/uniforms';
-import { MIN_SHELLS, launchBlocker, stockTotal, storage } from '@/sim/fireworks';
+import { MIN_SHELLS, launchBlocker, rackSize, stockTotal, storage } from '@/sim/fireworks';
 import {
   FIREWORK_SHAPES,
   type FireworkKind,
@@ -219,7 +219,8 @@ export const fireworksModule: GameModule = {
       const L = LOOKS[p.kind];
       const gx = p.x + (Math.random() * 2 - 1) * SCATTER;
       const gz = p.z + (Math.random() * 2 - 1) * SCATTER;
-      const gy = ctx.city.grid.heightAt(gx, gz) + 0.6;
+      // A barge launch (no factory, D-211) goes up from the water, not the seabed.
+      const gy = Math.max(0, ctx.city.grid.heightAt(gx, gz)) + 0.6;
       // Shapes go up near the middle of the show and a little higher; messages higher still, so they clear roofs.
       const spread = p.form ? 2 : 6;
       const bx = gx + (Math.random() * 2 - 1) * spread;
@@ -427,9 +428,10 @@ export const fireworksModule: GameModule = {
       btn.classList.toggle('live', !!fw.show);
       btn.classList.toggle('low', n < MIN_SHELLS);
       setText(count, String(n));
-      btn.title = cap
-        ? `Fireworks: ${n} of ${cap} shells. ${fw.show ? 'A show is in the sky.' : 'Click to launch a show, shift-click for a grand one.'}`
-        : 'Fireworks: build a Fireworks Factory (Industry) to make shells and put on shows.';
+      btn.title =
+        cap || n
+          ? `Fireworks: ${n} of ${rackSize(ctx.city)} shells. ${fw.show ? 'A show is in the sky.' : n < MIN_SHELLS ? 'Buy shells in Dashboard → Fireworks.' : 'Click to launch a show, shift-click for a grand one.'}`
+          : 'Fireworks: buy shells in Dashboard → Fireworks, or build a Fireworks Factory (Industry) to make them.';
     };
 
     let warmed = false;

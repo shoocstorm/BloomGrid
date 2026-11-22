@@ -1,13 +1,19 @@
 import type { GameContext } from '@/game/context';
 import {
+  BUY_MARKUP,
+  BUY_PACKS,
   FIREWORK_DEFS,
   GRAND_SHELLS,
   SHOW_FEE,
   SHOW_SHELLS,
   clockOf,
   launchBlocker,
+  bargeSite,
+  buyBlocker,
+  buyQuote,
   launchSites,
   novelty,
+  rackSize,
   stockTotal,
   storage,
 } from '@/sim/fireworks';
@@ -32,6 +38,8 @@ export class FireworksView {
   private launchBtn: HTMLButtonElement;
   private grandBtn: HTMLButtonElement;
   private autoBtn: HTMLButtonElement;
+  private buyBtns: { n: number; el: HTMLButtonElement }[];
+  private buyNote = h('p', { class: 'fwv-note' });
 
   constructor(private ctx: GameContext) {
     const tiles = h('div', { class: 'db-tiles' });
@@ -65,11 +73,19 @@ export class FireworksView {
       class: 'fwv-btn',
       onClick: () => run('setFireworksAuto', { on: !ctx.city.fireworks.auto }),
     }) as HTMLButtonElement;
+    this.buyBtns = BUY_PACKS.map((n) => ({
+      n,
+      el: h('button', {
+        class: 'fwv-btn',
+        onClick: () => run('buyFireworks', { shells: n }),
+      }) as HTMLButtonElement,
+    }));
     this.el = h(
       'div',
       { class: 'fwv' },
       tiles,
       h('div', { class: 'fwv-actions' }, this.launchBtn, this.grandBtn, this.autoBtn, this.note),
+      h('div', { class: 'fwv-actions' }, ...this.buyBtns.map((b) => b.el), this.buyNote),
       h(
         'div',
         { class: 'db-cols' },
@@ -77,6 +93,21 @@ export class FireworksView {
         h('div', {}, h('h3', {}, 'Recent shows'), this.shows),
       ),
     );
+  }
+
+  /** "a barge off Westbrook": the barge search walks tiles, so it reruns only when the buildings change. */
+  private bargeAt = { n: -1, text: '' };
+  private barge(): string {
+    const { city } = this.ctx;
+    const n = city.buildingEntities().length;
+    if (this.bargeAt.n !== n) {
+      const [x, z] = bargeSite(city);
+      this.bargeAt = {
+        n,
+        text: `a barge off ${city.districtAt(Math.floor(x), Math.floor(z)) ?? 'the coast'}`,
+      };
+    }
+    return this.bargeAt.text;
   }
 
   render(): void {
@@ -91,7 +122,11 @@ export class FireworksView {
     };
     const nov = novelty(fw);
     set('shows', fmt(fw.shows), `${fmt(fw.fired)} shells fired${fw.show ? ' · one in the sky now' : ''}`);
-    set('stock', fmt(n), cap ? `of ${fmt(cap)} storage · ${fmt(fw.produced)} made` : 'no factory yet');
+    set(
+      'stock',
+      fmt(n),
+      `of ${fmt(rackSize(city))} · ${cap ? `${fmt(fw.produced)} made · ` : 'no factory · '}${fmt(fw.bought)} bought`,
+    );
     set(
       'harmony',
       signed(city.pulse.harmony.fireworks),
@@ -111,7 +146,7 @@ export class FireworksView {
     set(
       'money',
       signed(fw.revenue - fw.spent, 0),
-      `${fmt(fw.revenue)} visitors · ${fmt(fw.spent)} materials & crews`,
+      `${fmt(fw.revenue)} visitors · ${fmt(fw.spent)} shells & crews`,
     );
 
     const why = launchBlocker(city);
@@ -120,10 +155,22 @@ export class FireworksView {
     setText(this.autoBtn, fw.auto ? 'Nightly show: on' : 'Nightly show: off');
     this.autoBtn.classList.toggle('on', fw.auto);
     const sites = launchSites(city).map(([e]) => buildingId(city, e));
+    const from = sites.length ? sites[fw.shows % sites.length] : this.barge();
     setText(
       this.note,
       why ??
-        `Crew fee ${SHOW_FEE} credits. Launches from ${sites[fw.shows % sites.length]}. Nightly show at 21:00 when ${SHOW_SHELLS}+ shells are ready.`,
+        `Crew fee ${SHOW_FEE} credits. Launches from ${from}. Nightly show at 21:00 when ${SHOW_SHELLS}+ shells are ready.`,
+    );
+    for (const b of this.buyBtns) {
+      b.el.disabled = !!buyBlocker(city, b.n);
+      setText(b.el, `Buy ${b.n} shells · ◈${fmt(buyQuote(city, b.n).cost)}`);
+    }
+    setText(
+      this.buyNote,
+      buyBlocker(city, BUY_PACKS[0]) ??
+        (cap
+          ? `A supplier delivers at once, at ${BUY_MARKUP}× what the factory pays for materials.`
+          : 'No factory: a supplier delivers at once, and shows go up from a barge offshore.'),
     );
 
     const max = Math.max(1, ...FIREWORK_KINDS.map((k) => fw.stock[k]));

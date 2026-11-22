@@ -141,7 +141,7 @@ body.tool-mode .bd-again {
   padding: 6px 12px;
 }
 
-/* Full view for drawing (D-206): while the highway tool is in hand the build panel, the cards and consoles fade out
+/* Full view (D-206, D-210): while any tool is in hand the build panel, the cards and consoles fade out
    (opacity only; no layout change, so they come back exactly where they were). The top bar, the mode banner, the
    tooltip and toasts stay. */
 body.view-max .build.panel,

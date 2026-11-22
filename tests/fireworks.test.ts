@@ -8,6 +8,10 @@ import {
   SHOW_FEE,
   SHOW_SHELLS,
   SHOW_TIME,
+  BUY_RACK,
+  bargeSite,
+  buyBlocker,
+  buyQuote,
   launchBlocker,
   launchSites,
   stockTotal,
@@ -227,5 +231,72 @@ describe('fireworks (D-068)', () => {
     expect(res.ok && res.result).toMatchObject({ message: 'HAPPY BIRTHDAY', featuring: 'butterfly' });
     expect(plainIntent('fireworks that say happy birthday')).toBe('launch_fireworks');
     expect(plainIntent('heart fireworks please')).toBe('launch_fireworks');
+  });
+
+  describe('bought shells (D-211)', () => {
+    /** A bare island: no fireworks factory. */
+    function noFactory() {
+      const s = makeSim(20261024);
+      s.city.credits += 5000;
+      s.step(20);
+      expect(launchSites(s.city).length).toBe(0);
+      return s;
+    }
+
+    it('buys a mixed crate at a markup, up to the racks, and undo refunds it', () => {
+      const s = noFactory();
+      const credits = s.city.credits;
+      const { load, cost } = buyQuote(s.city, SHOW_SHELLS);
+      expect(cost).toBeGreaterThan(SHOW_SHELLS * 6);
+      for (const k of FIREWORK_KINDS) expect(load[k]).toBe(SHOW_SHELLS / FIREWORK_KINDS.length);
+      expect(s.commands.execute('buyFireworks', { shells: SHOW_SHELLS })).toBe(true);
+      expect(stockTotal(s.city.fireworks.stock)).toBe(SHOW_SHELLS);
+      expect(s.city.fireworks.bought).toBe(SHOW_SHELLS);
+      expect(s.city.credits).toBeCloseTo(credits - cost, 5);
+      // No factory: room for one grand show.
+      expect(buyBlocker(s.city, BUY_RACK)).toMatch(/Room for only/);
+      expect(s.commands.execute('buyFireworks', { shells: 0 })).toBe(false);
+      s.commands.undo();
+      expect(stockTotal(s.city.fireworks.stock)).toBe(0);
+      expect(s.city.fireworks.bought).toBe(0);
+      expect(s.city.credits).toBeCloseTo(credits, 5);
+      s.city.credits = 10;
+      expect(buyBlocker(s.city, SHOW_SHELLS)).toMatch(/credits/);
+    });
+
+    it('without a factory a show launches from a barge on open water', () => {
+      const s = noFactory();
+      expect(launchBlocker(s.city)).toMatch(/Buy some/);
+      s.commands.execute('buyFireworks', { shells: SHOW_SHELLS });
+      expect(launchBlocker(s.city)).toBeNull();
+      expect(s.commands.execute('launchFireworks', {})).toBe(true);
+      const show = s.city.fireworks.show!;
+      expect([show.x, show.z]).toEqual(bargeSite(s.city));
+      expect(s.city.isWaterTile(Math.floor(show.x), Math.floor(show.z))).toBe(true);
+      seconds(s, 60);
+      expect(s.city.fireworks.show).toBeNull();
+      expect(s.city.fireworks.history.at(-1)!.shells).toBe(SHOW_SHELLS);
+    });
+
+    it('survives a save; v26 saves load with nothing bought; Flora buys and routes', async () => {
+      const s = noFactory();
+      const r = new AgentToolRegistry<ActionCtx>({ city: s.city, commands: s.commands });
+      for (const t of fireworksTools) r.register(t);
+      const res = await r.call('buy_fireworks', { shells: 20 });
+      expect(res.ok && res.result).toMatchObject({ bought: 20, inStock: 20 });
+      expect((await r.call('buy_fireworks', { shells: 500 })).ok).toBe(false);
+      const data = JSON.parse(JSON.stringify(serializeCity(s.city))) as SaveData;
+      const other = new City(new EventBus(), 1);
+      deserializeCity(other, data);
+      expect(other.fireworks.bought).toBe(20);
+      expect(other.hash()).toBe(s.city.hash());
+      const v26 = structuredClone(data);
+      v26.version = 26;
+      delete (v26.fireworks as Partial<typeof v26.fireworks>).bought;
+      expect(migrateSave(v26).fireworks.bought).toBe(0);
+      expect(plainIntent('buy some fireworks')).toBe('buy_fireworks');
+      expect(plainIntent('order 30 firework shells')).toBe('buy_fireworks');
+      expect(plainIntent('build a fireworks factory')).toBe('build');
+    });
   });
 });

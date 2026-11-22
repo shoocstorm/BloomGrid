@@ -527,7 +527,7 @@ export class City {
   private fireworksHash(): string {
     const f = this.fireworks;
     const show = f.show ? `${f.show.id}:${f.show.fired}/${f.show.shells}@${f.show.startTick}:${f.show.shape ?? ''}:${f.show.text ?? ''}` : '-';
-    return `${FIREWORK_KINDS.map((k) => f.stock[k]).join(',')}|${f.auto ? 1 : 0}|${f.shows}|${f.lastNight}|${show}|${f.progress.toFixed(4)}|${f.glow.toFixed(4)}|${f.fatigue.toFixed(4)}|${f.smog.toFixed(4)}|${f.flow.toFixed(4)}`;
+    return `${FIREWORK_KINDS.map((k) => f.stock[k]).join(',')}|${f.auto ? 1 : 0}|${f.shows}|${f.lastNight}|${show}|${f.progress.toFixed(4)}|${f.glow.toFixed(4)}|${f.fatigue.toFixed(4)}|${f.smog.toFixed(4)}|${f.flow.toFixed(4)}|${f.bought}`;
   }
 
   hash(): string {

@@ -31,8 +31,8 @@ they asked but forgot to claim, it pays out on its own shortly after the deadlin
 
 ## What do festivals, cruises and bumper catches do?
 
-- **Street festival** (Harmony Stable or better): visitors spend in town and Harmony rises while it lasts. If a
-  Fireworks Factory has shells, the city puts on a free show.
+- **Street festival** (Harmony Stable or better): visitors spend in town and Harmony rises while it lasts. If
+  the city has fireworks shells in stock (made or bought), it puts on a free show.
 - **Cruise visit** (a waterfront): visitors spend in town; it shows under Visitors in the credit flow.
 - **Bumper catch** (a fishing dock): the fishing haul runs half again higher.
 - **Bloom Expo** (from the Canopy era, at a landmark): many visitors spend in town and Harmony rises a little.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Problem, Service } from '@/ecs/components';
 import { applyScenario } from '@/sim/scenario';
-import { NATURAL_CRISES, allCrises, forecastCrisis } from '@/sim/crises';
+import { forecastCrisis } from '@/sim/crises';
 import '@/sim/hazards';
 import '@/sim/disasters';
 import { creditLimit, totalDebt } from '@/sim/finance';
