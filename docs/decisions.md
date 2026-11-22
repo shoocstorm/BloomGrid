@@ -3834,3 +3834,28 @@ first, at `BUY_MARKUP` (2.5×) the factory's material cost, so a factory stays t
 the sea tile nearest its buildings' centre with open water three tiles round, so stray sparks fall on water (the
 launch rises from the water surface, not the seabed). `fireworks.bought` is saved (v27) and hashed. Dashboard →
 Fireworks has Buy 30 / Buy 60; Flora has `buy_fireworks`.
+
+## D-212: Highway and Remove up front
+
+Highway and Remove are by far the most used build actions; Channel, Retrofit, Mist, Weaver and Reclaim are rare.
+They no longer share one grid of equal tiles. In the Build panel `PRIMARY` (`road`, `bulldoze`) are two large tiles
+(icon in a tinted square, label, a how-to line from `ACTION_HELP[id].line`; Remove in the crit red), and the rest
+sit in a compact row of five under them. Outside build mode the launcher is a row, `build-launch`: **Highway** ·
+**Build** · **Remove**, so either tool is one click from the city view (picking a tool opens build mode as before,
+and D-210's full view takes over). Phones show the two as icon buttons beside Build in the dock row. Still no
+hotkeys (D-101). Putting either down (Exit, Esc, right-click) leaves build mode instead of bringing the panel back
+(`QUICK` in `modules/build/index.ts`); the other actions still return to the panel.
+
+### D-212 addendum: H / R keys, touch moving, Upgrade all
+
+- **Keys:** Highway is **H** and Remove **R** (the rest stay click-only, D-101). R still rotates while placing or
+  carrying (the tool's own key handler runs first). Pressing a tool's key while it is in hand puts it down; tool
+  keys ignore Shift / Alt. Settings → Controls moved from H to **Shift+H**.
+- **Moving on phones:** the new `move` tool. A long press (450 ms, finger still) on a building in Inspect picks it
+  up under the finger: drag, lift on a green lot to move it (on a red one it stays in hand with the reason). Every
+  inspector has **Move** (`construction.startMove`), on any device: a mouse carries it, a tap aims and a second tap
+  on the same spot moves it, a press on the preview drags it again, one finger elsewhere pans. The banner names
+  it, with Rotate and Exit. It is not build mode, so the Build panel stays closed. Desktop Shift-drag is unchanged.
+- **Upgrade all:** highway mode's banner has **Upgrade all ◈N**: every highway tile one level, raw tracks first
+  (`upgradeAllPlan`), one `upgradeRoad` command (one undo). Disabled while the treasury is short, hidden when every
+  highway is a boulevard.

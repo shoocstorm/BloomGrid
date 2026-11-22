@@ -3,7 +3,7 @@ import { City } from '@/sim/City';
 import { EventBus } from '@/core/EventBus';
 import { applyScenario } from '@/sim/scenario';
 import { deserializeCity, migrateSave, serializeCity, type SaveData } from '@/sim/save';
-import { MAX_ROAD_LEVEL, ROAD_UPGRADE_COST, roadCapacity, roadLevels, roadStretch, roadWear, updateRoadLevels } from '@/sim/roads';
+import { MAX_ROAD_LEVEL, ROAD_UPGRADE_COST, roadCapacity, roadLevels, roadStretch, roadWear, updateRoadLevels, upgradeAllPlan, upgradeCost } from '@/sim/roads';
 import { AgentToolRegistry } from '@/core/AgentTools';
 import type { ActionCtx } from '@/sim/actionTools';
 import { roadTools } from '@/sim/roadTools';
@@ -30,6 +30,28 @@ describe('highway levels (D-096)', () => {
     const lv = roadLevels(c.city);
     const levels = new Set(roadTiles(c).map((t) => lv[t]));
     expect([...levels].sort()).toEqual([1, 2]);
+  });
+
+  it('upgrade all (D-212) raises every highway one level, raw first, and undo puts them back', () => {
+    const s = makeSim(7);
+    applyScenario(s.city, 'fresh-island');
+    const lv = roadLevels(s.city);
+    const tiles = roadTiles(s);
+    lv[tiles[0]!] = 1;
+    lv[tiles[1]!] = MAX_ROAD_LEVEL;
+    const plan = upgradeAllPlan(s.city);
+    expect(plan.tiles).not.toContain(tiles[1]);
+    expect(plan.tiles.length).toBe(tiles.length - 1);
+    expect(plan.tiles.at(-1)).toBe(tiles[0]); // the paved tile comes after every raw one
+    expect(plan.cost).toBe(upgradeCost(s.city, plan.tiles));
+    s.city.credits = plan.cost;
+    expect(s.commands.execute('upgradeRoad', { tiles: plan.tiles })).toBe(true);
+    expect(s.city.credits).toBeCloseTo(0, 5);
+    expect(lv[tiles[0]!]).toBe(2);
+    expect(tiles.slice(2).every((t) => lv[t] === 1)).toBe(true);
+    s.commands.undo();
+    expect(tiles.slice(2).every((t) => lv[t] === 0)).toBe(true);
+    expect(s.city.credits).toBeCloseTo(plan.cost, 5);
   });
 
   it('traffic wears a raw track in until it is paved, for free', () => {

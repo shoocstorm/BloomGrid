@@ -131,7 +131,7 @@ const TAB_KEY = 'bloomgrid.settings.tab';
 /**
  * Settings (⚙, D-081, D-087): one panel with four tabs, sharing one grid cell so switching never jumps. **Game**: the saved city with Save / Load (moved from the top
  * bar), found a new city, the guide. **Sound**: volumes and mute. **Display**: power mode, desktop window, graphics
- * quality. **Controls**: basic controls and common hotkeys (H opens it). Quality, power and the open tab are per-viewer conveniences in localStorage; `?quality=` still wins.
+ * quality. **Controls**: basic controls and common hotkeys (Shift+H opens it). Quality, power and the open tab are per-viewer conveniences in localStorage; `?quality=` still wins.
  */
 export interface SettingsService {
   /** Opens Settings (on a tab, else the last one). */
@@ -329,8 +329,8 @@ export const settingsModule: GameModule = {
     };
     ctx.services.provide('settings', { open, close, get isOpen() { return !pop.classList.contains('hidden'); } });
     ctx.input.onKey((e) => {
-      // H: Settings → Controls (again closes it).
-      if (e.code === 'KeyH' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      // Shift+H: Settings → Controls (again closes it). Plain H is the highway tool (D-212).
+      if (e.code === 'KeyH' && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (!pop.classList.contains('hidden') && current === 'controls') close();
         else open('controls');
         return true;

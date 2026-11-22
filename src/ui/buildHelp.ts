@@ -19,6 +19,8 @@ import { BANYAN_SHARE, BRIDGE_MAX, BRIDGE_MIN, BRIDGES_PER_TOWER } from '@/sim/w
 export interface ActionHelp {
   /** Short label for the tile (the tool's full name is the title). */
   short: string;
+  /** One line under a primary tile's label (Highway, Remove): how to use it at a glance. */
+  line?: string;
   what: string;
   how: string;
   cost: string;
@@ -35,6 +37,7 @@ export const ACTION_HELP: Record<string, ActionHelp> = {
   },
   road: {
     short: 'Highway',
+    line: `Drag to lay · ◈${ROAD_COST}/tile`,
     what: 'Highways are the city’s streets: they carry power, water and commuters. A building gets power and water when one runs within 10 tiles of its lot. Drawn over water, a highway becomes a bridge. A new highway starts as a raw track (carries ×0.75); traffic wears it into a Living Highway and busy ones grow into Bloom Boulevards (×1.6, street trees and lamps). Click a highway to upgrade a stretch at once.',
     how: 'Drag from start to end; the path bends once (an L). Drawing over an overgrown stretch clears it.',
     cost: `◈${ROAD_COST} a tile · ◈${BRIDGE_COST} a tile over water`,
@@ -47,6 +50,7 @@ export const ACTION_HELP: Record<string, ActionHelp> = {
   },
   bulldoze: {
     short: 'Remove',
+    line: 'Click or drag a box',
     what: 'Return to Nature removes a building, highway or channel and lets the land go back to meadow.',
     how: 'Click one object, or drag a box to clear an area. Undo (⌘Z) brings it back.',
     cost: `Buildings refund ${pct(DEMOLISH_REFUND)} of their price`,

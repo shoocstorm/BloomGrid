@@ -108,6 +108,20 @@ export function upgradeCost(city: City, tiles: readonly number[]): number {
   return c;
 }
 
+/**
+ * "Upgrade all" in highway mode (D-212): every highway tile below the top level, one level each, raw tracks first
+ * (the cheapest step and the biggest capacity gain per credit). `cost` is the whole bill; the command pays in this
+ * order while credits last.
+ */
+export function upgradeAllPlan(city: City): { tiles: number[]; cost: number } {
+  const lv = roadLevels(city);
+  const road = city.grid.road;
+  const byLevel: number[][] = Array.from({ length: MAX_ROAD_LEVEL }, () => []);
+  for (let t = 0; t < road.length; t++) if (road[t] === 1 && lv[t]! < MAX_ROAD_LEVEL) byLevel[lv[t]!]!.push(t);
+  const tiles = byLevel.flat();
+  return { tiles, cost: upgradeCost(city, tiles) };
+}
+
 /** Levels of a set of tiles: [raw, paved, boulevard] counts. */
 export function levelCounts(city: City, tiles: Iterable<number>): [number, number, number] {
   const lv = roadLevels(city);

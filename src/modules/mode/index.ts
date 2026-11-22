@@ -3,6 +3,7 @@ import { buildings } from '@/content';
 import { isTouchDevice } from '@/platform/device';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
+import { upgradeAllPlan } from '@/sim/roads';
 import './mode.css';
 
 type Tone = 'make' | 'remove' | 'shape';
@@ -13,6 +14,47 @@ interface ModeInfo {
   hint: string;
   touchHint?: string;
   tone: Tone;
+  /** Extra buttons on the banner while this tool is in hand (built once; `sync` runs at ~5 Hz). */
+  extra?: (ctx: Parameters<GameModule['init']>[0]) => { el: HTMLElement; sync?: () => void };
+}
+
+/** Highway mode's "Upgrade all" (D-212): every highway one level, raw tracks first, when the treasury covers it. */
+function upgradeAll(ctx: Parameters<GameModule['init']>[0]) {
+  let plan: { tiles: number[]; cost: number } | null = null;
+  ctx.bus.on('road:changed', () => (plan = null));
+  ctx.bus.on('road:level', () => (plan = null));
+  ctx.bus.on('city:reset', () => (plan = null));
+  const label = h('span');
+  const price = h('b');
+  const el = h(
+    'button',
+    {
+      class: 'mb-act',
+      onClick: () => {
+        plan ??= upgradeAllPlan(ctx.city);
+        const n = plan.tiles.length;
+        if (!n || ctx.city.credits < plan.cost) return;
+        if (ctx.commands.execute('upgradeRoad', { tiles: plan.tiles }))
+          ctx.bus.emit('toast', { text: `${n.toLocaleString()} highway tiles upgraded one level`, tone: 'ok' });
+      },
+    },
+    icon('up'),
+    label,
+    price,
+  );
+  const sync = () => {
+    plan ??= upgradeAllPlan(ctx.city);
+    const n = plan.tiles.length;
+    const short = ctx.city.credits < plan.cost;
+    el.classList.toggle('hidden', !n);
+    (el as HTMLButtonElement).disabled = short;
+    setText(label, 'Upgrade all');
+    setText(price, `◈${Math.round(plan.cost).toLocaleString()}`);
+    el.title = short
+      ? `Upgrading all ${n.toLocaleString()} highway tiles one level costs ◈${Math.round(plan.cost).toLocaleString()}: not enough credits yet`
+      : `Raise all ${n.toLocaleString()} highway tiles one level (raw tracks → Living Highways → Bloom Boulevards); ⌘Z undoes`;
+  };
+  return { el, sync };
 }
 
 /** What each tool in hand is called on the banner, what it does, and its colour (D-202). */
@@ -30,6 +72,7 @@ const MODES: Record<string, ModeInfo> = {
     hint: 'Drag to lay · ends snap onto highways · click to link a spot to the nearest one',
     touchHint: 'Drag to lay · tap to link a spot to the nearest highway',
     tone: 'make',
+    extra: upgradeAll,
   },
   bulldoze: {
     icon: 'bulldoze',
@@ -37,6 +80,24 @@ const MODES: Record<string, ModeInfo> = {
     hint: 'Click a building, or drag across highways and channels, to return them to nature',
     touchHint: 'Tap a building twice, or drag across highways',
     tone: 'remove',
+  },
+  move: {
+    icon: 'move',
+    title: (ctx) => {
+      const eid = ctx.services.get('construction').moving;
+      return eid !== null && ctx.city.buildingEntities().includes(eid) ? `Moving ${ctx.city.buildingDef(eid).name}` : 'Moving a building';
+    },
+    hint: 'Click a lot to move it there · R rotates',
+    touchHint: 'Tap a lot, tap again to move · or drag it there',
+    tone: 'make',
+    extra: (ctx) => ({
+      el: h(
+        'button',
+        { class: 'mb-act', title: 'Rotate (R)', onClick: () => ctx.services.get('construction').rotateMove() },
+        icon('rotate'),
+        h('span', {}, 'Rotate'),
+      ),
+    }),
   },
   channel: { icon: 'channel', title: () => 'Digging channels', hint: 'Drag to dig a filtration channel', tone: 'shape' },
   retrofit: { icon: 'retrofit', title: () => 'Bloom Retrofit', hint: 'Click to retrofit the buildings round a spot', tone: 'shape' },
@@ -72,10 +133,19 @@ export const modeModule: GameModule = {
       h('div', { class: 'mb-text' }, title, hint),
       exit,
     );
+    const extras = new Map<string, { el: HTMLElement; sync?: () => void }>();
+    for (const [id, m] of Object.entries(MODES)) {
+      if (!m.extra) continue;
+      const x = m.extra(ctx);
+      x.el.classList.add('hidden-mode');
+      extras.set(id, x);
+      bar.insertBefore(x.el, exit);
+    }
     const frame = h('div', { class: 'mode-frame hidden', 'aria-hidden': 'true' });
     document.body.append(frame, bar);
 
     let current = 'select';
+    let syncT = 0;
     const show = (id: string) => {
       current = id;
       const m = MODES[id];
@@ -84,6 +154,10 @@ export const modeModule: GameModule = {
         frame.classList.toggle(`tone-${t}`, m?.tone === t);
       }
       bar.classList.toggle('hidden', !m);
+      for (const [eid, x] of extras) {
+        x.el.classList.toggle('hidden-mode', eid !== id);
+        if (eid === id) x.sync?.();
+      }
       frame.classList.toggle('hidden', !m);
       document.body.classList.toggle('tool-mode', !!m);
       if (!m) return;
@@ -105,9 +179,13 @@ export const modeModule: GameModule = {
       id: 'mode.banner',
       phase: 'render',
       order: 106,
-      update: () => {
+      update: (_c, f) => {
         const off = ctx.tools.suspended || ctx.loading || !!ctx.services.tryGet('moments')?.playing;
         bar.classList.toggle('mb-off', off);
+        if (!off && (syncT += f.dt) > 0.2) {
+          syncT = 0;
+          extras.get(current)?.sync?.();
+        }
         frame.classList.toggle('mb-off', off);
       },
     });

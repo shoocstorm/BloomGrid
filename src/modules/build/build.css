@@ -29,6 +29,7 @@
   height: 18px;
 }
 .build-fab kbd,
+.build-quick kbd,
 .bd-done kbd {
   font: inherit;
   color: inherit;
@@ -41,6 +42,58 @@
   opacity: 0.6;
 }
 body.building .build-fab {
+  display: none;
+}
+/* The launcher row (D-212): Highway · Build · Remove, bottom-centre on desktops. */
+.build-launch {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.build-launch .build-fab {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
+}
+.build-launch .build-fab:hover {
+  transform: translateY(-2px);
+}
+.build-quick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 8px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--pill);
+  background: var(--bg-strong);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.03em;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+}
+.build-quick:hover {
+  transform: translateY(-2px);
+  background: var(--bg-hover);
+}
+.build-quick .ico {
+  width: 16px;
+  height: 16px;
+}
+.build-quick.bq-bulldoze {
+  border-color: rgba(255, 90, 110, 0.55);
+  color: var(--crit);
+}
+.build-quick.bq-bulldoze:hover {
+  background: rgba(255, 90, 110, 0.12);
+}
+body.building .build-quick {
   display: none;
 }
 
@@ -137,10 +190,87 @@ body:not(.compact) .build {
   margin: 12px 0 5px;
 }
 
-/* Actions: icon tiles, four a row, label under the icon; the hotkey as a corner badge. */
+/* Highway and Remove (D-212): two large tiles, icon in a tinted square, label and a how-to line. */
+.bd-primary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.build .bd-big {
+  --tone: var(--accent);
+  --tone-bg: rgba(95, 242, 218, 0.14);
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 10px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: rgba(95, 242, 218, 0.05);
+  color: var(--ink);
+  text-align: left;
+}
+.build .bd-big {
+  position: relative;
+}
+.build .bd-big kbd {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  padding: 0 4px;
+  font-size: 9.5px;
+  opacity: 0.65;
+}
+.build .bd-big-bulldoze {
+  --tone: var(--crit);
+  --tone-bg: rgba(255, 90, 110, 0.16);
+  border-color: rgba(255, 90, 110, 0.5);
+  background: rgba(255, 90, 110, 0.05);
+}
+.build .bd-big .g {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  background: var(--tone-bg);
+  color: var(--tone);
+  font-size: 19px;
+}
+.build .bd-big-t {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.build .bd-big-t b {
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.build .bd-big-t b,
+.build .bd-big-t small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.build .bd-big-t small {
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: var(--ink-soft);
+}
+.build .bd-big:hover {
+  background: var(--tone-bg);
+}
+.build .bd-big.on {
+  background: var(--tone-bg);
+  border-color: var(--tone);
+  box-shadow: inset 0 0 0 1px var(--tone);
+}
+/* The other actions: small icon tiles, five a row, label under the icon. */
 .bd-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 2px;
 }
 .build .bd-action {
@@ -149,25 +279,17 @@ body:not(.compact) .build {
   flex-direction: column;
   justify-content: center;
   gap: 4px;
-  padding: 8px 2px 6px;
-  font-size: 11px;
+  padding: 6px 2px 5px;
+  font-size: 10.5px;
 }
 .build .bd-action .g {
-  font-size: 17px;
+  font-size: 15px;
 }
 .build .bd-action .l {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.build .bd-action kbd {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  padding: 0 3px;
-  font-size: 8.5px;
-  opacity: 0.6;
 }
 /* Categories: chips, three a row. */
 .bd-cats {
@@ -226,6 +348,39 @@ body:not(.compact) .build {
 }
 .compact.building .dock-row {
   display: none;
+}
+.compact .dock-row .build-launch {
+  position: static;
+  transform: none;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+}
+.compact .dock-row .build-quick {
+  flex: none;
+  align-self: stretch;
+  padding: 0 12px;
+  box-shadow: none;
+}
+.compact .dock-row .build-quick kbd,
+.compact .dock-row .build-quick span {
+  display: none;
+}
+.compact .dock-row .build-quick .ico {
+  width: 19px;
+  height: 19px;
+}
+.compact .bd-primary {
+  margin: 0;
+}
+.compact .build .bd-big {
+  padding: 7px 9px;
+}
+.compact .build .bd-big .g {
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
 }
 .compact .build {
   position: static;

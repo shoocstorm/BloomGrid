@@ -87,12 +87,15 @@ export class ToolManager {
         this.setActive(this.defaultTool);
         return true;
       }
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false;
       for (const t of this.tools.values()) {
-        // Already on: let the key through (Esc on the inspect tool reaches dialogs and the data lens).
-        if (t.hotkey && t.hotkey === e.code && !e.ctrlKey && !e.metaKey && t.id !== this.active?.id) {
-          this.setActive(t.id);
-          return true;
-        }
+        if (!t.hotkey || t.hotkey !== e.code) continue;
+        // Already on: a tool's own key puts it down again (H, R); the inspect tool lets it through (Esc on it
+        // reaches dialogs and the data lens).
+        if (t.id !== this.active?.id) this.setActive(t.id);
+        else if (t.id !== this.defaultTool) this.setActive(this.defaultTool);
+        else continue;
+        return true;
       }
       return false;
     });

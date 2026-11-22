@@ -20,6 +20,7 @@ import { placeBuilding, placementMatrices } from './BuildingRenderer';
 import type { Ghost } from './Ghost';
 import { buildBlock } from '@/sim/buildGate';
 import { isTouchDevice } from '@/platform/device';
+import { Vector3 } from 'three/webgpu';
 
 declare module '@/core/EventBus' {
   interface GameEvents {
@@ -136,8 +137,11 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
    * where it would land; the ghost shows it there, green or red.
    */
   let carry: { eid: number; rot: number; at: { x: number; z: number; ok: boolean } | null; key: string } | null = null;
+  /** Where the carried building was last aimed (rotating on touch keeps it there). */
+  let carryHit: GroundHit | null = null;
   const carryAt = (ctx: GameContext, hit: GroundHit | null) => {
     if (!carry) return;
+    if (hit?.inBounds) carryHit = { point: hit.point.clone(), tx: hit.tx, tz: hit.tz, inBounds: true };
     const { city } = ctx;
     const def = city.buildingDef(carry.eid);
     const [w, d] = city.footprint(def, carry.rot);
@@ -162,7 +166,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
     const loses = plan.bridges ? ` · ${plan.bridges} sky-bridge${plan.bridges > 1 ? 's' : ''} come${plan.bridges > 1 ? '' : 's'} down` : '';
     ctx.bus.emit('tool:tooltip', {
       text: plan.ok
-        ? `Move ${def.name} here · ${fmt(plan.fee)} ◈ · R to rotate · Esc to cancel${loses}${plan.warning ? ` · ⚠ ${plan.warning}` : ''}`
+        ? `Move ${def.name} here · ${fmt(plan.fee)} ◈${isTouchDevice() ? (moveDrag ? ' · lift to drop' : ' · tap again to move') : ' · R to rotate · Esc to cancel'}${loses}${plan.warning ? ` · ⚠ ${plan.warning}` : ''}`
         : `${def.name} — ${plan.reason}`,
       tone: plan.ok && !plan.warning && !plan.bridges ? 'ok' : 'bad',
     });
@@ -231,7 +235,8 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
       if (group.length) ghost.showTiles(groupTiles);
     },
     down(ctx, hit, e) {
-      if (e.touch || !hit?.inBounds) return;
+      if (e.touch) return armLongPress(ctx, hit);
+      if (!hit?.inBounds) return;
       // Shift + drag picks a building up and carries it to a new lot.
       if (e.shift && !e.ctrl) {
         const over = pick(ctx, hit);
@@ -249,6 +254,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
       ctx.cameraCtl.dragPan = false;
     },
     cancel(ctx) {
+      disarmLongPress();
       if (rect) endRect(ctx);
       if (carry) endCarry(ctx);
       ghost.showTiles(groupTiles);
@@ -267,6 +273,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
       return false;
     },
     up(ctx, hit) {
+      disarmLongPress();
       if (carry) {
         const { eid, rot, at } = carry;
         endCarry(ctx);
@@ -299,6 +306,142 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
       else if (over?.kind === 'object') ctx.bus.emit('selection:changed', { eid: null, object: over.object });
       else if (over?.kind === 'road') ctx.bus.emit('selection:changed', { eid: null, road: over.tile });
       else ctx.bus.emit('selection:changed', { eid: selected });
+    },
+  };
+
+  /**
+   * Moving on touch (D-212): a long press on a building picks it up under the finger (drag, lift on a green lot to
+   * move it); the inspector's Move does the same on any device. While it is in hand, a tap previews a lot and a
+   * second tap on it moves the building; a press on the preview drags it again; one finger elsewhere pans.
+   */
+  const LONG_PRESS_MS = 450;
+  let pressTimer = 0;
+  /** The finger is dragging the carried building (camera panning is off until it lifts). */
+  let moveDrag = false;
+  let moveEid: number | null = null;
+  const disarmLongPress = () => {
+    clearTimeout(pressTimer);
+    pressTimer = 0;
+  };
+  const armLongPress = (ctx: GameContext, hit: GroundHit | null) => {
+    disarmLongPress();
+    const over = pick(ctx, hit);
+    if (over?.kind !== 'building') return;
+    pressTimer = window.setTimeout(() => {
+      pressTimer = 0;
+      const { input } = ctx;
+      // Still one finger, still where it pressed: a long press, not a pan or a pinch.
+      if (!input.buttons.has(0) || input.gesture || !input.isTap || ctx.tools.active?.id !== 'select') return;
+      try {
+        navigator.vibrate?.(18);
+      } catch {
+        /* no haptics */
+      }
+      startMove(ctx, over.eid, true);
+    }, LONG_PRESS_MS);
+  };
+  const holdPan = (ctx: GameContext, held: boolean) => {
+    moveDrag = held;
+    ctx.cameraCtl.dragPan = !held;
+    ctx.cameraCtl.touchPan = !held;
+  };
+  /** Picks building `eid` up in the move tool; `drag`: a finger is already on it (long press). */
+  const startMove = (ctx: GameContext, eid: number, drag = false) => {
+    if (!ctx.city.buildingEntities().includes(eid)) return;
+    moveEid = eid;
+    if (ctx.tools.active?.id === 'move') ctx.tools.active.activate?.(ctx);
+    else ctx.tools.setActive('move');
+    if (drag) holdPan(ctx, true);
+    // Show it where it stands first (red "Already here"), so the steward sees what is in hand.
+    if (carry) {
+      const r = ctx.city.buildingRecord(eid);
+      const [w, d] = ctx.city.footprint(ctx.city.buildingDef(eid), r.rot);
+      const g = ctx.city.grid;
+      const hit = ctx.tools.hit;
+      if (drag && hit?.inBounds) carryAt(ctx, hit);
+      else carryAt(ctx, { point: new Vector3(r.x + w / 2, g.heightAt(r.x + w / 2, r.z + d / 2), r.z + d / 2), tx: r.x, tz: r.z, inBounds: true });
+    }
+  };
+  const rotateMove = (ctx: GameContext, back = false) => {
+    if (!carry) return;
+    carry.rot = (carry.rot + (back ? 3 : 1)) % 4;
+    carryAt(ctx, carryHit);
+  };
+  /** Moves the carried building to where it is aimed; true when it moved. */
+  const dropCarry = (ctx: GameContext): boolean => {
+    if (!carry?.at?.ok) return false;
+    const { eid, rot, at } = carry;
+    const r = ctx.city.buildingRecord(eid);
+    const name = ctx.city.buildingDef(eid).name;
+    if (!ctx.commands.execute('move', { from: [r.x, r.z], x: at.x, z: at.z, rot })) return false;
+    ctx.bus.emit('toast', { text: `${name} takes root on its new lot`, tone: 'ok' });
+    const moved = ctx.city.buildingAt(at.x, at.z);
+    ctx.tools.setActive('select');
+    selected = moved;
+    ctx.bus.emit('selection:changed', { eid: moved });
+    return true;
+  };
+  /** The press landed on the carried building's preview (with a tile of slack for fingers). */
+  const onPreview = (ctx: GameContext, hit: GroundHit | null) => {
+    if (!carry?.at || !hit?.inBounds) return false;
+    const [w, d] = ctx.city.footprint(ctx.city.buildingDef(carry.eid), carry.rot);
+    const { x, z } = carry.at;
+    return hit.tx >= x - 1 && hit.tx <= x + w && hit.tz >= z - 1 && hit.tz <= z + d;
+  };
+  /** The tap that previewed the current spot (touch: a second tap there moves). */
+  let previewKey = '';
+
+  const move: Tool = {
+    id: 'move',
+    label: 'Move building',
+    icon: '✥',
+    dragPan: true,
+    activate(ctx) {
+      if (moveEid === null || !ctx.city.buildingEntities().includes(moveEid)) return;
+      carry = { eid: moveEid, rot: ctx.city.buildingRecord(moveEid).rot, at: null, key: '' };
+      carryHit = null;
+      previewKey = '';
+      ghost.showTiles([]);
+    },
+    deactivate(ctx) {
+      holdPan(ctx, false);
+      if (carry) endCarry(ctx);
+      moveEid = null;
+    },
+    hover(ctx, hit) {
+      if (!carry) return;
+      // A mouse carries it under the cursor; a finger only while dragging it (taps aim it otherwise).
+      if (moveDrag || !ctx.input.touch) carryAt(ctx, hit);
+    },
+    down(ctx, hit, e) {
+      if (e.touch && onPreview(ctx, hit)) holdPan(ctx, true);
+    },
+    cancel(ctx) {
+      holdPan(ctx, false);
+    },
+    up(ctx, hit, e) {
+      if (!carry) return ctx.tools.setActive('select');
+      if (moveDrag) {
+        holdPan(ctx, false);
+        // Lifted on a green lot: it moves. On a red one it stays in hand there, the tooltip saying why.
+        dropCarry(ctx);
+        previewKey = '';
+        return;
+      }
+      if (!ctx.input.isTap) return;
+      carryAt(ctx, hit);
+      if (!e.touch) {
+        if (!dropCarry(ctx) && carry?.at) ctx.bus.emit('toast', { text: `Can't move it here`, tone: 'bad' });
+        return;
+      }
+      const key = carry.key;
+      if (key && key === previewKey && dropCarry(ctx)) return;
+      previewKey = key;
+    },
+    key(ctx, e) {
+      if (e.code !== 'KeyR') return false;
+      rotateMove(ctx, e.shiftKey);
+      return true;
     },
   };
 
@@ -502,6 +645,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
     id: 'road',
     label: 'Living Highway',
     icon: '≋',
+    hotkey: 'KeyH',
     grid: true,
     activate: () => (dragStart = null),
     deactivate: () => {
@@ -558,6 +702,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
     id: 'bulldoze',
     label: 'Return to Nature',
     icon: '⌫',
+    hotkey: 'KeyR',
     activate: () => ghost.setValid(false),
     deactivate: () => ghost.hideAll(),
     hover(ctx, hit) {
@@ -813,7 +958,7 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
     },
   };
 
-  const tools = [select, place, road, bulldoze, channel, retrofit, mist, reclaim, weave];
+  const tools = [select, place, road, bulldoze, channel, retrofit, mist, reclaim, weave, move];
   for (const t of tools) {
     const activate = t.activate;
     t.activate = (ctx) => {
@@ -821,5 +966,5 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
       activate?.(ctx);
     };
   }
-  return tools;
+  return Object.assign(tools, { startMove, rotateMove, moving: () => moveEid });
 }

@@ -66,6 +66,7 @@ const ICONS: Record<string, string> = {
   'st-link': '<path d="M4.5 10.5a10.6 10.6 0 0 1 15 0M7.6 13.8a6.2 6.2 0 0 1 8.8 0"/><circle class="f" cx="12" cy="17.6" r="1.9"/>',
   eraser: '<path d="m8 20.5-4.6-4.6a1.5 1.5 0 0 1 0-2.1L13.3 3.9a1.5 1.5 0 0 1 2.1 0l4.7 4.7a1.5 1.5 0 0 1 0 2.1L10.4 20.5zM20.5 20.5H8M6 11l7 7"/>',
   stop: '<rect class="f" x="6.5" y="6.5" width="11" height="11" rx="2.6"/>',
+  move: '<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
   rotate: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 3.5V9h-5.5"/>',
   maximize: '<path d="M14 4h6v6M10 20H4v-6M20 4l-6.5 6.5M4 20l6.5-6.5"/>',
   restore: '<path d="M4 14h6v6M20 10h-6V4M10 14l-6.5 6.5M14 10l6.5-6.5"/>',

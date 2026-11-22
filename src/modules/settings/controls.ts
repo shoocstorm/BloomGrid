@@ -35,7 +35,9 @@ export function controlsPane(ctx: GameContext): HTMLElement[] {
       group('build', 'Build', [
         ['Open build mode', '~Build button'],
         ['Place a building', '~tap a lot'],
+        ['Highway · Remove', '~buttons beside Build'],
         ['Draw a highway or channel', '~drag'],
+        ['Move a building', '~long-press it, drag'],
         ['Leave build mode', '~Done'],
       ]),
       group('eye', 'City', [
@@ -57,7 +59,8 @@ export function controlsPane(ctx: GameContext): HTMLElement[] {
     group('build', 'Build', [
       ['Build mode', 'B'],
       ['Put down · leave', 'Esc', '~right-click'],
-      ['Rotate', 'R'],
+      ['Rotate (placing, moving)', 'R'],
+      ['Move a building', 'Shift-drag', '~Move in its inspector'],
       ...BUILD_TOOLS.filter((t) => ctx.tools.get(t)?.hotkey).map((t): Row => [ctx.tools.get(t)!.label, key(t)]),
       ['Select many of a kind', `${MOD}-drag`],
       ['Remove the selection', 'Delete'],
@@ -81,7 +84,7 @@ export function controlsPane(ctx: GameContext): HTMLElement[] {
       ['Ask Flora', 'U'],
       ['Seedvault: guides, runbooks, logs', '?', 'F1'],
       ['Mute', ','],
-      ['Controls (this tab)', 'H'],
+      ['Controls (this tab)', 'Shift+H'],
       ['Performance overlay', 'F3'],
     ]),
   ];

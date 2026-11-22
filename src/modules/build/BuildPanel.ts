@@ -10,8 +10,13 @@ import { ACTION_HELP, buildingAbilities, buildingStats } from '@/ui/buildHelp';
 import { gateSteps } from '@/ui/gateSteps';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
-/** Build actions in the panel, in order. Inspect is not one: leaving build mode (Done, Esc) is. */
-const ACTIONS = ['road', 'channel', 'bulldoze', 'retrofit', 'mist', 'weave', 'reclaim'];
+/**
+ * Build actions in the panel, in order. Inspect is not one: leaving build mode (Done, Esc) is. Highway and Remove
+ * are by far the most used, so they get large tiles of their own (and quick buttons beside the launcher, D-212);
+ * the rest share a compact row.
+ */
+const PRIMARY = ['road', 'bulldoze'];
+const ACTIONS = [...PRIMARY, 'channel', 'retrofit', 'mist', 'weave', 'reclaim'];
 const CAT_KEY = 'bloomgrid.build.category';
 /** "Keep placing" (D-174): the building stays in hand after a placement; off by default (one placement, then out). */
 const KEEP_KEY = 'bloomgrid.build.keep';
@@ -68,6 +73,8 @@ export class BuildPanel {
   readonly el: HTMLElement;
   /** The launcher: bottom-centre on desktops, beside Flora's orb on phones. */
   readonly fab: HTMLElement;
+  /** The launcher between the quick Highway and Remove buttons. */
+  private launch!: HTMLElement;
   private actionBtns = new Map<string, HTMLElement>();
   private catBtns = new Map<BuildingCategory, HTMLElement>();
   private cards = new Map<string, HTMLElement>();
@@ -171,26 +178,31 @@ export class BuildPanel {
       done,
     );
 
+    const primary = h('div', { class: 'bd-primary' });
     const actions = h('div', { class: 'bd-actions' });
     for (const id of ACTIONS) {
       const t = ctx.tools.get(id);
       if (!t) continue;
-      const key = t.hotkey?.replace('Key', '');
+      const big = PRIMARY.includes(id);
+      const help = ACTION_HELP[id];
+      const key = touch ? '' : (t.hotkey?.replace('Key', '') ?? '');
       const b = h(
         'button',
         {
-          class: 'tool bd-action',
+          class: big ? `tool bd-big bd-big-${id}` : 'tool bd-action',
           title: `${t.label}${key ? ` (${key})` : ''}`,
           'aria-label': t.label,
           onClick: () => ctx.tools.setActive(ctx.tools.active?.id === id ? 'select' : id),
         },
         h('span', { class: 'g' }, icon(id, t.icon)),
-        h('span', { class: 'l' }, ACTION_HELP[id]?.short ?? t.label),
+        big
+          ? h('span', { class: 'bd-big-t' }, h('b', {}, help?.short ?? t.label), h('small', {}, help?.line ?? ''))
+          : h('span', { class: 'l' }, help?.short ?? t.label),
         key ? h('kbd', {}, key) : null,
       );
       this.hoverPeek(b, { tool: id });
       this.actionBtns.set(id, b);
-      actions.append(b);
+      (big ? primary : actions).append(b);
     }
 
     const cats = h('div', { class: 'bd-cats', role: 'tablist' });
@@ -223,6 +235,7 @@ export class BuildPanel {
         'div',
         { class: 'bd-scroll' },
         h('div', { class: 'pulse-title bd-sec' }, 'Actions'),
+        primary,
         actions,
         h('div', { class: 'pulse-title bd-sec' }, 'Buildings'),
         cats,
@@ -244,6 +257,25 @@ export class BuildPanel {
       touch ? null : h('kbd', {}, 'B'),
       this.fabBadge,
     );
+    // Quick Highway / Remove either side of the launcher: one click from the city view (D-212).
+    const quick = (id: string, label: string) => {
+      const t = ctx.tools.get(id);
+      const key = touch ? '' : (t?.hotkey?.replace('Key', '') ?? '');
+      const b = h(
+        'button',
+        {
+          class: `build-quick bq-${id}`,
+          title: `${t?.label ?? label}${key ? ` (${key})` : ''}`,
+          'aria-label': t?.label ?? label,
+          onClick: () => ctx.tools.setActive(id),
+        },
+        icon(id, t?.icon),
+        h('span', {}, label),
+        key ? h('kbd', {}, key) : null,
+      );
+      return b;
+    };
+    this.launch = h('div', { class: 'build-launch' }, quick('road', 'Highway'), this.fab, quick('bulldoze', 'Remove'));
     ctx.hud.append(this.el, this.float);
     this.el.addEventListener('pointerleave', () => this.releaseHeight());
     // Phones: the sheet sits in the bottom dock (the tool hint above it) and the launcher beside Flora's orb.
@@ -252,8 +284,8 @@ export class BuildPanel {
       if (compact) {
         hud.dock.insertBefore(this.el, hud.dockRow);
         // "Another …" sits in the dock row beside the launcher (above it, the milestone strip would cover it).
-        hud.dockRow.prepend(this.again, this.fab);
-      } else ctx.hud.append(this.el, this.fab, this.again);
+        hud.dockRow.prepend(this.again, this.launch);
+      } else ctx.hud.append(this.el, this.launch, this.again);
       this.placeFloat();
     };
     place(isCompact());

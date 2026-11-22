@@ -160,3 +160,45 @@ body.view-max .jc-stack {
     opacity 0.2s ease,
     visibility 0s linear 0.2s;
 }
+
+/* Banner extras (D-212): Upgrade all in highway mode, Rotate while moving a building. */
+.mb-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in srgb, var(--mb-c) 55%, transparent);
+  border-radius: var(--pill);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.mb-act:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mb-c) 22%, transparent);
+}
+.mb-act:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.mb-act b {
+  color: var(--warn);
+  font: 600 11.5px/1 var(--mono);
+}
+.mb-act .ico {
+  width: 14px;
+  height: 14px;
+}
+.mb-act.hidden-mode,
+.mb-act.hidden {
+  display: none;
+}
+.mb-act {
+  margin-left: auto;
+}
+.mb-act:not(.hidden-mode):not(.hidden) ~ .mb-exit {
+  margin-left: 0;
+}
+.compact .mb-act {
+  padding: 6px 10px;
+}

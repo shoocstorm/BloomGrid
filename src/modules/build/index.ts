@@ -1,6 +1,9 @@
 import type { GameModule } from '@/game/context';
 import type { BuildingCategory } from '@/content/types';
-import { isCompact } from '@/platform/device';
+import { isCompact, isTouchDevice } from '@/platform/device';
+import { h } from '@/ui/dom';
+import { icon } from '@/ui/icons';
+import { moveFee } from '@/sim/relocate';
 import { BuildPanel, type BuildTab } from './BuildPanel';
 import { buildings } from '@/content';
 import { buildBlock } from '@/sim/buildGate';
@@ -20,6 +23,9 @@ export interface BuildService {
 }
 
 export type { BuildTab };
+
+/** Tools whose putting-down closes build mode instead of returning to the panel (D-212). */
+const QUICK = ['road', 'bulldoze'];
 
 declare module '@/core/Services' {
   interface GameServices {
@@ -83,9 +89,36 @@ export const buildModule: GameModule = {
     };
     ctx.services.provide('build', service);
 
+    // Move in every building's inspector (D-212): the way to relocate on a phone (or a long press on the building).
+    ctx.services.get('hud').buildingActions((eid) => [
+      h(
+        'button',
+        {
+          class: 'tool',
+          title: isTouchDevice()
+            ? `Move it to another lot (◈${moveFee(ctx.city, eid).toLocaleString()}; or long-press the building)`
+            : `Move it to another lot (◈${moveFee(ctx.city, eid).toLocaleString()}; or Shift-drag it)`,
+          onClick: () => ctx.services.get('construction').startMove(eid),
+        },
+        h('span', { class: 'g' }, icon('move')),
+        'Move',
+      ),
+    ]);
+
     // Any build tool (a hotkey, Flora, the advisor's "build one") opens the panel, so there is always a way out.
+    // Putting Highway or Remove down (Exit, Esc, right-click) leaves build mode altogether: they are quick tools,
+    // picked mostly from the launcher, and the panel coming back afterwards was in the way (D-212).
+    let held = 'select';
     ctx.bus.on('tool:changed', ({ id }) => {
-      if (id !== 'select') {
+      const was = held;
+      held = id;
+      if (id === 'select' && QUICK.includes(was) && panel.open && panel.currentTab === 'build') {
+        panel.toolChanged(id);
+        setOpen(false);
+        return;
+      }
+      // Moving a building is not build mode: the inspector's Move or a long press, straight on the map.
+      if (id !== 'select' && id !== 'move') {
         setOpen(true);
         panel.selectTab('build');
       }

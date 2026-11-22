@@ -25,7 +25,8 @@ Every highway has a level, and each level carries more traffic before it jams:
 
 New highways start as raw tracks. Traffic wears them in: a used track is paved into a Living Highway on its own,
 and a busy highway grows into a boulevard. To speed it up, click a highway and **Upgrade** the stretch (◈8 a tile
-to pave, ◈18 a tile for a boulevard), or ask Flora (*"pave the roads in Old Harbour"*).
+to pave, ◈18 a tile for a boulevard), press **Upgrade all** on the highway banner (**H**) to raise every highway one
+level when the treasury covers it, or ask Flora (*"pave the roads in Old Harbour"*).
 
 ## The mobility tier
 

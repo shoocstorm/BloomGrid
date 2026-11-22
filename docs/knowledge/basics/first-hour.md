@@ -3,7 +3,7 @@ id: basics-first-hour
 title: The first hour on a fresh island
 category: basics
 summary: A practical opening for a new island: fishing income, the first homes and utilities, and what to unlock first.
-tags: [start, new game, fresh island, fishing, opening, early game, move building, relocate, place several, keep placing, build mode closes, shift click]
+tags: [start, new game, fresh island, fishing, opening, early game, move building, relocate, long press, drag building, place several, keep placing, build mode closes, shift click]
 related: [playbooks-fresh-island, systems-budget, systems-power]
 order: 3
 ---
@@ -49,7 +49,9 @@ until you press **Done** (or **Esc**), or until you can't afford or fit another,
 ## 6. Move a building to a better lot
 
 Placed something in the wrong spot? Hold **Shift** and drag the building (in Inspect, the default tool) to a new
-lot: the ghost turns green where it fits, **R** turns it, **Esc** cancels. Moving costs 10% of the building's price
+lot, or press **Move** in its inspector; on a phone, **long-press** the building and drag it (lift on a green lot),
+or tap Move, tap a lot and tap it again. The ghost turns green where it fits, **R** (or Rotate) turns it, **Esc** or
+Exit cancels. Moving costs 10% of the building's price
 and keeps its level, age and greenery, so it beats demolishing and rebuilding (that refunds only half). A burning
 building or a ruin can't move, and sky-bridges woven to a moved tower come down. Undo puts it back.
 
