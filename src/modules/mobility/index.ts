@@ -753,13 +753,15 @@ export const mobilityModule: GameModule = {
         // Explore modes put the camera among the lanes: no thickening there.
         zoom.value = c.cameraCtl.enabled ? Math.max(1, Math.min(5, c.cameraCtl.distance / 55)) : 1;
         agentsNear = within(agentsNear, c.cameraCtl.distance, 240);
-        agents.visible = agents.count > 0 && agentsNear;
-        pods.visible = pods.count > 0;
-        lanes.visible = lanes.count > 0;
-        rings.visible = rings.count > 0;
+        // The time-lapse (D-219) replays the streets and hubs rising: no traffic over a veiled island.
+        const replay = !!ctx.services.tryGet('timelapse')?.playing;
+        agents.visible = agents.count > 0 && agentsNear && !replay;
+        pods.visible = pods.count > 0 && !replay;
+        lanes.visible = lanes.count > 0 && !replay;
+        rings.visible = rings.count > 0 && !replay;
         // The Aeroline builds after this module: re-land the transfer lanes once its deck height is known.
         if ((ctx.services.tryGet('aeroline')?.deck ?? 0) !== railDeck) buildSkylanes();
-        shafts.visible = shafts.count > 0;
+        shafts.visible = shafts.count > 0 && !replay;
       },
     });
   },

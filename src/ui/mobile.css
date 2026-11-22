@@ -917,6 +917,21 @@ body.compact.flora-open #hud > :not(.ai) {
   min-height: 40px;
 }
 
+/* The time-lapse's invitation (D-220): the ready call-out's slot, full width under the top bar on phones. */
+.compact .tli {
+  top: var(--chips);
+  left: var(--gut-l);
+  right: var(--gut-r);
+  width: auto;
+  max-width: none;
+  translate: none;
+}
+.compact .tli-go,
+.compact .tli-later,
+.compact .tlf-go {
+  min-height: 40px;
+}
+
 /* The way back after a ceremony (D-209): full width under the top bar on phones. */
 .compact .mr {
   top: var(--chips);

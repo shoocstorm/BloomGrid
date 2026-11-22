@@ -330,8 +330,10 @@ export const walkersModule: GameModule = {
         const d = c.cameraCtl.distance;
         detail = within(detail, d, NEAR_DETAIL);
         seen = within(seen, d, SHOW_WITHIN);
-        mesh.visible = mesh.count > 0 && (explore || detail);
-        far.visible = far.count > 0 && !explore && !detail && seen;
+        // Nobody walks the streets of a time-lapse (D-219): they are still being laid.
+        const replay = !!ctx.services.tryGet('timelapse')?.playing;
+        mesh.visible = mesh.count > 0 && (explore || detail) && !replay;
+        far.visible = far.count > 0 && !explore && !detail && seen && !replay;
         for (const w of wildlife) w.mesh.visible = explore && w.mesh.count > 0;
       },
     });

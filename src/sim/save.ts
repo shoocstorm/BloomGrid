@@ -1,6 +1,7 @@
 import { createCharterState, type CharterState } from './charterState';
 import { createStoryState, type StoryState } from './storyState';
 import { createChronicleState, type ChronicleState } from './chronicleState';
+import { createHistoryState, type GoneRecord, type HistoryMark, type HistorySample } from './historyState';
 import { createPolicyState, type PolicyState } from './policyState';
 import type { ApprovalState } from './approvalState';
 import { roadLevels, roadWear } from './roads';
@@ -16,7 +17,7 @@ import { createHappeningState, type HappeningState } from './happeningState';
 import { builderCode, builderFromCode } from './builders';
 import { loadBridges, saveBridges, type BridgeSave } from './bridges';
 
-export const SAVE_VERSION = 27;
+export const SAVE_VERSION = 28;
 
 export interface SaveData {
   version: number;
@@ -62,6 +63,8 @@ export interface SaveData {
   stories: StoryState;
   /** The Chronicle (v26+, D-192). */
   chronicle: ChronicleState;
+  /** The history ledger (v28+, D-219): births and highway tiles as [uid | tile, tick], the rest as in `HistoryState`. */
+  history: HistorySave;
   /** Named highway bridges as [key, name, built tick, builder code] (v19+, D-128). */
   roadBridges: BridgeSave[];
   /** Ordinances, sector budgets and the business tax (v20+, plan v5 Phase 25). */
@@ -73,6 +76,18 @@ export interface SaveData {
   /** Feature modules persist their own state under their module id. */
   modules: Record<string, unknown>;
 }
+
+export interface HistorySave {
+  born: [number, number][];
+  roads: [number, number][];
+  gone: GoneRecord[];
+  tiers: [number, number, number][];
+  marks: HistoryMark[];
+  samples: HistorySample[];
+  every: number;
+}
+
+const emptyHistorySave = (): HistorySave => ({ born: [], roads: [], gone: [], tiers: [], marks: [], samples: [], every: createHistoryState().every });
 
 /** Steward state minus derived fields (recomputed every pulse / on load). */
 function persistable(st: StewardState): SaveData['steward'] {
@@ -222,6 +237,11 @@ export function migrateSave(data: SaveData): SaveData {
     data.fireworks.bought ??= 0;
     data.version = 27;
   }
+  if (data.version === 27) {
+    // The history ledger (v28, D-219): nothing recorded yet, so the city as it stands is its founding.
+    data.history = emptyHistorySave();
+    data.version = 28;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -260,6 +280,15 @@ export function serializeCity(city: City): SaveData {
     charters: structuredClone(city.charters),
     stories: structuredClone(city.stories),
     chronicle: structuredClone(city.chronicle),
+    history: {
+      born: [...city.history.born],
+      roads: [...city.history.roads],
+      gone: structuredClone(city.history.gone),
+      tiers: structuredClone(city.history.tiers),
+      marks: structuredClone(city.history.marks),
+      samples: structuredClone(city.history.samples),
+      every: city.history.every,
+    },
     policies: structuredClone(city.policies),
     approval: structuredClone(city.approval.districts),
     roadBridges: saveBridges(city),
@@ -331,6 +360,17 @@ export function deserializeCity(city: City, input: SaveData): void {
     Service.occupancy[eid] = occupancy;
   }
   city.nextUid = Math.max(city.nextUid, data.nextUid);
+  // Last: adding the buildings above noted them as born at the save's tick; the saved ledger knows better.
+  const hs = data.history;
+  city.history = {
+    born: new Map(hs.born),
+    roads: new Map(hs.roads),
+    gone: structuredClone(hs.gone),
+    tiers: structuredClone(hs.tiers),
+    marks: structuredClone(hs.marks),
+    samples: structuredClone(hs.samples),
+    every: hs.every,
+  };
 }
 
 const round3 = (v: number) => Math.round(v * 1000) / 1000;

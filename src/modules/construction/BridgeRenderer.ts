@@ -65,6 +65,9 @@ export class BridgeRenderer {
     this.dressed.clear();
   }
 
+  /** Deck tiles veiled for a replay (the road renderer's veil, D-219), or null. */
+  hidden: ((t: number) => boolean) | null = null;
+
   rebuild(): void {
     this.clear();
     const g = this.ctx.city.grid;
@@ -72,6 +75,8 @@ export class BridgeRenderer {
     for (const sp of findBridgeSpans(g, BRIDGE_MIN)) {
       const tiles: number[] = [];
       for (let k = 0; k < sp.len; k++) tiles.push(sp.alongX ? g.index(sp.x + k, sp.z) : g.index(sp.x, sp.z + k));
+      // A span with a deck tile veiled for a replay (D-219) waits until the whole deck is back.
+      if (this.hidden && tiles.some(this.hidden)) continue;
       // A span being built grows its structure once its deck has closed (D-128).
       const ds = tiles.map((t) => this.delays.get(t)).filter((d): d is number => d !== undefined);
       this.grow = ds.length ? Math.max(...ds) + 0.25 : -1;

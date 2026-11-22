@@ -32,7 +32,8 @@ export const goalsModule: GameModule = {
     const call = new ReadyCall(ctx);
     /** Replays (D-181): every film this city has earned, as one-click chips. */
     const replays = (): HTMLElement[] => {
-      const films = ctx.services.tryGet('moments')?.films() ?? [];
+      // The time-lapse has its own featured card (D-220); the rest are chips.
+      const films = (ctx.services.tryGet('moments')?.films() ?? []).filter((f) => f.id !== 'timelapse');
       if (!films.length) return [];
       return [
         h('div', { class: 'pulse-title' }, `Replays · ${films.length}`),
@@ -51,7 +52,14 @@ export const goalsModule: GameModule = {
         ),
       ];
     };
-    const filmsKey = () => (ctx.services.tryGet('moments')?.films() ?? []).map((f) => f.id).join();
+    const tl = () => ctx.services.tryGet('timelapse');
+    /** The time-lapse's featured card (D-220): first in the tab, so the player sees their island's story is there. */
+    const feature = (): HTMLElement[] => {
+      const c = tl()?.card();
+      return c ? [c] : [];
+    };
+    const filmsKey = () =>
+      `${(ctx.services.tryGet('moments')?.films() ?? []).map((f) => f.id).join()}|${tl()?.earned() ? `${tl()!.isNew ? 1 : 0}:${city.day}` : '-'}`;
     /** Read by the 1 Hz refresh: only while its tab is open. */
     const shown = () => tab.selected;
 
@@ -88,6 +96,7 @@ export const goalsModule: GameModule = {
         if (k === key) return;
         key = k;
         el.replaceChildren(
+          ...feature(),
           ...long.render(),
           ...replays(),
           h('div', { class: 'pulse-title' }, 'Unlocks'),
@@ -253,6 +262,7 @@ export const goalsModule: GameModule = {
         : [];
       const s = city.stats;
       const kids: (HTMLElement | null)[] = [
+        ...feature(),
         ...long.render(),
         h('div', { class: 'pulse-title' }, `Milestones · ${g.milestones.length} / ${MILESTONES.length}`),
         ...(milestones.length ? milestones : [h('p', { class: 'gl-note' }, 'Every milestone claimed. The island is in good hands.')]),
@@ -297,7 +307,10 @@ export const goalsModule: GameModule = {
       const ready =
         (g.progression
           ? PROJECT_IDS.filter((id) => projectStatus(city, id) === 'ready').length + claimableMilestones(city).length
-          : 0) + CHARTERS.reduce((a, c) => a + (claimable(city, c.id) > 0 ? 1 : 0), 0);
+          : 0) +
+        CHARTERS.reduce((a, c) => a + (claimable(city, c.id) > 0 ? 1 : 0), 0) +
+        // The island's own story, never watched yet (D-220).
+        (tl()?.unseen ? 1 : 0);
       tab.setBadge(ready ? String(ready) : '', ready ? 'warn' : '');
       // A project ready to start calls out on every screen (D-181).
       call.tick();

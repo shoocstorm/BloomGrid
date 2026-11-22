@@ -10,6 +10,9 @@ import { createTools, type BuildState } from './tools';
 
 export interface ConstructionService {
   renderer: BuildingRenderer;
+  /** Highway surfaces and signature bridges (the time-lapse veils them, D-219). */
+  roads: RoadRenderer;
+  bridges: BridgeRenderer;
   /** Activates the build tool with a building definition. */
   startBuilding(defId: string): void;
   /** Picks a building up to move it (the move tool, D-212): a mouse carries it, a tap aims it and a second tap moves it. */
@@ -27,14 +30,22 @@ declare module '@/core/Services' {
   }
 }
 
+declare module '@/core/EventBus' {
+  interface GameEvents {
+    /** Render only (the time-lapse's veil, D-219): a building's pieces left the map or came back. */
+    'building:veiled': { eid: number; veiled: boolean };
+  }
+}
+
 /** Build mode: building + Living Highway rendering, placement ghost and construction tools. */
 export const constructionModule: GameModule = {
   id: 'construction',
   deps: ['world'],
   init(ctx) {
     const renderer = new BuildingRenderer(ctx);
-    new RoadRenderer(ctx, chunkSizeFor(ctx.city.size));
-    new BridgeRenderer(ctx);
+    const roads = new RoadRenderer(ctx, chunkSizeFor(ctx.city.size));
+    const bridges = new BridgeRenderer(ctx);
+    bridges.hidden = (t) => roads.isHidden(t);
     new ChannelRenderer(ctx, chunkSizeFor(ctx.city.size));
     const ghost = new Ghost(ctx.scene);
     const state: BuildState = { def: buildings.all()[0]!.id, rot: 0 };
@@ -43,6 +54,8 @@ export const constructionModule: GameModule = {
 
     ctx.services.provide('construction', {
       renderer,
+      roads,
+      bridges,
       state,
       startBuilding(defId) {
         state.def = defId;

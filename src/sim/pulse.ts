@@ -29,6 +29,7 @@ import type { BudgetSector } from './policyState';
 import { updateCondition, updateOvergrowth } from './upkeep';
 import { updateStewardship } from './steward';
 import { INCOME_SCALE, LABOUR_SHARE, PULSE_TICKS } from './pulseConst';
+import { sampleHistory } from './history';
 import { bloomLayers, computeBloom, computeIrrigation, computePairing } from './bloom';
 import { computeActivity } from './nightlife';
 import { computeMobility } from './mobility';
@@ -412,6 +413,8 @@ export const pulseSystem: System<SimCtx> = {
     // The director reads this pulse's settled state; the crisis step reads its dials on the next (Phase 27).
     updateDirector(city);
 
+    // The time-lapse's ledger (D-219): residents, credits and harmony now and then over the city's whole life.
+    sampleHistory(city, city.tick / PULSE_TICKS, population, s.happiness);
     // History.
     if ((city.tick / PULSE_TICKS) % HISTORY_EVERY === 0) {
       const sample: Record<(typeof HISTORY_METRICS)[number], number> = {

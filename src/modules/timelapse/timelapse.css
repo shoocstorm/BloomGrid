@@ -1,0 +1,151 @@
+/* "The Island Remembers" (plan v6, D-219): the time-lapse's overlay inside the letterbox (bars are 10vh). Transform
+   and opacity only; the counters change through textContent a few times a second. */
+
+.tl-hud {
+  position: absolute;
+  z-index: 3;
+  top: calc(10vh + 2.4vmin);
+  left: max(16px, 3.2vmin);
+  display: grid;
+  gap: 0.4vmin;
+  text-shadow: 0 1px 10px rgba(0, 20, 40, 0.65);
+  opacity: 0;
+  transform: translateY(-1vmin);
+  transition:
+    opacity 1.2s ease 0.4s,
+    transform 1.2s ease 0.4s;
+}
+.reel.tl.s-play .tl-hud {
+  opacity: 1;
+  transform: none;
+}
+.reel.tl.s-play.s-done .tl-hud,
+.reel.tl.s-play.s-done .tl-bar {
+  opacity: 0;
+  transition-delay: 0s;
+}
+.tl-kick {
+  margin: 0;
+  font-size: max(10px, 1.25vmin);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #bfe8ff;
+  opacity: 0.85;
+}
+.tl-name {
+  margin: 0;
+  font-size: max(15px, 2.4vmin);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.tl-day {
+  margin: 0.6vmin 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 1vmin;
+  font-family: var(--mono, ui-monospace, monospace);
+}
+.tl-day span {
+  font-size: max(11px, 1.4vmin);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.tl-dnum {
+  font-size: max(26px, 5.2vmin);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.tl-stats {
+  margin: 0;
+  display: flex;
+  gap: 2vmin;
+  font-size: max(11px, 1.45vmin);
+  opacity: 0.9;
+}
+.tl-stats b {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* The timeline: a hairline over the bottom bar, a fill and a head that run along it, pips for the moments. */
+.tl-bar {
+  position: absolute;
+  z-index: 3;
+  left: max(16px, 6vmin);
+  right: max(16px, 6vmin);
+  bottom: calc(10vh + 2vmin);
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 0;
+  transition: opacity 1.2s ease 0.6s;
+}
+.reel.tl.s-play .tl-bar {
+  opacity: 1;
+}
+.tl-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #7fc4ff, #e8f6ff);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.tl-headrail {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tl-head {
+  position: absolute;
+  left: 0;
+  top: -4px;
+  width: 100%;
+  height: 10px;
+  transform: translateX(0);
+}
+.tl-head::after {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 10px 2px rgba(127, 196, 255, 0.8);
+}
+.tl-pip {
+  position: absolute;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transition:
+    background 0.4s ease,
+    transform 0.4s ease;
+}
+.tl-pip.on {
+  transform: scale(1.35);
+  background: #fff;
+}
+.tl-pip.k-era.on,
+.tl-pip.k-wonder.on {
+  background: #ffe08a;
+}
+.tl-pip.k-crisis.on {
+  background: #ff9a7a;
+}
+
+.compact .tl-hud {
+  top: calc(10vh + 10px);
+  left: var(--gut-l, 16px);
+}
+.compact .tl-bar {
+  left: var(--gut-l, 16px);
+  right: var(--gut-r, 16px);
+}

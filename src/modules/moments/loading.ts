@@ -109,6 +109,13 @@ const PEARL = `<circle class="pulse" cx="50" cy="42" r="12" fill="#f4fbff"/><cir
 <path d="M8 62 q10.5 -8 21 0 t21 0 t21 0 t21 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
 <path d="M16 73 q8.5 -6 17 0 t17 0 t17 0 t17 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.6"/>`;
 
+/** A dial whose hand sweeps back (the time-lapse, D-219): the group's ring keeps its turn centred on the dial. */
+const DIAL = `<circle cx="50" cy="46" r="34" fill="none" stroke="currentColor" stroke-width="2.4"/>
+<circle cx="50" cy="46" r="27" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="1.5 6" opacity="0.7"/>
+<g class="turn" style="animation-direction:reverse"><circle cx="50" cy="46" r="34" fill="none" stroke="none"/><path d="M50 46 V20" stroke="#fff" stroke-width="3" stroke-linecap="round"/></g>
+<circle class="pulse" cx="50" cy="46" r="4.5" fill="currentColor"/>
+<path d="M14 88 q9 -6 18 0 t18 0 t18 0 t18 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.7"/>`;
+
 /** Each 3D film's loading beat. */
 export const INTROS = {
   stray: { kicker: 'Somewhere on the rooftops', title: 'Something is watching', emblem: EYES, accent: '#ffe27a', glow: '#ffb84a', motes: 'twinkle' },
@@ -116,4 +123,5 @@ export const INTROS = {
   flora: { kicker: 'Civic intelligence · cold boot', title: 'Waking BG-01', emblem: FLORA, accent: '#5ff2da', glow: '#2fd6b8', motes: 'rise', scan: true },
   remembers: { kicker: 'A chapter found', title: 'Remembering Halcyon', emblem: SEAL, accent: '#ffe6a8', glow: '#ffc870', motes: 'twinkle' },
   stirs: { kicker: 'Off the coast', title: 'Something stirs', emblem: PEARL, accent: '#9ffff0', glow: '#4fc8e8', motes: 'drift' },
+  timelapse: { kicker: 'From the Seedvault archive', title: 'Rewinding the island', emblem: DIAL, accent: '#bfe8ff', glow: '#7fc4ff', motes: 'rise' },
 } satisfies Record<string, FilmIntro>;

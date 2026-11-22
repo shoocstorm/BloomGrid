@@ -135,6 +135,14 @@ export const windModule: GameModule = {
       turbines.splice(i, 1);
       syncStatic();
     });
+    // A replay's veil (the time-lapse, D-219): rotors leave and come back with their towers.
+    ctx.bus.on('building:veiled', ({ eid, veiled }) => {
+      const i = turbines.findIndex((t) => t.eid === eid);
+      if (veiled && i >= 0) turbines.splice(i, 1);
+      else if (!veiled && i < 0) add(eid);
+      else return;
+      syncStatic();
+    });
     ctx.bus.on('city:reset', rebuild);
     ctx.bus.on('terrain:changed', () => {
       for (const t of turbines) t.head = head(t.eid);

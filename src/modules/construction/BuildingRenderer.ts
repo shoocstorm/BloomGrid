@@ -669,10 +669,18 @@ export class BuildingRenderer {
 
   constructor(private ctx: GameContext) {
     const { bus } = ctx;
-    bus.on('building:added', ({ eid }) => this.add(eid, !ctx.loading));
-    bus.on('building:removed', ({ eid }) => this.remove(eid, !ctx.loading));
+    bus.on('building:added', ({ eid }) => {
+      // An id reused while a replay veils the old one: the new building is no part of the veil.
+      this.veiled.delete(eid);
+      this.add(eid, !ctx.loading);
+    });
+    bus.on('building:removed', ({ eid }) => {
+      this.veiled.delete(eid);
+      this.remove(eid, !ctx.loading);
+    });
     bus.on('city:reset', () => {
       for (const eid of [...this.entries.keys()]) this.remove(eid);
+      this.veiled.clear();
     });
     bus.on('stats:updated', () => this.syncService());
     // Levels (D-073): a new level's overlay grows in with a little fanfare; renovation clears the weathering.
@@ -726,6 +734,40 @@ export class BuildingRenderer {
 
   get count(): number {
     return this.entries.size;
+  }
+
+  // ── Replay veil (the time-lapse, D-219): render only, the city is untouched ──
+  /** Buildings taken off the map for a replay, waiting for their moment to rise again. */
+  private veiled = new Set<number>();
+
+  isVeiled(eid: number): boolean {
+    return this.veiled.has(eid);
+  }
+
+  get veiledCount(): number {
+    return this.veiled.size;
+  }
+
+  /** Takes a building's pieces off the map at once (it still stands in the sim). */
+  veil(eid: number): void {
+    if (!this.entries.has(eid) || this.veiled.has(eid)) return;
+    this.remove(eid, false);
+    this.veiled.add(eid);
+    this.ctx.bus.emit('building:veiled', { eid, veiled: true });
+  }
+
+  /** Puts a veiled building back: `animate` raises it the way a new build rises. */
+  unveil(eid: number, animate = true): void {
+    if (!this.veiled.delete(eid)) return;
+    const { city } = this.ctx;
+    if (city.uids.get(Building.uid[eid]!) !== eid) return;
+    this.add(eid, animate);
+    this.ctx.bus.emit('building:veiled', { eid, veiled: false });
+  }
+
+  /** Lifts the whole veil at once (a replay ending, skipped or cut short). */
+  unveilAll(): void {
+    for (const eid of [...this.veiled]) this.unveil(eid, false);
   }
 
   // ── Interactive parts (D-132): render-only, so a door or a light switch never touches the sim or its hash ──

@@ -56,6 +56,8 @@ export class RoadRenderer {
       for (const k of dirty) this.rebuild(k);
     });
     ctx.bus.on('city:reset', () => {
+      this.hidden = null;
+      this.hiddenCount = 0;
       for (const m of this.chunks.values()) {
         this.group.remove(m);
         m.geometry.dispose();
@@ -69,6 +71,60 @@ export class RoadRenderer {
     // Bulk content (scenario) may exist before this renderer attaches.
     const existing = ctx.city.roadTiles();
     if (existing.length) this.onChanged(existing);
+  }
+
+  // ── Replay veil (the time-lapse, D-219): render only, `grid.road` is untouched ──
+  /** Highway tiles hidden for a replay (1 = hidden), or null when nothing is. */
+  private hidden: Uint8Array | null = null;
+  private hiddenCount = 0;
+
+  isHidden(t: number): boolean {
+    return !!this.hidden?.[t];
+  }
+
+  get veiledCount(): number {
+    return this.hiddenCount;
+  }
+
+  /** Takes highway tiles off the map (their chunks, decks and verges are redrawn without them). */
+  veil(tiles: readonly number[]): void {
+    if (!tiles.length) return;
+    const h = (this.hidden ??= new Uint8Array(this.ctx.city.grid.road.length));
+    for (const t of tiles) if (!h[t]) {
+      h[t] = 1;
+      this.hiddenCount++;
+    }
+    this.onChanged([...tiles]);
+  }
+
+  /** Puts veiled tiles back; `animate` raises them out of the ground as a new highway does. */
+  reveal(tiles: readonly number[], animate = true): void {
+    const h = this.hidden;
+    if (!h || !tiles.length) return;
+    const now = U.clock.value;
+    const back: number[] = [];
+    for (const t of tiles) if (h[t]) {
+      h[t] = 0;
+      this.hiddenCount--;
+      back.push(t);
+      if (animate) this.born.set(t, now);
+    }
+    if (!this.hiddenCount) this.hidden = null;
+    if (back.length) this.onChanged(back);
+  }
+
+  /** Lifts the whole veil at once. */
+  revealAll(): void {
+    const h = this.hidden;
+    if (!h) return;
+    const tiles: number[] = [];
+    for (let i = 0; i < h.length; i++) if (h[i]) tiles.push(i);
+    this.reveal(tiles, false);
+  }
+
+  /** A highway tile that is drawn: laid in the sim and not veiled. */
+  private drawn(t: number): boolean {
+    return !!this.ctx.city.grid.road[t] && !this.hidden?.[t];
   }
 
   /** Clock time each recently laid tile builds in (D-128; pruned once long past). */
@@ -107,7 +163,7 @@ export class RoadRenderer {
       old.forEach((h) => instancer.remove(h));
       this.bridgeParts.delete(t);
     }
-    if (city.grid.road[t] !== BRIDGE) return;
+    if (city.grid.road[t] !== BRIDGE || this.hidden?.[t]) return;
     const hs: InstanceHandle[] = [];
     const deck = BRIDGE_DECK;
     // On the roadworks timeline (D-128): the pier rises from the water first, then the slab lands on it.
@@ -134,9 +190,9 @@ export class RoadRenderer {
     }
     const x = t % g.w;
     const z = (t / g.w) | 0;
-    if (g.road[t] !== ROAD) return;
+    if (g.road[t] !== ROAD || this.hidden?.[t]) return;
     const level = roadLevels(city)[t]!;
-    const open = (i: number, j: number) => g.inBounds(i, j) && !g.road[g.index(i, j)] && g.occupant[g.index(i, j)] < 0;
+    const open = (i: number, j: number) => g.inBounds(i, j) && !this.drawn(g.index(i, j)) && g.occupant[g.index(i, j)] < 0;
     if (level >= 2) return this.dressBoulevard(t, x, z, open);
     if (level < 1 || hash2(x, z, 913) > FUNGI_SHARE) return;
     const sides: [number, number][] = [];
@@ -214,14 +270,14 @@ export class RoadRenderer {
     const now = U.clock.value;
     const lv = roadLevels(this.ctx.city);
     const og = g.layer<Uint8Array>('overgrowth');
-    const road = (x: number, z: number) => (g.inBounds(x, z) && g.road[g.index(x, z)] ? 1 : 0);
+    const road = (x: number, z: number) => (g.inBounds(x, z) && this.drawn(g.index(x, z)) ? 1 : 0);
     const links = (x: number, z: number) => road(x, z - 1) + road(x + 1, z) + road(x, z + 1) + road(x - 1, z);
     const junction = (x: number, z: number) => (road(x, z) && links(x, z) >= 3 ? 1 : 0);
     const levelAt = (t: number) => (g.road[t] === BRIDGE ? (lv[t]! >= 2 ? 2 : 1) : lv[t]!);
     for (let z = cz; z < Math.min(cz + this.chunk, g.h); z++)
       for (let x = cx; x < Math.min(cx + this.chunk, g.w); x++) {
         const t = g.index(x, z);
-        if (!g.road[t]) continue;
+        if (!g.road[t] || this.hidden?.[t]) continue;
         // Bits 0–3: road neighbours N/E/S/W (guidelines join them); 4–7: that neighbour is a junction (zebra crossing).
         const m =
           road(x, z - 1) |

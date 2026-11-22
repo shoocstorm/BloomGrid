@@ -3924,3 +3924,42 @@ draw; with bloom nothing, and the frames the hold already waits for build the sh
 `postfx`, `FilmStage.ready` the city's on location and its own (configured first, `syncFx`) on a set.
 **Consequences:** Hold 2.3 s at 6× (of which `LANTERN_MIN_MS` 1.7 s is the floor); Low unchanged. Later shots build on
 first draw as before (the old pass never covered them with bloom either).
+
+## D-219 — The time-lapse replays a history ledger, render only (2026-11-22)
+
+**Context:** Plan v6 ("The Island Remembers"): a film of the player's island from its founding to today. The command
+log (`CommandStack.log`) is deterministic, but it is not saved, and crises, the director, happenings, stories and
+module save hooks feed the city too. Re-simulating hours of play (72k ticks plus field passes for two hours) would
+take minutes and diverge on any missing input.
+**Decision:** The sim keeps a compact **history ledger** (`city.history`, `sim/history.ts`): birth tick per building
+serial, gone records (a move or an undone demolition gets its birth back by serial and type; an undone build is
+forgotten through `releaseUid`), birth tick per highway tile, tier changes, marks (era, wonder, project) and samples
+(day, residents, credits, harmony, buildings; one per 30 pulses, halving past 400). Nothing is recorded at tick 0,
+so the scenario and every pre-v28 save count as founding content. Saved v28 (empty ledger on migration) and hashed.
+The film is **render only, on location**. `BuildingRenderer.veil` takes a building's pieces off the map with its own
+`remove`, and `unveil` re-adds them with the normal rise. `RoadRenderer` keeps a hidden-tile mask (chunks, decks
+and verges are drawn without veiled tiles; `reveal` sets the build-in time), `BridgeRenderer` skips spans with a
+veiled deck, wind rotors follow `building:veiled`, and mobility and walkers hide while `timelapse.playing`.
+`timeline.ts` (pure, tested) orders the reveals: a founding act from the heart (2.5–6 s), then the years (20–54 s)
+on a warp of 35% clock and 65% event rank, so quiet stretches compress. Captions are spaced 2.4 s apart (era >
+wonder > crisis > project). One day arc runs over the whole film, never a flicker of days, and the camera orbits
+the risen bounds with an aspect-aware fit.
+**Consequences:** Measured on the showcase with a fake 12-day past (`scripts/scenes/timelapse.js`, `FAKE`), headless WebGPU:
+56 fps at the busiest stretch (≈1.5k buildings and 4.9k road tiles rising), 179–209 draw calls; at the full-island
+end frame 277 (WebGPU) and 307 (WebGL2), in line with the known full-island maximum (≈322). Skip lifts the whole veil
+(0 veiled, 2,472/2,472 standing). Cities have a past only from this version on. Ghosts of demolished buildings,
+levels through time, incident flares and other attachments (signs, Aeroline, pods) are Phase 33.
+
+## D-220 — The time-lapse is promoted, not one chip among the Replays (2026-11-22)
+
+**Context:** "The Island Remembers" (D-219) is the one film that grows with the player's own city. As a chip among the
+Replays, below the charters, nobody would find it.
+**Decision:** A featured card goes first in Build → Goals, in the film's own colours (dawn blue, gold button): dial,
+"Day 1 → day N", running time, and a **New** tag once `NEW_DAYS` of history are unwatched. The time-lapse leaves the
+chip list, and an unwatched film counts on the Goals badge (and so on the Build launcher). An invitation call-out
+uses the ready call-out's slot under the top bar. It shows the first time the island has a story (from day 2),
+after each new era, and after `GROWN_DAYS` of growth since it was last watched or offered. It steps aside for films,
+ceremonies, dialogs, the pause card and the ready call-out (which keeps its stronger claim), and idles away
+(D-201). Watched / offered days are module state (save hook `timelapse`), not sim state: they never touch the hash.
+**Consequences:** At most one invitation per `GROWN_DAYS` plus one per era. The running time on both is computed from the
+timeline once per day (it reads every building and highway tile).

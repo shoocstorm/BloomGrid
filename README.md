@@ -225,7 +225,11 @@ pulses until you start it; **Later** puts the card away. Founding an island play
 **Skip** or Esc). The big moments are short films: Flora wakes in **Hello, World** (and meets your cat), the Sky-lane charter
 opens with **Maiden Flight** (a nervous test pilot and an uninvited gull), and every sea wonder rises in **Something
 Stirs** (behind a fisher who sleeps through it). Films and ceremonies you have seen (First Light, the stray's
-adoption, Flora's awakening, unlocks, risen sea wonders, new eras) play again from Build → Goals → **Replays**; the model gallery (**G**) shows the island's
+adoption, Flora's awakening, unlocks, risen sea wonders, new eras) play again from Build → Goals → **Replays**. Your own island's film,
+**The Island Remembers**, has its own card at the top of Build → Goals (tagged **New** while there is history you have not
+watched): a time-lapse from its founding to today, with every highway and building rising again in the order you built them and
+captions for its eras, wonders and storms. An invitation drops in under the top bar the first time your island has a story,
+after each new era, and after a few days of growth (**Later** or × puts it away). The model gallery (**G**) shows the island's
 cat in every coat and lists every film in its **Cutscenes** hall. While Flora sleeps her orb is dim with a "z": open
 it to see what she still needs, each with a **Build** button; when it pulses *Ready to wake*, wake her and watch her
 come online over the Data Spire.

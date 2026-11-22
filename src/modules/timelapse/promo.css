@@ -1,0 +1,227 @@
+/* The time-lapse made known (D-220): the featured card in Build → Goals and the invitation under the top bar. Its own
+   colours (dawn blue, a gold button) so it never reads as one more Goals card. Transform and opacity animations only
+   (§7½): the dial's hand turns back, the glow is a fading pseudo-element. */
+
+.tlf,
+.tli {
+  --tl-sky: #8fd0ff;
+  --tl-ink: #e9f6ff;
+}
+
+/* ── Featured card (Goals) ── */
+.tlf {
+  position: relative;
+  /* The Goals column is a flex box that shrinks its children: this card keeps its height. */
+  flex: none;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px 12px;
+  margin: 2px 0 12px;
+  padding: 12px 12px 12px 10px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--tl-sky) 55%, transparent);
+  border-radius: var(--r-lg, 12px);
+  background:
+    radial-gradient(120% 140% at 0% 100%, rgba(255, 196, 120, 0.22), transparent 55%),
+    linear-gradient(135deg, #10263f 0%, #173a5c 55%, #24527a 100%);
+  color: var(--tl-ink);
+}
+.tlf.new::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid var(--tl-sky);
+  box-shadow: 0 0 18px 1px rgba(143, 208, 255, 0.5);
+  pointer-events: none;
+  animation: tl-glow 2.2s ease-in-out infinite;
+}
+.tlf-dial,
+.tli-dial {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(143, 208, 255, 0.22), transparent 70%);
+  color: var(--tl-sky);
+}
+.tlf-dial svg,
+.tli-dial svg {
+  width: 40px;
+  height: 40px;
+}
+.tlf-dial .hand,
+.tli-dial .hand {
+  transform-box: view-box;
+  transform-origin: 20px 20px;
+  animation: tl-rewind 6s linear infinite;
+}
+.tlf-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tlf-kick,
+.tli-kick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tl-sky);
+}
+.tlf-new {
+  padding: 1px 6px;
+  border-radius: var(--pill);
+  background: #ffd77a;
+  color: #2b1a00;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.tlf-name {
+  font-size: 15px;
+  color: #fff;
+}
+.tlf-line {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: rgba(233, 246, 255, 0.78);
+}
+.tlf-go,
+.tli-go {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  overflow: hidden;
+  border-radius: var(--pill);
+  background: linear-gradient(180deg, #ffd77a, #ffad3a);
+  color: #2b1a00;
+  font: 600 13px/1 var(--ui);
+  cursor: var(--cur-pointer, pointer);
+}
+.tlf-go {
+  grid-column: 1 / -1;
+  justify-content: center;
+}
+.tlf-go small {
+  margin-left: 4px;
+  font: 500 10.5px/1 var(--mono);
+  opacity: 0.7;
+}
+.tlf-go .ico,
+.tli-go .ico {
+  width: 14px;
+  height: 14px;
+}
+.tlf-go::after,
+.tli-go::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
+  animation: rc-sheen 2.4s ease-in-out infinite;
+}
+.tlf-go:hover,
+.tli-go:hover {
+  filter: brightness(1.08);
+}
+
+/* ── Invitation (under the top bar, the ready call-out's slot) ── */
+.tli {
+  position: absolute;
+  left: 50%;
+  top: 74px;
+  z-index: 13;
+  width: 390px;
+  max-width: calc(100% - 32px);
+  padding: 12px 14px;
+  translate: -50% 0;
+  color: var(--tl-ink);
+}
+/* Over the theme's panel glass (loaded after this sheet): the film's own dawn blue. */
+.tli.panel.holo {
+  border-color: var(--tl-sky);
+  background:
+    radial-gradient(120% 140% at 0% 100%, rgba(255, 196, 120, 0.18), transparent 55%),
+    linear-gradient(135deg, rgba(16, 38, 63, 0.97), rgba(36, 82, 122, 0.97));
+}
+.tli.hidden {
+  display: none;
+}
+.tli.tli-in {
+  animation: rc-drop 0.6s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+.tli::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid var(--tl-sky);
+  box-shadow: 0 0 22px 2px rgba(143, 208, 255, 0.5);
+  pointer-events: none;
+  animation: tl-glow 1.8s ease-in-out infinite;
+}
+.tli-kick .ico {
+  width: 13px;
+  height: 13px;
+}
+.tli-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 8px 0 10px;
+}
+.tli-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tli-name {
+  font-size: 15px;
+  color: #fff;
+}
+.tli-line {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(233, 246, 255, 0.8);
+}
+.tli-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tli-len {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: rgba(233, 246, 255, 0.7);
+}
+.tli-later {
+  padding: 6px 12px;
+}
+
+@keyframes tl-glow {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes tl-rewind {
+  to {
+    transform: rotate(-360deg);
+  }
+}

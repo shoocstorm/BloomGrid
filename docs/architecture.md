@@ -108,6 +108,7 @@ Sim systems (tick) → stats / ECS values → read each frame by sync systems
 | Event / service          | declaration-merge `GameEvents` / `GameServices`, then `bus.emit` / `services.provide`                             |
 | Tile data                | `city.grid.addLayer(name, n => new Float32Array(n))`                                                              |
 | Saved module state       | `services.get('save').addHook({ id, save, load })`                                                                |
+| History for replays      | the sim's ledger `city.history` (`sim/history.ts`: births, demolitions, highway tiles, tiers, marks, samples; saved, hashed). A renderer that must hide unbuilt things in a replay honours the veil: `BuildingRenderer.veil/unveil`, `RoadRenderer.veil/reveal`, the render-only `building:veiled` event, or `timelapse.playing` (D-219) |
 | Global shader input      | add a uniform to `render/uniforms.ts` (`U`)                                                                       |
 | Boot stage               | `onProgress(label, fraction)` inside `createGame`                                                                 |
 | Starting city            | `src/content/scenarios/<id>.ts` with `defineScenario` (`?scenario=<id>`, `?scenario=empty`)                       |

@@ -23,6 +23,8 @@ import { createHappeningState, type HappeningState } from './happeningState';
 import { createCharterState, type CharterState } from './charterState';
 import { createStoryState, type StoryState } from './storyState';
 import { chronicleHash, createChronicleState, type ChronicleState } from './chronicleState';
+import { createHistoryState, historyHash, type HistoryState } from './historyState';
+import { forgetBuild, noteBuilt, noteGone, noteMark, noteRoad, noteTier } from './history';
 import { charterHash } from './charters';
 import { createConsequenceState, type ConsequenceState } from './consequenceState';
 import { createSoil, initSoilLand, soilChecksum, type SoilState } from './floranet';
@@ -146,6 +148,8 @@ export class City {
   stories!: StoryState;
   /** The Chronicle: pages of the island's history found, and the choice at the flame (D-192; saved v26, hashed). */
   chronicle!: ChronicleState;
+  /** The history ledger the time-lapse replays (plan v6, D-219; saved v28, hashed). */
+  history!: HistoryState;
   /** Ordinances, sector budgets and the business tax (plan v5, Phase 25). */
   policies!: PolicyState;
   /** District approval, streaks and moods (plan v5, Phase 26). */
@@ -186,6 +190,11 @@ export class City {
     readonly size = MAP_SIZE,
   ) {
     this.reset(seed);
+    // The history ledger (D-219) notes levels and the city's big moments as the sim announces them.
+    bus.on('building:tier', ({ eid, tier }) => noteTier(this, Building.uid[eid]!, tier));
+    bus.on('era:advanced', ({ id }) => noteMark(this, 'era', id));
+    bus.on('wonder:discovered', ({ id }) => noteMark(this, 'wonder', id));
+    bus.on('project:done', ({ id }) => noteMark(this, 'project', id));
   }
 
   reset(seed: number, difficulty: DifficultyId = this.steward?.difficulty ?? 'steward'): void {
@@ -208,6 +217,7 @@ export class City {
     this.charters = createCharterState();
     this.stories = createStoryState();
     this.chronicle = createChronicleState();
+    this.history = createHistoryState();
     this.policies = createPolicyState();
     this.approval = createApprovalState();
     this.roadCount = 0;
@@ -328,6 +338,7 @@ export class City {
     this.spent.set(uid, rec.spent ?? def.stats.cost);
     for (let j = rec.z; j < rec.z + d; j++)
       for (let i = rec.x; i < rec.x + w; i++) this.grid.occupant[this.grid.index(i, j)] = eid;
+    noteBuilt(this, uid, rec.def);
     this.bus.emit('building:added', { eid });
     return eid;
   }
@@ -341,6 +352,7 @@ export class City {
     this.uids.delete(rec.uid!);
     this.builders.delete(rec.uid!);
     this.spent.delete(rec.uid!);
+    noteGone(this, rec.uid!, rec.def, rec.x, rec.z, rec.rot, rec.tier ?? 0);
     removeEntity(this.world, eid);
     this.bus.emit('building:removed', { eid, record: rec });
     return rec;
@@ -389,6 +401,7 @@ export class City {
 
   /** Hands back the newest serial when that building is undone (keeps ids stable across undo/redo). */
   releaseUid(uid: number): void {
+    forgetBuild(this, uid);
     if (uid === this.nextUid - 1 && !this.uids.has(uid)) this.nextUid = uid;
   }
 
@@ -431,6 +444,7 @@ export class City {
       if (!on) g.road[t] = 0;
       else g.road[t] = this.isWaterTile(t % g.w, (t / g.w) | 0) ? BRIDGE : ROAD;
       this.roadCount += (g.road[t]! > 0 ? 1 : 0) - (had ? 1 : 0);
+      if (!founding && had !== on) noteRoad(this, t, on);
       // A newly laid highway is a raw track (D-096); a removed one forgets its level.
       if (!had || !on) {
         roadLevels(this)[t] = 0;
@@ -535,7 +549,7 @@ export class City {
       (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0},${r.tier ?? 0},${Math.round(r.age ?? 0)},${Math.round(r.thrive ?? 0)},${(r.scorch ?? 0).toFixed(3)},${r.off ? 1 : 0},${r.by ?? 'system'},${Math.round(r.spent ?? 0)}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}|${policyHash(this)}|${approvalHash(this)}|${this.directorHash()}|${charterHash(this)}|${this.storyHash()}|${chronicleHash(this.chronicle)}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}|${policyHash(this)}|${approvalHash(this)}|${this.directorHash()}|${charterHash(this)}|${this.storyHash()}|${chronicleHash(this.chronicle)}|${historyHash(this.history)}`,
     );
   }
 }
