@@ -10,7 +10,7 @@ import type { QueuedCrisis } from './stewardState';
  */
 
 /** Calm needed between crises (seconds); the director may stretch it, never shorten it. */
-export const MIN_GAP = 75;
+export const MIN_GAP = 90;
 /** Calm before the next link of a crisis chain (seconds): chains follow close behind. */
 export const CHAIN_GAP = 15;
 /** Bounds on the director's dials. */

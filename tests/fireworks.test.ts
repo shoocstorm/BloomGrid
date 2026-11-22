@@ -20,6 +20,8 @@ import type { ActionCtx } from '@/sim/actionTools';
 import { fireworksTools } from '@/sim/fireworksTools';
 import { plainIntent } from '@/ai/agent';
 import { SKY_FONT, SKY_TEXT_MAX, skyText } from '@/content/skyFont';
+import { phaseOf } from '@/sim/dayClock';
+import { DAY_LENGTH } from '@/sim/pulseConst';
 import { makeSim } from './helpers';
 
 const seconds = (s: ReturnType<typeof makeSim>, n: number) => s.step(n * 10);
@@ -40,8 +42,8 @@ function stockUp(s: ReturnType<typeof makeSim>, each: number) {
 
 /** Runs the clock to just before the nightly show. */
 function toEvening(s: ReturnType<typeof makeSim>) {
-  const left = (SHOW_TIME - 0.01 - s.city.timeOfDay + 1) % 1;
-  seconds(s, Math.ceil(left * 360));
+  const left = (phaseOf(SHOW_TIME - 0.01) - phaseOf(s.city.timeOfDay) + 1) % 1;
+  seconds(s, Math.ceil(left * DAY_LENGTH));
 }
 
 describe('fireworks (D-068)', () => {
@@ -69,6 +71,7 @@ describe('fireworks (D-068)', () => {
     expect(fw.spent).toBeGreaterThan(0);
     for (const k of FIREWORK_KINDS) expect(fw.stock[k]).toBeGreaterThan(0);
     const cap = storage(s.city);
+    fw.auto = false; // no nightly show spending the racks
     stockUp(s, cap / FIREWORK_KINDS.length);
     seconds(s, 60);
     expect(stockTotal(fw.stock)).toBe(cap);

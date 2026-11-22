@@ -3,13 +3,14 @@ import { RULES, activeRules, measure, type Measures } from '@/sim/consequences';
 import { riskReport } from '@/sim/risk';
 import { POLICIES, isActive } from '@/sim/policies';
 import { creditGrade } from '@/sim/consequenceState';
+import { phaseOf, timeAtPhase } from '@/sim/dayClock';
 import { DAY_LENGTH } from '@/sim/pulseConst';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
 const clockOf = (tick: number) => {
-  const t = (tick / 10 / DAY_LENGTH + 0.3) % 1;
+  const t = timeAtPhase(tick / 10 / DAY_LENGTH + phaseOf(0.3));
   const m = Math.floor(t * 1440);
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 };

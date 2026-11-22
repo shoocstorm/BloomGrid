@@ -18,6 +18,7 @@ import { isCompact } from '@/platform/device';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { closeX } from '@/ui/closeX';
+import { autoCollapse } from '@/ui/idle';
 import './happenings.css';
 
 const ICON: Record<HappeningKind, string> = {
@@ -75,12 +76,14 @@ class HappeningsCard {
   private slow = 0;
   /** `id|status` the steward closed (D-128): it stays away until the request changes (met, or a new one). */
   private dismissed = '';
+  private fold: ReturnType<typeof autoCollapse>;
 
   constructor(private ctx: GameContext) {
+    const head = h('header', { class: 'jc-m-head hp-head' }, icon('sparkle'), this.kicker, this.left);
     this.card = h(
       'section',
       { class: 'jc-m hp panel holo hidden', 'aria-label': 'Happening', 'aria-live': 'polite' },
-      h('header', { class: 'jc-m-head hp-head' }, icon('sparkle'), this.kicker, this.left),
+      head,
       h('div', { class: 'jc-m-main' }, this.ico, h('div', { class: 'jc-m-text' }, this.title, this.hint)),
       h('div', { class: 'jc-m-bar hp-bar' }, this.bar),
       h('div', { class: 'jc-m-foot' }, h('span', { class: 'jc-m-have' }, ''), this.value),
@@ -92,6 +95,8 @@ class HappeningsCard {
       }),
     );
     ctx.hud.append(this.card);
+    // Untouched, it shrinks to its header (D-201); news (a new one, met) opens it again.
+    this.fold = autoCollapse(this.card, head);
 
     const { bus } = ctx;
     bus.on('happening:start', ({ happening: hp }) => {
@@ -227,6 +232,7 @@ class HappeningsCard {
     const key = `${hp.id}|${hp.status}`;
     if (key === this.shown) return;
     this.shown = key;
+    this.fold.wake();
     this.render(hp);
   }
 

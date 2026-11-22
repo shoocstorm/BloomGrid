@@ -3,6 +3,7 @@ import type { System } from '@/core/Systems';
 import { Building, Greenery, Service } from '@/ecs/components';
 import { pulseSystem } from './pulse';
 import { DAY_LENGTH, type City } from './City';
+import { clockRate } from './dayClock';
 
 export interface SimCtx {
   city: City;
@@ -14,7 +15,8 @@ export const clockSystem: System<SimCtx> = {
   order: -100,
   update({ city }, f) {
     city.tick++;
-    city.timeOfDay += f.tickDt / DAY_LENGTH;
+    // Faster through deep night, so most of the cycle is daylight (dayClock.ts).
+    city.timeOfDay += (f.tickDt / DAY_LENGTH) * clockRate(city.timeOfDay);
     if (city.timeOfDay >= 1) {
       city.timeOfDay -= 1;
       city.day++;

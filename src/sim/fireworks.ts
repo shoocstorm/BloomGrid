@@ -5,6 +5,7 @@ import type { City } from './City';
 import type { Modifiers } from './stewardState';
 import type { SimCtx } from './systems';
 import { DAY_LENGTH, PULSE_TICKS } from './pulseConst';
+import { phaseOf, timeAtPhase } from './dayClock';
 import { seasonAt } from './seasons';
 import { ignite } from './hazards';
 import { skyText } from '@/content/skyFont';
@@ -300,10 +301,9 @@ function endShow(city: City, show: FireworkShow): void {
   city.bus.emit('fireworks:end', { record });
 }
 
-/** Time of day at an earlier tick (the clock advances 1/DAY_LENGTH per sim second). */
+/** Time of day at an earlier tick (the clock's phase advances 1/DAY_LENGTH per sim second, dayClock.ts). */
 function timeAt(city: City, tick: number): number {
-  const t = city.timeOfDay - (city.tick - tick) / PULSE_TICKS / DAY_LENGTH;
-  return ((t % 1) + 1) % 1;
+  return timeAtPhase(phaseOf(city.timeOfDay) - (city.tick - tick) / PULSE_TICKS / DAY_LENGTH);
 }
 
 /** "21:00" for a time of day. */

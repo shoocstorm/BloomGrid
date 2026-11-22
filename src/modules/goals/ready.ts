@@ -3,6 +3,7 @@ import { PROJECTS, projectStatus, PROJECT_IDS } from '@/sim/projects';
 import type { UnlockId } from '@/sim/growthState';
 import { DAY_LENGTH } from '@/sim/pulseConst';
 import { closeX } from '@/ui/closeX';
+import { IDLE_SECONDS, idleTimer, type IdleTimer } from '@/ui/idle';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 
@@ -52,6 +53,7 @@ export class ReadyCall {
   private later = new Set<UnlockId>();
   /** Ready ones are announced only once the city has settled after a load (no fanfare for a saved state). */
   private armIn = 3;
+  private idle: IdleTimer;
 
   constructor(private ctx: GameContext) {
     this.card = h(
@@ -71,6 +73,8 @@ export class ReadyCall {
       closeX('this call-out', () => this.putAway()),
     );
     this.go.addEventListener('click', () => this.start());
+    // Left untouched, the call-out is put away like "Later" (D-201): the Goals tab and the pulsing Build keep it.
+    this.idle = idleTimer(this.card, IDLE_SECONDS.callout, () => this.putAway());
     ctx.hud.append(this.card);
     for (const ev of ['city:reset', 'load:done'] as const)
       ctx.bus.on(ev, () => {
@@ -156,10 +160,12 @@ export class ReadyCall {
     void this.card.offsetWidth;
     this.card.classList.add('rc-in');
     if (fresh) this.ctx.bus.emit('juice', { sound: 'claimable' });
+    this.idle.arm();
   }
 
   private hide(): void {
     this.card.classList.add('hidden');
+    this.idle.disarm();
   }
 
   private putAway(): void {

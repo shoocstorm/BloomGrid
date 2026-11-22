@@ -28,3 +28,12 @@
 
 /* Phones: the milestone card's frame and sizes (ui/mobile.css); portrait stacks it above the milestone card (by
    script), landscape sets it beside it. */
+
+/* Folded by the idle timer (D-201, also the story card): only the header strip with the time left; click to open. */
+.jc-m.hp.mini > :not(.jc-m-head):not(.pop-x) {
+  display: none;
+}
+.jc-m.hp.mini > .jc-m-head {
+  cursor: var(--cur-pointer, pointer);
+  margin-bottom: 0;
+}

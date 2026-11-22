@@ -42,6 +42,6 @@ Low district approval brings protests ([Districts](kb:systems-districts)).
 
 ## Crisis chains
 
-Some crises can bring another close behind (15 s of calm, not the usual 75): a monsoon can bring a **landslide**
+Some crises can bring another close behind (15 s of calm, not the usual 90): a monsoon can bring a **landslide**
 on bare slopes, a heatwave an **industrial fire**, an earthquake a **grid failure** (and sometimes a tsunami). The
 [Crisis almanac](kb:reference-crises) lists every link and its odds.

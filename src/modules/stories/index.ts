@@ -8,6 +8,7 @@ import { PULSE_TICKS } from '@/sim/pulseConst';
 import { ARCS, CHOICE_SECONDS, LASTING, choiceBlock, getArc, homeOf, startStory, storyBeat } from '@/sim/stories';
 import type { StoryRun } from '@/sim/storyState';
 import { closeX } from '@/ui/closeX';
+import { autoCollapse } from '@/ui/idle';
 import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import './stories.css';
@@ -33,12 +34,14 @@ class StoryCard {
   private shown = '';
   private dismissed = '';
   private slow = 0;
+  private fold: ReturnType<typeof autoCollapse>;
 
   constructor(private ctx: GameContext) {
+    const head = h('header', { class: 'jc-m-head st-head' }, icon('people'), this.kicker, this.left);
     this.card = h(
       'section',
       { class: 'jc-m hp st panel holo hidden', 'aria-label': 'Resident story', 'aria-live': 'polite' },
-      h('header', { class: 'jc-m-head st-head' }, icon('people'), this.kicker, this.left),
+      head,
       h('div', { class: 'jc-m-main' }, this.ico, h('div', { class: 'jc-m-text' }, this.title, this.hint)),
       h('div', { class: 'jc-m-bar hp-bar' }, this.bar),
       this.act,
@@ -48,6 +51,8 @@ class StoryCard {
       }),
     );
     ctx.hud.append(this.card);
+    // Untouched, it shrinks to its header with the time left (D-201); the next beat opens it again.
+    this.fold = autoCollapse(this.card, head);
     const { bus } = ctx;
     const at = (run: StoryRun) => {
       const e = homeOf(ctx.city, run);
@@ -121,6 +126,7 @@ class StoryCard {
     const k = this.key();
     if (k === this.shown) return;
     this.shown = k;
+    this.fold.wake();
     this.render();
   }
 

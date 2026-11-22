@@ -3685,3 +3685,30 @@ turning), the Aeroline's three rolling stocks, hover traffic, sky pods, the patr
   (a cut: it sleeps under the splash, then rises at its own site) where the Choir's light flares, and during the rise
   he grabs the gunwales with the wonder looming behind him. His sou'wester sits back with the brim up, clear of the
   eyes.
+
+## D-199: Shorter nights: the clock runs faster in the dark
+
+Players spent half of every cycle at night and wanted more daylight. `sim/dayClock.ts` gives the sim clock a pace:
+`clockRate(timeOfDay)` ramps to `NIGHT_BOOST` (3.5×) once the sun is more than ~5° below the horizon and is
+normalised so a cycle still takes `DAY_LENGTH` (360 s). Night is now ~26% of the cycle (was 50%); daylight is
+~265 s (was 180 s), and dusk and dawn keep the day pace. `timeOfDay` stays the sun's position, so lights, fireworks
+(21:00) and night thresholds still match the sky. Rejected: warping only the render (sim night checks would disagree
+with the sky) and shortening the whole cycle (it would shift every per-day rate). Code that turns a past tick into a
+clock time goes through `phaseOf` / `timeAtPhase`, never `tick / DAY_LENGTH` (fireworks' `timeAt`, Cause & effect).
+
+## D-200: Fewer natural disasters
+
+Players found crises too frequent. Every difficulty's `eventRate` is 25% lower (Sandbox 0.75, Relaxed 0.9, Steward
+1.65, Hard 2.6) and the calm gap `MIN_GAP` is 90 s (was 75). On Steward that is about one crisis every ~310 s of calm
+play instead of ~240 s. Escalations and chains are unchanged (they come from neglect or follow a crisis).
+
+## D-201: Notifications fold or close when left untouched
+
+Cards piled up over the city when the player didn't answer them. `ui/idle.ts` gives a notification an idle timer
+(`IDLE_SECONDS`) that waits while the pointer is on it (or focus is inside while Tab-navigating) and restarts after a
+tap. Untouched: the **milestone card** folds to its pill after 12 s (not remembered as the player's own fold, so a new
+or reached milestone opens it again); the **request / happening** and **story** cards shrink to their header strip
+(`.mini`, time left still showing; a click opens them, the next change opens them again) after 12 s; the **Day
+recap** closes after 9 s (was 14, now paused while hovered); the **Ready to unlock** call-out is put away like "Later"
+after 20 s (the Goals tab and the pulsing Build keep it). Crisis warnings and fire alerts are not auto-closed: they are
+the ones that must be seen. A new notification card should use `idleTimer` / `autoCollapse`.

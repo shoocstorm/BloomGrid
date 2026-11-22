@@ -5,6 +5,7 @@ import { Flora } from '@/world/Flora';
 import { Terrain } from '@/world/Terrain';
 import { createWater, updateWaterDepth } from '@/world/Water';
 import { DAY_LENGTH, chunkSizeFor } from '@/sim/City';
+import { clockRate } from '@/sim/dayClock';
 import { Building } from '@/ecs/components';
 import { buildings } from '@/content';
 import { U } from '@/render/uniforms';
@@ -122,7 +123,7 @@ export const worldModule: GameModule = {
       update(c, f) {
         U.clock.value += f.dt;
         // Interpolate time of day between ticks for smooth sun motion.
-        const t = service.timeOverride ?? (c.city.timeOfDay + (f.alpha * c.engine.speed * c.engine.step) / DAY_LENGTH) % 1;
+        const t = service.timeOverride ?? (c.city.timeOfDay + ((f.alpha * c.engine.speed * c.engine.step) / DAY_LENGTH) * clockRate(c.city.timeOfDay)) % 1;
         atmosphere.applyTime(t);
         // Once per finished pop-in on a shadow caster, not every frame while plants sprout (D-150).
         if (c.instancer.takeShadowChange()) atmosphere.invalidateShadows();

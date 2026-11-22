@@ -21,6 +21,7 @@ import { TIP_ICONS, voiceFor } from './quotes';
 import { FIRSTS, FIRST_IDS } from './firsts';
 import { size } from '@/sim/levels';
 import { closeX } from '@/ui/closeX';
+import { IDLE_SECONDS, idleTimer, type IdleTimer } from '@/ui/idle';
 import './juice.css';
 
 /**
@@ -125,7 +126,7 @@ const MOVE_IN_POP = 2500;
 const MOVE_IN_MAX = 3;
 /** Seconds a First badge or the Day recap stays up. */
 const FIRST_SHOW = 4.2;
-const RECAP_SHOW = 14;
+const RECAP_SHOW = IDLE_SECONDS.recap;
 /** Buildings ready this close together step the chime up. */
 const STREAK_WINDOW = 12;
 const TIP_CATEGORIES = new Set(Object.keys(TIP_ICONS));
@@ -223,6 +224,9 @@ class Juice {
   private shown = '';
   private ready = new Set<string>();
   private folded = store.get(FOLD_KEY) === '1';
+  /** Folds the card to its pill when left untouched (D-201); the player's own fold is the one remembered. */
+  private idle!: IdleTimer;
+  private cardId = '';
 
   constructor(private ctx: GameContext) {
     ctx.hud.append(this.world);
@@ -272,6 +276,8 @@ class Juice {
       ),
     );
     this.card.classList.toggle('folded', this.folded);
+    this.idle = idleTimer(this.card, IDLE_SECONDS.card, () => this.fold(true, false));
+    if (!this.folded) this.idle.arm();
     // Desktops: the card heads the right column, so the inspector (and the advisor) stack under it instead of
     // sliding beneath it; while something is inspected it shrinks to its pill (CSS). Phones: a strip above Build.
     const right = ctx.services.get('hud').right;
@@ -752,10 +758,20 @@ class Juice {
 
   // ── Milestone tracker ──
 
-  private fold(folded: boolean): void {
+  /** `remember` = the player's choice (kept per viewer); an idle fold is not, so news unfolds the card again. */
+  private fold(folded: boolean, remember = true): void {
     this.folded = folded;
-    store.set(FOLD_KEY, folded ? '1' : '0');
+    if (remember) store.set(FOLD_KEY, folded ? '1' : '0');
     this.card.classList.toggle('folded', folded);
+    if (folded) this.idle.disarm();
+    else this.idle.arm();
+  }
+
+  /** Something new on the card (a new goal, one reached): unfold it for a while unless the player keeps it folded. */
+  private wake(): void {
+    if (store.get(FOLD_KEY) === '1' || isCompact()) return;
+    if (this.folded) this.fold(false, false);
+    else this.idle.arm();
   }
 
   private claim(m: MilestoneDef, from: HTMLElement): void {
@@ -834,6 +850,10 @@ class Juice {
     if (near) setText(this.cPill, `Almost: ${m.title} · ${Math.round(k * 100)}%`);
     if (key === this.shown) return;
     this.shown = key;
+    if (m.id !== this.cardId) {
+      if (this.cardId) this.wake();
+      this.cardId = m.id;
+    }
     setText(this.cTitle, m.title);
     setText(this.cHint, m.hint);
     this.cIcon.replaceChildren(icon(m.icon));
@@ -885,6 +905,7 @@ class Juice {
     for (const m of now)
       if (!this.ready.has(m.id)) {
         this.ready.add(m.id);
+        this.wake();
         this.ctx.bus.emit('juice', { sound: 'claimable' });
         this.card.classList.remove('jc-ping');
         void this.card.offsetWidth;
@@ -961,7 +982,8 @@ class Juice {
       this.meter.classList.add('hidden');
     this.stack.classList.toggle('hidden', !live);
     this.showFirsts(dt);
-    if (this.recapEl && live && (this.recapLeft -= dt) <= 0) this.closeRecap();
+    // The recap waits while the pointer is on it (D-201).
+    if (this.recapEl && live && !this.recapEl.matches(':hover') && (this.recapLeft -= dt) <= 0) this.closeRecap();
     // A new day: the recap of the one that ended (fresh islands only), then a new count.
     const { city } = this.ctx;
     if (city.day !== this.day && !this.ctx.loading) {
