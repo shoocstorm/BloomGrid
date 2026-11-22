@@ -37,6 +37,14 @@ export const QUALITY_TIERS: Record<QualityTier, QualitySettings> = {
 const WINDOW = 1.5;
 const STEP = 0.15;
 const RECOVER_AFTER = 20;
+/**
+ * A drop must pay for itself (D-204): it is judged over the next `PROBE` windows and kept only if the frame rate rose
+ * by `GAIN` (or now meets the target). Otherwise the frames were slow for another reason (the sim, the main thread),
+ * fewer pixels can't help, full scale comes back and no drop is tried for `NO_DROP` seconds.
+ */
+const PROBE = 2;
+const GAIN = 1.08;
+const NO_DROP = 300;
 
 export class DynamicResolution {
   scale = 1;
@@ -48,9 +56,15 @@ export class DynamicResolution {
   private grace = 0;
   private held = false;
 
+  /** The drop on trial: the scale before it, the frame rate that caused it, windows judged since. */
+  private probe: { from: number; fps: number; windows: number } | null = null;
+  /** Seconds left in which no drop is tried (the last one didn't help). */
+  private noDrop = 0;
+
   constructor(
     private targetFps = 55,
-    private minScale = 0.5,
+    /** 0.7, not lower: below it the picture turns visibly soft for little gain (D-204). */
+    private minScale = 0.7,
   ) {}
 
   private lastCap = -1;
@@ -65,6 +79,7 @@ export class DynamicResolution {
   hold(seconds: number): void {
     this.held ||= this.scale !== 1;
     this.scale = 1;
+    this.probe = null;
     this.grace = Math.max(this.grace, seconds);
     this.timer = this.samples = 0;
   }
@@ -83,10 +98,12 @@ export class DynamicResolution {
       return changed;
     }
     this.sinceChange += dt;
+    if (this.noDrop > 0) this.noDrop -= dt;
     if (cap !== this.lastCap) {
       this.lastCap = cap;
       if (cap === 0 || this.activeCap === -1 || (this.activeCap !== 0 && cap > this.activeCap)) this.activeCap = cap;
-      this.timer = this.samples = this.misses = this.goods = 0;
+      // A new cap starts a new window; the streaks carry on (idle spells between moves no longer wipe a recovery).
+      this.timer = this.samples = 0;
       return false;
     }
     if (this.samples < this.dts.length) this.dts[this.samples++] = dt;
@@ -98,13 +115,36 @@ export class DynamicResolution {
     const target = cap > 0 ? cap : this.targetFps;
     const prev = this.scale;
     const atActive = cap === this.activeCap;
+    // A drop on trial: kept once it pays, undone if it doesn't.
+    if (this.probe) {
+      const p = this.probe;
+      if (fps >= p.fps * GAIN || fps > target * 0.97) this.probe = null;
+      else if (++p.windows >= PROBE) {
+        this.scale = p.from;
+        this.probe = null;
+        this.noDrop = NO_DROP;
+        this.misses = this.goods = 0;
+        this.sinceChange = 0;
+        log(`[dynres] back to ${this.scale.toFixed(2)}: lower resolution didn't speed frames up (${fps.toFixed(0)} fps), not GPU-bound`);
+        return true;
+      }
+      if (this.probe) return false;
+    }
     this.misses = fps < target * 0.85 ? this.misses + 1 : 0;
-    this.goods = atActive && fps > target * 0.97 ? this.goods + 1 : 0;
-    if (this.misses >= 2 && this.scale > this.minScale) this.scale = Math.max(this.minScale, this.scale - STEP);
-    else if (this.goods >= 3 && this.scale < 1 && this.sinceChange >= RECOVER_AFTER) this.scale = Math.min(1, this.scale + STEP);
+    if (atActive) this.goods = fps > target * 0.97 ? this.goods + 1 : 0;
+    if (this.misses >= 2 && this.scale > this.minScale && this.noDrop <= 0) {
+      this.scale = Math.max(this.minScale, this.scale - STEP);
+      this.probe = { from: prev, fps, windows: 0 };
+    } else if (this.goods >= 3 && this.scale < 1 && this.sinceChange >= RECOVER_AFTER) this.scale = Math.min(1, this.scale + STEP);
     if (prev === this.scale) return false;
+    log(`[dynres] scale ${prev.toFixed(2)} → ${this.scale.toFixed(2)} (${fps.toFixed(0)} fps against ${target})`);
     this.misses = this.goods = 0;
     this.sinceChange = 0;
     return true;
   }
+}
+
+/** Scale changes are rare and worth a line in the console (and in `bun run snap`'s output). */
+function log(text: string): void {
+  if (typeof console !== 'undefined' && !(globalThis as { __vitest_worker__?: unknown }).__vitest_worker__) console.info(text);
 }

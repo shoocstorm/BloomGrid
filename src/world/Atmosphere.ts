@@ -235,8 +235,8 @@ export class Atmosphere {
       this.shadowDirty = false;
       this.sinceShadow = 0;
     }
-    this.fog.near = Math.max(120, distance * 1.6) * (1 - 0.85 * this.haze);
-    this.fog.far = this.fog.near + 700 * (1 - 0.9 * this.haze);
+    this.fog.near = Math.max(120, distance * 1.6) * (1 - 0.6 * this.haze);
+    this.fog.far = this.fog.near + 700 * (1 - 0.7 * this.haze);
   }
 }
 

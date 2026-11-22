@@ -167,7 +167,8 @@ export class Weather {
     const shower = showerAt(city.tick);
     let rain = shower * 0.4;
     let storm = shower * 0.3;
-    let haze = season.id === 'haze' ? 0.75 * edge : 0;
+    // Kept light (D-204): haze tints and softens the distance, it must never blur the city the steward is running.
+    let haze = season.id === 'haze' ? 0.4 * edge : 0;
     // How often ambient lightning strokes come (0 = never, 1 = every few seconds).
     let thunder = 0;
     for (const c of st.crises) {
@@ -189,7 +190,7 @@ export class Weather {
       } else if (c.def === 'king-tide') storm = Math.max(storm, k * 0.35);
       else if (c.def === 'heatwave') {
         heat = k;
-        haze = Math.max(haze, k * 0.6);
+        haze = Math.max(haze, k * 0.35);
       }
       else if (c.def === 'algal-bloom') algae = k;
       if ((c.def === 'blight' || c.def === 'grid-failure') && c.x !== undefined)
@@ -216,7 +217,7 @@ export class Weather {
     }
     if (U.heat.value > 0.01) U.horizon.value.lerp(HAZE, U.heat.value * 0.5);
     // Haze: a dusty warm horizon (dimmer at night) and a nearer fog.
-    if (this.haze > 0.01) U.horizon.value.lerp(HAZE, this.haze * 0.7 * (1 - 0.7 * U.night.value));
+    if (this.haze > 0.01) U.horizon.value.lerp(HAZE, this.haze * 0.45 * (1 - 0.7 * U.night.value));
     // Heatwave: a harsher, warmer sun.
     if (U.heat.value > 0.01) {
       U.sunColor.value.lerp(SCORCH, U.heat.value * 0.35);
@@ -224,7 +225,7 @@ export class Weather {
       atmo.sun.intensity *= 1 + 0.15 * U.heat.value;
     }
     // Heavy rain closes the view in: grey veils of rain swallow the distance.
-    atmo.haze = Math.max(this.haze, U.rain.value * 0.35);
+    atmo.haze = Math.max(this.haze, U.rain.value * 0.2);
 
     this.t += dt;
     this.lightning(dt, thunder, atmo);

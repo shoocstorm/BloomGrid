@@ -3739,3 +3739,18 @@ in the grade, reflections `environmentIntensity` 0.24 → 0.36 at night, and unl
 `render/bake.ts`) dims to 0.6 instead of 0.35. Night keeps its blue cast and its glow (window light, roads, bloom).
 A first try (moon 1.05) read as a washed-out day and was pulled back. Night flicker at 140 units rose from 0.005% to
 ~0.01% (brighter edges move more visibly), still far under the day figure (≤ 0.04%).
+
+## D-204: The picture stays sharp over time
+
+Players saw the city go soft and fuzzy the longer they played. Two causes:
+
+- **Dynamic resolution cut the scale for slow frames it couldn't fix, and rarely gave it back.** As a city grows the
+  frame time is often the sim or the main thread, not the GPU; the scale fell (to 0.5) and stayed there, because a
+  recovery needed three good windows in a row at the active cap and every idle spell (cap 60 → 30, 3 s after input)
+  reset the streak. Now (`render/Quality.ts`): a drop is on trial for two windows and undone unless the frame rate
+  rose 8% (or meets the target), with no drop tried for 5 min after a failed one; idle windows no longer reset the
+  recovery streak; the floor is 0.7; every change logs `[dynres] …`.
+- **Weather haze was heavy.** In the Haze season (0.75), heatwaves (0.6) and rain (0.35) the fog came in to ~45 tiles
+  and the horizon turned milky over the whole city. Now haze is 0.4 / 0.35 / 0.2, it pulls the fog in less
+  (`near × (1 − 0.6 h)`, `far = near + 700 (1 − 0.7 h)`), and tints the horizon less: the season reads as a warm, dusty
+  distance, not a blur over the city.

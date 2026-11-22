@@ -62,4 +62,42 @@ describe('dynamic resolution', () => {
     run(d, 1 / 40, 1.6);
     expect(d.scale).toBe(1);
   });
+
+  it('undoes a drop that does not speed frames up (CPU-bound), and does not try again for minutes', () => {
+    const d = new DynamicResolution();
+    // Slow frames whatever the resolution: the sim or the main thread, not the GPU.
+    run(d, 1 / 40, 3.2);
+    expect(d.scale).toBeLessThan(1);
+    run(d, 1 / 40, 3.2);
+    expect(d.scale).toBe(1);
+    run(d, 1 / 40, 120);
+    expect(d.scale).toBe(1);
+  });
+
+  it('never goes below 0.7, however slow the frames', () => {
+    const d = new DynamicResolution();
+    // Each drop pays a little (frames get faster), but never enough to meet the cap.
+    let dt = 1 / 20;
+    d.update(dt, 60);
+    for (let t = 0; t < 200; t += dt) {
+      if (d.update(dt, 60)) dt /= 1.1;
+    }
+    expect(d.scale).toBeGreaterThanOrEqual(0.7);
+  });
+
+  it('recovers even when idle spells interrupt play between moves', () => {
+    const d = new DynamicResolution();
+    run(d, 1 / 40, 3.2);
+    run(d, 1 / 60, 3); // the drop paid
+    const low = d.scale;
+    expect(low).toBeLessThan(1);
+    // Two seconds of play at 60, then four idle at 30, over and over.
+    for (let i = 0; i < 20; i++) {
+      d.update(1 / 60, 60);
+      for (let t = 0; t < 2; t += 1 / 60) d.update(1 / 60, 60);
+      d.update(1 / 30, 30);
+      for (let t = 0; t < 4; t += 1 / 30) d.update(1 / 30, 30);
+    }
+    expect(d.scale).toBeGreaterThan(low);
+  });
 });
