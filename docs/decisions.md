@@ -3909,3 +3909,15 @@ founding / restoring, seeding (modules) and the warm-up; boot time is unchanged.
 **Consequences:** Verified with a Chrome screencast at 6×: compositor frames keep coming at 60 Hz through the warm-up and
 the bar moves 75% → ≈88%. Headless screenshots wait for the main thread, so they can't show this. Real cuts to the
 warm-up need fewer node builds (fewer meshes or materials in the first frame), not more frames.
+
+## D-218 — Films prepare their first shot with real frames when bloom is on (2026-11-22)
+
+**Context:** The founding film's lantern hold ("First Light", D-184) and every 3D film's loading beat (`FilmStage.ready`,
+D-198) waited on `renderer.compileAsync(scene, camera)` before drawing a few frames. With bloom (Medium and up, phones
+included) that builds depth-0 variants no frame uses (D-030), so the first real frames then built everything again.
+Founding through the welcome dialog at 6× CPU throttle: hold 5.1–5.7 s.
+**Decision:** `PostFX.precompile()`: `compileAsync` only on the direct path (no bloom: Low), where it matches what frames
+draw; with bloom nothing, and the frames the hold already waits for build the shot. The founding film uses the city's
+`postfx`, `FilmStage.ready` the city's on location and its own (configured first, `syncFx`) on a set.
+**Consequences:** Hold 2.3 s at 6× (of which `LANTERN_MIN_MS` 1.7 s is the floor); Low unchanged. Later shots build on
+first draw as before (the old pass never covered them with bloom either).

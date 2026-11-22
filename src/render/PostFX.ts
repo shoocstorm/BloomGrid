@@ -104,6 +104,16 @@ export class PostFX {
     else await this.renderer.compileAsync(this.scene, this.camera);
   }
 
+  /**
+   * Prepares the next frames without drawing one (a film's loading beat, D-218): `compileAsync` on the direct path,
+   * where it builds what frames use in parallel. With bloom it would build depth-0 variants no frame draws (above):
+   * on a 6×-throttled CPU that tripled the founding film's lantern hold (5.1 s → 2.3 s without it), so the first real
+   * frames build instead.
+   */
+  async precompile(): Promise<void> {
+    if (!this.pipeline) await this.renderer.compileAsync(this.scene, this.camera);
+  }
+
   render(): void {
     if (!this.pipeline) {
       this.renderer.render(this.scene, this.camera);

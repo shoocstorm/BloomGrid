@@ -334,7 +334,7 @@ export function playFounding(ctx: GameContext, done: () => void, opts: FilmOptio
       // its last stages; the film covers it from here (`film-covers` hides it) rather than waiting for its fade.
       const held = performance.now();
       try {
-        await ctx.renderer.compileAsync(ctx.scene, ctx.camera);
+        await ctx.services.get('render').postfx.precompile();
       } catch {
         /* compiled on first draw instead */
       }

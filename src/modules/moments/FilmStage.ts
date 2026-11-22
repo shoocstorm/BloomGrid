@@ -433,7 +433,11 @@ export class FilmStage {
     const t0 = this.t;
     const prepared = (async () => {
       try {
-        await this.ctx.renderer.compileAsync(this.location ? this.ctx.scene : this.scene, this.cam);
+        if (this.location) await this.ctx.services.get('render').postfx.precompile();
+        else {
+          this.syncFx();
+          await this.fx.precompile();
+        }
       } catch {
         /* compiled on first draw instead */
       }
@@ -542,12 +546,17 @@ export class FilmStage {
     this.instancer.update(dt, this.camera);
   }
 
-  render(): void {
+  /** The set's post pipeline on the city's quality settings (bloom or not decides how it is prepared). */
+  private syncFx(): void {
     const q = this.ctx.quality.settings;
     if (this.fxQuality !== q) {
       this.fx.configure(q);
       this.fxQuality = q;
     }
+  }
+
+  render(): void {
+    this.syncFx();
     const L = this.look;
     this.key.color.setHex(L.key);
     this.key.intensity = L.keyI;
