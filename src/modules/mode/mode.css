@@ -1,0 +1,142 @@
+/* Mode banner and frame (D-202): a tool in hand is named at the bottom centre in its colour, with one Exit, and
+   the screen gets a thin matching edge. Static shadows only (no animated box-shadow, §7½). */
+.mode-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(680px, calc(100vw - 32px));
+  padding: 8px 8px 8px 14px;
+  border-radius: var(--radius);
+  background: rgba(10, 18, 22, 0.92);
+  border: 1.5px solid var(--mb-c);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mb-c) 18%, transparent), 0 8px 24px rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  pointer-events: auto;
+  animation: mb-in 0.22s ease-out;
+}
+.mode-bar.tone-make {
+  --mb-c: var(--accent);
+}
+.mode-bar.tone-remove {
+  --mb-c: var(--crit);
+}
+.mode-bar.tone-shape {
+  --mb-c: var(--warn);
+}
+.mode-bar.hidden,
+.mode-bar.mb-off,
+.mode-frame.hidden,
+.mode-frame.mb-off {
+  display: none;
+}
+@keyframes mb-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+.mb-ico {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 50%;
+  color: #0a1216;
+  background: var(--mb-c);
+}
+.mb-ico .ico {
+  width: 18px;
+  height: 18px;
+}
+.mb-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.mb-title {
+  font-size: 14px;
+  color: var(--mb-c);
+  letter-spacing: 0.02em;
+}
+.mb-hint {
+  font-size: 12px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mb-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  margin-left: auto;
+  padding: 7px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--mb-c);
+  background: color-mix(in srgb, var(--mb-c) 16%, transparent);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: var(--cur-pointer, pointer);
+}
+.mb-exit:hover {
+  background: color-mix(in srgb, var(--mb-c) 30%, transparent);
+}
+.mb-exit .ico {
+  width: 14px;
+  height: 14px;
+}
+.mb-exit kbd {
+  font-size: 10px;
+  opacity: 0.75;
+}
+.mode-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--mb-c) 70%, transparent),
+    inset 0 0 40px color-mix(in srgb, var(--mb-c) 22%, transparent);
+}
+.mode-frame.tone-make {
+  --mb-c: var(--accent);
+}
+.mode-frame.tone-remove {
+  --mb-c: var(--crit);
+}
+.mode-frame.tone-shape {
+  --mb-c: var(--warn);
+}
+/* The "Another …" pill sits where the banner goes; the banner wins while a tool is in hand. */
+body.tool-mode .bd-again {
+  display: none;
+}
+
+/* Phones: the build sheet fills the bottom, so the banner is one row under the top bars (`--chips`), full width;
+   the how-to line is left to the tool hint in the dock. */
+.compact .mode-bar {
+  bottom: auto;
+  top: var(--chips);
+  left: var(--gut-l);
+  right: var(--gut-r);
+  transform: none;
+  max-width: none;
+  gap: 8px;
+  padding: 5px 5px 5px 8px;
+  animation: none;
+}
+.compact .mb-hint {
+  display: none;
+}
+.compact .mb-ico {
+  width: 26px;
+  height: 26px;
+}
+.compact .mb-exit {
+  padding: 6px 12px;
+}

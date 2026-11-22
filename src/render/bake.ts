@@ -102,6 +102,6 @@ function fill(n: number, v: number[]): BufferAttribute {
 export function skyShade(base: Node<'vec3'>, n: Node<'vec3'>): Node<'vec3'> {
   const sun = max(dot(n, U.sunDir), 0).mul(float(1).sub(U.night));
   const amb = mix(U.horizon, U.zenith, n.y.mul(0.5).add(0.5)).mul(0.6).add(0.12);
-  const moon = mix(float(1), float(0.35), U.night);
+  const moon = mix(float(1), float(0.6), U.night);
   return base.mul(amb.add(U.sunColor.mul(sun).mul(0.8)).mul(moon)) as Node<'vec3'>;
 }

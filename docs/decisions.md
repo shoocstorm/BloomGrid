@@ -3712,3 +3712,30 @@ or reached milestone opens it again); the **request / happening** and **story** 
 recap** closes after 9 s (was 14, now paused while hovered); the **Ready to unlock** call-out is put away like "Later"
 after 20 s (the Goals tab and the pulsing Build keep it). Crisis warnings and fire alerts are not auto-closed: they are
 the ones that must be seen. A new notification card should use `idleTimer` / `autoCollapse`.
+
+## D-202: Smarter highways, a mode banner, the inspector steps aside
+
+Laying roads took precision (an end one tile short of a road left it disconnected, a building in the way left a gap)
+and players lost track of being in a build or remove mode.
+
+- **Smart routing** (`smartRoute` in `sim/roadPlan.ts`, shared by preview and command): a drag end within `SNAP` (3)
+  tiles of a highway snaps onto it, unless snapping keeps less than 60% of the drawn tiles (a road drawn beside
+  another stays on its own line). When the L route would skip tiles for a building, channel or cliff, an A*
+  (`routeRoad`: highway cheap to follow, water dearer and never bent, turns cost a little; bounded box) routes round
+  them. A click without a drag links that spot to the nearest highway within `LINK_REACH` (24) tiles; phones tap twice
+  (preview, then lay). The tooltip says when a stretch joins the network, or warns when it would not.
+- **Mode banner** (`modules/mode`): every non-select tool shows a bottom-centre bar in its tone (green build, red
+  remove, amber shaping) with the mode's name, how it works and an Exit button, and a matching static frame on the
+  screen edge. Phones: one row under the top bars, the how-to left to the dock hint.
+- **Inspector**: picking up any tool emits `selection:changed { eid: null }`, so a building clicked by accident while
+  building doesn't stay open over the work.
+
+## D-203: A bright, moonlit night
+
+Players couldn't see the city well enough at night to keep playing. The night keys in `world/Atmosphere.ts` now
+light it like a bright moonlit scene: moonlight 0.35 → 0.75, sky fill 0.35 → 0.6 (twilight 0.2 / 0.45 → 0.55 /
+0.62, so dusk no longer dips darker than midnight), a lighter navy sky and fog, shadows lifted and highlights raised
+in the grade, reflections `environmentIntensity` 0.24 → 0.36 at night, and unlit scenery (`skyShade` in
+`render/bake.ts`) dims to 0.6 instead of 0.35. Night keeps its blue cast and its glow (window light, roads, bloom).
+A first try (moon 1.05) read as a washed-out day and was pulled back. Night flicker at 140 units rose from 0.005% to
+~0.01% (brighter edges move more visibly), still far under the day figure (≤ 0.04%).

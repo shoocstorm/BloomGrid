@@ -32,10 +32,10 @@ interface SkyKey {
 }
 
 // Keyframes by sun elevation: deep night -> dusk -> golden hour -> day. Golden hour warms the light and
-// cools the shadows; night lifts the shadows toward blue so the dark still reads.
+// cools the shadows; night is a bright moonlit blue (D-203): the city stays readable and playable after dark.
 const KEYS: SkyKey[] = [
-  { e: -0.35, zenith: 0x070b24, horizon: 0x18204a, sun: 0x8fa8ff, sunI: 0.35, hemiI: 0.35, lift: [0, 0.012, 0.04], gain: [0.94, 0.98, 1.06], sat: 0.92, con: 1.04, bloom: 0.9 },
-  { e: -0.05, zenith: 0x1c2a63, horizon: 0x6a5a9a, sun: 0xa0b4ff, sunI: 0.2, hemiI: 0.45, lift: [0.03, 0, 0.035], gain: [1.03, 0.97, 1], sat: 1.02, con: 1.04, bloom: 0.8 },
+  { e: -0.35, zenith: 0x0e1a40, horizon: 0x283a6a, sun: 0xa8bcff, sunI: 0.75, hemiI: 0.6, lift: [0.012, 0.024, 0.055], gain: [1.02, 1.06, 1.13], sat: 0.96, con: 1.02, bloom: 0.85 },
+  { e: -0.05, zenith: 0x22346e, horizon: 0x6e60a0, sun: 0xaabcff, sunI: 0.55, hemiI: 0.62, lift: [0.032, 0.012, 0.042], gain: [1.05, 1, 1.04], sat: 1.03, con: 1.03, bloom: 0.76 },
   { e: 0.08, zenith: 0x4a6fb8, horizon: 0xffb38a, sun: 0xffb070, sunI: 1.8, hemiI: 0.55, lift: [0, 0.008, 0.025], gain: [1.08, 1, 0.9], sat: 1.14, con: 1.05, bloom: 0.65 },
   { e: 0.3, zenith: 0x5aa8f0, horizon: 0xd9ecf5, sun: 0xffeccc, sunI: 2.9, hemiI: 0.68, lift: [0, 0, 0.005], gain: [1.02, 1, 0.98], sat: 1.1, con: 1.04, bloom: 0.5 },
   { e: 1.0, zenith: 0x4f9ff0, horizon: 0xcfeaff, sun: 0xfff6e6, sunI: 3.3, hemiI: 0.72, lift: [0, 0, 0], gain: [1, 1, 1], sat: 1.08, con: 1.04, bloom: 0.45 },
@@ -166,7 +166,7 @@ export class Atmosphere {
     this.hemi.color.copy(U.horizon.value).lerp(ca.setHex(0xffffff), 0.3);
     this.hemi.groundColor.setHex(night > 0.5 ? 0x1a2a3a : 0x5a7a4a);
     if (elev < 0) this.sunDir.multiplyScalar(-1).setY(Math.max(0.35, -elev));
-    this.scene.environmentIntensity = 0.24 + 0.48 * (1 - night);
+    this.scene.environmentIntensity = 0.36 + 0.36 * (1 - night);
   }
 
   /** The snapped shadow focus at the last refresh (the light's target, not its position: see `follow`). */

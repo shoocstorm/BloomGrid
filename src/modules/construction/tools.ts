@@ -9,7 +9,7 @@ import { MIST_COST, MIST_RADIUS, ZONE, mistZones } from '@/sim/floranet';
 import { reclaimPlan, seaMask } from '@/sim/coast';
 import { banyanPlan, bridgePlan } from '@/sim/weaver';
 import { CHANNEL_COST, RETROFIT_RADIUS, ROAD_PLAN_COSTS, retrofitPlan } from '@/sim/commands';
-import { bestRoute, type RoadPlan } from '@/sim/roadPlan';
+import { joinsNetwork, smartRoute, type RoadPlan, type SmartRoad } from '@/sim/roadPlan';
 import type { GameContext } from '@/game/context';
 import type { Tool } from '@/game/Tools';
 import type { GroundHit } from '@/world/Picking';
@@ -476,39 +476,72 @@ export function createTools(ghost: Ghost, build: BuildState, renderer: BuildingR
       return [x, g.rangeOver(x, z, 1, 1).max, z] as [number, number, number];
     });
 
+  /** The last highway plan by its ends and the city's state, so hover re-plans only when something changed. */
+  let roadMemo: { key: string; route: SmartRoad } | null = null;
+  const roadRoute = (ctx: GameContext, a: { x: number; z: number }, b: { x: number; z: number }) => {
+    const key = `${a.x},${a.z}|${b.x},${b.z}|${ctx.city.roadCount}|${ctx.city.buildingEntities().length}|${Math.floor(ctx.city.credits / 50)}`;
+    if (roadMemo?.key !== key) roadMemo = { key, route: smartRoute(ctx.city, a, b, ROAD_PLAN_COSTS) };
+    return roadMemo.route;
+  };
+  const roadText = (ctx: GameContext, r: SmartRoad, dragging: boolean): string => {
+    const { plan } = r;
+    const n = plan.place.length;
+    const what = `${n} tile${n === 1 ? '' : 's'}${plan.bridges ? ` (${plan.bridges} bridge)` : ''}${plan.grade.length ? ' · banks graded' : ''} · ${fmt(plan.cost)} ◈`;
+    const how =
+      r.via === 'link' ? ' · links to the nearest highway' : r.via === 'detour' ? ' · routed round obstacles' : '';
+    const join = r.joins ? ' · joins the network' : !joinsNetwork(ctx.city, plan) ? ' · ⚠ not connected to any highway' : '';
+    if (!dragging && r.via !== 'link') {
+      const t = plan.path[0];
+      const onRoad = t !== undefined && ctx.city.grid.road[t]! > 0;
+      return onRoad ? 'Drag from here to extend this highway' : 'Drag to lay a highway · click to link this spot to the nearest one';
+    }
+    return `${dragging ? '' : 'Click: '}${what}${how}${join}${skipText(plan)}`;
+  };
+
   const road: Tool = {
     id: 'road',
     label: 'Living Highway',
     icon: '≋',
     grid: true,
     activate: () => (dragStart = null),
-    deactivate: () => ghost.hideAll(),
+    deactivate: () => {
+      roadMemo = null;
+      ghost.hideAll();
+    },
     hover(ctx, hit) {
       if (!hit?.inBounds) return ghost.hideAll();
       const cur = { x: hit.tx, z: hit.tz };
-      // One plan for preview and command (D-125): the better L route, bridges landed on the far bank, steep
-      // banks graded as abutments; what can't be laid says why.
-      const plan = bestRoute(ctx.city, dragStart ?? cur, cur, ROAD_PLAN_COSTS);
+      // One plan for preview and command (D-125, D-202): ends snap onto nearby highway, obstacles are routed round,
+      // a lone click links the spot to the nearest highway; bridges land on the far bank, steep banks are graded.
+      const r = roadRoute(ctx, dragStart ?? cur, cur);
+      const { plan } = r;
       ghost.setValid(plan.place.length > 0 || plan.clear.length > 0, plan.skipped.length > 0);
       ghost.showTiles(tileList(ctx, plan.place.length ? [...plan.place, ...plan.clear] : plan.path));
-      const why = skipText(plan);
       ctx.bus.emit('tool:tooltip', {
-        text: dragStart
-          ? `${plan.place.length} tiles${plan.bridges ? ` (${plan.bridges} bridge)` : ''}${plan.grade.length ? ' · banks graded' : ''} · ${fmt(plan.cost)} ◈${why}`
-          : `Drag to grow a moss highway · crosses water as a bridge${why}`,
-        tone: plan.place.length && !plan.skipped.length ? 'ok' : 'bad',
+        text: roadText(ctx, r, !!dragStart),
+        tone: plan.place.length && !plan.skipped.length ? 'ok' : dragStart || r.via === 'link' ? 'bad' : 'ok',
       });
     },
     down(_ctx, hit) {
       if (hit?.inBounds) dragStart = { x: hit.tx, z: hit.tz };
     },
     cancel: () => (dragStart = null),
-    up(ctx, hit) {
-      if (dragStart && hit?.inBounds) {
-        const plan = bestRoute(ctx.city, dragStart, { x: hit.tx, z: hit.tz }, ROAD_PLAN_COSTS);
-        ctx.commands.execute('road', { tiles: plan.path, bridges: true });
-      }
+    up(ctx, hit, e) {
+      const start = dragStart;
       dragStart = null;
+      if (!start || !hit?.inBounds) return;
+      const end = { x: hit.tx, z: hit.tz };
+      const r = roadRoute(ctx, start, end);
+      // A tap on a phone previews the link first (no hover there); a second tap on the same spot lays it.
+      if (e.touch && r.via === 'link' && !confirmTap('road-link', end.x, end.z, (p) => p.x === end.x && p.z === end.z)) {
+        ghost.setValid(r.plan.place.length > 0, r.plan.skipped.length > 0);
+        ghost.showTiles(tileList(ctx, r.plan.place));
+        ctx.bus.emit('tool:tooltip', { text: `${roadText(ctx, r, true)} · tap again to lay it`, tone: 'ok' });
+        return;
+      }
+      armed = null;
+      ctx.commands.execute('road', { tiles: r.plan.path, bridges: true });
+      roadMemo = null;
     },
   };
 
