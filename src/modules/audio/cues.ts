@@ -436,6 +436,12 @@ const SIGNATURES: Record<string, Cue> = {
     tn(3136, 0.6, 0.02, 'sine', undefined, 0.1),
     nz('bandpass', 3000, 0.4, 0.02, 1600, 0.05),
   ],
+  // A shop door's bell over the galleria's hum.
+  'bloom-arcade-mall': [nz('lowpass', 700, 0.5, 0.03), ...run([1319, 1661, 1976], 0.07, 0.5, 0.035, 'sine')],
+  // A sparkle, like a mirror catching the bulbs.
+  'petal-salon': run([2093, 2637, 3136, 2637], 0.06, 0.35, 0.025, 'sine'),
+  // The roaster's hiss and a cup on its saucer.
+  'copperleaf-coffee': [nz('bandpass', 3200, 0.35, 0.03, 1800), tn(1760, 0.12, 0.04, 'triangle', undefined, 0.3), tn(2349, 0.25, 0.03, 'triangle', undefined, 0.36)],
   'lotus-pavilion': [
     tn(440, 1.2, 0.035, 'sine'),
     tn(660, 1.0, 0.025, 'sine', undefined, 0.2),
