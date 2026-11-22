@@ -120,6 +120,11 @@ export function gameOver(ctx: GameContext, close: () => void): HTMLElement {
     icon('play'),
     'Keep playing in sandbox',
   );
+  // The island's story before the next chapter (the time-lapse, D-219): the film plays over this card, which comes back.
+  const timelapse = ctx.services.tryGet('timelapse');
+  const storyBtn = timelapse?.earned()
+    ? h('button', { class: 'btn ghost ov-story', onClick: () => timelapse.play() }, icon('calendar'), `Watch ${name}’s story`)
+    : null;
   const wizard = ctx.services.tryGet('wizard');
   const moreBtn = wizard
     ? h('button', { class: 'btn ghost', onClick: () => wizard.open() }, icon('settings'), 'More choices')
@@ -200,6 +205,7 @@ export function gameOver(ctx: GameContext, close: () => void): HTMLElement {
       h(
         'div',
         { class: 'modal-actions' },
+        storyBtn,
         loadBtn,
         DIFFICULTIES[difficulty].fail ? sandboxBtn : null,
         moreBtn,

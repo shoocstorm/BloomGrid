@@ -193,6 +193,27 @@ export class FilmStage {
    * Places a building type at level `tier` (0-based) with its lot centre at (x, z), turned by `yaw`, standing at `y`.
    * Returns its bounds (roofs are its top) in stage coordinates.
    */
+  /**
+   * A building of type `defId` at level `tier` placed by a lot matrix (`placeBuilding(…).base`, as the city draws it),
+   * growing in after `grow` seconds (-1 at once). Returns its handles for `removePieces` (the time-lapse's ghosts).
+   */
+  addBuildingAt(defId: string, tier: number, base: Matrix4, grow = -1, tint?: { col: number; k: number }): InstanceHandle[] {
+    const m = new Matrix4();
+    const tc = tint ? new Color(tint.col) : null;
+    const out: InstanceHandle[] = [];
+    for (const p of designPieces(buildings.get(defId), tier)) {
+      m.multiplyMatrices(base, p.src.local);
+      const col = tc ? p.color.clone().lerp(tc, tint!.k) : p.color;
+      out.push(this.instancer.addMatrix(p.piece, m, col, p.params, grow < 0 ? -1 : grow + Math.max(0, p.src.local.elements[13]!) * 0.05));
+    }
+    return out;
+  }
+
+  /** Folds pieces away (top first if `stagger`), as a demolition does. */
+  removePieces(handles: readonly InstanceHandle[], stagger = 0.3): void {
+    handles.forEach((h, i) => this.instancer.removeAnimated(h, stagger * (1 - i / Math.max(1, handles.length)), 0.4));
+  }
+
   addBuilding(defId: string, tier: number, x: number, z: number, yaw = 0, y = 0, scale = 1, tint?: { col: number; k: number }): Box3 {
     const def = buildings.get(defId);
     // Template pieces are placed from the footprint's centre at ground level.

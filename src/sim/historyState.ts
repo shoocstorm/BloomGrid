@@ -41,6 +41,37 @@ export const createHistoryState = (): HistoryState => ({
   every: 30,
 });
 
+/**
+ * Birth times as saved (v29): one group per tick, `[tick, firstId, delta, delta, …]` with ids ascending, so a highway
+ * dragged in one go is `[tick, tile, 1, 1, 1 …]`. A founding city dated in full is ≈11k births: ≈33 KB instead of ≈150 (`tests/history.test.ts`).
+ */
+export function packTimes(times: ReadonlyMap<number, number>): number[][] {
+  const byTick = new Map<number, number[]>();
+  for (const [id, t] of times) {
+    let g = byTick.get(t);
+    if (!g) byTick.set(t, (g = []));
+    g.push(id);
+  }
+  return [...byTick]
+    .sort((a, b) => a[0] - b[0])
+    .map(([t, ids]) => {
+      ids.sort((a, b) => a - b);
+      return [t, ...ids.map((id, i) => (i ? id - ids[i - 1]! : id))];
+    });
+}
+
+export function unpackTimes(groups: readonly (readonly number[])[]): Map<number, number> {
+  const out = new Map<number, number>();
+  for (const g of groups) {
+    let id = 0;
+    for (let i = 1; i < g.length; i++) {
+      id = i === 1 ? g[1]! : id + g[i]!;
+      out.set(id, g[0]!);
+    }
+  }
+  return out;
+}
+
 export function historyHash(h: HistoryState): string {
   let b = 0;
   for (const [u, t] of h.born) b = (b + u * 31 + t) % 2147483647;

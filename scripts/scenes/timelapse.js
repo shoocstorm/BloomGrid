@@ -4,7 +4,7 @@
 // `window.FAKE = 1` first writes a made-up past into the history ledger (scene preview only): every building and
 // highway born by its distance from the island's middle over `window.DAYS` days (default 12), a few marks and samples,
 // so the showcase city (all founding content) replays as a growing city. Without it, the city's real ledger is used.
-// `window.PROMO = 'goals' | 'invite'` shows how the film is promoted instead of playing it.
+// `window.PROMO = 'goals' | 'invite' | 'map'` shows how the film is promoted instead of playing it.
 // `window.FPS = 1` also reports frames per second over the two seconds before the freeze.
 // `window.SKIP = 1` skips the film after the freeze point to check that the veil lifts (returns the counts after).
 // Evaluated by scripts/snap.mjs.
@@ -38,6 +38,21 @@
       if (Math.hypot(x - cx, z - cz) < 30) continue;
       h.roads.set(t, Math.max(1, when(x, z, t) - 40));
     }
+    // Levels: buildings above level 1 rose at level 1 and levelled up a while after.
+    h.tiers = [];
+    h.gone = [];
+    let n = 0;
+    for (const eid of city.buildingEntities()) {
+      const r = city.buildingRecord(eid);
+      const born = h.born.get(r.uid);
+      if (!born) continue;
+      if (r.tier > 0) h.tiers.push([r.uid, Math.min(span - 10, born + Math.round(span * 0.12)), r.tier]);
+      // Every 25th dated building replaced an older one on its lot: the old one stands, then folds away.
+      if (n++ % 25 === 0 && born > span * 0.3) h.gone.push([r.uid + 100000, r.def, r.x, r.z, r.rot, 0, Math.round(born * 0.4), born - 60]);
+    }
+    h.tiers.sort((a, b) => a[1] - b[1]);
+    // A monsoon with a place, for its flare.
+    city.steward.history.push({ id: 9999, kind: 'monsoon', name: 'Monsoon', icon: 'rain', startTick: Math.round(span * 0.5), endTick: Math.round(span * 0.52), severity: 1, district: 'Westbrook', x: 150, z: 270, hits: 3, lost: 0, fires: 0, displaced: 0, cost: 0, outcome: 'weathered', objects: [] });
     h.marks = [
       [Math.round(span * 0.18), 'era', 'grove'],
       [Math.round(span * 0.36), 'wonder', 'lotus'],
@@ -56,6 +71,18 @@
   if (window.PROMO) {
     // The showcase queues a run of ceremonies after boot (the invitation rightly waits them out): off for the preview.
     g.services.get('moments').mode = 'off';
+    if (window.PROMO === 'map') {
+      // The City map's history slider, dragged back to `window.BACK` (0..1000, default 400).
+      g.services.get('citymap').toggle(true);
+      await wait(600);
+      const r = document.querySelector('.cmap-hist-range');
+      if (r) {
+        r.value = String(window.BACK ?? 400);
+        r.dispatchEvent(new Event('input'));
+      }
+      await wait(900);
+      return { hist: !!document.querySelector('.cmap-hist:not(.hidden)'), day: document.querySelector('.cmap-hist-day')?.textContent };
+    }
     if (window.PROMO === 'goals') {
       g.services.get('build').open();
       g.services.get('build').show('goals');
@@ -94,6 +121,7 @@
     drawCalls: g.renderer.info.render.drawCalls,
     fps,
   };
+  Object.assign(out, g.services.get('timelapse').stats());
   if (window.SKIP) {
     for (const c of clocks) c.held = false;
     for (const a of document.getAnimations()) a.play();

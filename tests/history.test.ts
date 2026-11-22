@@ -4,6 +4,8 @@ import { bornAt, SAMPLE_MAX } from '@/sim/history';
 import { deserializeCity, migrateSave, serializeCity, SAVE_VERSION, type SaveData } from '@/sim/save';
 import { EventBus } from '@/core/EventBus';
 import { City } from '@/sim/City';
+import { packTimes, unpackTimes } from '@/sim/historyState';
+import { applyScenario } from '@/sim/scenario';
 import { findLandRow, findSpot, makeSim } from './helpers';
 
 /** The history ledger the time-lapse replays (plan v6, Phase 30, D-219). */
@@ -133,5 +135,55 @@ describe('history ledger', () => {
       return s.city.hash();
     };
     expect(run()).toBe(run());
+  });
+
+  it('packs birth times by tick, delta-coded, and unpacks them exactly', () => {
+    const times = new Map([
+      [40, 7],
+      [41, 7],
+      [42, 7],
+      [9, 3],
+      [500, 7],
+    ]);
+    const packed = packTimes(times);
+    expect(packed).toEqual([
+      [3, 9],
+      [7, 40, 1, 1, 458],
+    ]);
+    expect(unpackTimes(packed)).toEqual(times);
+  });
+
+  it('migrates v28 pairs to the packed form', () => {
+    const { s } = built();
+    s.step(10);
+    const data = JSON.parse(JSON.stringify(serializeCity(s.city))) as SaveData;
+    const born = [...s.city.history.born];
+    data.version = 28;
+    (data.history as unknown as { born: number[][]; roads: number[][] }).born = born.map(([u, t]) => [u, t]);
+    data.history.roads = [];
+    const copy = new City(new EventBus(), 1);
+    deserializeCity(copy, migrateSave(data));
+    expect([...copy.history.born]).toEqual(born);
+  });
+
+  it('keeps a fully dated founding city small in a save', () => {
+    const s = makeSim(20261024);
+    applyScenario(s.city, 'founding-city');
+    const c = s.city;
+    // As if built by a player: blocks of highway and their buildings laid together, block by block outwards.
+    const when = (x: number, z: number) => 1 + Math.floor(Math.hypot(x - 256, z - 256) / 12) * 600 + (Math.floor(x / 14) % 3) * 40;
+    for (const eid of c.buildingEntities()) {
+      const r = c.buildingRecord(eid);
+      c.history.born.set(r.uid!, when(r.x, r.z) + 20);
+    }
+    for (const t of c.roadTiles()) c.history.roads.set(t, when(t % c.grid.w, (t / c.grid.w) | 0));
+    const json = JSON.stringify(serializeCity(c).history);
+    // ≈11k dated births; pairs would be ≈150 KB.
+    expect(json.length).toBeLessThan(70_000);
+    const copy = new City(new EventBus(), 1);
+    const data = JSON.parse(JSON.stringify(serializeCity(c))) as SaveData;
+    deserializeCity(copy, data);
+    expect(copy.history.roads).toEqual(c.history.roads);
+    expect(copy.history.born).toEqual(c.history.born);
   });
 });

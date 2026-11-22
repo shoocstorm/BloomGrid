@@ -191,7 +191,9 @@ export const auroraModule: GameModule = {
         show.value += (target - show.value) * Math.min(1, f.dt * 1.5);
         spread.value = show.value * (0.5 + 0.5 * Math.sin(U.clock.value * 0.9));
         sweep.value += f.dt * (0.12 + show.value * 0.9);
-        mesh.visible = U.night.value > 0.04 || show.value > 0.01;
+        // A time-lapse (D-219) may have the towers veiled: no searchlights over an empty lot.
+        const veiled = twins.some((e) => ctx.services.tryGet('construction')?.renderer.isVeiled(e));
+        mesh.visible = !veiled && (U.night.value > 0.04 || show.value > 0.01);
       },
     });
 

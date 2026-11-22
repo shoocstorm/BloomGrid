@@ -250,8 +250,10 @@ export const policeModule: GameModule = {
       phase: 'render',
       order: 6,
       update() {
-        drones.visible = drones.count > 0;
-        beams.visible = drones.count > 1 && U.night.value > 0.05;
+        // The time-lapse (D-219): the drones wait for the Aegis Watch charter on the film's clock.
+        const seen = ctx.services.tryGet('timelapse')?.shows('police') ?? true;
+        drones.visible = drones.count > 0 && seen;
+        beams.visible = drones.count > 1 && U.night.value > 0.05 && seen;
         // Forget sorties that have landed.
         for (const [uid, [, t1]] of sorties) if (t1 < U.clock.value) sorties.delete(uid);
       },

@@ -44,3 +44,17 @@ bottom. The film ends on a card with your city's name and its totals.
 The island keeps its history from when you start playing with this version. Anything built before that, and the
 showcase city's starting content, counts as the founding, so it all rises together in the opening. Everything you
 build from now on gets its own moment. Watching the film never changes your city: the clock holds while it plays.
+
+## Can I look back at a single day?
+
+Yes. Open the **City map** (**M**) and drag the **History** slider under it. The map shows the island as it stood
+that day: the highways and buildings already built, and the ones that have since been demolished. **Watch the film**
+next to it plays the time-lapse. You can also ask Flora to show your island's story, and the game-over screen
+offers the film before you start your next island.
+
+## What else does the film show?
+
+Buildings rise at the level they had then and level up as they did. Buildings that were demolished or lost stand
+again for as long as they stood, then fold away. A storm or quake with a place flares there as its caption shows.
+The Aeroline, police drones, the Tidesong and the Sky Guard appear only once their unlock project was done.
+

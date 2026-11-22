@@ -478,13 +478,16 @@ export const ferryModule: GameModule = {
         heading = pierHeading();
       }
     };
+    /** The pier stands (the cruise line is open); the time-lapse may still hold it back (`sail`). */
+    let pierOn = false;
     const refresh = () => {
       // A fresh island earns her: the Tidesong cruise line project (D-144).
       const on = !!pier && isOpen(city.growth, 'cruise') && open().length > 0;
       if (on && !dest) dest = pickNext();
       shown = on && !!dest;
       vessel.visible = shown;
-      pierMesh.visible = !!pier && on;
+      pierOn = !!pier && on;
+      pierMesh.visible = pierOn;
     };
     layout();
     refresh();
@@ -524,6 +527,10 @@ export const ferryModule: GameModule = {
 
     /** Sails the timetable on by `dt` seconds. */
     const sail = (dt: number) => {
+      // The time-lapse (D-219): the Tidesong and her pier wait for the cruise line on the film's clock.
+      const seen = ctx.services.tryGet('timelapse')?.shows('cruise') ?? true;
+      vessel.visible = shown && seen;
+      pierMesh.visible = pierOn && seen;
       if (!shown || !pier) return;
       clock += dt;
       const [bx, bz] = berth();

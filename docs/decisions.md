@@ -3963,3 +3963,26 @@ ceremonies, dialogs, the pause card and the ready call-out (which keeps its stro
 (D-201). Watched / offered days are module state (save hook `timelapse`), not sim state: they never touch the hash.
 **Consequences:** At most one invitation per `GROWN_DAYS` plus one per era. The running time on both is computed from the
 timeline once per day (it reads every building and highway tile).
+
+## D-221 — The time-lapse's later reach: ghosts, levels, gates, map scrub, packed births (2026-11-22)
+
+**Context:** Plan v6 Phase 33. The film replayed only what stands now, at today's level. Things that unlock projects
+brought (the Aeroline, drones, ferry, jet) stood from the first frame, and the ledger's birth pairs would grow past
+100 KB on a big island.
+**Decision:**
+- **Ghosts:** gone records that stood at least `MIN_LIFE` are placed on the film stage, which shoots on location,
+  with `placeBuilding`'s lot matrix and a faint memory tint. They fold away at their end tick.
+- **Levels:** a building rises at its level of the time (`tier0`: 0 for a build, one below its first recorded change
+  for founding content) and changes on `tier` events. Every building is synced back to its own level at the end and
+  on every exit.
+- **Flares:** crises with a place get an additive ring and pillar, sized to the camera distance.
+- **Gates:** `timelapse.shows(project)` is false only while the film plays and before that project's mark on its
+  clock. The Aeroline, police, ferry and Sky Guard modules AND it into their visibility. Aurora searchlights stay off
+  over veiled towers.
+- **Entry points:** a game-over button, Flora's `play_timelapse` (registered from the module, after her own tools, so
+  her menus keep their letters; no grammar change, no input), and the City map History slider. The slider repaints
+  only the pixels at a tick, coalesced to ~16 Hz.
+- **Packed births:** saved v29 groups births by tick and delta-codes the ids (`packTimes`); v28 is migrated.
+**Consequences:** A fully dated founding city's ledger is ≈33 KB (≈150 KB as pairs). The ghosts' pieces live in the film
+stage's instancer and go with `stage.close`. Things without a project mark (the showcase opens everything) show from
+the first frame as before.

@@ -1,6 +1,6 @@
-# Plan v6: The Island Remembers, a time-lapse of your city (Phases 30–33)
+# Plan v6: The Island Remembers, a time-lapse of your city (Phases 30–33) ✅
 
-Status: Phases 30–32 ✅ (2026-11-22); Phase 33 ⬜ later. Track progress with the checkboxes below, which are mirrored in
+Status: ✅ Phases 30–33 done (2026-11-22). Track progress with the checkboxes below, which are mirrored in
 `docs/roadmap.md`. `docs/progress.md` points here.
 
 ## Idea
@@ -88,16 +88,24 @@ build-in animations, so no new city or loader is needed and the city is never ch
       films, ceremonies, dialogs, pause and the ready call-out; idles away; watched / offered saved per city.
 - [x] Checked with `scripts/scenes/timelapse.js` `PROMO = 'goals' | 'invite'`.
 
-## Phase 33: Reach and polish ⬜ (later)
+## Phase 33: Reach and polish ✅
 
-- [ ] Demolished buildings come back as ghosts (`FilmStage.addBuilding`) for their lifetime, then fold away.
-- [ ] Buildings rise at their level of the time and grow through `tiers` during the film.
-- [ ] Incident flares at the crisis's `x, z` (a ring and a caption pinned with `project`).
-- [ ] Hide everything else attached to unbuilt things: signs, aurora searchlights, Aeroline (its `construction.ts`
-      rise), pods on unbuilt hubs, the ferry pier, police pads.
-- [ ] Offer the film at each era change and on the game-over screen; a Flora tool `play_timelapse`.
-- [ ] Scrub the timeline in the City map ("the island on day N").
-- [ ] Ledger size check on a long fresh island (road births as runs if saves grow past ~200 KB).
+- [x] Demolished buildings come back as ghosts (`FilmStage.addBuildingAt`, placed by `placeBuilding`) for their
+      lifetime, then fold away (`removePieces`).
+- [x] Buildings rise at their level of the time and grow through `tiers` during the film (`BuildingRenderer.unveil(…,
+      tier)`, `replayTier`); every building is put back at its own level when the film ends.
+- [x] Crisis flares at the incident's `x, z` (a warm ring and pillar as its caption shows).
+- [x] Things an unlock project brought wait for it on the film's clock (`timelapse.shows`: Aeroline, police drones,
+      the Tidesong and her pier, the Sky Guard); Aurora searchlights stay off over veiled towers; signs never draw at
+      the film's height (30-unit range).
+- [x] Offered at each new era (the invitation, D-220) and on the game-over screen (*Watch <city>'s story*); Flora's
+      `play_timelapse` (registered after her own tools).
+- [x] Scrub the timeline in the City map: a History slider repaints the map at that day (highways and buildings built
+      by then, gone buildings that still stood), with *Watch the film*.
+- [x] Ledger size: births grouped by tick and delta-coded (save v29, migration from v28): a fully dated founding city
+      is ≈33 KB (was ≈150 KB as pairs), guarded in `tests/history.test.ts`.
+- [x] Verified with `scripts/scenes/timelapse.js` (`FAKE` adds ghosts, levels and a located monsoon; `stats()` reports
+      ghosts on the stage; `PROMO = 'map'`).
 
 ## Risks
 

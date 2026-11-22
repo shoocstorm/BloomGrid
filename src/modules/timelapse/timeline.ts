@@ -1,8 +1,9 @@
+import { buildings as registry } from '@/content';
 import { Building } from '@/ecs/components';
 import type { City } from '@/sim/City';
 import { ERAS } from '@/sim/eras';
 import { UNLOCK_NAMES, type UnlockId } from '@/sim/growthState';
-import { bornAt } from '@/sim/history';
+import { bornAt, MIN_LIFE } from '@/sim/history';
 import type { HistorySample } from '@/sim/historyState';
 import { WONDERS } from '@/sim/wonders';
 
@@ -15,7 +16,8 @@ import { WONDERS } from '@/sim/wonders';
  *   rank (`WARP_REAL`), so a busy hour is not crammed into a second and a quiet week does not stall the film.
  * - **Marks**: eras, wonders, unlocks and the big crises, spaced so captions can be read (`MARK_GAP`).
  *
- * Only what stands now replays (a demolished building's ghost is plan v6 Phase 33).
+ * - **Levels**: a building rises at its level of the time and grows (or slips) as the ledger's tier records say.
+ * - **Ghosts**: what was demolished or lost stands for its lifetime and folds away when it went (Phase 33).
  */
 
 export interface TimelineThing {
@@ -24,6 +26,20 @@ export interface TimelineThing {
   tick: number;
   x: number;
   z: number;
+  /** A building's level when it rose (default: as it stands). */
+  tier0?: number;
+}
+
+/** A level change of a standing building (`id` = entity id). */
+export interface TimelineTier {
+  id: number;
+  tick: number;
+  tier: number;
+}
+
+/** A building that is gone (`id` = its index in the ledger's gone list): it stood from `tick` to `end`. */
+export interface TimelineGhost extends TimelineThing {
+  end: number;
 }
 
 export interface TimelineMarkIn {
@@ -44,13 +60,18 @@ export interface TimelineInput {
   roads: TimelineThing[];
   marks: TimelineMarkIn[];
   samples: readonly HistorySample[];
+  tiers?: TimelineTier[];
+  ghosts?: TimelineGhost[];
 }
 
 export interface TimelineEvent {
   /** Film seconds. */
   at: number;
-  kind: 'building' | 'road';
+  /** `ghost` rises a gone building, `fade` folds it away; `tier` sets a standing building's level. */
+  kind: 'building' | 'road' | 'tier' | 'ghost' | 'fade';
   id: number;
+  /** The level, for `tier`. */
+  tier?: number;
 }
 
 export interface TimelineMark extends TimelineMarkIn {
@@ -92,19 +113,24 @@ export const YEARS_NONE = 6;
 const AFTER_ROAD = 0.15;
 
 const PRIORITY: Record<TimelineMarkIn['kind'], number> = { era: 4, wonder: 3, crisis: 2, project: 1 };
+/** Same film time: highways first, then buildings and ghosts rise, then levels change, then ghosts fold. */
+const ORDER: Record<TimelineEvent['kind'], number> = { road: 0, building: 1, ghost: 1, tier: 2, fade: 3 };
 
 export const foundingLength = (n: number) => (n ? Math.min(6, Math.max(2.5, 2 + n * 0.0015)) : 0);
 export const yearsLength = (n: number) => (n ? Math.min(YEARS_MAX, Math.max(YEARS_MIN, 16 + Math.sqrt(n) * 0.9)) : YEARS_NONE);
 
 export function buildTimeline(input: TimelineInput): Timeline {
   const now = Math.max(1, input.now);
-  const early = [...input.buildings, ...input.roads].filter((b) => b.tick <= 0);
-  const late = [...input.buildings, ...input.roads].filter((b) => b.tick > 0);
+  const ghosts = input.ghosts ?? [];
+  const early = [...input.buildings, ...input.roads, ...ghosts].filter((b) => b.tick <= 0);
+  const late = [...input.buildings, ...input.roads, ...ghosts].filter((b) => b.tick > 0);
   const founding = foundingLength(early.length);
   const years = yearsLength(late.length);
 
   // The warp: a blend of the clock and the rank of distinct event ticks (piecewise linear between them).
-  const ticks = [...new Set(late.map((b) => Math.min(now, b.tick)))].sort((a, b) => a - b);
+  const ticks = [
+    ...new Set([...late.map((b) => Math.min(now, b.tick)), ...ghosts.map((g) => Math.min(now, g.end)), ...(input.tiers ?? []).map((t) => Math.min(now, t.tick))]),
+  ].sort((a, b) => a - b);
   const rank = (tick: number): number => {
     if (!ticks.length) return tick / now;
     if (tick <= 0) return 0;
@@ -139,16 +165,24 @@ export function buildTimeline(input: TimelineInput): Timeline {
   const dist = (b: TimelineThing) => Math.hypot(b.x - input.heart.x, b.z - input.heart.z);
   const far = Math.max(1, ...early.map(dist));
   const events: TimelineEvent[] = [];
-  const roadSet = new Set(input.roads);
+  const roadSet = new Set<TimelineThing>(input.roads);
+  const ghostSet = new Set<TimelineThing>(ghosts);
+  const kindOf = (b: TimelineThing): TimelineEvent['kind'] => (roadSet.has(b) ? 'road' : ghostSet.has(b) ? 'ghost' : 'building');
   for (const b of early) {
-    const road = roadSet.has(b);
-    events.push({ at: founding * 0.92 * (dist(b) / far) ** 0.8 + (road ? 0 : 0.12), kind: road ? 'road' : 'building', id: b.id });
+    const kind = kindOf(b);
+    events.push({ at: founding * 0.92 * (dist(b) / far) ** 0.8 + (kind === 'road' ? 0 : 0.12), kind, id: b.id });
   }
   for (const b of late) {
-    const road = roadSet.has(b);
-    events.push({ at: filmAt(Math.min(now, b.tick)) + (road ? 0 : AFTER_ROAD), kind: road ? 'road' : 'building', id: b.id });
+    const kind = kindOf(b);
+    events.push({ at: filmAt(Math.min(now, b.tick)) + (kind === 'road' ? 0 : AFTER_ROAD), kind, id: b.id });
   }
-  events.sort((a, b) => a.at - b.at || (a.kind === b.kind ? a.id - b.id : a.kind === 'road' ? -1 : 1));
+  // A gone building folds away when it went (never before it has risen).
+  for (const g of ghosts) {
+    const rose = g.tick <= 0 ? founding : filmAt(Math.min(now, g.tick)) + AFTER_ROAD;
+    events.push({ at: Math.max(rose + 0.3, filmAt(Math.min(now, g.end))), kind: 'fade', id: g.id });
+  }
+  for (const t of input.tiers ?? []) events.push({ at: Math.max(founding, filmAt(Math.min(now, t.tick))) + AFTER_ROAD * 2, kind: 'tier', id: t.id, tier: t.tier });
+  events.sort((a, b) => a.at - b.at || ORDER[a.kind] - ORDER[b.kind] || a.id - b.id);
   const duration = founding + years;
 
   // Marks: the most telling first, then whatever fits between them.
@@ -176,6 +210,19 @@ export function buildTimeline(input: TimelineInput): Timeline {
   return { founding, duration, events, marks: placed, filmAt, tickAt, statsAt };
 }
 
+/** The day at `tick`, read between the ledger's samples (the City map's history slider). */
+export function dayAt(samples: readonly HistorySample[], tick: number, now: number, dayNow: number): number {
+  if (tick >= now) return dayNow;
+  const list = [...samples.filter((s) => s[0] <= now), [now, dayNow, 0, 0, 0, 0] as HistorySample];
+  if (!samples.length) return Math.max(1, Math.floor(1 + ((dayNow - 1) * tick) / Math.max(1, now)));
+  let i = 0;
+  while (i < list.length - 1 && list[i + 1]![0] <= tick) i++;
+  const a = list[i]!;
+  const b = list[Math.min(list.length - 1, i + 1)]!;
+  if (tick <= a[0] || a === b) return a[1];
+  return Math.floor(a[1] + ((b[1] - a[1]) * (tick - a[0])) / Math.max(1, b[0] - a[0]));
+}
+
 /** The labels a mark kind shows (eras by name, wonders and unlocks by their names). */
 export function markLabel(kind: string, id: string): { label: string; icon: string } | null {
   if (kind === 'era') {
@@ -197,12 +244,32 @@ export function markLabel(kind: string, id: string): { label: string; icon: stri
 export function timelineInputOf(city: City): TimelineInput {
   const h = city.history;
   const g = city.grid;
-  const buildings: TimelineThing[] = city.buildingEntities().map((eid) => ({
-    id: eid,
-    tick: bornAt(h, Building.uid[eid]!),
-    x: Building.x[eid]! + Building.w[eid]! / 2,
-    z: Building.z[eid]! + Building.d[eid]! / 2,
-  }));
+  // Level changes by serial, oldest first (the ledger keeps them in order).
+  const tierLog = new Map<number, [number, number][]>();
+  for (const [uid, tick, tier] of h.tiers) {
+    let l = tierLog.get(uid);
+    if (!l) tierLog.set(uid, (l = []));
+    l.push([tick, tier]);
+  }
+  const tiers: TimelineTier[] = [];
+  const buildings: TimelineThing[] = city.buildingEntities().map((eid) => {
+    const uid = Building.uid[eid]!;
+    const tick = bornAt(h, uid);
+    const log = (tierLog.get(uid) ?? []).filter(([t]) => t > tick);
+    for (const [t, tier] of log) tiers.push({ id: eid, tick: t, tier });
+    // Its level when it rose: a new build starts at the first; founding content one below its first recorded change.
+    const first = log[0];
+    const tier0 = !first ? Building.tier[eid]! : tick > 0 ? 0 : Math.max(0, first[1] > 0 ? first[1] - 1 : 1);
+    return { id: eid, tick, x: Building.x[eid]! + Building.w[eid]! / 2, z: Building.z[eid]! + Building.d[eid]! / 2, tier0 };
+  });
+  // Gone buildings that stood long enough to be seen (an immediate move or undo never shows).
+  const ghosts: TimelineGhost[] = [];
+  h.gone.forEach(([, def, x, z, rot, , born, end], i) => {
+    if (end - born < MIN_LIFE || end > city.tick || !registry.has(def)) return;
+    const [fw, fd] = registry.get(def).footprint;
+    const [w, d] = rot % 2 ? [fd, fw] : [fw, fd];
+    ghosts.push({ id: i, tick: born, end, x: x + w / 2, z: z + d / 2 });
+  });
   const roads: TimelineThing[] = city.roadTiles().map((t) => ({ id: t, tick: h.roads.get(t) ?? 0, x: (t % g.w) + 0.5, z: ((t / g.w) | 0) + 0.5 }));
   // The heart: the middle of the founding content (or of everything, on an island founded empty).
   const core = buildings.some((b) => b.tick <= 0) ? buildings.filter((b) => b.tick <= 0) : buildings;
@@ -219,5 +286,5 @@ export function timelineInputOf(city: City): TimelineInput {
     if (r.kind === 'fire' && !r.lost) continue;
     marks.push({ tick: r.startTick, kind: 'crisis', label: r.district ? `${r.name} · ${r.district}` : r.name, icon: r.icon, x: r.x, z: r.z });
   }
-  return { now: city.tick, day: city.day, residents: city.stats.population, heart, buildings, roads, marks, samples: h.samples };
+  return { now: city.tick, day: city.day, residents: city.stats.population, heart, buildings, roads, marks, samples: h.samples, tiers, ghosts };
 }

@@ -340,6 +340,15 @@ body.compact {
 .compact .cmap-scrim.hidden {
   display: none;
 }
+/* The map's history row (D-219): the film button drops under the slider on a narrow screen. */
+.compact .cmap-hist {
+  flex-wrap: wrap;
+}
+.compact .cmap-hist-range {
+  flex-basis: 100%;
+  order: 3;
+  min-height: 32px;
+}
 .compact .db,
 .compact .cmap,
 .compact .settings,

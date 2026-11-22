@@ -756,13 +756,19 @@ export class BuildingRenderer {
     this.ctx.bus.emit('building:veiled', { eid, veiled: true });
   }
 
-  /** Puts a veiled building back: `animate` raises it the way a new build rises. */
-  unveil(eid: number, animate = true): void {
+  /** Puts a veiled building back: `animate` raises it the way a new build rises, at level `tier` (default: its own). */
+  unveil(eid: number, animate = true, tier?: number): void {
     if (!this.veiled.delete(eid)) return;
     const { city } = this.ctx;
     if (city.uids.get(Building.uid[eid]!) !== eid) return;
-    this.add(eid, animate);
+    this.add(eid, animate, tier);
     this.ctx.bus.emit('building:veiled', { eid, veiled: false });
+  }
+
+  /** A replay's level change (render only): the building's level pieces grow in (or fold away) as on a real level-up. */
+  replayTier(eid: number, tier: number, animate = true): void {
+    const entry = this.entries.get(eid);
+    if (entry) this.setTier(entry, tier, animate ? 0 : -1, Greenery.value[eid]!);
   }
 
   /** Lifts the whole veil at once (a replay ending, skipped or cut short). */
@@ -964,7 +970,7 @@ export class BuildingRenderer {
     return out;
   }
 
-  private add(eid: number, animate: boolean): void {
+  private add(eid: number, animate: boolean, tier = Building.tier[eid]!): void {
     const { city, instancer, assets } = this.ctx;
     const rec = city.buildingRecord(eid);
     const def = buildings.get(rec.def);
@@ -1049,7 +1055,7 @@ export class BuildingRenderer {
     _params.set([1, 0.5, 0, 1]);
     for (const m of doorSteps(city.grid, def, place)) entry.handles.push(instancer.addMatrix('slab', m, _c.setHex(0xd8cfbf), _params, animate ? 0.2 : -1));
     if (Building.level[eid]) this.addRetrofit(entry, animate ? 0.3 : -1, Building.level[eid]!);
-    if (Building.tier[eid] || entry.template?.ranged.length) this.setTier(entry, Building.tier[eid]!, animate ? 0.5 : -1, rec.greenery);
+    if (tier || entry.template?.ranged.length) this.setTier(entry, tier, animate ? 0.5 : -1, rec.greenery);
     if (city.steward.ruins.includes(Building.uid[eid]!)) this.collapse(entry, false);
   }
 

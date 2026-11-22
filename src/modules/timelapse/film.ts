@@ -1,4 +1,10 @@
+import { AdditiveBlending, CylinderGeometry, DoubleSide, Mesh, MeshBasicNodeMaterial, TorusGeometry } from 'three/webgpu';
+import { float, uniform, uv, vec3 } from 'three/tsl';
 import type { GameContext } from '@/game/context';
+import { buildings as registry } from '@/content';
+import { Building } from '@/ecs/components';
+import type { InstanceHandle } from '@/render/Instancer';
+import { placeBuilding } from '@/modules/construction/BuildingRenderer';
 import { h } from '@/ui/dom';
 import { U } from '@/render/uniforms';
 import { BRIDGE } from '@/sim/City';
@@ -15,6 +21,10 @@ import './timelapse.css';
  * history ledger says it was built: the founding content ring by ring from the heart, then the years, with captions
  * for eras, wonders, unlocks and the big crises. One day passes over the whole film (dawn to lit evening), never a
  * flicker of days. The camera orbits what has risen and pulls back to fit it.
+ *
+ * Buildings rise at their level of the time and level up as the ledger says; demolished ones stand as they were
+ * for their lifetime and fold away when they went (on the film stage, which shoots on location); a crisis with a
+ * place flares there as its caption shows.
  *
  * A replay never changes the city: the reel holds the clock and every exit lifts the veil.
  */
@@ -35,6 +45,38 @@ const SOUND: Record<TimelineMark['kind'], 'swell' | 'shimmer' | 'heartbeat'> = {
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
+/** What the film has on screen now, for scripts (`timelapse.stats()`). */
+export const filmStats = {
+  ghosts: 0,
+  ghostAt: null as [number, number, number] | null,
+  flares: 0,
+  /** Film seconds into the years (-1 before playback starts). */
+  ft: -1,
+  /** Film time each unlock project completed at, for `timelapse.shows` (what a project brought waits for it). */
+  gates: new Map<string, number>(),
+};
+/** A gone building's pieces lean a little towards this, so it reads as a memory. */
+const GHOST_TINT = { col: 0xdde8f0, k: 0.18 };
+/** Seconds a crisis flare burns. */
+const FLARE_S = 3.2;
+
+/** A crisis flare: a ring running out over the ground and a pillar of light, warm red, additive. */
+function flare() {
+  const on = uniform(0);
+  const ringMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, fog: false });
+  ringMat.colorNode = vec3(1, 0.42, 0.22).mul(on);
+  const ring = new Mesh(new TorusGeometry(1, 0.035, 6, 96), ringMat);
+  ring.rotation.x = Math.PI / 2;
+  const pillarMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, fog: false });
+  pillarMat.colorNode = vec3(1, 0.5, 0.3).mul(on.mul(float(1).sub(uv().y)).mul(0.8));
+  const pillar = new Mesh(new CylinderGeometry(0.06, 0.12, 1, 20, 1, true).translate(0, 0.5, 0), pillarMat);
+  ring.add(pillar);
+  pillar.rotation.x = -Math.PI / 2;
+  ring.visible = false;
+  ring.frustumCulled = false;
+  return { root: ring, on };
+}
+
 /** Plays the film; `done` runs once it has faded out (played through or skipped). */
 export function playTimelapse(ctx: GameContext, done: () => void): void {
   const { city } = ctx;
@@ -47,11 +89,26 @@ export function playTimelapse(ctx: GameContext, done: () => void): void {
   stage.clear();
 
   const where = new Map(input.buildings.map((b) => [b.id, b]));
+  filmStats.gates = new Map(city.history.marks.filter((m) => m[1] === 'project').map((m) => [m[2], tl.filmAt(m[0])]));
+  filmStats.ft = -1;
+  // Each building's level on screen (they rise at their level of the time and change on the film's clock).
+  const shownTier = new Map<number, number>();
+  const ghostAt = new Map((input.ghosts ?? []).map((g) => [g.id, g]));
+  const ghosts = new Map<number, InstanceHandle[]>();
+  const flares = Array.from({ length: 3 }, flare);
+  let flareNext = 0;
+  const burning: { f: (typeof flares)[number]; at: number }[] = [];
   const total = input.buildings.length;
   let veiled = false;
+  /** Every building back at its own level (the ledger may not hold every change: it is capped). */
+  const syncTiers = () => {
+    for (const [eid, t] of shownTier) if (t !== Building.tier[eid] && city.uids.get(Building.uid[eid]!) === eid) con.renderer.replayTier(eid, Building.tier[eid]!, false);
+    shownTier.clear();
+  };
   const lift = () => {
     if (!veiled) return;
     veiled = false;
+    syncTiers();
     con.renderer.unveilAll();
     con.roads.revealAll();
     con.bridges.rebuild();
@@ -66,9 +123,21 @@ export function playTimelapse(ctx: GameContext, done: () => void): void {
       key: 2,
       leak: 'rgba(170, 215, 255, 0.16)',
       leaving: () => {
+        filmStats.ghosts = filmStats.flares = 0;
+        filmStats.gates = new Map();
+        filmStats.ft = -1;
+        filmStats.ghostAt = null;
         offReset();
         lift();
         stage.close();
+        // The flares' own geometry and materials (nothing shared).
+        for (const f of flares)
+          f.root.traverse((o) => {
+            if (o instanceof Mesh) {
+              o.geometry.dispose();
+              (o.material as MeshBasicNodeMaterial).dispose();
+            }
+          });
       },
     },
     done,
@@ -145,8 +214,38 @@ export function playTimelapse(ctx: GameContext, done: () => void): void {
         if (city.grid.road[e.id] === BRIDGE) pendingBridge = true;
         continue;
       }
-      con.renderer.unveil(e.id, !all);
+      if (e.kind === 'tier') {
+        if (shownTier.has(e.id) && shownTier.get(e.id) !== e.tier) {
+          con.renderer.replayTier(e.id, e.tier!, !all);
+          shownTier.set(e.id, e.tier!);
+          changed = true;
+        }
+        continue;
+      }
+      if (e.kind === 'ghost' || e.kind === 'fade') {
+        const rec = city.history.gone[e.id];
+        if (e.kind === 'ghost' && rec && registry.has(rec[1])) {
+          const [, def, x, z, rot, tier] = rec;
+          const place = placeBuilding(city.grid, registry.get(def), x, z, rot);
+          ghosts.set(e.id, stage.addBuildingAt(def, tier, place.base, all ? -1 : 0, GHOST_TINT));
+          const p = place.base.elements;
+          filmStats.ghostAt = [Math.round(p[12]!), Math.round(p[13]! * 10) / 10, Math.round(p[14]!)];
+          const g = ghostAt.get(e.id);
+          if (g) grow(g.x, g.z);
+        } else if (e.kind === 'fade') {
+          const hs = ghosts.get(e.id);
+          if (hs) stage.removePieces(hs, all ? 0 : 0.3);
+          ghosts.delete(e.id);
+        }
+        filmStats.ghosts = ghosts.size;
+        builds++;
+        changed = true;
+        continue;
+      }
       const b = where.get(e.id);
+      const tier = b?.tier0 ?? Building.tier[e.id]!;
+      con.renderer.unveil(e.id, !all, tier);
+      shownTier.set(e.id, tier);
       if (b) grow(b.x, b.z);
       built++;
       builds++;
@@ -177,6 +276,34 @@ export function playTimelapse(ctx: GameContext, done: () => void): void {
     pips.forEach((p, i) => p.classList.toggle('on', tl.marks[i]!.at <= ft));
   };
 
+  /** A crisis with a place flares there as its caption shows. */
+  const flareAt = (x: number, z: number, t: number) => {
+    const f = flares[flareNext++ % flares.length]!;
+    f.root.position.set(x, Math.max(sea(), city.grid.heightAt(x, z)) + 0.6, z);
+    f.root.visible = true;
+    const i = burning.findIndex((b) => b.f === f);
+    if (i >= 0) burning.splice(i, 1);
+    burning.push({ f, at: t });
+    filmStats.flares = burning.length;
+  };
+  const burn = (t: number) => {
+    for (let i = burning.length - 1; i >= 0; i--) {
+      const { f, at } = burning[i]!;
+      const k = (t - at) / FLARE_S;
+      if (k >= 1) {
+        f.root.visible = false;
+        f.on.value = 0;
+        burning.splice(i, 1);
+        filmStats.flares = burning.length;
+        continue;
+      }
+      // The ring runs out and fades; the pillar stands with it. Sized to the view so it reads from any height.
+      const size = Math.max(8, cam.d * 0.06);
+      f.root.scale.set(size * (0.4 + k * 1.6), size * (0.4 + k * 1.6), size * 3.2);
+      f.on.value = Math.min(1, k * 6) * (1 - k) ** 1.5;
+    }
+  };
+
   const film = async () => {
     reel.bed('wind', 0.25, 3);
     reel.bed('choir', 0.22, 5);
@@ -184,6 +311,7 @@ export function playTimelapse(ctx: GameContext, done: () => void): void {
     if (!(await reel.wait(0))) return;
     // The iris has closed: veil the island, then open on its founding morning.
     stage.openLocation(HOUR_FROM);
+    for (const f of flares) stage.add(f.root);
     for (const e of tl.events) if (e.kind === 'building') con.renderer.veil(e.id);
     con.roads.veil(tl.events.filter((e) => e.kind === 'road').map((e) => e.id));
     con.bridges.rebuild();
@@ -193,6 +321,7 @@ export function playTimelapse(ctx: GameContext, done: () => void): void {
     stage.onFrame = (t, dt) => {
       if (start < 0) return;
       const ft = t - start;
+      filmStats.ft = ft;
       reveal(ft, t);
       const r = frame(ft);
       const k = 1 - Math.exp(-dt * 0.9);
@@ -209,7 +338,9 @@ export function playTimelapse(ctx: GameContext, done: () => void): void {
         const m = tl.marks[mark++]!;
         reel.say(m.label);
         reel.hit(SOUND[m.kind], 0, m.kind === 'era' || m.kind === 'wonder' ? 3 : 1);
+        if (m.kind === 'crisis' && m.x !== undefined && m.z !== undefined) flareAt(m.x, m.z, t);
       }
+      burn(t);
       if (t - hudAt > 0.12) {
         hudAt = t;
         showHud(ft);
@@ -222,6 +353,7 @@ export function playTimelapse(ctx: GameContext, done: () => void): void {
     if (!(await reel.wait(tl.duration * 1000))) return;
     // Whatever the clocks drifted, the island is whole before the card.
     reveal(Infinity, stage.t, true);
+    syncTiers();
     showHud(tl.duration);
     reel.say('');
     reel.hit('swell', 0, 5);

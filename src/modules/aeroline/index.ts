@@ -191,6 +191,11 @@ export const aerolineModule: GameModule = {
         trains?.update(U.clock.value);
         placeProxies();
         movers?.update(U.clock.value);
+        // The time-lapse (D-219) raises the line when its project completed on the film's clock.
+        const seen = ctx.services.tryGet('timelapse')?.shows('aeroline') ?? true;
+        if (guide) guide.group.visible = seen;
+        if (trains) trains.noses.visible = trains.mids.visible = seen;
+        if (movers) movers.cabins.visible = movers.walkers.visible = seen;
         if (!site) return;
         const run = running();
         if (!run) {

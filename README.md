@@ -229,7 +229,9 @@ adoption, Flora's awakening, unlocks, risen sea wonders, new eras) play again fr
 **The Island Remembers**, has its own card at the top of Build → Goals (tagged **New** while there is history you have not
 watched): a time-lapse from its founding to today, with every highway and building rising again in the order you built them and
 captions for its eras, wonders and storms. An invitation drops in under the top bar the first time your island has a story,
-after each new era, and after a few days of growth (**Later** or × puts it away). The model gallery (**G**) shows the island's
+after each new era, and after a few days of growth (**Later** or × puts it away). Demolished buildings stand again for as long as
+they did, buildings level up on screen as they did, and storms flare where they struck. The City map (**M**) has a **History**
+slider to look back at the island on any day, and Flora plays the film if you ask for your island's story. The model gallery (**G**) shows the island's
 cat in every coat and lists every film in its **Cutscenes** hall. While Flora sleeps her orb is dim with a "z": open
 it to see what she still needs, each with a **Build** button; when it pulses *Ready to wake*, wake her and watch her
 come online over the Data Spire.

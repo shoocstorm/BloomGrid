@@ -1,7 +1,7 @@
 import { createCharterState, type CharterState } from './charterState';
 import { createStoryState, type StoryState } from './storyState';
 import { createChronicleState, type ChronicleState } from './chronicleState';
-import { createHistoryState, type GoneRecord, type HistoryMark, type HistorySample } from './historyState';
+import { createHistoryState, packTimes, unpackTimes, type GoneRecord, type HistoryMark, type HistorySample } from './historyState';
 import { createPolicyState, type PolicyState } from './policyState';
 import type { ApprovalState } from './approvalState';
 import { roadLevels, roadWear } from './roads';
@@ -17,7 +17,7 @@ import { createHappeningState, type HappeningState } from './happeningState';
 import { builderCode, builderFromCode } from './builders';
 import { loadBridges, saveBridges, type BridgeSave } from './bridges';
 
-export const SAVE_VERSION = 28;
+export const SAVE_VERSION = 29;
 
 export interface SaveData {
   version: number;
@@ -63,7 +63,7 @@ export interface SaveData {
   stories: StoryState;
   /** The Chronicle (v26+, D-192). */
   chronicle: ChronicleState;
-  /** The history ledger (v28+, D-219): births and highway tiles as [uid | tile, tick], the rest as in `HistoryState`. */
+  /** The history ledger (v28+, D-219): births and highway tiles grouped by tick (`packTimes`, v29), the rest as in `HistoryState`. */
   history: HistorySave;
   /** Named highway bridges as [key, name, built tick, builder code] (v19+, D-128). */
   roadBridges: BridgeSave[];
@@ -78,8 +78,8 @@ export interface SaveData {
 }
 
 export interface HistorySave {
-  born: [number, number][];
-  roads: [number, number][];
+  born: number[][];
+  roads: number[][];
   gone: GoneRecord[];
   tiers: [number, number, number][];
   marks: HistoryMark[];
@@ -242,6 +242,13 @@ export function migrateSave(data: SaveData): SaveData {
     data.history = emptyHistorySave();
     data.version = 28;
   }
+  if (data.version === 28) {
+    // Birth times grouped by tick and delta-coded (v29): v28 held [id, tick] pairs.
+    const pairs = (list: number[][]) => packTimes(new Map(list.map(([id, t]) => [id!, t!])));
+    data.history.born = pairs(data.history.born);
+    data.history.roads = pairs(data.history.roads);
+    data.version = 29;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -281,8 +288,8 @@ export function serializeCity(city: City): SaveData {
     stories: structuredClone(city.stories),
     chronicle: structuredClone(city.chronicle),
     history: {
-      born: [...city.history.born],
-      roads: [...city.history.roads],
+      born: packTimes(city.history.born),
+      roads: packTimes(city.history.roads),
       gone: structuredClone(city.history.gone),
       tiers: structuredClone(city.history.tiers),
       marks: structuredClone(city.history.marks),
@@ -363,8 +370,8 @@ export function deserializeCity(city: City, input: SaveData): void {
   // Last: adding the buildings above noted them as born at the save's tick; the saved ledger knows better.
   const hs = data.history;
   city.history = {
-    born: new Map(hs.born),
-    roads: new Map(hs.roads),
+    born: unpackTimes(hs.born),
+    roads: unpackTimes(hs.roads),
     gone: structuredClone(hs.gone),
     tiers: structuredClone(hs.tiers),
     marks: structuredClone(hs.marks),

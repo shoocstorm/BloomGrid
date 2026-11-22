@@ -1,6 +1,7 @@
 import type { GameModule } from '@/game/context';
 import type { City } from '@/sim/City';
-import { playTimelapse } from './film';
+import type { UnlockId } from '@/sim/growthState';
+import { filmStats, playTimelapse } from './film';
 import { TimelapsePromo } from './promo';
 
 /**
@@ -21,6 +22,14 @@ export interface TimelapseService {
   readonly unseen: boolean;
   /** The featured card for Build → Goals, or null while there is no past to show. */
   card(): HTMLElement | null;
+  /**
+   * Whether what an unlock project brought (the Aeroline, police drones, the Tidesong, the Sky Guard) shows now: false
+   * only while the film plays and that project has not yet completed on its clock (Phase 33). Modules AND it into
+   * their own visibility.
+   */
+  shows(project: UnlockId): boolean;
+  /** For scripts: gone buildings standing on the film stage now (and where the latest stands), flares burning. */
+  stats(): { ghosts: number; ghostAt: [number, number, number] | null; flares: number };
 }
 
 declare module '@/core/Services' {
@@ -69,6 +78,27 @@ export const timelapseModule: GameModule = {
         return promo.unseen;
       },
       card: () => (earned() ? promo.feature() : null),
+      stats: () => ({ ghosts: filmStats.ghosts, ghostAt: filmStats.ghostAt, flares: filmStats.flares }),
+      shows: (project) => {
+        if (playing <= 0) return true;
+        const at = filmStats.gates.get(project);
+        return at === undefined || (filmStats.ft >= 0 && filmStats.ft >= at);
+      },
+    });
+    // Flora can play it (registered after her own tools, so her menus keep their letters).
+    ctx.services.tryGet('agent')?.register({
+      name: 'play_timelapse',
+      option: 'Watch the island’s story: a time-lapse from its founding to today',
+      description:
+        'Plays "The Island Remembers": a short film of the whole island rising again in the order it was built, with its eras, wonders and storms. Changes nothing in the city.',
+      keywords: ['time-lapse', 'timelapse', 'history', 'story', 'replay', 'rewind', 'growth', 'film', 'remember'],
+      input: { type: 'object', properties: {} },
+      effect: 'view',
+      run() {
+        if (!earned()) return { played: false, reason: 'The island has no history yet: build something or let a day pass.' };
+        play();
+        return { played: true, film: 'The Island Remembers', seconds: promo.seconds(), day: ctx.city.day };
+      },
     });
     // The invitation looks for its moment once a second.
     let t = 0;

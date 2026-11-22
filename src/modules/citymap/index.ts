@@ -1,4 +1,5 @@
 import type { GameContext, GameModule } from '@/game/context';
+import { buildings } from '@/content';
 import { Building, Service } from '@/ecs/components';
 import { NO_ENTITY } from '@/sim/Grid';
 import type { District } from '@/sim/City';
@@ -7,6 +8,7 @@ import { h, setText } from '@/ui/dom';
 import { icon } from '@/ui/icons';
 import { holoHead } from '@/ui/holo';
 import { approvalBand, complaintLine } from '@/sim/approval';
+import { dayAt } from '@/modules/timelapse/timeline';
 import './citymap.css';
 
 export type CityMapMode = 'zones' | 'districts' | 'approval';
@@ -108,8 +110,37 @@ class CityMap {
     return this.mode === 'zones';
   }
   private modeBtns: HTMLElement[] = [];
+  /** District colours of the last full paint (the history slider repaints only the pixels). */
+  private colors: [number, number, number][] = [];
+  // ── History (the time-lapse's ledger, D-219): the island as it stood at a past tick ──
+  /** The tick shown, or null for today. */
+  private at: number | null = null;
+  private histDay = h('b', { class: 'cmap-hist-day' }, 'Today');
+  private slider = h('input', { class: 'cmap-hist-range', type: 'range', min: '0', max: '1000', value: '1000', 'aria-label': 'Island history' }) as HTMLInputElement;
+  private hist = h(
+    'div',
+    { class: 'cmap-hist hidden' },
+    h('span', { class: 'cmap-hist-k' }, icon('calendar'), 'History'),
+    this.slider,
+    this.histDay,
+    h(
+      'button',
+      {
+        class: 'btn ghost cmap-hist-watch',
+        title: 'Watch the time-lapse of your island',
+        onClick: () => {
+          this.toggle(false);
+          this.ctx.services.tryGet('timelapse')?.play();
+        },
+      },
+      icon('play'),
+      'Watch the film',
+    ),
+  );
+  private histTimer = 0;
 
   constructor(private ctx: GameContext) {
+    this.slider.addEventListener('input', () => this.scrub());
     this.stage = h(
       'div',
       {
@@ -154,7 +185,7 @@ class CityMap {
         h(
           'div',
           { class: 'cmap-body' },
-          h('div', { class: 'cmap-mapcol' }, this.stage, this.readout),
+          h('div', { class: 'cmap-mapcol' }, this.stage, this.hist, this.readout),
           this.legend,
         ),
       ),
@@ -173,6 +204,81 @@ class CityMap {
     if (this.open) this.paint();
   }
 
+  /**
+   * The map's pixels: relief, water, district tint, highways, buildings and borders. With a history tick (`at`) only
+   * what stood then: highways and buildings built by then, and gone buildings that still stood (the ledger, D-219).
+   */
+  private pixels(): void {
+    const { city } = this.ctx;
+    const g = city.grid;
+    const [W, H] = [g.w, g.h];
+    const own = this.owner;
+    const colors = this.colors;
+    const at = this.at;
+    const hist = city.history;
+    const ghost = at === null ? null : new Uint8Array(W * H);
+    if (ghost)
+      for (const [, def, gx, gz, rot, , born, end] of hist.gone) {
+        if (born > at! || end <= at! || !buildings.has(def)) continue;
+        const [fw, fd] = buildings.get(def).footprint;
+        const [w, d] = rot % 2 ? [fd, fw] : [fw, fd];
+        for (let z = gz; z < gz + d; z++) for (let x = gx; x < gx + w; x++) if (g.inBounds(x, z)) ghost[z * W + x] = 1;
+      }
+    const roadThen = (i: number) => !!g.road[i] && (at === null || (hist.roads.get(i) ?? 0) <= at);
+    const builtThen = (i: number, x: number, z: number) => {
+      const e = city.buildingAt(x, z);
+      if (e !== NO_ENTITY && (at === null || (hist.born.get(Building.uid[e]!) ?? 0) <= at)) return true;
+      return !!ghost?.[i];
+    };
+    this.canvas.width = W;
+    this.canvas.height = H;
+    const c2 = this.canvas.getContext('2d')!;
+    const img = c2.createImageData(W, H);
+    const px = img.data;
+    const hAt = (x: number, z: number) => g.heightAt(Math.min(W - 1, x) + 0.5, Math.min(H - 1, z) + 0.5);
+    for (let z = 0; z < H; z++)
+      for (let x = 0; x < W; x++) {
+        const i = z * W + x;
+        const hgt = hAt(x, z);
+        let r: number, gg: number, b: number;
+        if (city.isWaterTile(x, z)) {
+          const k = Math.max(0, Math.min(1, -hgt / 6));
+          [r, gg, b] = [16 - 10 * k, 64 - 40 * k, 74 - 36 * k];
+        } else {
+          // Height tint plus a north-west light for relief.
+          const k = Math.max(0, Math.min(1, hgt / 14));
+          const shade = Math.max(-0.35, Math.min(0.35, (hAt(x - 1, z - 1) - hgt) * -0.6));
+          [r, gg, b] = [34 + 40 * k, 74 + 44 * k, 62 + 22 * k].map((v) => v * (1 + shade)) as [
+            number,
+            number,
+            number,
+          ];
+        }
+        const o = own[i]!;
+        if (o >= 0) {
+          const [cr, cg, cb] = colors[o]!;
+          [r, gg, b] = [r * 0.72 + cr * 0.28, gg * 0.72 + cg * 0.28, b * 0.72 + cb * 0.28];
+        }
+        if (roadThen(i)) [r, gg, b] = [150, 236, 220];
+        else if (builtThen(i, x, z))
+          [r, gg, b] = [r * 0.5 + 118, gg * 0.5 + 128, b * 0.5 + 120];
+        // District borders: tiles whose east or south neighbour belongs elsewhere.
+        if (
+          o >= 0 &&
+          ((x + 1 < W && own[i + 1] !== o) ||
+            (z + 1 < H && own[i + W] !== o) ||
+            (x > 0 && own[i - 1] !== o) ||
+            (z > 0 && own[i - W] !== o))
+        )
+          [r, gg, b] = colors[o]!;
+        px[i * 4] = r;
+        px[i * 4 + 1] = gg;
+        px[i * 4 + 2] = b;
+        px[i * 4 + 3] = 255;
+      }
+    c2.putImageData(img, 0, 0);
+  }
+
   /** A district's approval, or null when nobody lives there. */
   private approvalOf(d: District): number | null {
     const v = this.ctx.city.approval.view.districts.find((x) => x.key === d.name);
@@ -188,6 +294,12 @@ class CityMap {
     this.open = open;
     this.el.classList.toggle('hidden', !open);
     if (open) {
+      // Opens on today; the slider shows only once the island has a past to look back on.
+      this.at = null;
+      this.slider.value = '1000';
+      setText(this.histDay, 'Today');
+      const h = this.ctx.city.history;
+      this.hist.classList.toggle('hidden', !(this.ctx.services.tryGet('timelapse')?.earned() && (h.born.size || h.roads.size || h.gone.length)));
       this.paint();
       this.fireKey = '-';
       this.timer = 99;
@@ -225,13 +337,13 @@ class CityMap {
           s.n++;
         }
       }
-    const colors = ds.map((d, i): [number, number, number] => {
+    const colors = (this.colors = ds.map((d, i): [number, number, number] => {
       if (this.mode === 'approval') {
         const a = this.approvalOf(d);
         return a === null ? [120, 140, 140] : approvalColor(a);
       }
       return this.byZone && d.zone ? rgb(ZONES[d.zone].color) : hue(i);
-    });
+    }));
     const size = Math.min(W, Math.max(lx1 - lx0, lz1 - lz0) + 24);
     const clampV = (c: number) => Math.max(0, Math.min(W - size, Math.round(c - size / 2)));
     this.view = { x: clampV((lx0 + lx1) / 2), z: clampV((lz0 + lz1) / 2), size };
@@ -244,53 +356,7 @@ class CityMap {
     });
     // Labels fit their district's on-screen width (the stage is laid out: the map opened before painting).
     const pxPerTile = this.stage.getBoundingClientRect().width / v.size;
-    this.canvas.width = W;
-    this.canvas.height = H;
-    const c2 = this.canvas.getContext('2d')!;
-    const img = c2.createImageData(W, H);
-    const px = img.data;
-    const hAt = (x: number, z: number) => g.heightAt(Math.min(W - 1, x) + 0.5, Math.min(H - 1, z) + 0.5);
-    for (let z = 0; z < H; z++)
-      for (let x = 0; x < W; x++) {
-        const i = z * W + x;
-        const hgt = hAt(x, z);
-        let r: number, gg: number, b: number;
-        if (city.isWaterTile(x, z)) {
-          const k = Math.max(0, Math.min(1, -hgt / 6));
-          [r, gg, b] = [16 - 10 * k, 64 - 40 * k, 74 - 36 * k];
-        } else {
-          // Height tint plus a north-west light for relief.
-          const k = Math.max(0, Math.min(1, hgt / 14));
-          const shade = Math.max(-0.35, Math.min(0.35, (hAt(x - 1, z - 1) - hgt) * -0.6));
-          [r, gg, b] = [34 + 40 * k, 74 + 44 * k, 62 + 22 * k].map((v) => v * (1 + shade)) as [
-            number,
-            number,
-            number,
-          ];
-        }
-        const o = own[i]!;
-        if (o >= 0) {
-          const [cr, cg, cb] = colors[o]!;
-          [r, gg, b] = [r * 0.72 + cr * 0.28, gg * 0.72 + cg * 0.28, b * 0.72 + cb * 0.28];
-        }
-        if (g.road[i]) [r, gg, b] = [150, 236, 220];
-        else if (city.buildingAt(x, z) !== NO_ENTITY)
-          [r, gg, b] = [r * 0.5 + 118, gg * 0.5 + 128, b * 0.5 + 120];
-        // District borders: tiles whose east or south neighbour belongs elsewhere.
-        if (
-          o >= 0 &&
-          ((x + 1 < W && own[i + 1] !== o) ||
-            (z + 1 < H && own[i + W] !== o) ||
-            (x > 0 && own[i - 1] !== o) ||
-            (z > 0 && own[i - W] !== o))
-        )
-          [r, gg, b] = colors[o]!;
-        px[i * 4] = r;
-        px[i * 4 + 1] = gg;
-        px[i * 4 + 2] = b;
-        px[i * 4 + 3] = 255;
-      }
-    c2.putImageData(img, 0, 0);
+    this.pixels();
 
     // Buildings and residents per district (by footprint centre).
     const counts = ds.map(() => ({ b: 0, r: 0 }));
@@ -456,6 +522,19 @@ class CityMap {
   }
 
   /** Camera marker (5 Hz while open). */
+  /** The history slider moved: the pixels again at that tick (coalesced, so a drag repaints a few times a second). */
+  private scrub(): void {
+    const { city } = this.ctx;
+    const v = Number(this.slider.value);
+    this.at = v >= 1000 ? null : Math.round((city.tick * v) / 1000);
+    setText(this.histDay, this.at === null ? 'Today' : `Day ${dayAt(city.history.samples, this.at, city.tick, city.day).toLocaleString('en-US')}`);
+    if (this.histTimer) return;
+    this.histTimer = window.setTimeout(() => {
+      this.histTimer = 0;
+      if (this.open) this.pixels();
+    }, 60);
+  }
+
   update(dt: number): void {
     if (!this.open) return;
     this.timer += dt;

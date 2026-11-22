@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTimeline, foundingLength, MARK_GAP, timelineInputOf, YEARS_MAX, YEARS_MIN, YEARS_NONE, type TimelineInput } from '@/modules/timelapse/timeline';
+import { buildTimeline, dayAt, foundingLength, MARK_GAP, timelineInputOf, YEARS_MAX, YEARS_MIN, YEARS_NONE, type TimelineInput } from '@/modules/timelapse/timeline';
 import { findSpot, makeSim } from './helpers';
 
 /** The time-lapse's script (plan v6, Phase 31, D-219). */
@@ -115,5 +115,69 @@ describe('time-lapse timeline', () => {
     const t = buildTimeline(input);
     expect(t.events).toHaveLength(2);
     expect(t.events[0]!.at).toBeLessThan(t.events[1]!.at);
+  });
+
+  it('changes levels after a building has risen, in order', () => {
+    const t = buildTimeline(
+      base({
+        buildings: [{ id: 5, tick: 1000, x: 0, z: 0, tier0: 0 }],
+        tiers: [
+          { id: 5, tick: 6000, tier: 2 },
+          { id: 5, tick: 3000, tier: 1 },
+        ],
+      }),
+    );
+    expect(t.events.map((e) => [e.kind, e.tier ?? null])).toEqual([
+      ['building', null],
+      ['tier', 1],
+      ['tier', 2],
+    ]);
+  });
+
+  it('raises a gone building for its lifetime and folds it away when it went', () => {
+    const t = buildTimeline(
+      base({
+        buildings: [{ id: 1, tick: 8000, x: 0, z: 0 }],
+        ghosts: [
+          { id: 0, tick: 500, end: 4000, x: 0, z: 0 },
+          { id: 1, tick: 0, end: 2000, x: 3, z: 0 },
+        ],
+      }),
+    );
+    const at = (kind: string, id: number) => t.events.find((e) => e.kind === kind && e.id === id)!.at;
+    expect(at('ghost', 1)).toBeLessThan(t.founding);
+    expect(at('ghost', 0)).toBeLessThan(at('fade', 0));
+    expect(at('fade', 0)).toBeLessThan(at('building', 1));
+    expect(at('fade', 1)).toBeGreaterThan(t.founding);
+  });
+
+  it('reads levels and gone buildings from the ledger', () => {
+    const s = makeSim(42);
+    s.city.credits = 1e6;
+    s.step(20);
+    const a = findSpot(s.city, 'canopy-tower');
+    s.commands.execute('build', { def: 'canopy-tower', ...a, rot: 0 });
+    const eid = s.city.buildingAt(a.x, a.z);
+    s.step(100);
+    s.city.bus.emit('building:tier', { eid, tier: 1, paid: true });
+    s.step(100);
+    s.commands.execute('demolish', a);
+    s.step(10);
+    const input = timelineInputOf(s.city);
+    expect(input.ghosts).toEqual([expect.objectContaining({ id: 0, tick: 20, end: 220 })]);
+    expect(input.buildings).toHaveLength(0);
+  });
+
+  it('reads the day at a tick for the map slider', () => {
+    const samples: [number, number, number, number, number, number][] = [
+      [0, 1, 0, 0, 0, 0],
+      [3600, 2, 0, 0, 0, 0],
+      [7200, 3, 0, 0, 0, 0],
+    ];
+    expect(dayAt(samples, 0, 10_800, 4)).toBe(1);
+    expect(dayAt(samples, 3600, 10_800, 4)).toBe(2);
+    expect(dayAt(samples, 9000, 10_800, 4)).toBe(3);
+    expect(dayAt(samples, 10_800, 10_800, 4)).toBe(4);
+    expect(dayAt([], 5000, 10_000, 11)).toBe(6);
   });
 });

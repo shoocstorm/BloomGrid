@@ -247,7 +247,7 @@ export const skyguardModule: GameModule = {
       phase: 'sync',
       update(c, f) {
         // A fresh island earns the jet with the Sky Guard air wing project (D-144).
-        const on = isOpen(ctx.city.growth, 'skyguard');
+        const on = isOpen(ctx.city.growth, 'skyguard') && (ctx.services.tryGet('timelapse')?.shows('skyguard') ?? true);
         jet.visible = trails.visible = on;
         if (!on) return;
         const dt = Math.min(0.1, f.dt);

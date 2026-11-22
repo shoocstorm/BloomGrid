@@ -337,7 +337,7 @@ Design and checklists in [`plan-v5.md`](plan-v5.md); tick here as phases land.
 - [x] Wonder tales, hero descriptions, era lines and the steward guide aligned with the canon
 - [ ] Later: Chronicle pages in the model gallery's Cutscenes hall as readable exhibits; a second film for the last page
 
-## 🚧 Phases 30–33: Plan v6, The Island Remembers (designed 2026-11-22)
+## ✅ Phases 30–33: Plan v6, The Island Remembers (designed 2026-11-22)
 
 A time-lapse film of the player's own island, from the founding to now, recorded by a history ledger and played
 over the real city. Full plan: [`plan-v6.md`](plan-v6.md).
@@ -345,7 +345,7 @@ over the real city. Full plan: [`plan-v6.md`](plan-v6.md).
 - [x] Phase 30: History ledger: births, demolitions, roads, level changes, marks and samples recorded in the sim, save v28, hashed (D-219)
 - [x] Phase 31: Replay timeline (pure, tested) and veiled renderers (buildings, roads, bridges, wind rotors)
 - [x] Phase 32: The film "The Island Remembers" on location: camera, day arc, counters, timeline bar, captions, score, Replays entry
-- [ ] Phase 33 (later): ghosts of demolished buildings, levels through time, incident flares, more hidden attachments, era / game-over entry points, City map scrubbing
+- [x] Phase 33: ghosts of demolished buildings, levels through time, crisis flares, project-gated Aeroline / drones / ferry / jet, offered at each era and on game over, Flora `play_timelapse`, City map History slider, packed ledger (save v29) (D-221)
 
 ---
 
