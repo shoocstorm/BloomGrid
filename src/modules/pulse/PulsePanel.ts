@@ -163,6 +163,19 @@ export class PulsePanel {
       this.coming.push(row);
       coming.append(row.el);
     }
+    // Past the trend lines: Flora plays the city on and films where it goes (plan v7, D-224).
+    coming.append(
+      h(
+        'button',
+        {
+          class: 'btn ghost cu-ahead',
+          title: 'Flora runs the city on, if nothing changes, and shows where it goes',
+          onClick: () => void ctx.services.tryGet('future')?.show(),
+        },
+        icon('eye'),
+        'See where this is heading',
+      ),
+    );
     const demand = h('div', { class: 'pulse-sec' }, h('div', { class: 'pulse-title' }, 'Demand'));
     for (const [id, label] of [
       ['homes', 'Homes'],

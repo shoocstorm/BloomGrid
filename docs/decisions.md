@@ -3986,3 +3986,59 @@ brought (the Aeroline, drones, ferry, jet) stood from the first frame, and the l
 **Consequences:** A fully dated founding city's ledger is ≈33 KB (≈150 KB as pairs). The ghosts' pieces live in the film
 stage's instancer and go with `stage.close`. Things without a project mark (the showcase opens everything) show from
 the first frame as before.
+
+## D-222 — Flora's look ahead runs a copy of the city in a worker (2026-11-22)
+
+**Context:** Plan v7 ("Postcards from the future"). `forecast.ts` (D-157) extrapolates trends, but crises, the
+director, ageing, migration and sea rise only show by running the sim. Measured in node: one in-game day takes ≈2.1 s
+on the founding city and ≈0.7 s on a fresh island, too slow for the main thread.
+**Decision:** `foresee(save, { days })` (`sim/foresee.ts`, pure) deserializes a copy, runs `simSystems` with no
+commands ("if nothing changes"; crises and the director as the save has them, from its own rng state, so it is
+deterministic), and returns a JSON `Projection`: start / end snapshots (after one settling pulse), samples about once
+a sim minute, level changes, ruins, removals, incidents with places, marks, sea rise, and the council day. It runs
+only in `modules/future/forward.worker.ts`, because ECS component stores are global per JS realm: a second `City` in
+the page would write over the live one. Tests run it on a save. The service `future` serializes the city, runs one
+worker at a time (a new request or `cancel` terminates the old), posts progress per day, and keeps the last
+projection while the city is left alone (same command count, within `FRESH_TICKS` = 600). Horizon `DEFAULT_DAYS` = 10.
+**Consequences:** In Chrome, the showcase projects at ≈1.45 s per in-game day with the page at 60 fps. The worker is its
+own ≈470 KB chunk (sim + content, no three.js; sim purity keeps it so). One projection is one possible future (one
+crisis roll); a range is Phase 36.
+
+## D-223 — "If Nothing Changes" plays the projection forwards, render only, then a postcard (2026-11-22)
+
+**Context:** Plan v7 Phase 35. A projection (D-222) is numbers. The steward should *see* where the city is heading,
+and be one click from doing something about it.
+**Decision:**
+- **Order:** `future.show(days)` runs the worker first, behind a progress chip with Cancel (the run takes seconds on
+  a big city), then stages the film through the moments queue, then shows the postcard.
+- **The film:** shot on location, today to the horizon in 24 s on a linear clock. Projected level changes use
+  `replayTier`, ruins `BuildingRenderer.replayRuin` (the real collapse look), and removals the veil. Crises flare
+  where they strike, with a "Day N · name · district" caption, and the camera leans toward them for a few seconds.
+  Counters show residents and harmony with their deltas. Every touched building is `rebuild`-ed from the sim on any
+  exit, so nothing projected stays on screen.
+- **Postcard:** a HUD card (z 40, over call-outs and alerts). Rows for residents, harmony and credits, a verdict (the
+  council's day; slipping; or growing but losing buildings), what happened on the way, and up to three of Flora's
+  levers from `proposeBuilds` (plus fire cover when the run saw fires). Levers build through the agent's `build`
+  tool, like her console's proposal cards. Also *Watch again* (same projection) and *Look further* (30 days).
+- **Flares** are shared with the time-lapse (`timelapse/flare.ts`), with a shorter pillar (1.3× the ring's base
+  size): from a high camera the old one slanted off the frame.
+**Consequences:** The levers answer the city's problems now, not ones the run only finds later; Phase 36's what-if loop
+shows what a lever changes.
+
+## D-224 — Look-ahead entry points and the what-if loop (2026-11-22)
+
+**Context:** Plan v7 Phase 36. The look ahead (D-222/D-223) is only useful if the steward finds it at the moment of
+doubt, and only convincing if a change visibly changes the answer.
+**Decision:**
+- **Entry points:** a button under City Pulse's *Coming up* (where forecasts already live), one in an indicator's
+  click panel under its forecast line, and Flora's `look_ahead`. Her tool is registered from the future module after
+  her own tools, so her menus keep their letters; it takes no input, shows the postcard and returns a compact
+  summary she can talk about.
+- **What-if:** the postcard keeps the last projection it showed. A new one at the same horizon, starting no earlier,
+  adds *vs last* chips (the end values against the last look's), plus a line when losses or the council's verdict
+  changed. A built lever offers *See the difference*: a fresh run, postcard only, so the comparison takes seconds,
+  not a film.
+- **Three futures deferred:** three seeds would give a range but triple the run (≈45 s on the showcase). The
+  postcard says it is one possible future, and the guide tells players to judge trends across looks.
+**Consequences:** The *vs last* numbers also include whatever the city did meanwhile (it keeps playing between looks).
+That is honest, since it is the city's real course, but it is not a controlled experiment.

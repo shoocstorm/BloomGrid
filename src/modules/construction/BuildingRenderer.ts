@@ -771,6 +771,19 @@ export class BuildingRenderer {
     if (entry) this.setTier(entry, tier, animate ? 0 : -1, Greenery.value[eid]!);
   }
 
+  /** A projected ruin (Flora's look ahead, D-223; render only): it folds down to rubble as a real ruin does. */
+  replayRuin(eid: number): void {
+    const entry = this.entries.get(eid);
+    if (entry) this.collapse(entry, true);
+  }
+
+  /** Redraws a building from the sim as it stands (after a replayed ruin or level, so the film leaves nothing behind). */
+  rebuild(eid: number): void {
+    if (!this.entries.has(eid) || this.ctx.city.uids.get(Building.uid[eid]!) !== eid) return;
+    this.remove(eid, false);
+    this.add(eid, false);
+  }
+
   /** Lifts the whole veil at once (a replay ending, skipped or cut short). */
   unveilAll(): void {
     for (const eid of [...this.veiled]) this.unveil(eid, false);

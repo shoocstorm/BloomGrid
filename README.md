@@ -231,7 +231,13 @@ watched): a time-lapse from its founding to today, with every highway and buildi
 captions for its eras, wonders and storms. An invitation drops in under the top bar the first time your island has a story,
 after each new era, and after a few days of growth (**Later** or × puts it away). Demolished buildings stand again for as long as
 they did, buildings level up on screen as they did, and storms flare where they struck. The City map (**M**) has a **History**
-slider to look back at the island on any day, and Flora plays the film if you ask for your island's story. The model gallery (**G**) shows the island's
+slider to look back at the island on any day, and Flora plays the film if you ask for your island's story.
+
+**Looking ahead.** Under City Pulse's *Coming up* (or in a top-bar indicator's panel), **See where this is heading** has Flora
+run your city ten days on with no changes from you, then play *If Nothing Changes* over your island (levels slipping, ruins
+where storms will strike) and hand you a postcard: the numbers then against now, the council's verdict, and her best levers as
+one-click builds. Build one and press **See the difference**: the next postcard shows how much better it lands. Ask Flora
+"where is the city heading?" for the same. The model gallery (**G**) shows the island's
 cat in every coat and lists every film in its **Cutscenes** hall. While Flora sleeps her orb is dim with a "z": open
 it to see what she still needs, each with a **Build** button; when it pulses *Ready to wake*, wake her and watch her
 come online over the Data Spire.

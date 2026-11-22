@@ -339,6 +339,22 @@ class StatInfo {
     s.body.replaceChildren(
       h('p', { class: 'si-status big' }, g.status),
       forecastLine(g) ?? '',
+      // Past the trend line: Flora plays the city on and shows where it really goes (plan v7, D-224).
+      ctx.services.tryGet('future')
+        ? h(
+            'button',
+            {
+              class: 'btn ghost si-ahead',
+              title: 'Flora runs the city on, if nothing changes, and shows where it goes',
+              onClick: () => {
+                this.close();
+                void ctx.services.get('future').show();
+              },
+            },
+            icon('eye'),
+            'See where the city is heading',
+          )
+        : '',
       gauge(g) ?? '',
       h('div', { class: 'si-sec' }, g.partsTitle),
       parts(g.parts, g.partsKind),

@@ -124,4 +124,5 @@ export const INTROS = {
   remembers: { kicker: 'A chapter found', title: 'Remembering Halcyon', emblem: SEAL, accent: '#ffe6a8', glow: '#ffc870', motes: 'twinkle' },
   stirs: { kicker: 'Off the coast', title: 'Something stirs', emblem: PEARL, accent: '#9ffff0', glow: '#4fc8e8', motes: 'drift' },
   timelapse: { kicker: 'From the Seedvault archive', title: 'Rewinding the island', emblem: DIAL, accent: '#bfe8ff', glow: '#7fc4ff', motes: 'rise' },
+  future: { kicker: 'Flora · if nothing changes', title: 'Reading the days ahead', emblem: DIAL, accent: '#ffd9a8', glow: '#ff9f6a', motes: 'drift', scan: true },
 } satisfies Record<string, FilmIntro>;

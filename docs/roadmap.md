@@ -349,6 +349,17 @@ over the real city. Full plan: [`plan-v6.md`](plan-v6.md).
 
 ---
 
+## ✅ Phases 34–36: Plan v7, Postcards from the future (designed 2026-11-22)
+
+Flora runs a copy of the city forward ("if nothing changes") in a worker and plays where it is heading as a film
+over the real island, ending on a postcard with her best levers. Full plan: [`plan-v7.md`](plan-v7.md).
+
+- [x] Phase 34: The forward run: `sim/foresee.ts` projection (snapshots, samples, levels, ruins, incidents, sea rise, council verdict), worker + `future` service
+- [x] Phase 35: The postcard film "If Nothing Changes" played forwards on location, postcard card with deltas and three levers
+- [x] Phase 36: Entry points (Flora `look_ahead`, Coming up, indicator panels) and the what-if loop (*vs last*, *See the difference*) (D-224; deferred: three futures, a proactive offer)
+
+---
+
 ## Tech debt / open issues
 
 Keep this list current; remove items when fixed.

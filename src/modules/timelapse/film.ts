@@ -1,5 +1,3 @@
-import { AdditiveBlending, CylinderGeometry, DoubleSide, Mesh, MeshBasicNodeMaterial, TorusGeometry } from 'three/webgpu';
-import { float, uniform, uv, vec3 } from 'three/tsl';
 import type { GameContext } from '@/game/context';
 import { buildings as registry } from '@/content';
 import { Building } from '@/ecs/components';
@@ -13,6 +11,7 @@ import { FilmStage } from '@/modules/moments/FilmStage';
 import { INTROS } from '@/modules/moments/loading';
 import { orbit } from '@/modules/moments/shots';
 import { buildTimeline, timelineInputOf, type TimelineMark } from './timeline';
+import { burnFlare, disposeFlare, flare, FLARE_S } from './flare';
 import './timelapse.css';
 
 /**
@@ -57,25 +56,7 @@ export const filmStats = {
 };
 /** A gone building's pieces lean a little towards this, so it reads as a memory. */
 const GHOST_TINT = { col: 0xdde8f0, k: 0.18 };
-/** Seconds a crisis flare burns. */
-const FLARE_S = 3.2;
 
-/** A crisis flare: a ring running out over the ground and a pillar of light, warm red, additive. */
-function flare() {
-  const on = uniform(0);
-  const ringMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, fog: false });
-  ringMat.colorNode = vec3(1, 0.42, 0.22).mul(on);
-  const ring = new Mesh(new TorusGeometry(1, 0.035, 6, 96), ringMat);
-  ring.rotation.x = Math.PI / 2;
-  const pillarMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, fog: false });
-  pillarMat.colorNode = vec3(1, 0.5, 0.3).mul(on.mul(float(1).sub(uv().y)).mul(0.8));
-  const pillar = new Mesh(new CylinderGeometry(0.06, 0.12, 1, 20, 1, true).translate(0, 0.5, 0), pillarMat);
-  ring.add(pillar);
-  pillar.rotation.x = -Math.PI / 2;
-  ring.visible = false;
-  ring.frustumCulled = false;
-  return { root: ring, on };
-}
 
 /** Plays the film; `done` runs once it has faded out (played through or skipped). */
 export function playTimelapse(ctx: GameContext, done: () => void): void {
@@ -130,14 +111,7 @@ export function playTimelapse(ctx: GameContext, done: () => void): void {
         offReset();
         lift();
         stage.close();
-        // The flares' own geometry and materials (nothing shared).
-        for (const f of flares)
-          f.root.traverse((o) => {
-            if (o instanceof Mesh) {
-              o.geometry.dispose();
-              (o.material as MeshBasicNodeMaterial).dispose();
-            }
-          });
+        for (const f of flares) disposeFlare(f);
       },
     },
     done,
@@ -297,10 +271,7 @@ export function playTimelapse(ctx: GameContext, done: () => void): void {
         filmStats.flares = burning.length;
         continue;
       }
-      // The ring runs out and fades; the pillar stands with it. Sized to the view so it reads from any height.
-      const size = Math.max(8, cam.d * 0.06);
-      f.root.scale.set(size * (0.4 + k * 1.6), size * (0.4 + k * 1.6), size * 3.2);
-      f.on.value = Math.min(1, k * 6) * (1 - k) ** 1.5;
+      burnFlare(f, k, cam.d);
     }
   };
 

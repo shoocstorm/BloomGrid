@@ -941,6 +941,30 @@ body.compact.flora-open #hud > :not(.ai) {
   min-height: 40px;
 }
 
+/* Flora's look ahead (D-223): the progress chip in the call-out slot, the postcard as a bottom sheet. */
+.compact .fzp {
+  top: var(--chips);
+  left: var(--gut-l);
+  right: var(--gut-r);
+  width: auto;
+  max-width: none;
+  translate: none;
+}
+.compact .fpc {
+  top: auto;
+  bottom: var(--bot);
+  left: var(--gut-l);
+  right: var(--gut-r);
+  width: auto;
+  max-width: none;
+  max-height: var(--sheet-h, 70%);
+  translate: none;
+}
+.compact .fpc-go,
+.compact .fpc-foot .btn {
+  min-height: 40px;
+}
+
 /* The way back after a ceremony (D-209): full width under the top bar on phones. */
 .compact .mr {
   top: var(--chips);

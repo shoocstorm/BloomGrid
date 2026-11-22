@@ -1,0 +1,407 @@
+/* Postcards from the future (plan v7, D-223): the film's overlay (`fz-`), the progress chip (`fzp-`) and the postcard
+   (`fpc-`). Warm amber: a look ahead, unlike the time-lapse's dawn blue. Transform and opacity animations only. */
+
+/* ── The film's overlay, inside the letterbox (bars are 10vh) ── */
+.fz-hud {
+  position: absolute;
+  z-index: 3;
+  top: calc(10vh + 2.4vmin);
+  left: max(16px, 3.2vmin);
+  display: grid;
+  gap: 0.4vmin;
+  text-shadow: 0 1px 10px rgba(30, 10, 0, 0.65);
+  opacity: 0;
+  transition: opacity 1.2s ease 0.4s;
+}
+.reel.fz.s-play .fz-hud,
+.reel.fz.s-play .fz-bar {
+  opacity: 1;
+}
+.reel.fz.s-play.s-done .fz-hud,
+.reel.fz.s-play.s-done .fz-bar {
+  opacity: 0;
+  transition-delay: 0s;
+}
+.fz-kick {
+  margin: 0;
+  font-size: max(10px, 1.25vmin);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #ffd9a8;
+}
+.fz-name {
+  margin: 0;
+  font-size: max(15px, 2.4vmin);
+  font-weight: 600;
+}
+.fz-day {
+  margin: 0.6vmin 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 1vmin;
+  font-family: var(--mono, ui-monospace, monospace);
+}
+.fz-day span {
+  font-size: max(11px, 1.4vmin);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.fz-dnum {
+  font-size: max(26px, 5.2vmin);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.fz-stats {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2vmin;
+  font-size: max(11px, 1.45vmin);
+}
+.fz-stats b {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+.fz-d {
+  font-style: normal;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.9em;
+}
+.fz-d.up {
+  color: #9ff0b4;
+}
+.fz-d.down {
+  color: #ffa08a;
+}
+.fz-bar {
+  position: absolute;
+  z-index: 3;
+  left: max(16px, 6vmin);
+  right: max(16px, 6vmin);
+  bottom: calc(10vh + 2vmin);
+  height: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 0;
+  transition: opacity 1.2s ease 0.6s;
+}
+.fz-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #ffd9a8, #ff8f6a);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+/* ── Progress chip (the ready call-out's slot under the top bar) ── */
+.fzp {
+  position: absolute;
+  left: 50%;
+  top: 74px;
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 340px;
+  max-width: calc(100% - 32px);
+  padding: 10px 12px;
+  translate: -50% 0;
+}
+.fzp.hidden {
+  display: none;
+}
+.fzp-ico {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #ffd9a8;
+  background: rgba(255, 170, 110, 0.14);
+}
+.fzp-ico .ico {
+  width: 16px;
+  height: 16px;
+}
+.fzp-main {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+}
+.fzp-bar {
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.fzp-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #ffd9a8, #ff8f6a);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.6s ease;
+}
+.fzp-cancel {
+  padding: 5px 10px;
+}
+
+/* ── The postcard ── */
+.fpc {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* Over the HUD's cards and panels (fire alerts, call-outs): it is the answer the steward asked for. */
+  z-index: 40;
+  width: 470px;
+  max-width: calc(100% - 32px);
+  max-height: calc(100% - 140px);
+  overflow-y: auto;
+  padding: 14px 16px 12px;
+  translate: -50% -50%;
+}
+.fpc.panel.holo {
+  border-color: rgba(255, 190, 130, 0.7);
+  background:
+    radial-gradient(130% 120% at 100% 0%, rgba(255, 160, 100, 0.16), transparent 55%),
+    linear-gradient(160deg, rgba(40, 24, 22, 0.97), rgba(22, 30, 40, 0.97));
+}
+.fpc.hidden {
+  display: none;
+}
+.fpc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.fpc-stamp {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px dashed rgba(255, 210, 160, 0.7);
+  border-radius: 6px;
+  color: #ffd9a8;
+  rotate: -6deg;
+}
+.fpc-stamp .ico {
+  width: 20px;
+  height: 20px;
+}
+.fpc-kick {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffd9a8;
+}
+.fpc-title {
+  font-size: 17px;
+  color: #fff;
+}
+.fpc-verdict {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+}
+.fpc-verdict .ico {
+  width: 14px;
+  height: 14px;
+}
+.fpc-verdict.bad {
+  color: #ff9a86;
+}
+.fpc-verdict.warn {
+  color: #ffd27a;
+}
+.fpc-verdict.ok {
+  color: #9ff0b4;
+}
+.fpc-rows {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.fpc-row {
+  display: grid;
+  grid-template-columns: 78px auto 12px auto 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.fpc-row .ico {
+  width: 11px;
+  height: 11px;
+  opacity: 0.6;
+}
+.fpc-k {
+  color: var(--ink-soft);
+}
+.fpc-from {
+  font-family: var(--mono);
+  color: var(--ink-soft);
+}
+.fpc-to {
+  font-family: var(--mono);
+  color: #fff;
+}
+.fpc-d {
+  justify-self: end;
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.fpc-d.up {
+  color: #9ff0b4;
+}
+/* What-if (D-224): a fifth column against the last look. */
+.fpc-row.cmp {
+  grid-template-columns: 70px auto 12px auto 1fr auto;
+}
+.fpc-vs {
+  justify-self: end;
+  padding: 1px 6px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.06);
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+.fpc-vs.up {
+  color: #9ff0b4;
+}
+.fpc-vs.down {
+  color: #ffa08a;
+}
+.fpc-again {
+  padding: 5px 9px;
+  font-size: 11px;
+}
+.fpc-d.down {
+  color: #ffa08a;
+}
+.fpc-what,
+.fpc-note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.fpc-sec {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 6px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffd9a8;
+}
+.fpc-sec .ico {
+  width: 12px;
+  height: 12px;
+}
+.fpc-levers {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.fpc-lever {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 8px);
+}
+.fpc-lever-text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.fpc-lever-text b {
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.fpc-where {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+.fpc-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: var(--pill);
+  background: linear-gradient(180deg, #ffd77a, #ffad3a);
+  color: #2b1a00;
+  font: 600 12px/1 var(--ui);
+  white-space: nowrap;
+  cursor: var(--cur-pointer, pointer);
+}
+.fpc-go .ico {
+  width: 13px;
+  height: 13px;
+}
+.fpc-go:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.fpc-done {
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.fpc-done.ok {
+  color: #9ff0b4;
+}
+.fpc-done.bad {
+  color: #ffa08a;
+}
+.fpc-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.fpc-small {
+  flex: 1 1 180px;
+  font-size: 10.5px;
+  color: var(--ink-faint);
+}
+.fpc-foot .btn {
+  padding: 6px 10px;
+}
+
+/* Entry points (D-224): under City Pulse's Coming up, and in an indicator's panel under its forecast. */
+.cu-ahead,
+.si-ahead {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 10px;
+  font-size: 11.5px;
+}
+.cu-ahead .ico,
+.si-ahead .ico {
+  width: 13px;
+  height: 13px;
+}
