@@ -346,3 +346,113 @@ body.moment-on #hud {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* The way back (D-209): after a ceremony flew the camera off, a card under the top bar offers the view the player
+   was building in. Same place as the ready call-out (which waits while a moment plays); transform / opacity only. */
+.mr {
+  position: absolute;
+  left: 50%;
+  top: 74px;
+  z-index: 13;
+  width: 380px;
+  max-width: calc(100% - 32px);
+  padding: 12px 14px;
+  translate: -50% 0;
+}
+.mr.hidden {
+  display: none;
+}
+.mr.mr-in {
+  animation: mr-drop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.mr-kick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.mr-kick .ico {
+  width: 13px;
+  height: 13px;
+}
+.mr-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 8px 0 10px;
+}
+.mr-ico {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+}
+.mr-ico .ico {
+  width: 19px;
+  height: 19px;
+}
+.mr-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.mr-name {
+  font-size: 15px;
+  color: var(--ink);
+}
+.mr-line {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.mr-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.mr-stay {
+  padding: 6px 12px;
+}
+.mr-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--pill);
+  background: var(--accent);
+  color: #061315;
+  font: 600 13px/1 var(--ui);
+  cursor: var(--cur-pointer, pointer);
+}
+.mr-back .ico {
+  width: 14px;
+  height: 14px;
+}
+.mr-back:hover {
+  filter: brightness(1.08);
+}
+@keyframes mr-drop {
+  from {
+    transform: translateY(-20px) scale(0.94);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+/* The ready call-out sits in the same place: it waits until the way back is dealt with. */
+body.moment-return .rc {
+  visibility: hidden;
+}

@@ -220,13 +220,7 @@ class Assistant {
         `A ${def.name} is forecast. How should we prepare?`,
       );
     });
-    bus.on('crisis:start', ({ crisis }) =>
-      notice(
-        `crisis-start:${crisis.id}`,
-        `${getCrisis(crisis.def).name} has begun.`,
-        `The ${getCrisis(crisis.def).name} has begun. What is affected and what should we do?`,
-      ),
-    );
+    // No notice when a crisis begins (D-208): its card turns live and the forecast notice already advised.
     // Hazards (D-050): fires, ruins and quakes, each with a prompt that leads to incident_status / respond_incident.
     bus.on('fire:start', ({ fire, eid }) => {
       const where = this.ctx.city.districtAt(Math.floor(fire.x), Math.floor(fire.z)) ?? 'the outskirts';

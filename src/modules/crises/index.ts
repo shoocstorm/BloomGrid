@@ -79,6 +79,9 @@ function newCityDialog(ctx: GameContext, onDone?: () => void): void {
   ctx.hud.append(scrim);
 }
 
+/** Crises whose own module draws their warning card (the disasters module's Prepare panel). */
+const OWN_PANEL: ReadonlySet<string> = new Set(['tornado', 'tsunami']);
+
 declare module '@/core/Services' {
   interface GameServices {
     crises: { newCity(): void };
@@ -125,6 +128,9 @@ export const crisesModule: GameModule = {
       const live = new Set<number>();
       for (const c of city.steward.crises) {
         live.add(c.id);
+        // Tornadoes and tsunamis have the Prepare panel (disasters module), with the same countdown and advice
+        // plus the actions: one card per threat, not two (D-208).
+        if (OWN_PANEL.has(c.def)) continue;
         let card = cards.get(c.id);
         const d = getCrisis(c.def);
         if (!card) {
@@ -193,13 +199,12 @@ export const crisesModule: GameModule = {
       },
     });
 
-    ctx.bus.on('crisis:forecast', ({ crisis }) =>
-      ctx.bus.emit('toast', {
-        text: `${getCrisis(crisis.def).icon} ${getCrisis(crisis.def).name} forecast${crisis.cause ? ` (${crisis.cause.split(':')[0]})` : ''}`,
-        tone: 'info',
-      }),
-    );
-    ctx.bus.on('crisis:start', ({ crisis }) => ctx.bus.emit('toast', { text: `${getCrisis(crisis.def).icon} ${getCrisis(crisis.def).name} has begun`, tone: 'bad' }));
+    // The crisis card is the forecast (D-208): no toast on top of it. A start gets a toast only when the steward
+    // closed its card, so they still hear it began.
+    ctx.bus.on('crisis:start', ({ crisis }) => {
+      if (!closedCrises.has(crisis.id) || OWN_PANEL.has(crisis.def)) return;
+      ctx.bus.emit('toast', { text: `${getCrisis(crisis.def).icon} ${getCrisis(crisis.def).name} has begun`, tone: 'bad' });
+    });
     ctx.bus.on('sea:rise', ({ level }) => ctx.bus.emit('toast', { text: `🌊 The sea has risen ${level.toFixed(1)} m: check the Flood risk lens`, tone: 'bad' }));
     ctx.bus.on('crisis:end', ({ crisis }) => ctx.bus.emit('toast', { text: `${getCrisis(crisis.def).name} has passed`, tone: 'ok' }));
     ctx.bus.on('city:reset', () => {

@@ -14,6 +14,15 @@ import { CHAIN_GAP, DRIFT, MIN_GAP, directing, driftNow, queueCrisis } from './d
  * the city RNG so a seed + command log replays identically. Effects flow into the pulse only
  * through `Modifiers`.
  */
+
+/**
+ * Crises the weather and the earth bring, not the city (D-208). They roll at NATURAL_ODDS of their weight, in the
+ * scheduler and as chain links, so a steward isn't hit by one storm after another; neglect still escalates in full.
+ */
+export const NATURAL_CRISES: ReadonlySet<string> = new Set(['monsoon', 'king-tide', 'heatwave', 'tornado', 'tsunami', 'landslide', 'earthquake', 'thunderstorm']);
+export const NATURAL_ODDS = 0.5;
+const naturalOdds = (id: string) => (NATURAL_CRISES.has(id) ? NATURAL_ODDS : 1);
+
 export interface CrisisDef {
   id: string;
   name: string;
@@ -153,7 +162,7 @@ export function updateCrises(city: City): Modifiers {
       // Chains: one link may follow, drawn while crises run on their own (drills in tests stay single).
       if (st.autoCrises)
         for (const f of d.followUps ?? [])
-          if (city.rng.next() < f.chance * Math.min(1.5, c.severity) && (f.when?.(city) ?? true)) {
+          if (city.rng.next() < f.chance * Math.min(1.5, c.severity) * naturalOdds(f.crisis) && (f.when?.(city) ?? true)) {
             queueCrisis(city, { crisis: f.crisis, gap: CHAIN_GAP, severity: c.severity * 0.8, cause: `${d.name}: ${f.why}`, kind: 'chain' });
             break;
           }
@@ -183,10 +192,18 @@ export function updateCrises(city: City): Modifiers {
         // Consequences (D-074) tilt the odds: a dirty coast breeds algal blooms, a heat island heatwaves.
         const tilt = city.consequences.mods.crisis;
         const pool = allCrises().map((d) => [d, Math.max(0, d.weight(city)) * (season.crisis[d.id] ?? 1) * (tilt[d.id] ?? 1)] as const);
-        const total = pool.reduce((a, [, w]) => a + w, 0);
-        let r = city.rng.next() * total;
+        // Natural disasters keep only NATURAL_ODDS of their share; the rest of it is a roll where nothing comes
+        // (D-208), so fewer storms and quakes don't mean more of the man-made crises.
+        let total = 0;
+        let spared = 0;
         for (const [d, w] of pool) {
-          if ((r -= w) <= 0) {
+          total += w;
+          spared += w * (1 - naturalOdds(d.id));
+        }
+        let r = city.rng.next() * total - spared;
+        for (const [d, w] of pool) {
+          if (r <= 0) break;
+          if ((r -= w * naturalOdds(d.id)) <= 0) {
             forecastCrisis(city, d.id, undefined, leadFor(city, d.id));
             break;
           }

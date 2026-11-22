@@ -10,6 +10,7 @@ import { isOpen, type UnlockId } from '@/sim/growthState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { SYSTEM_ORDER } from '@/sim/indicators';
 import { Ceremony, type MomentSpec } from './Ceremony';
+import { ReturnCard, compassOf } from './returnCard';
 import { openReel, reelClock, type Reel, type ReelOptions } from './reel';
 import { finishFilm, leadIn } from './finish';
 import { FilmStage } from './FilmStage';
@@ -150,6 +151,19 @@ export const momentsModule: GameModule = {
     // The films' cast in the model gallery (D-197).
     addCastExhibits(ctx);
     const ceremony = new Ceremony(ctx);
+    const returnCard = new ReturnCard(ctx);
+    /** Plays a ceremony; if it flew the camera off, the way back is offered as it ends (D-209). */
+    const playCeremony = (m: MomentSpec, done: () => void) =>
+      ceremony.play(m, () => {
+        const from = ceremony.takeFrom();
+        if (from)
+          returnCard.offer(from.view, from.to, {
+            kick: m.eyebrow.split(' · ')[0] || 'City moment',
+            name: m.title,
+            emblem: m.emblem === 'flora' ? 'sparkle' : m.emblem,
+          });
+        done();
+      });
     let mode: MomentsMode = 'all';
     try {
       const m = localStorage.getItem(MODE_KEY);
@@ -202,7 +216,7 @@ export const momentsModule: GameModule = {
       if (run) return runStaged(run);
       // Right after a film, a ceremony never flies the camera off (to the city's heart), unless it is the film's own.
       const spec = !chain && now() - filmEnded < GAP + 2 ? { ...m, camera: false } : m;
-      ceremony.play(spec, () => {
+      playCeremony(spec, () => {
         calmUntil = now() + GAP;
         done?.();
       });
@@ -262,7 +276,7 @@ export const momentsModule: GameModule = {
       if (f.run) return stage(`replay:${id}`, f.run);
       const spec = f.spec;
       // A ceremony replayed: its own spec, always grand, never deduped against the live queue.
-      if (spec) stage(`replay:${id}`, (finish) => ceremony.play({ ...spec(), id: `replay:${id}` }, finish));
+      if (spec) stage(`replay:${id}`, (finish) => playCeremony({ ...spec(), id: `replay:${id}` }, finish));
     };
 
     // ── Baselines: a city change arms the triggers a few seconds later, from where the city already is ──
@@ -443,7 +457,11 @@ export const momentsModule: GameModule = {
         emblem: 'gem',
         eyebrow: 'Sea wonder · risen · the Choir answers',
         title: name,
-        lines: [...(city().growth.progression ? [`${city().growth.wonders.length} sea wonders found`] : []), `Day ${city().day} · ${fmt(city().stats.population)} residents`],
+        lines: [
+          ...(site ? [`Off the ${compassOf(site[0] * S, site[1] * S, S)} coast`] : []),
+          ...(city().growth.progression ? [`${city().growth.wonders.length} sea wonders found`] : []),
+          `Day ${city().day} · ${fmt(city().stats.population)} residents`,
+        ],
         sub: 'The sea gave it back to a city that keeps the promises. Residents flock to the shore, and harmony rises.',
         // Framed whole: a wonder is far bigger than the buildings ceremonies usually frame.
         ...(site ? { at: { x: site[0] * S, z: site[1] * S, y: 0, height: 30, size: 70 } } : {}),
@@ -459,7 +477,12 @@ export const momentsModule: GameModule = {
       const after = () => {
         const spec = wonderSpec(id, name);
         if (mode === 'off') {
-          if (spec.at) ctx.cameraCtl.locate(spec.at.x, spec.at.z, { size: 70, height: 30 });
+          const cam = ctx.cameraCtl;
+          if (spec.at && cam.enabled && !cam.cinematic) {
+            const view = cam.getView();
+            cam.locate(spec.at.x, spec.at.z, { size: 70, height: 30 });
+            returnCard.offer(view, spec.at, { kick: 'Sea wonder', name, emblem: 'gem' });
+          }
         } else queue.unshift({ m: spec, chain: true });
         finish();
       };

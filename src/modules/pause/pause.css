@@ -13,8 +13,27 @@
 .pz-veil {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 50%, rgba(2, 10, 12, 0.5), rgba(2, 10, 12, 0.18) 55%, transparent 80%);
+  /* The city dims behind the card (D-208): an even shade with a darker rim, so the card is the only thing lit. */
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(2, 10, 12, 0.45), rgba(2, 10, 12, 0.68) 70%, rgba(2, 10, 12, 0.82)),
+    rgba(2, 10, 12, 0.25);
   animation: pz-fade 0.4s ease-out both;
+}
+
+/* While the card is open, everything else on screen steps aside (opacity / visibility only, §7½); a fold brings it
+   back for planning while paused. */
+body.city-paused #hud > :not(.pz),
+body.city-paused .jc-top,
+body.city-paused .ch-top,
+body.city-paused .ia-card,
+body.city-paused .mode-bar,
+body.city-paused .mode-frame {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.25s ease,
+    visibility 0s linear 0.25s;
 }
 .pz-card {
   position: relative;

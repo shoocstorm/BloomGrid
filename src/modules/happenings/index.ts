@@ -60,7 +60,7 @@ function cardHint(hp: Happening, approval: number): string {
 /**
  * Happenings card (D-123): the current residents' request or good surprise (`sim/happenings.ts`) as a card under
  * the milestone tracker: what it is, where, the time left, and what to do (Build the asked-for kind, Locate,
- * Claim). A start announces itself with a toast that flies to the spot; a claimed request plays a minor moment.
+ * Claim). A start opens the card (on phones also a toast that flies to the spot, D-208); a claimed request plays a minor moment.
  */
 class HappeningsCard {
   private card: HTMLElement;
@@ -101,11 +101,14 @@ class HappeningsCard {
     const { bus } = ctx;
     bus.on('happening:start', ({ happening: hp }) => {
       if (ctx.loading) return;
-      bus.emit('toast', {
-        text: `${HAPPENING_NAMES[hp.kind]}: ${describeHappening(ctx.city, hp)}`,
-        tone: 'info',
-        at: { x: hp.x, z: hp.z },
-      });
+      // The card opens with it (and has Locate); a toast too only repeated it (D-208). Phones, where the card
+      // sits folded, still get one.
+      if (isCompact())
+        bus.emit('toast', {
+          text: `${HAPPENING_NAMES[hp.kind]}: ${describeHappening(ctx.city, hp)}`,
+          tone: 'info',
+          at: { x: hp.x, z: hp.z },
+        });
       bus.emit('juice', { sound: 'claimable' });
       this.ping();
     });

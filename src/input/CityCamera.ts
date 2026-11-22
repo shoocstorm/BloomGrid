@@ -10,6 +10,7 @@ import type { Input } from './Input';
  * Touch: one-finger drag pans when the tool allows it (`touchPan`); two fingers pinch-zoom,
  * twist-rotate and drag to pan, or tilt with a parallel vertical drag where one finger already pans.
  * The wheel zooms toward the ground under the cursor, and a released drag glides on briefly (D-121).
+ * Zoom stops at `minDistance` and the pitch at `pitchFloor`, so the player never ends up at street level (D-209).
  */
 export interface CameraView {
   x: number;
@@ -53,8 +54,22 @@ export class CityCamera {
    */
   cinematic = false;
 
-  minDistance = 6;
+  /** Closest zoom: far enough that the view stays a city view, never a street-level peek (D-209). */
+  minDistance = 18;
   maxDistance = 320;
+  /**
+   * Lowest the eye may sit above the orbit point (D-209): close in, the camera must look down more, so zooming in
+   * near the ground keeps a wide view of the blocks around instead of tipping toward the horizon.
+   */
+  static readonly MIN_EYE = 12;
+  /** Clearance kept between the camera and the terrain under it. */
+  static readonly GROUND_CLEAR = 5;
+
+  /** The flattest pitch allowed at an orbit distance (aim lifts the orbit point, so it counts toward the eye height). */
+  static pitchFloor(distance: number, aim = 0): number {
+    const need = CityCamera.MIN_EYE - aim;
+    return need <= 0 ? 0 : Math.asin(Math.min(1, need / Math.max(1e-3, distance)));
+  }
   /** Distance that frames the whole island (overview). */
   get overviewDistance(): number {
     return this.grid.w * 1.1;
@@ -260,6 +275,7 @@ export class CityCamera {
       }
     }
     this.goalDistance = MathUtils.clamp(this.goalDistance, this.minDistance, this.maxDistance);
+    this.goalPitch = Math.max(this.goalPitch, CityCamera.pitchFloor(this.goalDistance, this.aim));
 
     const g = this.grid;
     this.goalTarget.x = MathUtils.clamp(this.goalTarget.x, 0, g.w);
@@ -278,7 +294,7 @@ export class CityCamera {
     const cp = Math.cos(this.pitch);
     this.tmp.set(Math.sin(this.yaw) * cp, Math.sin(this.pitch), Math.cos(this.yaw) * cp).multiplyScalar(this.distance);
     const cam = this.camera.position.copy(this.target).add(this.tmp);
-    const ground = Math.max(0, g.heightAt(cam.x, cam.z)) + 1.5;
+    const ground = Math.max(0, g.heightAt(cam.x, cam.z)) + CityCamera.GROUND_CLEAR;
     if (cam.y < ground) cam.y = ground;
     this.camera.lookAt(this.target);
   }

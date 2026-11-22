@@ -226,13 +226,6 @@ export const disastersModule: GameModule = {
           : 'Every turbine is feathered';
       },
     });
-    ctx.bus.on('crisis:forecast', ({ crisis }) => {
-      if (crisis.def !== 'tornado' && crisis.def !== 'tsunami') return;
-      const secs = Math.round((crisis.startTick - city.tick) / PULSE_TICKS);
-      ctx.bus.emit('toast', {
-        text: `${getCrisis(crisis.def).icon} ${getCrisis(crisis.def).name} warning: ${secs} s to prepare`,
-        tone: 'bad',
-      });
-    });
+    // No toast of its own (D-208): the Prepare panel is the warning, and a second banner only distracted.
   },
 };

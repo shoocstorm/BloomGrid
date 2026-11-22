@@ -8,6 +8,13 @@ import { statGuide, type StatId } from '@/sim/statGuide';
 import { seasonAt } from '@/sim/seasons';
 import './pause.css';
 
+declare module '@/core/EventBus' {
+  interface GameEvents {
+    /** The steward paused (on) or resumed (off) the city; holds that aren't the player's don't count (D-208). */
+    'pause:state': { on: boolean };
+  }
+}
+
 /** Systems whose stat guide explains them in a sentence (the others read as "Mobility Strained"). */
 const GUIDE: Partial<Record<SystemKey, StatId>> = { budget: 'credits', energy: 'energy', water: 'water', food: 'food', ecology: 'eco', harmony: 'happy' };
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -110,6 +117,7 @@ class PausePanel {
     if (this.state !== 'open') return;
     this.state = 'folded';
     this.root.classList.add('folded');
+    document.body.classList.remove('city-paused');
   }
 
   /** A hold that isn't the player's: a dialog, the loader, photo mode, the city tour, the model gallery, a cutscene (D-178), the boot. */
@@ -136,10 +144,15 @@ class PausePanel {
     if (paused && this.state === 'hidden') {
       this.state = 'open';
       this.root.classList.remove('hidden', 'folded');
+      // The card owns the screen (D-208): the city dims and every other panel steps aside until Resume or a fold.
+      document.body.classList.add('city-paused');
+      this.ctx.bus.emit('pause:state', { on: true });
       this.refresh = Infinity;
     } else if (!paused && this.state !== 'hidden') {
       this.state = 'hidden';
       this.root.classList.add('hidden');
+      document.body.classList.remove('city-paused');
+      this.ctx.bus.emit('pause:state', { on: false });
     }
     // The city still changes while paused (builds, demolitions): refresh twice a second.
     if (this.state === 'hidden' || (this.refresh += 0.1) < 0.5) return;

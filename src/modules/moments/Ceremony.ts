@@ -1,5 +1,6 @@
 import { Mesh, Quaternion, TorusGeometry, Vector3, type BufferGeometry } from 'three/webgpu';
 import type { GameContext } from '@/game/context';
+import type { CameraView } from '@/input/CityCamera';
 import { getMaterial } from '@/render/materials/library';
 import { GeoBuilder, tf } from '@/render/bake';
 import { h } from '@/ui/dom';
@@ -79,6 +80,8 @@ export class Ceremony {
   private meshes = new Map<MomentTone, { rings: Mesh[] }>();
   private live: { rings: Mesh[] } | null = null;
   private at: { x: number; y: number; z: number } | null = null;
+  /** Where the camera was before this ceremony flew it off (D-209): read once with `takeFrom`. */
+  private from: { view: CameraView; to: { x: number; z: number } } | null = null;
   private t = -1;
   private finish: (() => void) | null = null;
   private outTimer = 0;
@@ -94,6 +97,13 @@ export class Ceremony {
   };
 
   constructor(private ctx: GameContext) {}
+
+  /** The view the last ceremony flew the camera away from, and where it flew to; null once read or if it stayed. */
+  takeFrom(): { view: CameraView; to: { x: number; z: number } } | null {
+    const f = this.from;
+    this.from = null;
+    return f;
+  }
 
   get playing(): boolean {
     return this.stage !== null;
@@ -176,10 +186,13 @@ export class Ceremony {
   /** The 3D part: the camera over the spot, and the shockwaves in the moment's colours. */
   private place(m: MomentSpec): void {
     this.at = null;
+    this.from = null;
     if (!m.at) return;
     const g = this.ctx.city.grid;
     const y = m.at.y ?? Math.max(0, g.heightAt(m.at.x, m.at.z));
     this.at = { x: m.at.x, y, z: m.at.z };
+    const cam = this.ctx.cameraCtl;
+    if ((m.camera ?? m.scale === 'grand') && cam.enabled && !cam.cinematic) this.from = { view: cam.getView(), to: { x: m.at.x, z: m.at.z } };
     if (m.camera ?? m.scale === 'grand') this.ctx.cameraCtl.locate(m.at.x, m.at.z, { size: m.at.size ?? 30, height: Math.max(30, m.at.height ?? 0) });
     let set = this.meshes.get(m.tone);
     if (!set) {

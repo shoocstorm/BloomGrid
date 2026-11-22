@@ -3789,3 +3789,30 @@ one marked *On screen*) with its map, and deletes one with a bin button pressed 
 save lists as one more island. Rejected: a fixed number of numbered slots (players think in islands, not slots) and a
 separate save browser (the dialog already shows maps and is where a city is chosen).
 
+
+## D-208: A quiet pause, rarer natural disasters, one notice per event
+
+- **Pause:** while the pause card is open (`body.city-paused`), the city dims behind a darker veil and every other
+  HUD layer (`#hud` children, the juice and charm top layers, the interact card, the mode bar) fades out by
+  opacity / visibility; *Keep planning* (a fold) brings them back. The pause module emits `pause:state`, and the audio
+  module fades the master bus to silence, starts no new voices and schedules no music bars until Resume.
+- **Natural disasters** (`NATURAL_CRISES` in `sim/crises.ts`: monsoon, king tide, heatwave, tornado, tsunami,
+  landslide, earthquake, thunderstorm) roll at `NATURAL_ODDS` (0.5) of their weight, both in the scheduler and as
+  chain links. The removed share becomes a roll where nothing comes, so man-made crises don't fill the gap.
+  Escalations from neglect are unchanged (the steward can prevent those).
+- **One notice per event:** a crisis card is its forecast (no toast on top); a start toasts only when its card was
+  closed; tornadoes and tsunamis show only the Prepare panel (no crisis card, no second forecast toast); Flora no
+  longer posts a notice when a crisis begins; a residents' request opens its card without a toast on desktops
+  (phones, where the card sits folded, keep the toast).
+
+## D-209: A city-view zoom floor, and the way back after a ceremony
+
+- **Zoom floor:** the city camera stops at `minDistance` 18 (was 6) and never looks flatter than `pitchFloor(distance,
+  aim)`: the eye stays `MIN_EYE` (12) above the orbit point, so zooming in tips the view down instead of toward the
+  horizon, and the camera keeps `GROUND_CLEAR` (5) above the terrain under it. Far views and aimed landmark postcards
+  are unaffected; explore modes, the tour and films drive the camera themselves. Street level is what walk mode is for.
+- **Way back:** a ceremony that flies the camera off (`Ceremony.takeFrom`: the view before `locate`) ends with a card
+  under the top bar (`moments/returnCard.ts`): where the place is (compass from the island centre, tiles from the old
+  view) and **Back to where you were** (`setView` of the old view), then a toast with ⌖ Show to the place. Shown only
+  when the camera moved ≥ 45 tiles; Esc / × / Stay here / the call-out idle time put it away; the ready call-out hides
+  while it is up. The wonder ceremony also names the coast it rose off.

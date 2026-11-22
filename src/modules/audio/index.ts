@@ -80,6 +80,8 @@ class Sound {
   private film!: GainNode;
   score: FilmScore | null = null;
   filming = false;
+  /** The steward paused the city (`pause:state`): everything fades to silence until Resume. */
+  paused = false;
   private noise!: AudioBuffer;
   private beds: Record<
     'surf' | 'hum' | 'wind' | 'rain' | 'rail' | 'pod' | 'fire',
@@ -178,7 +180,7 @@ class Sound {
     if (!this.ac) return;
     const t = this.ac.currentTime;
     const L = this.levels;
-    this.master.gain.setTargetAtTime(L.muted ? 0 : L.master, t, 0.05);
+    this.master.gain.setTargetAtTime(L.muted || this.paused ? 0 : L.master, t, this.paused ? 0.25 : 0.05);
     // A film ducks the city's music and ambience to a murmur (over ~1.5 s), and gives them back as it ends.
     const duck = this.filming ? 0.1 : 1;
     this.music.gain.setTargetAtTime(L.music * 0.5 * duck, t, this.filming ? 0.5 : 0.8);
@@ -242,7 +244,7 @@ class Sound {
   // ── Effects ──
   /** A short tone (sine/triangle) with an exponential decay; frequency may glide to `to`. */
   tone(f: number, len: number, vol = 0.2, type: OscillatorType = 'sine', to?: number, delay = 0, out?: AudioNode): void {
-    if (!this.ac || this.voices >= MAX_SFX || this.levels.muted) return;
+    if (!this.ac || this.voices >= MAX_SFX || this.levels.muted || this.paused) return;
     const ac = this.ac;
     const at = ac.currentTime + delay;
     const o = ac.createOscillator();
@@ -262,7 +264,7 @@ class Sound {
 
   /** Filtered noise burst (whoosh, crack, rumble, bang). */
   burst(len: number, vol: number, type: BiquadFilterType, f: number, to?: number, delay = 0, out?: AudioNode): void {
-    if (!this.ac || this.voices >= MAX_SFX || this.levels.muted) return;
+    if (!this.ac || this.voices >= MAX_SFX || this.levels.muted || this.paused) return;
     const ac = this.ac;
     const at = ac.currentTime + delay;
     const src = ac.createBufferSource();
@@ -287,7 +289,7 @@ class Sound {
    * the effects bus is nearly full, so a signature never starves alerts.
    */
   play(p: Played, gain = 1, delay = 0): void {
-    if (!this.ac || this.levels.muted || this.voices > MAX_SFX - 4) return;
+    if (!this.ac || this.levels.muted || this.paused || this.voices > MAX_SFX - 4) return;
     let out: AudioNode | undefined;
     if (p.muffle) {
       const lp = this.ac.createBiquadFilter();
@@ -313,6 +315,11 @@ class Sound {
     if (!this.ac || this.ac.state !== 'running') return;
     if ((this.timer += dt) < 0.25) return;
     this.timer = 0;
+    // Paused: no new bars (and none piled up to play at once on Resume).
+    if (this.paused) {
+      this.nextBar = this.ac.currentTime + 0.3;
+      return;
+    }
     const { city, cameraCtl } = this.ctx;
     const crisis = city.steward.crises.some((c) => c.phase === 'active') || city.steward.fires.length > 2;
     const mood = pickMood(city.timeOfDay, crisis);
@@ -714,6 +721,11 @@ export const audioModule: GameModule = {
       s.applyLevels();
       if (on) s.score?.begin(key);
       else s.score?.end();
+    });
+    // The steward's pause (D-208): the whole mix fades out, and back in on Resume.
+    bus.on('pause:state', ({ on }) => {
+      s.paused = on;
+      s.applyLevels();
     });
     bus.on('film:bed', ({ bed, level, fade }) => s.score?.bed(bed, level, fade));
     bus.on('film:hit', ({ hit, delay, dur }) => {
