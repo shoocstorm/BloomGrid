@@ -140,3 +140,23 @@ body.tool-mode .bd-again {
 .compact .mb-exit {
   padding: 6px 12px;
 }
+
+/* Full view for drawing (D-206): while the highway tool is in hand the build panel, the cards and consoles fade out
+   (opacity only; no layout change, so they come back exactly where they were). The top bar, the mode banner, the
+   tooltip and toasts stay. */
+body.view-max .build.panel,
+body.view-max .bp-float,
+body.view-max .rightcol,
+body.view-max .jc-m,
+body.view-max .advisor,
+body.view-max .rc,
+body.view-max .pulse,
+body.view-max .dock-row,
+body.view-max .jc-stack {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    visibility 0s linear 0.2s;
+}

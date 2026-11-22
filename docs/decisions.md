@@ -3754,3 +3754,25 @@ Players saw the city go soft and fuzzy the longer they played. Two causes:
   and the horizon turned milky over the whole city. Now haze is 0.4 / 0.35 / 0.2, it pulls the fog in less
   (`near × (1 − 0.6 h)`, `far = near + 700 (1 − 0.7 h)`), and tints the horizon less: the season reads as a warm, dusty
   distance, not a blur over the city.
+
+## D-205: Auto-collect tips (the tip jar)
+
+Players wanted to build without watching for bubbles. Once a city's treasury has held ◈1,000 (`AUTO_TIPS_AT`; a
+fresh island starts at ◈2,000, so it is open from the start, as asked) the tip jar opens for that city for good
+(`tipJar` in the juice module's save hook, cosmetic like Firsts: not sim state, not hashed). Each bubble then pops
+itself `AUTO_AFTER` (3 s; golden 4.5 s) of running time after it appears through the same `pop` as a click (burst,
+resident's words, coins into the counter, `collectTip` with the combo), so showers (bubbles a beat apart) still chain a
+combo and a player can always pop sooner. A ring (`.jc-ring`, stroke-dashoffset only) fills round the bubble and holds
+while the clock does. The first self-collecting bubble in a city explains it once in a toast. Per viewer it can be
+switched off (Settings → Display → Auto-collect tips, `bloomgrid.tips.auto`). Rejected: unlocking on ◈1,000 of tips
+earned (offered; the player chose the treasury rule).
+
+## D-206: Full view while laying highways
+
+Highways are drawn across the map, and the build panel, the right-hand cards and the consoles covered much of it.
+With the highway tool in hand (`FULL_VIEW` in `modules/mode`), `body.view-max` fades out the build panel and its
+floating preview, the right column (milestone card, inspector), the request / story / ready cards, the advisor, City
+Pulse, the dock row and the juice stack. Only opacity and visibility change, so everything returns exactly where it
+was the moment the tool is put down (Exit on the banner, Esc, right-click, or another tool). The top bar, the mode
+banner (the way out), the tooltip and toasts stay. Other tools keep the panels: they are single clicks near what the
+player is looking at.

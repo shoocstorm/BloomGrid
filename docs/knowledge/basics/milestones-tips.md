@@ -4,7 +4,7 @@ title: Milestones and residents' tips
 category: basics
 summary: The steward milestones (short goals that pay a reward you claim) and the gold tip bubbles that float over happy buildings.
 tags:
-  [milestone, milestones, claim, reward, goal, next goal, tip, tips, bubble, combo, golden tip, golden bubble, shower, firsts, badge, achievement, day recap, day report, cat, stray, befriend, adopt, paper plane, note, letter, charms, quick credits, early game]
+  [milestone, milestones, claim, reward, goal, next goal, tip, tips, bubble, combo, golden tip, golden bubble, shower, auto collect, auto-collect, tip jar, missed tips, firsts, badge, achievement, day recap, day report, cat, stray, befriend, adopt, paper plane, note, letter, charms, quick credits, early game]
 related: [basics-first-hour, playbooks-fresh-island, systems-budget]
 order: 4
 ---
@@ -40,6 +40,14 @@ Pop bubbles within a few seconds of each other to build a **combo** (up to ×5):
 tip. Sometimes several bubbles float up together (a *shower*), and while another bubble is waiting, a meter under the
 top bar shows your combo draining and what the next pop is worth. Tips grow with your population and with Harmony, so a happy city tips better. They are a bonus, not an
 income: taxes and fishing pay the bills. Turn bubbles off in Settings → Display → Tip bubbles.
+
+## Do I have to pop every bubble? (auto-collect)
+
+No. Once your treasury has held ◈1,000 (on a fresh island, from the start) the **tip jar** is open: a thin ring fills
+round each bubble and, about 3 seconds after it appears (4.5 for a golden one), it collects itself with the same
+coins, words and sound, so no tip floats away while you build. Bubbles in a shower collect one after another, so they
+still build a combo; pop one sooner yourself for a faster combo. The ring holds while the game is paused. Turn it off
+in Settings → Display → Auto-collect tips.
 
 ## What are Firsts?
 

@@ -238,6 +238,15 @@ export const settingsModule: GameModule = {
                 h('h4', {}, 'Tip bubbles'),
                 h('p', { class: 'set-hint' }, 'Now and then a happy building floats a bubble: pop it for a small tip and a word from its residents.'),
                 radio('tips', { on: 'On', off: 'Off' }, juice.tips ? 'on' : 'off', (m) => (juice.tips = m === 'on')),
+                h('h4', {}, 'Auto-collect tips'),
+                h(
+                  'p',
+                  { class: 'set-hint' },
+                  juice.tipJar
+                    ? 'Bubbles collect themselves a few seconds after they appear (a ring fills round them), with the same coins and combos. Pop them sooner for a bigger combo.'
+                    : `Unlocks when the treasury first reaches ◈${juice.autoAt.toLocaleString('en-US')}: bubbles then collect themselves after a few seconds.`,
+                ),
+                radio('autotips', { on: 'On', off: 'Off' }, juice.autoTips ? 'on' : 'off', (m) => (juice.autoTips = m === 'on')),
               ]
             : [];
         })(),

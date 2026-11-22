@@ -81,6 +81,12 @@ export type JuiceSound =
 export interface JuiceService {
   /** Tip bubbles on or off (per viewer). */
   tips: boolean;
+  /** Auto-collect (D-205) wanted by this viewer; it works once the city has unlocked it (`tipJar`). */
+  autoTips: boolean;
+  /** Whether this city has unlocked auto-collect (its treasury reached `AUTO_TIPS_AT`). */
+  readonly tipJar: boolean;
+  /** Treasury that unlocks auto-collect. */
+  readonly autoAt: number;
   /** Spawns a tip bubble now (scripts and scenes); `golden` forces a golden one. */
   spawnTip(golden?: boolean): boolean;
   /** Every First (D-173) with whether this city has earned it, in catalogue order. */
@@ -105,6 +111,16 @@ declare module '@/core/EventBus' {
 }
 
 const TIPS_KEY = 'bloomgrid.tips';
+const AUTO_KEY = 'bloomgrid.tips.auto';
+/**
+ * Auto-collect (D-205): unlocked for a city the first time its treasury reaches this, then bubbles pop themselves
+ * `AUTO_AFTER` seconds of running time after they appear (golden ones a little later), with the full pop (burst,
+ * words, coins, sound). Shower bubbles appear a beat apart, so they pop a beat apart and still build a combo; the
+ * player can pop any sooner.
+ */
+const AUTO_TIPS_AT = 1000;
+const AUTO_AFTER = 3;
+const AUTO_AFTER_GOLDEN = 4.5;
 const FOLD_KEY = 'bloomgrid.milestones.folded';
 const MAX_BUBBLES = 3;
 const BUBBLE_LIFE = 32;
@@ -167,6 +183,8 @@ interface Bubble extends Anchored {
   /** Running-time age (holds while paused) and lifetime. */
   age: number;
   life: number;
+  /** Age at which it pops itself (0 = never: auto-collect off or not unlocked when it appeared). */
+  auto: number;
 }
 
 class Juice {
@@ -183,6 +201,10 @@ class Juice {
   private timer = 0;
   private slow = 0;
   tips = store.get(TIPS_KEY) !== 'off';
+  autoTips = store.get(AUTO_KEY) !== 'off';
+  /** This city unlocked auto-collect (saved with the city, D-205). */
+  tipJar = false;
+  private tipJarTold = false;
 
   // The screen stack under the top bar (D-173): combo meter, First badges, Day recap.
   private stack = h('div', { class: 'jc-stack' });
@@ -295,9 +317,11 @@ class Juice {
     bus.on('milestone:claimed', () => this.earn('claim'));
     ctx.services.get('save').addHook({
       id: 'juice',
-      save: () => ({ firsts: [...this.firstSet], best: this.bestGrowth }),
+      save: () => ({ firsts: [...this.firstSet], best: this.bestGrowth, tipJar: this.tipJar, told: this.tipJarTold }),
       load: (_c, data) => {
-        const d = (data ?? {}) as { firsts?: unknown; best?: unknown };
+        const d = (data ?? {}) as { firsts?: unknown; best?: unknown; tipJar?: unknown; told?: unknown };
+        this.tipJar = d.tipJar === true;
+        this.tipJarTold = d.told === true;
         this.firstSet = new Set(
           Array.isArray(d.firsts) ? d.firsts.filter((id): id is string => FIRST_IDS.has(id as string)) : [],
         );
@@ -315,6 +339,8 @@ class Juice {
         if (ev === 'city:reset') {
           this.firstSet.clear();
           this.bestGrowth = 0;
+          this.tipJar = false;
+          this.tipJarTold = false;
         }
         // What is already true of a new or loaded city is marked quietly on the next check; badges waiting for
         // the old city are dropped.
@@ -330,6 +356,33 @@ class Juice {
     bus.on('charter:claimed', ({ reward }) => this.claimed(reward));
     this.ready = new Set(claimableMilestones(ctx.city).map((m) => m.id));
     this.newDay();
+  }
+
+  /** Auto-collect is unlocked for this city and wanted by this viewer. */
+  private get autoOn(): boolean {
+    return this.tipJar && this.autoTips;
+  }
+
+  /** The first time the treasury holds `AUTO_TIPS_AT`, the tip jar opens (for good, for this city). */
+  private watchTipJar(): void {
+    if (!this.tipJar && this.ctx.city.credits >= AUTO_TIPS_AT) this.tipJar = true;
+  }
+
+  /** The first bubble that will collect itself says so, once per city (a fresh island has the jar from the start). */
+  private tellTipJar(): void {
+    if (this.tipJarTold || this.ctx.loading) return;
+    this.tipJarTold = true;
+    this.ctx.bus.emit('toast', {
+      text: 'Tip jar: tip bubbles now collect themselves when their ring fills. Pop them sooner for a combo (Settings → Display to turn it off).',
+      tone: 'ok',
+    });
+  }
+
+  private armAuto(b: Bubble): void {
+    b.auto = Math.max(b.age, 0) + (b.golden ? AUTO_AFTER_GOLDEN : AUTO_AFTER);
+    b.el.style.setProperty('--auto', `${b.auto - Math.max(b.age, 0)}s`);
+    b.el.style.setProperty('--ring-in', `${Math.max(0, -b.age)}s`);
+    b.el.classList.add('auto');
   }
 
   private get live(): boolean {
@@ -388,11 +441,12 @@ class Juice {
     const category = city.buildingDef(spot.eid).category;
     golden ??= city.growth.tips >= GOLDEN_AFTER && Math.random() < GOLDEN_CHANCE;
     const life = golden ? GOLDEN_LIFE : BUBBLE_LIFE;
+    const auto = this.autoOn ? (golden ? AUTO_AFTER_GOLDEN : AUTO_AFTER) : 0;
     const el = h(
       'button',
       {
-        class: golden ? 'jc-bubble golden' : 'jc-bubble',
-        style: delay ? `--in:${delay.toFixed(2)}s` : undefined,
+        class: `jc-bubble${golden ? ' golden' : ''}${auto ? ' auto' : ''}`,
+        style: `--in:${delay.toFixed(2)}s;--ring-in:${delay.toFixed(2)}s;--auto:${auto}s`,
         title: golden
           ? `A golden tip, worth ×${GOLDEN_TIP}: catch it before it floats away`
           : 'A resident left a tip: click to collect',
@@ -403,6 +457,7 @@ class Juice {
         { class: 'jc-bubble-in' },
         icon(golden ? 'sparkle' : (TIP_ICONS[category] ?? 'happy')),
         h('span', { class: 'jc-bubble-v' }, `◈${tipValue(city, 1, golden)}`),
+        ring(),
       ),
     );
     if (golden) this.ctx.bus.emit('juice', { sound: 'shimmer' });
@@ -415,6 +470,7 @@ class Juice {
       left: life + 1,
       age: -delay,
       life,
+      auto,
     };
     el.addEventListener('pointerdown', (ev) => ev.stopPropagation());
     el.addEventListener('click', (ev) => {
@@ -950,8 +1006,16 @@ class Juice {
     this.world.classList.toggle('hidden', !live);
     const running = live && this.ctx.engine.speed > 0;
     // Bubbles age only while time runs; they drift away at the end of their life.
+    this.world.classList.toggle('held', !running);
     for (const b of this.bubbles) {
       if (running && !b.el.classList.contains('popped')) b.age += dt;
+      // Auto-collect (D-205): the bubble pops itself once its ring has filled, with the full pop. Bubbles already
+      // floating when it is unlocked or switched on join in; switched off, the ring goes.
+      const popped = b.el.classList.contains('popped');
+      if (this.autoOn && !b.auto && !popped) this.armAuto(b);
+      b.el.classList.toggle('auto', this.autoOn && b.auto > 0);
+      if (this.autoOn && b.auto > 0 && !popped) this.tellTipJar();
+      if (running && this.autoOn && b.auto > 0 && b.age >= b.auto && !popped) this.pop(b);
       if (b.age > b.life - 4) b.el.classList.add('fading');
       if (b.age >= b.life) b.left = Math.min(b.left, 0.01);
       if (b.el.classList.contains('popped')) b.left -= dt;
@@ -1000,6 +1064,7 @@ class Juice {
     if ((this.slow += 1) < 4) return;
     this.slow = 0;
     if (this.ctx.loading) return;
+    this.watchTipJar();
     this.checkFirsts();
     this.moveIns();
   }
@@ -1044,6 +1109,22 @@ function petals(n: number): HTMLElement[] {
   );
 }
 
+const SVG = 'http://www.w3.org/2000/svg';
+/** The auto-collect countdown (D-205): a ring round the bubble that fills until it pops itself (CSS, `.auto`). */
+function ring(): SVGSVGElement {
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('class', 'jc-ring');
+  svg.setAttribute('viewBox', '0 0 50 50');
+  svg.setAttribute('aria-hidden', 'true');
+  const c = document.createElementNS(SVG, 'circle');
+  c.setAttribute('cx', '25');
+  c.setAttribute('cy', '25');
+  c.setAttribute('r', '23');
+  c.setAttribute('pathLength', '100');
+  svg.append(c);
+  return svg;
+}
+
 function confetti(n: number): HTMLElement[] {
   return Array.from({ length: n }, (_, i) => {
     const a = (Math.PI * 2 * i) / n + Math.random() * 0.4;
@@ -1069,6 +1150,17 @@ export const juiceModule: GameModule = {
         juice.tips = on;
         store.set(TIPS_KEY, on ? 'on' : 'off');
       },
+      get autoTips() {
+        return juice.autoTips;
+      },
+      set autoTips(on: boolean) {
+        juice.autoTips = on;
+        store.set(AUTO_KEY, on ? 'on' : 'off');
+      },
+      get tipJar() {
+        return juice.tipJar;
+      },
+      autoAt: AUTO_TIPS_AT,
       spawnTip: (golden?: boolean) => juice.spawnTip(golden),
       firsts: () => juice.firsts(),
       recap: () => juice.recap(),

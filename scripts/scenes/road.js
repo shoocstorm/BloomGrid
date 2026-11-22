@@ -1,7 +1,8 @@
 // Smart highways and the mode banner (D-202): `bun run snap -- --path "/?scenario=fresh-island&nowizard" --eval @scripts/scenes/road.js --after 300`.
 // Picks up the highway tool and hovers a spot a few tiles off the hamlet's road, so the shot shows the link preview,
 // its tooltip and the banner. window.CLICK = 1 clicks there (lays the link); window.DRAG = 1 drags a road that ends
-// just short of the road instead (it snaps on); window.REMOVE = 1 shows the Remove banner instead.
+// just short of the road instead (it snaps on); window.REMOVE = 1 shows the Remove banner instead. The highway tool
+// takes the full view (D-206); window.EXIT = 1 clicks the banner's Exit afterwards (the panels come back).
 (async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   while (!document.body.classList.contains('booted')) await wait(200);
@@ -63,7 +64,21 @@
     }
   }
   await wait(400);
+  const shown = (sel) => {
+    const el = document.querySelector(sel);
+    return !!el && getComputedStyle(el).visibility !== 'hidden' && !el.classList.contains('hidden');
+  };
+  const panels = () => ({ maxed: document.body.classList.contains('view-max'), build: shown('.build.panel'), card: shown('.rightcol') });
+  const during = panels();
+  let after;
+  if (window.EXIT) {
+    document.querySelector('.mb-exit')?.click();
+    await wait(400);
+    after = panels();
+  }
   return {
+    during,
+    after,
     tool: g.tools.active?.id,
     banner: document.querySelector('.mb-title')?.textContent,
     tooltip: document.querySelector('.tooltip:not(.hidden)')?.textContent,

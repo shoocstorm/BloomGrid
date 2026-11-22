@@ -15,6 +15,9 @@ interface ModeInfo {
   tone: Tone;
 }
 
+/** Tools drawn across the map that get the whole screen (D-206): the panels hide while one is in hand. */
+const FULL_VIEW = new Set(['road']);
+
 /** What each tool in hand is called on the banner, what it does, and its colour (D-202). */
 const MODES: Record<string, ModeInfo> = {
   build: {
@@ -27,7 +30,7 @@ const MODES: Record<string, ModeInfo> = {
   road: {
     icon: 'road',
     title: () => 'Laying highways',
-    hint: 'Drag to lay · ends snap onto nearby highways · click to link a spot to the nearest one',
+    hint: 'Drag to lay · ends snap onto highways · click to link a spot to the nearest one',
     touchHint: 'Drag to lay · tap to link a spot to the nearest highway',
     tone: 'make',
   },
@@ -95,6 +98,9 @@ export const modeModule: GameModule = {
       // A tool in hand: an open inspector (often a building clicked by accident) steps aside.
       if (id !== 'select') ctx.bus.emit('selection:changed', { eid: null });
       show(id);
+      // Full view for drawing (D-206): the panels fade away while the tool is in hand and come back as they were
+      // when it is put down (Exit, Esc, right-click or another tool); the banner keeps the way out on screen.
+      document.body.classList.toggle('view-max', FULL_VIEW.has(id));
     });
     // Films, explore modes and dialogs that suspend tools hide the banner with them.
     ctx.systems.add({
@@ -107,7 +113,10 @@ export const modeModule: GameModule = {
         frame.classList.toggle('mb-off', off);
       },
     });
-    ctx.bus.on('city:reset', () => show('select'));
+    ctx.bus.on('city:reset', () => {
+      show('select');
+      document.body.classList.remove('view-max');
+    });
     show(ctx.tools.active?.id ?? current);
   },
 };

@@ -1047,3 +1047,43 @@
     animation: none;
   }
 }
+
+/* Auto-collect countdown (D-205): a thin ring round the bubble fills, then the bubble pops itself. Held while the
+   clock is (the bubble's age holds too). Only stroke-dashoffset animates: no layout, no shadows. */
+.jc-bubble-in .jc-ring {
+  position: absolute;
+  inset: -5px;
+  width: calc(100% + 10px);
+  height: calc(100% + 10px);
+  rotate: -90deg;
+  pointer-events: none;
+  display: none;
+}
+.jc-bubble.auto .jc-bubble-in .jc-ring {
+  display: block;
+}
+.jc-ring circle {
+  fill: none;
+  stroke: rgba(255, 238, 190, 0.95);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 100 100;
+  stroke-dashoffset: 100;
+}
+.jc-bubble.golden .jc-ring circle {
+  stroke: #ffe27a;
+}
+.jc-bubble.auto .jc-ring circle {
+  animation: jc-ring var(--auto, 3s) linear var(--ring-in, 0s) forwards;
+}
+.jc-world.held .jc-bubble.auto .jc-ring circle {
+  animation-play-state: paused;
+}
+.jc-bubble.popped .jc-bubble-in .jc-ring {
+  display: none;
+}
+@keyframes jc-ring {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
