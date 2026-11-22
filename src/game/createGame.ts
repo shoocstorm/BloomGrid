@@ -17,6 +17,7 @@ import { chunkSizeFor } from '@/sim/City';
 import { createRenderer, type RendererInfo } from '@/render/Renderer';
 import { ChunkedInstancer } from '@/render/Instancer';
 import { isTouchDevice, onViewportChange } from '@/platform/device';
+import type { StageCreep } from '@/ui/Boot';
 import { DynamicResolution, QUALITY_TIERS, type QualitySettings, type QualityTier } from '@/render/Quality';
 import { PostFX } from '@/render/PostFX';
 import { PowerManager } from '@/render/Power';
@@ -68,7 +69,8 @@ function withOverrides(base: QualitySettings, params: URLSearchParams): QualityS
   return q;
 }
 
-export type ProgressFn = (label: string, progress: number) => Promise<void> | void;
+/** A boot stage (0..1); `creep` keeps the bar moving through a stage that blocks the page (`StageCreep`, D-217). */
+export type ProgressFn = (label: string, progress: number, creep?: StageCreep) => Promise<void> | void;
 
 let core: Promise<RendererInfo & { ms: number }> | null = null;
 
@@ -149,7 +151,7 @@ export async function createGame(
   let resumed = start.kind === 'save' ? start.data : null;
   let restoreFailed = false;
   if (resumed) {
-    await onProgress(`Restoring ${resumed.growth?.name || 'your city'}: streets, towers & residents`, 0.3);
+    await onProgress(`Restoring ${resumed.growth?.name || 'your city'}: streets, towers & residents`, 0.3, { to: 0.38, ms: 4000 });
     try {
       ctx.loading = true;
       deserializeCity(city, resumed);
@@ -165,7 +167,7 @@ export async function createGame(
     }
   }
   if (start.kind === 'scenario') {
-    await onProgress('Founding the city: districts, highways & bridges', 0.3);
+    await onProgress('Founding the city: districts, highways & bridges', 0.3, { to: 0.38, ms: start.scenario === 'founding-city' ? 5000 : 1500 });
     const r = foundCity(ctx, start.seed, start.difficulty, start.scenario);
     if (start.name) ctx.commands.execute('nameCity', { name: start.name }, false);
     console.info(`[scenario] ${start.scenario}: ${r.buildings} buildings, ${r.roads} highway tiles (${city.steward.difficulty})`);
@@ -260,7 +262,7 @@ export async function createGame(
     return false;
   });
 
-  await onProgress('Seeding forests, meadows & mangroves', 0.4);
+  await onProgress('Seeding forests, meadows & mangroves', 0.4, { to: 0.72, ms: 4000 });
   const tm = performance.now();
   const moduleMs = await loadModules(ctx, modules, () => performance.now());
   lap('modules', tm);
@@ -276,8 +278,10 @@ export async function createGame(
   ctx.tools.setActive('select');
   setQuality(ctx.quality.tier); // may have been changed by the settings module (saved preference)
 
-  // Start where the opening fly-in ends (the landmark), so warm-up compiles what is seen first.
-  await onProgress('Compiling luminous materials', 0.75);
+  // Start where the opening fly-in ends (the landmark), so warm-up compiles what is seen first. The warm-up is one
+  // frame of three's node builds on the main thread (seconds on a phone); splitting it into frames so the bar could
+  // move cost ≈10% more per extra frame, so the bar creeps on the compositor instead (D-217).
+  await onProgress('Compiling luminous materials', 0.75, { to: 0.93, ms: 6000 });
   const open = openingView(city);
   ctx.cameraCtl.lookAt(open.x, open.z, open.distance, true);
   ctx.cameraCtl.update(0);

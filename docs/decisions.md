@@ -3889,3 +3889,23 @@ A film's 3D is drawn on the city canvas, under the HUD, and the reel's middle is
 inspector, card or dialog sat over the picture. While `body.cutscene-on` (set by every reel) each body child but the
 reel, `#game`, the boot screen and the city loader is hidden (`opacity` + `visibility`, rule in
 `moments/reel.css`), and comes back as it was when the film ends. Hidden, not closed: no panel state to restore.
+
+## D-217 — The boot bar creeps through long stages on the compositor (2026-11-22)
+
+**Context:** On phones, founding a city sat at 75% ("Compiling luminous materials") for many seconds with nothing
+moving. Measured with a 6× CPU throttle (phone-like) on a fresh island: the warm-up (`ChunkedInstancer.warmup`, D-030)
+is ≈3.8 s of one frame, nearly all of it three's node builds on the main thread (pipeline creation ≈8 ms in total);
+most of it is the city's own first frame (terrain, sea, greenery, module meshes, post passes), not the kit's
+temporary instances. While it runs the page can't paint, so the bar and the % sat still.
+**Rejected:** splitting the warm-up into frames so the bar could step: each extra frame cost ≈0.4 s at 6× (≈+10%; 15
+frames +80%), even with everything but the group hidden: three's node builds are much cheaper in one frame. Deferring
+unused kit pieces on handhelds: a fresh island already shows all but ≈5 of them (≈0.1 s). Warming only what the
+opening view shows: the founding film and fly-in see the rest, so it only moved the stall into them.
+**Decision:** `BootScreen.stage(label, progress, creep?)`: a stage that blocks for long starts a slow ease-out
+`transform` transition of the bar towards `creep.to` over `creep.ms`, plus a sheen running along the fill
+(`.bt-busy`), both compositor-only, so they keep moving while the main thread is busy; the % fades meanwhile (text
+needs the main thread). The next stage settles the bar from wherever it got to. `createGame` passes creeps for
+founding / restoring, seeding (modules) and the warm-up; boot time is unchanged.
+**Consequences:** Verified with a Chrome screencast at 6×: compositor frames keep coming at 60 Hz through the warm-up and
+the bar moves 75% → ≈88%. Headless screenshots wait for the main thread, so they can't show this. Real cuts to the
+warm-up need fewer node builds (fewer meshes or materials in the first frame), not more frames.

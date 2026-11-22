@@ -255,6 +255,43 @@
   background: linear-gradient(90deg, var(--c2), var(--c1));
   box-shadow: 0 0 12px var(--c1);
   transition: transform 0.5s cubic-bezier(0.3, 0.8, 0.3, 1);
+  /* Its own layer: a creeping stage's transition runs on the compositor while the main thread is busy (D-217). */
+  will-change: transform;
+  overflow: hidden;
+}
+/* A long stage at work: a sheen runs along the filled bar (transform only, so it moves while the page can't paint). */
+.bt-bar i::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, rgba(217, 255, 246, 0.95), transparent);
+  transform: translateX(-100%);
+  opacity: 0;
+}
+.boot-screen.bt-busy .bt-bar i::after {
+  opacity: 1;
+  animation: bt-sheen 1.3s linear infinite;
+}
+@keyframes bt-sheen {
+  to {
+    transform: translateX(340%);
+  }
+}
+/* The number can't follow a creeping bar (text needs the main thread): it fades while one runs. */
+.bt-pct {
+  transition: opacity 0.3s;
+}
+.boot-screen.bt-busy .bt-pct {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-screen.bt-busy .bt-bar i::after {
+    animation: none;
+    opacity: 0;
+  }
 }
 .bt-meta {
   width: 100%;

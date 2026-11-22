@@ -69,9 +69,21 @@ function emblem(): SVGSVGElement {
   return root;
 }
 
+/**
+ * A stage that blocks the main thread for long (shader builds, founding a city): the bar creeps on towards `to` over
+ * about `ms`, easing out, and a sheen runs along it. Both are compositor animations (transform only), so they keep
+ * moving while the page can't paint, where the bar used to sit still (D-217).
+ */
+export interface StageCreep {
+  /** Progress the stage reaches when it ends (0..1). */
+  to: number;
+  /** About how long the stage takes on a slow phone (ms); faster devices simply jump on when the next stage starts. */
+  ms: number;
+}
+
 export interface BootScreen {
   /** Logs a stage and advances the progress bar (0..1). Yields a frame so the DOM paints. */
-  stage(label: string, progress: number): Promise<void>;
+  stage(label: string, progress: number, creep?: StageCreep): Promise<void>;
   /** Plays the reveal and removes the screen. */
   finish(onReveal?: () => void): Promise<void>;
   fail(message: string): void;
@@ -119,12 +131,14 @@ export function createBootScreen(el: HTMLElement, subtitle: string, opts: BootSc
   sub.textContent = subtitle;
   const bar = document.createElement('div');
   bar.className = 'bt-bar';
-  bar.append(document.createElement('i'));
+  const fill = document.createElement('i');
+  bar.append(fill);
   const meta = document.createElement('div');
   meta.className = 'bt-meta';
   const stageEl = document.createElement('span');
   stageEl.className = 'bt-stage';
   const pct = document.createElement('span');
+  pct.className = 'bt-pct';
   meta.append(stageEl, pct);
   const log = document.createElement('ol');
   log.className = 'bt-log';
@@ -164,8 +178,14 @@ export function createBootScreen(el: HTMLElement, subtitle: string, opts: BootSc
     return li;
   };
 
+  /** Back to the bar's own short transition, from wherever a creep got to. */
+  const settle = () => {
+    fill.style.transition = '';
+    el.classList.remove('bt-busy');
+  };
+
   return {
-    async stage(label, progress) {
+    async stage(label, progress, creep) {
       if (el.classList.contains('bt-welcome') && !el.classList.contains('bt-loading')) {
         // The welcome's choice is made: the boot sequence starts now (and its shortest showing with it).
         el.classList.add('bt-loading');
@@ -175,8 +195,15 @@ export function createBootScreen(el: HTMLElement, subtitle: string, opts: BootSc
       last = line(label, '···');
       stageEl.textContent = label;
       pct.textContent = `${Math.round(progress * 100)}%`;
+      settle();
       bar.style.setProperty('--p', String(progress));
       await frame();
+      if (creep && creep.to > progress) {
+        // Started before the work blocks the page: the compositor runs it on its own from here.
+        fill.style.transition = `transform ${Math.round(creep.ms)}ms cubic-bezier(0.15, 0.6, 0.35, 1)`;
+        bar.style.setProperty('--p', String(creep.to));
+        el.classList.add('bt-busy');
+      }
       await frame();
     },
     async finish(onReveal) {
@@ -184,6 +211,7 @@ export function createBootScreen(el: HTMLElement, subtitle: string, opts: BootSc
       line('City systems', 'ALL GREEN');
       stageEl.textContent = 'Welcome, Steward';
       pct.textContent = '100%';
+      settle();
       bar.style.setProperty('--p', '1');
       // Let the emblem breathe for a moment on very fast loads.
       const minShow = (opts.minShow ?? 1800) - (performance.now() - t0);
