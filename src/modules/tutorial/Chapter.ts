@@ -1,5 +1,5 @@
 import { SHOWCASE_SEED } from '@/game/start';
-import type { SaveInfo } from '@/game/SaveManager';
+import type { SaveEntry } from '@/game/saves';
 import type { SaveData } from '@/sim/save';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
 import { ago, h, setText } from '@/ui/dom';
@@ -35,10 +35,16 @@ export interface ChapterOptions {
   host: HTMLElement;
   /** The welcome screen's dialog (D-148): no Cancel, nothing on screen to replace yet. */
   first: boolean;
-  /** The saved city's summary (null: nothing saved). */
-  info: SaveInfo | null;
-  /** The saved city itself (its map). */
-  readSave(): Promise<SaveData | null | undefined>;
+  /** Every saved island, most recently saved first (D-207). */
+  saves: SaveEntry[];
+  /** The running city's slot (in game): marked "On screen". */
+  current?: string | null;
+  /** The path shown first (default Resume when there is a save). */
+  path?: ChapterPath;
+  /** A saved island itself (its map). */
+  readSave(slot: string): Promise<SaveData | null | undefined>;
+  /** Deletes a saved island. */
+  remove(slot: string): Promise<void>;
   /** Map edge in tiles. */
   size: number;
   /** Difficulty offered first. */
@@ -47,15 +53,15 @@ export interface ChapterOptions {
   seed: number;
   /** Tick "Show me how to play" (the guide was never finished or skipped). */
   guide: boolean;
-  /** Loads the saved city; resolves false when it could not (the dialog stays, with a note). `close` drops the dialog. */
-  resume(close: () => void): Promise<boolean>;
+  /** Loads a saved island; resolves false when it could not (the dialog stays, with a note). `close` drops the dialog. */
+  resume(slot: string, close: () => void): Promise<boolean>;
   found(name: string, seed: number, difficulty: DifficultyId, guide: boolean): void;
   /** Opens the founding city, as free play (`founding-city`) or as one of its `CHALLENGES`. */
   showcase(scenario: string): void;
   /** The dialog closed (any way). */
   onClose?(): void;
   /** The path or island on show changed (the welcome screen's island follows it). */
-  onView?(path: Path, seed: number): void;
+  onView?(path: Path, seed: number, slot?: string): void;
 }
 
 /**
@@ -77,14 +83,17 @@ export async function drawSave(canvas: HTMLCanvasElement, data: SaveData | null 
 }
 
 /**
- * The New Chapter dialog (D-085): three ways in, one at a time. **Resume** the saved city (the default whenever
- * there is one: its name, day, residents, when it was saved and its island), **found a new island** (name with a
+ * The New Chapter dialog (D-085): three ways in, one at a time. **Resume** a saved island (the default whenever
+ * there is one: every saved island listed with its day, residents and when it was saved, the picked one's map;
+ * each can be deleted with a second press, D-207), **found a new island** (name with a
  * dice, difficulty as four tiles, the guide; the island seed sits under Advanced with a live map), or **browse the
  * showcase city**. One primary button acts on the chosen path; Enter presses it, Esc cancels when it can.
  */
 export function openChapter(o: ChapterOptions): { close(): void } {
-  const info = o.info;
-  let path: Path = info ? 'resume' : 'new';
+  const saves = [...o.saves];
+  let picked: SaveEntry | null = saves[0] ?? null;
+  const any = saves.length > 0;
+  let path: Path = o.path === 'resume' && !any ? 'new' : (o.path ?? (any ? 'resume' : 'new'));
   let mode: string = CHALLENGES[0].id;
   let difficulty: DifficultyId = o.difficulty;
   let seed = o.seed;
@@ -94,6 +103,7 @@ export function openChapter(o: ChapterOptions): { close(): void } {
     if (closed) return;
     closed = true;
     window.removeEventListener('keydown', onKey, true);
+    window.clearTimeout(armed);
     scrim.remove();
     o.onClose?.();
   };
@@ -110,37 +120,121 @@ export function openChapter(o: ChapterOptions): { close(): void } {
   const paths = h(
     'div',
     { class: 'ch-paths', role: 'tablist' },
-    card('resume', 'play', 'Resume', info?.name ? info.name : 'No saved city yet'),
+    card('resume', 'play', 'Resume', resumeLine()),
     card('new', 'sparkle', 'New island', 'Start from a fishing hamlet'),
     card('showcase', 'city', 'Showcase', 'Browse a finished city'),
   );
   const resumeCard = paths.firstElementChild as HTMLButtonElement;
-  if (!info) resumeCard.disabled = true;
+  resumeCard.disabled = !any;
+  function resumeLine(): string {
+    if (!saves.length) return 'No saved island yet';
+    return saves.length === 1 ? saves[0]!.name || 'Your city' : `${saves.length} saved islands`;
+  }
 
-  // ── Resume ──
+  // ── Resume: every saved island (D-207), one picked; each can be deleted (two presses) ──
   const resumeErr = h('p', { class: 'ch-note ch-err', role: 'alert' });
   const savedMap = h('canvas', { class: 'ch-map' }) as HTMLCanvasElement;
+  const mapCap = h('span', { class: 'ch-map-cap' });
+  const kicker = h('div', { class: 'ch-kicker' });
+  const list = h('div', { class: 'ch-saves', role: 'listbox', 'aria-label': 'Saved islands' });
+  /** The row whose delete button is armed (a second press within 4 s deletes). */
+  let armedSlot: string | null = null;
+  let armed = 0;
+  const disarm = () => {
+    window.clearTimeout(armed);
+    armed = 0;
+    armedSlot = null;
+    for (const b of list.querySelectorAll<HTMLElement>('.ch-del.warn')) {
+      b.classList.remove('warn');
+      b.replaceChildren(icon('trash'));
+    }
+  };
+  const line = (e: SaveEntry) =>
+    [
+      e.day ? `Day ${e.day}` : '',
+      e.day ? `${Math.round(e.residents).toLocaleString()} residents` : '',
+      e.difficulty && e.difficulty in DIFFICULTIES ? DIFFICULTIES[e.difficulty as DifficultyId].label : '',
+      e.at ? ago(e.at) : '',
+    ]
+      .filter(Boolean)
+      .join(' · ') || 'Saved island';
+  const drawList = () => {
+    setText(kicker, saves.length === 1 ? 'Saved island' : `Saved islands · ${saves.length}`);
+    list.replaceChildren(
+      ...saves.map((e) => {
+        const del = h('button', { class: 'ch-del', title: `Delete ${e.name || 'this island'}`, 'aria-label': `Delete ${e.name || 'this island'}` }, icon('trash'));
+        del.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          if (armedSlot !== e.slot) {
+            disarm();
+            armedSlot = e.slot;
+            del.classList.add('warn');
+            del.replaceChildren(h('span', {}, 'Delete?'));
+            armed = window.setTimeout(disarm, 4000);
+            return;
+          }
+          disarm();
+          del.disabled = true;
+          void o
+            .remove(e.slot)
+            .then(() => {
+              saves.splice(saves.indexOf(e), 1);
+              if (picked === e) picked = saves[0] ?? null;
+              setText(resumeCard.querySelector('span:last-child')!, resumeLine());
+              resumeCard.disabled = !saves.length;
+              if (!saves.length) return choose('new');
+              drawList();
+              pick(picked!);
+            })
+            .catch(() => ((del.disabled = false), setText(resumeErr, 'That island could not be deleted.')));
+        });
+        const here = e.slot === o.current;
+        return h(
+          'div',
+          { class: 'ch-save', role: 'option', 'data-slot': e.slot, tabindex: '0', onClick: () => pick(e) },
+          h('span', { class: 'ch-save-ico' }, icon('city')),
+          h('b', {}, e.name || 'Your city', here ? h('em', {}, 'On screen') : null),
+          h('span', {}, line(e)),
+          del,
+        );
+      }),
+    );
+  };
+  const mapToken = { n: 0 };
+  function pick(e: SaveEntry): void {
+    picked = e;
+    setText(resumeErr, '');
+    for (const r of list.children) {
+      const on = (r as HTMLElement).dataset.slot === e.slot;
+      r.classList.toggle('on', on);
+      r.setAttribute('aria-selected', String(on));
+    }
+    setText(mapCap, e.seed ? `Island #${e.seed}` : 'Your island');
+    const n = ++mapToken.n;
+    drawIsland(savedMap, e.seed ?? SHOWCASE_SEED, size);
+    void o
+      .readSave(e.slot)
+      .then((data) => (n === mapToken.n ? drawSave(savedMap, data, e.seed ?? SHOWCASE_SEED, size) : undefined))
+      .catch(() => undefined);
+    if (path === 'resume') {
+      setGo();
+      o.onView?.('resume', e.seed ?? SHOWCASE_SEED, e.slot);
+    }
+  }
   const resume = h(
     'div',
     { class: 'ch-pane p-resume' },
-    h('div', { class: 'ch-mapbox' }, h('div', { class: 'ch-mapwrap' }, savedMap, h('span', { class: 'ch-map-cap' }, info?.seed ? `Island #${info.seed}` : 'Your island')), legend(false)),
+    h('div', { class: 'ch-mapbox' }, h('div', { class: 'ch-mapwrap' }, savedMap, mapCap), legend(false)),
     h(
       'div',
       { class: 'ch-detail' },
-      h('div', { class: 'ch-kicker' }, 'Saved city'),
-      h('div', { class: 'ch-name' }, info?.name || 'Your city'),
-      h(
-        'div',
-        { class: 'ch-facts' },
-        info?.day ? fact('sun', 'Day', String(info.day)) : null,
-        info?.day ? fact('people', 'Residents', Math.round(info.residents).toLocaleString()) : null,
-        info?.difficulty && info.difficulty in DIFFICULTIES ? fact('eco', 'Difficulty', DIFFICULTIES[info.difficulty as DifficultyId].label) : null,
-        info?.at ? fact('save', 'Saved', ago(info.at)) : null,
-      ),
-      h('p', { class: 'ch-note' }, o.first ? 'Pick up where you left off.' : 'Replaces the city on screen with your saved one.'),
+      kicker,
+      list,
+      h('p', { class: 'ch-note' }, o.first ? 'Pick up where you left off.' : 'Replaces the city on screen with the saved one.'),
       resumeErr,
     ),
   );
+  drawList();
 
   // ── New island ──
   const nameInput = h('input', { class: 'ch-input', value: cityName(), maxlength: '32', 'aria-label': 'City name', spellcheck: 'false' }) as HTMLInputElement;
@@ -266,8 +360,8 @@ export function openChapter(o: ChapterOptions): { close(): void } {
       holoHead(
         icon('sparkle'),
         'Steward console · new chapter',
-        info ? 'Welcome back, steward' : 'Welcome, steward',
-        info ? 'Resume your city, found a new island, or wander the showcase.' : 'Grow a solarpunk island from a fishing hamlet, or wander a finished city first.',
+        any ? 'Welcome back, steward' : 'Welcome, steward',
+        any ? 'Resume a saved island, found a new one, or wander the showcase.' : 'Grow a solarpunk island from a fishing hamlet, or wander a finished city first.',
       ),
       paths,
       // All panes share one cell, so the dialog keeps the tallest one's height and never jumps between paths.
@@ -303,20 +397,26 @@ export function openChapter(o: ChapterOptions): { close(): void } {
       b.setAttribute('aria-selected', String(on));
     }
     for (const [k, el] of Object.entries(panes)) el.classList.toggle('on', k === p);
+    setGo();
+    if (p === 'new' && !o.first) setTimeout(() => nameInput.focus(), 30);
+    o.onView?.(p, p === 'resume' ? (picked?.seed ?? SHOWCASE_SEED) : p === 'new' ? seed : SHOWCASE_SEED, p === 'resume' ? picked?.slot : undefined);
+  }
+
+  function setGo(): void {
+    const p = path;
     go.replaceChildren(
       icon(p === 'resume' ? 'play' : p === 'new' ? 'sparkle' : 'city'),
-      p === 'resume' ? `Resume ${info?.name || 'my city'}` : p === 'new' ? 'Found the city' : mode === 'founding-city' ? 'Open the showcase' : 'Start the challenge',
+      p === 'resume' ? `Resume ${picked?.name || 'my city'}` : p === 'new' ? 'Found the city' : mode === 'founding-city' ? 'Open the showcase' : 'Start the challenge',
     );
-    if (p === 'new' && !o.first) setTimeout(() => nameInput.focus(), 30);
-    o.onView?.(p, p === 'resume' ? (info?.seed ?? SHOWCASE_SEED) : p === 'new' ? seed : SHOWCASE_SEED);
   }
 
   function act(): void {
     if (path === 'resume') {
+      if (!picked) return;
       go.disabled = true;
       setText(resumeErr, '');
       void o
-        .resume(close)
+        .resume(picked.slot, close)
         .catch(() => false)
         .then((ok) => {
           go.disabled = false;
@@ -333,9 +433,22 @@ export function openChapter(o: ChapterOptions): { close(): void } {
 
   // Captured first, so the city's hotkeys never see keys typed here.
   function onKey(e: KeyboardEvent): void {
-    if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement) && !(e.target instanceof HTMLElement && e.target.tagName === 'SUMMARY')) {
+    const row = e.target instanceof HTMLElement && e.target.classList.contains('ch-save') ? e.target : null;
+    if (row && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      const next = (e.key === 'ArrowDown' ? row.nextElementSibling : row.previousElementSibling) as HTMLElement | null;
+      next?.focus();
+      const s = saves.find((x) => x.slot === next?.dataset.slot);
+      if (s) pick(s);
+    } else if (row && e.key === 'Enter' && saves.find((x) => x.slot === row.dataset.slot) !== picked) {
+      e.preventDefault();
+      pick(saves.find((x) => x.slot === row.dataset.slot)!);
+    } else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement) && !(e.target instanceof HTMLElement && e.target.tagName === 'SUMMARY')) {
       e.preventDefault();
       act();
+    } else if (e.key === 'Escape' && armedSlot) {
+      e.preventDefault();
+      disarm();
     } else if (e.key === 'Escape' && !o.first) {
       e.preventDefault();
       close();
@@ -347,18 +460,19 @@ export function openChapter(o: ChapterOptions): { close(): void } {
   setDifficulty(difficulty);
   setMode(mode);
   choose(path);
+  for (const r of list.children) {
+    const on = (r as HTMLElement).dataset.slot === picked?.slot;
+    r.classList.toggle('on', on);
+    r.setAttribute('aria-selected', String(on));
+  }
   rise(paths.children);
   o.host.append(scrim);
   // Maps after the dialog is up (≈15k height samples each).
   setTimeout(() => {
     if (closed) return;
     paintNew();
-    // The saved city itself, read from its save (it is not loaded).
-    if (info)
-      void o
-        .readSave()
-        .then((data) => drawSave(savedMap, data, info.seed ?? SHOWCASE_SEED, size))
-        .catch(() => drawIsland(savedMap, info.seed ?? SHOWCASE_SEED, size));
+    // The picked island itself, read from its save (it is not loaded).
+    if (picked) pick(picked);
   }, 60);
   return { close };
 }
@@ -376,8 +490,4 @@ function legend(line: boolean): HTMLElement {
     item(MAP_ROAD, 'Highways', 'road'),
     line ? item(MAP_LINE, 'Aeroline', 'road') : null,
   );
-}
-
-function fact(ico: string, label: string, value: string): HTMLElement {
-  return h('div', { class: 'ch-fact' }, icon(ico), h('b', {}, value), h('span', {}, label));
 }

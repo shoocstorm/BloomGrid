@@ -2,7 +2,7 @@ import { createBootScreen, type BootScreen } from '@/ui/Boot';
 import { createPlatform } from '@/platform';
 import { isCompact } from '@/platform/device';
 import { SHOWCASE_SEED, preferredDifficulty, type GameStart } from '@/game/start';
-import type { SaveInfo } from '@/game/SaveManager';
+import { deleteSave, listSaves, type SaveEntry } from '@/game/saves';
 import type { SaveData } from '@/sim/save';
 import { MAP_SIZE } from '@/sim/mapSize';
 import { CHALLENGES, guideWanted, openChapter, type ChapterPath } from '@/modules/tutorial/Chapter';
@@ -52,33 +52,38 @@ export async function runWelcome(el: HTMLElement, subtitle: string, params: URLS
     () => setText(status, 'City systems load on start'),
   );
 
-  // ── The saved city (summary first; the full save only when shown or chosen) ──
+  // ── The saved islands (summaries first; a full save only when shown or chosen, D-207) ──
   const storage = createPlatform().storage;
-  const info: SaveInfo | null = await storage
-    .get<SaveInfo>('save:slot1:info')
-    .then(async (i) => i ?? ((await storage.keys()).includes('save:slot1') ? { at: 0, name: '', day: 0, residents: 0 } : null))
-    .catch(() => null);
-  let saved: Promise<SaveData | null | undefined> | null = null;
-  const readSave = () => (saved ??= storage.get<SaveData>('save:slot1').catch(() => null));
-  let savedCity: HoloCity = null;
+  const saves: SaveEntry[] = await listSaves(storage).catch(() => []);
+  const read = new Map<string, Promise<SaveData | null | undefined>>();
+  const readSave = (slot: string) => {
+    let p = read.get(slot);
+    if (!p) read.set(slot, (p = storage.get<SaveData>(`save:${slot}`).catch(() => null)));
+    return p;
+  };
+  const maps = new Map<string, HoloCity>();
+  let shownSlot: string | undefined;
+  const entry = () => saves.find((e) => e.slot === shownSlot);
 
-  let path: ChapterPath = info ? 'resume' : 'new';
+  let path: ChapterPath = saves.length ? 'resume' : 'new';
   const captions: Record<ChapterPath, (seed: number) => string> = {
-    resume: () => `${info?.name || 'Your city'}${info?.day ? ` · day ${info.day}` : ''} · saved island`,
+    resume: () => `${entry()?.name || 'Your city'}${entry()?.day ? ` · day ${entry()!.day}` : ''} · saved island`,
     new: (seed) => `Island #${seed} · unclaimed`,
     showcase: () => 'The founding city · in full bloom',
   };
-  const view = (p: ChapterPath, seed: number) => {
+  const view = (p: ChapterPath, seed: number, slot?: string) => {
     path = p;
+    if (p === 'resume') shownSlot = slot;
     setText(caption, captions[p](seed));
-    holo.show(seed, p === 'showcase' ? 'showcase' : p === 'resume' ? savedCity : null);
-    if (p === 'resume' && !savedCity)
-      void readSave().then(async (data) => {
+    const city = p === 'resume' && slot ? (maps.get(slot) ?? null) : null;
+    holo.show(seed, p === 'showcase' ? 'showcase' : city);
+    if (p === 'resume' && slot && !maps.has(slot))
+      void readSave(slot).then(async (data) => {
         if (!data) return;
         const { mapOfSave } = await import('@/modules/tutorial/cityMap');
-        savedCity = mapOfSave(data);
-        if (path === 'resume') holo.show(data.seed, savedCity);
-      });
+        maps.set(slot, mapOfSave(data));
+        if (path === 'resume' && shownSlot === slot) holo.show(data.seed, maps.get(slot)!);
+      }).catch(() => undefined); // a damaged save keeps the bare island
   };
 
   /** Where the island sits while the chosen city loads: centred above the boot readout. */
@@ -99,18 +104,28 @@ export async function runWelcome(el: HTMLElement, subtitle: string, params: URLS
     openChapter({
       host: el,
       first: true,
-      info,
+      saves,
       readSave,
+      async remove(slot) {
+        await deleteSave(storage, slot);
+        saves.splice(
+          saves.findIndex((e) => e.slot === slot),
+          1,
+        );
+        read.delete(slot);
+        maps.delete(slot);
+      },
       size: MAP_SIZE,
       difficulty: preferredDifficulty(params),
       seed,
       guide: guideWanted(),
       onView: view,
-      async resume(close) {
-        const data = await readSave();
+      async resume(slot, close) {
+        const data = await readSave(slot);
         if (!data) return false;
         close();
-        resolve({ kind: 'save', slot: 'slot1', data });
+        shownSlot = slot;
+        resolve({ kind: 'save', slot, data });
         return true;
       },
       found: (name, s, difficulty, guide) => resolve({ kind: 'scenario', scenario: 'fresh-island', seed: s, difficulty, name, guide, chosen: true }),
@@ -126,7 +141,7 @@ export async function runWelcome(el: HTMLElement, subtitle: string, params: URLS
   el.classList.add('wl-chosen');
   holo.setSpin(0.16);
   const settled = holo.glide(...centre());
-  setText(caption, start.kind === 'save' ? `${info?.name || 'Your city'} · restoring` : start.scenario === 'founding-city' ? 'The founding city · opening' : start.scenario === 'fresh-island' ? `${start.name ?? 'A new island'} · founding` : `${CHALLENGES.find((c) => c.id === start.scenario)?.name ?? 'The founding city'} · opening`);
+  setText(caption, start.kind === 'save' ? `${entry()?.name || 'Your city'} · restoring` : start.scenario === 'founding-city' ? 'The founding city · opening' : start.scenario === 'fresh-island' ? `${start.name ?? 'A new island'} · founding` : `${CHALLENGES.find((c) => c.id === start.scenario)?.name ?? 'The founding city'} · opening`);
   return {
     start,
     screen,

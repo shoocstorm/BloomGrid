@@ -61,40 +61,29 @@ function soundSliders(ctx: GameContext): HTMLElement[] {
 }
 
 /**
- * The Game tab's saved-city card (D-081): what the slot holds (city, day, residents, when), Save, and Load with a
- * confirm step (loading replaces the city on screen). Moved here from the top bar; ⌘S / ⌘L still work anywhere.
+ * The Game tab's saved-city card (D-081, D-207): this island's own slot (city, day, residents, when), Save (writes
+ * only this island's slot) and Islands, which opens the New Chapter dialog on the list of saved islands (resume or
+ * delete any of them). ⌘S / ⌘L still work anywhere.
  */
 function saveSection(ctx: GameContext, close: () => void): { el: HTMLElement; refresh: () => void } {
   const save = ctx.services.get('save');
   const summary = h('div', { class: 'set-save-sum' });
   const when = h('div', { class: 'set-save-when' });
-  let armed = 0;
-  const loadBtn = h('button', { class: 'set-btn' }, icon('load'), h('span', {}, 'Load'), h('kbd', {}, '⌘L')) as HTMLButtonElement;
-  const loadLabel = loadBtn.querySelector('span')!;
-  const disarm = () => {
-    window.clearTimeout(armed);
-    armed = 0;
-    loadBtn.classList.remove('warn');
-    loadLabel.textContent = 'Load';
-  };
-  loadBtn.addEventListener('click', () => {
-    if (!armed) {
-      // First press asks: the city on screen is replaced (unsaved changes are lost).
-      loadBtn.classList.add('warn');
-      loadLabel.textContent = 'Replace this city?';
-      armed = window.setTimeout(disarm, 4000);
-      return;
-    }
-    disarm();
-    void ctx.services
-      .get('loader')
-      .run('Restoring your city', async (stage) => {
-        const ok = await save.load('slot1', stage);
-        if (ok) close();
-        return ok;
-      })
-      .then((ok) => ctx.bus.emit('toast', ok ? { text: 'City loaded', tone: 'ok' } : { text: 'No saved city yet', tone: 'bad' }));
-  });
+  const count = h('span', {}, 'Islands');
+  const loadBtn = h(
+    'button',
+    {
+      class: 'set-btn',
+      title: 'Resume or delete a saved island',
+      onClick: () => {
+        close();
+        ctx.services.tryGet('wizard')?.open('resume');
+      },
+    },
+    icon('load'),
+    count,
+    h('kbd', {}, '⌘L'),
+  ) as HTMLButtonElement;
   const saveBtn = h(
     'button',
     { class: 'set-btn primary', onClick: () => void save.save().then(refresh) },
@@ -103,23 +92,24 @@ function saveSection(ctx: GameContext, close: () => void): { el: HTMLElement; re
     h('kbd', {}, '⌘S'),
   );
   const refresh = () => {
-    disarm();
+    void save.list().then((all) => {
+      loadBtn.disabled = !all.length || !ctx.services.tryGet('wizard');
+      count.textContent = all.length ? `Islands · ${all.length}` : 'Islands';
+    });
     void save.info().then((info) => {
-      loadBtn.disabled = !info;
       if (!info) {
-        summary.replaceChildren(h('b', {}, 'No saved city yet'));
-        when.textContent = 'Save to keep this city; one slot, overwritten each time.';
+        summary.replaceChildren(h('b', {}, ctx.city.growth.name || 'This island'));
+        when.textContent = 'Not saved yet: Save keeps it beside your other islands.';
         return;
       }
       summary.replaceChildren(
         h('b', {}, info.name || 'Saved city'),
         ...(info.day ? [h('span', {}, `Day ${info.day} · ${Math.round(info.residents).toLocaleString()} residents`)] : []),
       );
-      when.textContent = info.at ? `Saved ${ago(info.at)} · saving overwrites it` : 'Saving overwrites it';
+      when.textContent = info.at ? `Saved ${ago(info.at)} · saving updates this island only` : 'Saving updates this island only';
     });
   };
-  ctx.bus.on('save:done', refresh);
-  ctx.bus.on('load:done', refresh);
+  for (const ev of ['save:done', 'load:done', 'save:deleted', 'city:reset'] as const) ctx.bus.on(ev, refresh);
   const el = h(
     'div',
     { class: 'set-save' },

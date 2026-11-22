@@ -3,7 +3,7 @@ import { SHOWCASE_SEED, foundCityStaged } from '@/game/newCity';
 import type { SaveData } from '@/sim/save';
 import { openingView } from '@/game/opening';
 import { DIFFICULTIES, type DifficultyId } from '@/sim/difficulty';
-import { CHALLENGES, TUTORIAL_KEY, guideWanted, openChapter } from './Chapter';
+import { CHALLENGES, TUTORIAL_KEY, guideWanted, openChapter, type ChapterPath } from './Chapter';
 import { playFounding } from './founding';
 import { challengeOf } from '@/sim/objectives';
 import { h, setText } from '@/ui/dom';
@@ -290,9 +290,9 @@ export const tutorialModule: GameModule = {
     };
 
     /** The in-game New Chapter dialog (Settings, the steward's "new city"): it replaces the running city. */
-    const open = async () => {
+    const open = async (first?: ChapterPath) => {
       const save = ctx.services.get('save');
-      const info = await save.info().catch(() => null);
+      const saves = await save.list().catch(() => []);
       // The city holds still while the steward chooses (no alerts piling up behind the dialog).
       const speed = ctx.engine.speed;
       ctx.engine.speed = 0;
@@ -301,8 +301,14 @@ export const tutorialModule: GameModule = {
       openChapter({
         host: ctx.hud,
         first: false,
-        info,
-        readSave: () => ctx.platform.storage.get<SaveData>('save:slot1'),
+        saves,
+        current: save.slot,
+        path: first,
+        readSave: (slot) => ctx.platform.storage.get<SaveData>(`save:${slot}`),
+        remove: async (slot) => {
+          await save.remove(slot);
+          ctx.bus.emit('toast', { text: 'Saved island deleted', tone: 'info' });
+        },
         size: ctx.city.grid.w,
         difficulty: ctx.city.steward.difficulty,
         seed: Math.floor(Math.random() * 1e6) + 1,
@@ -311,9 +317,9 @@ export const tutorialModule: GameModule = {
           document.body.classList.remove('chapter-open');
           ctx.engine.speed = speed;
         },
-        resume: (close) =>
-          ctx.services.get('loader').run(`Restoring ${info?.name || 'your city'}`, async (stage) => {
-            const ok = await save.load('slot1', stage);
+        resume: (slot, close) =>
+          ctx.services.get('loader').run(`Restoring ${saves.find((e) => e.slot === slot)?.name || 'your city'}`, async (stage) => {
+            const ok = await save.load(slot, stage);
             // Under the cover, so the city appears without the dialog over it.
             if (ok) close();
             return ok;
@@ -328,7 +334,7 @@ export const tutorialModule: GameModule = {
     };
 
     ctx.services.provide('wizard', {
-      open: () => void open(),
+      open: (path) => void open(path),
       guide: () => tut.begin(),
       island: (name, difficulty) => {
         const seed = Math.floor(Math.random() * 1e6) + 1;
@@ -361,8 +367,8 @@ export const tutorialModule: GameModule = {
 declare module '@/core/Services' {
   interface GameServices {
     wizard: {
-      /** Opens the New Chapter dialog (resume, new island, showcase). */
-      open(): void;
+      /** Opens the New Chapter dialog (on `path`: Resume lists the saved islands, D-207). */
+      open(path?: ChapterPath): void;
       /** Starts the how-to-play guide from the first step. */
       guide(): void;
       /** Founds a fresh island at once (new seed, no guide): the steward's "try again" after game over. */

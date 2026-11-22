@@ -139,7 +139,7 @@ Four difficulty levels range from a relaxed **Sandbox** to **Hard**.
 | Model gallery      | **G** or the gallery button in the top bar: every model in the game, one at a time on a lit studio stage (buildings at each designed level with rides and rotors turning, the Aeroline's three trains, hover traffic, sky pods, the patrol drone, the Sky Guard jet, the *Tidesong*, all eight sea wonders, whales and dolphins) · drag orbits, right-drag pans, wheel or pinch zooms, double-click resets · **← / →** browse · **1–3** level · **L** day / dusk / night · **Space** turntable · **H** clean view · **Esc** closes · a building's inspector has **Gallery** to open its type at its level |
 | Find a fire        | **.** fly to the next fire (⌖ Next in the fire panel) · click a 🔥 pin, an alert toast or a map pin |
 | Time               | **Space** pause · **1 / 2 / 3** speed; in the top bar, click the day dial to pause / play and the speed chip for the next speed (1× → 3× → 8×; right-click or scroll: slower); hover the season chip beside it for the weather, click it for the season's effects, crisis odds, the season ahead and one-click ways to prepare. Pausing opens a pause card (Resume, the city at a glance, what needs attention); **Esc** or a click on the city folds it to a pill. No context menu in the game |
-| Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** / **⌘L** (Ctrl on Windows/Linux), or ⚙ Settings → Game (shows the saved city and when; Load asks before replacing the city) |
+| Undo, save, load   | **⌘Z** / **⇧⌘Z** · **⌘S** saves this island to its own slot (your other islands are kept) · **⌘L** lists your saved islands to resume or delete (Ctrl on Windows/Linux); also ⚙ Settings → Game → Save / Islands |
 | Remember a view    | **Alt+1–4** store · **Shift+1–4** recall                                                           |
 | Sound              | **,** mute / unmute · volumes for music, ambience and effects in ⚙ Settings (sound starts on your first click); trains, pods and fires are heard close up; every building type, wonder and vehicle has its own sound when you select it (and its state is heard: levels sparkle, trouble sounds muffled) |
 
@@ -208,7 +208,7 @@ raises a beam of light and pulsing rings you can see from across the island, and
 edge (pointing at it) when the fire is out of view; click a pin, an alert toast or a fire on the city map (**M**) to
 fly there, or press **.** to step through the fires, hottest first.
 
-**A new chapter:** the game opens straight onto the New Chapter dialog over a holographic island that changes with your choice (nothing loads until you pick): **Resume** your saved city (the default when you have
+**A new chapter:** the game opens straight onto the New Chapter dialog over a holographic island that changes with your choice (nothing loads until you pick): **Resume** one of your saved islands (each city keeps its own save; pick one from the list, or delete one with the bin and a second press; the default when you have
 one), found a **New island** (name it, roll another name, choose how hard the world pushes back) or browse the
 **Showcase** city, already built. The city waits while you choose; Enter takes the highlighted choice. Founding or
 loading a city plays behind a full-screen loading screen with its real stages and a tip, then opens onto the city. A new island

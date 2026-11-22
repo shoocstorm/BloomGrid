@@ -3776,3 +3776,16 @@ Pulse, the dock row and the juice stack. Only opacity and visibility change, so 
 was the moment the tool is put down (Exit on the banner, Esc, right-click, or another tool). The top bar, the mode
 banner (the way out), the tooltip and toasts stay. Other tools keep the panels: they are single clicks near what the
 player is looking at.
+
+## D-207: One save slot per island
+
+There was one slot (`slot1`): founding a new island and saving overwrote the last city. Now each city gets its own slot
+(`isle-<time>`, safe as a desktop file name), made on its first save; `SaveManager.slot` follows the running city (a
+load or resume sets it, `city:reset` from founding clears it), so **⌘S** only ever updates the island on screen. The
+New Chapter dialog's Resume pane lists every saved island newest first (day, residents, difficulty, when; the running
+one marked *On screen*) with its map, and deletes one with a bin button pressed twice within 4 s (Esc disarms).
+**⌘L** and Settings → Game → Islands open that list instead of loading a fixed slot. The listing lives in
+`src/game/saves.ts`, import-light so the welcome screen reads it before boot (D-148). No migration: an old `slot1`
+save lists as one more island. Rejected: a fixed number of numbered slots (players think in islands, not slots) and a
+separate save browser (the dialog already shows maps and is where a city is chosen).
+

@@ -204,7 +204,10 @@ export async function createGame(
   };
   const renderService: RenderService = { postfx, dynamicResolution: dynRes, setQuality, power, stage: null };
   ctx.services.provide('render', renderService);
-  ctx.services.provide('save', new SaveManager(ctx));
+  const saves = new SaveManager(ctx);
+  // A city resumed from the welcome screen keeps saving to its own island's slot (D-207).
+  if (start.kind === 'save' && resumed) saves.slot = start.slot;
+  ctx.services.provide('save', saves);
   ctx.services.provide('agent', new AgentToolRegistry<GameContext>(ctx));
   onViewportChange(applySize);
 
@@ -243,10 +246,10 @@ export async function createGame(
     if (mod && e.code === 'KeyY') return ctx.commands.redo(), true;
     if (mod && e.code === 'KeyS') return void save.save(), true;
     if (mod && e.code === 'KeyL') {
-      // Behind the loading screen when the loader module runs (and only when there is a save to load).
-      const loader = ctx.services.tryGet('loader');
-      if (!loader) return void save.load(), true;
-      void save.info().then((i) => i && loader.run('Restoring your city', (stage) => save.load('slot1', stage)));
+      // The saved islands are picked in the New Chapter dialog (D-207); without it, the running city's own slot.
+      const wizard = ctx.services.tryGet('wizard');
+      if (wizard) return wizard.open('resume'), true;
+      if (save.slot) void save.load(save.slot);
       return true;
     }
     if (mod || e.shiftKey || e.altKey) return false;

@@ -54,6 +54,7 @@ const ICONS: Record<string, string> = {
   save: '<path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
   load: '<path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
   send: '<path d="M21 3 10.2 13.8"/><path d="M21 3 14.3 21l-4.1-7.2L3 9.7z"/>',
+  trash: '<path d="M4 7h16M9.5 7V4.5h5V7"/><path d="M6.5 7l1 12.5a1 1 0 0 0 1 .9h7a1 1 0 0 0 1-.9l1-12.5M10 11v5.5M14 11v5.5"/>',
   // ── Status indicators (Flora's link, system health) ──
   'st-ok': '<circle cx="12" cy="12" r="9"/><path d="m8 12.4 2.8 2.8L16.2 9.6"/>',
   'st-steady': '<circle cx="12" cy="12" r="9"/><circle class="f" cx="12" cy="12" r="3.6"/>',

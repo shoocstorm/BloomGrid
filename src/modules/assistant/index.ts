@@ -664,7 +664,7 @@ function gameTools(): AgentTool<GameContext, never>[] {
     {
       name: 'save_game',
       option: 'Save the city',
-      description: 'Saves the city to its save slot (replacing the previous save).',
+      description: 'Saves the city to its own save slot (updates this island\'s save; other saved islands are kept).',
       keywords: ['save', 'store', 'backup'],
       input: { type: 'object', properties: {} },
       effect: 'mutate',
