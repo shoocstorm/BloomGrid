@@ -208,8 +208,9 @@ export class Birds {
       const z1 = v.z.mul(cos(pitch)).sub(v.y.mul(sin(pitch)));
       return vec3(v.x.mul(cos(roll)).sub(y1.mul(sin(roll))), v.x.mul(sin(roll)).add(y1.mul(cos(roll))), z1);
     };
-    const size = pickNode(sp, [float(1.45), float(0.8), float(0.7)]);
-    const dip = fold.mul(0.35);
+    // Gull ≈0.24 tiles wingspan, swallow and finch ≈0.12 (were 0.8 / 0.43 / 0.38: an 8 m gull, D-226).
+    const size = pickNode(sp, [float(0.45), float(0.24), float(0.22)]);
+    const dip = fold.mul(0.12);
     m.positionNode = p1.sub(vec3(0, dip, 0)).add(turn(rot(flapped), heading).mul(size));
     m.normalNode = transformNormalToView(turn(rot(nF), heading));
 

@@ -341,6 +341,17 @@ export const PAGES: ChroniclePage[] = [
     ],
   },
   {
+    id: 'other-light',
+    chapter: 'mainland',
+    title: 'The other light',
+    hint: 'Meet a neighbouring island',
+    when: (c) => c.archipelago.neighbours.some((n) => n.id === 'kestrel' && n.met),
+    text: [
+      'Not every boat that followed Ama Reyes’s light found room in the bay. A few kept rowing, and one spring they found a green cay to the south-west, with a hill and a spring and kestrels hanging in the wind over it. They lit a lamp of their own on the summit and called the place Kestrel Cay.',
+      'Now, on clear nights, the island can see four lights on the horizon: the Drift’s flotilla singing to the south-east, the Concord’s bastion to the north-west, the Orders’ lanterns burning in their towers, and the cay’s one lamp. Kestrel Cay looks at the island’s light and thinks the same thing the island thinks. Friends, and not quite.',
+    ],
+  },
+  {
     id: 'seal',
     chapter: 'mainland',
     title: 'Meridian’s seal',

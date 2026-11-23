@@ -1,6 +1,7 @@
 import type { StoryRun } from './storyState';
 import type { FlameEnding } from './chronicleState';
 import type { Happening } from './happeningState';
+import type { Dispatch, NeighbourCrisis, NeighbourId, TradeAgreement } from './archipelagoState';
 import type { BuildingRecord } from './City';
 import type { SystemKey, Tier } from './pulseState';
 import type { CrisisInstance, FireIncident, IncidentRecord } from './stewardState';
@@ -95,6 +96,15 @@ declare module '@/core/EventBus' {
     'policy:changed': { id: string; on: boolean };
     'happening:met': { happening: Happening };
     'happening:end': { happening: Happening; outcome: 'claimed' | 'missed' | 'done' };
+    /** The Archipelago (plan v8): first contact; an envoy arrived (or a rival bid was taken on); it was answered or
+     * settled; a relation crossed a tier; a neighbour's crisis began (and whether it is coming) or ended (null);
+     * an agreement was signed or ended. */
+    'archipelago:contact': { id: NeighbourId; name: string };
+    'archipelago:dispatch': { dispatch: Dispatch };
+    'archipelago:answered': { dispatch: Dispatch; outcome: string };
+    'archipelago:tier': { id: NeighbourId; tier: string; up: boolean };
+    'archipelago:crisis': { id: NeighbourId; crisis: NeighbourCrisis | null; coming: string | null };
+    'archipelago:trade': { trade: TradeAgreement; signed: boolean };
     'tip:collected': { eid: number; amount: number; combo: number; golden: boolean };
     /** Levels and ageing (D-073): a building changed level (grew, was upgraded, or an upgrade was undone); renovated. */
     'building:tier': { eid: number; tier: number; paid: boolean };

@@ -39,8 +39,8 @@ const CAP = 1040;
 const REGION = 28;
 /** Chance per open-water tile of hosting a fish. */
 const DENSITY = 0.16;
-/** Fish length in tiles is about 0.2 × this. */
-const SIZE = 1.7;
+/** Fish length in tiles is about 0.2 × this (≈0.1; was 1.7, a 3.7 m fish, D-226). */
+const SIZE = 0.5;
 const BODY = 0;
 const FIN = 1;
 const EYE = 2;
@@ -156,7 +156,7 @@ export class Fish {
     const leaps = step(0.4, fract(seed.mul(17.3)));
     const jump = smoothstep(0, 0.001, float(1.1).div(period).sub(jf)).mul(leaps);
     const s = jf.mul(period).div(1.1).clamp(0, 1);
-    const arc = s.mul(float(1).sub(s)).mul(4).mul(0.42).mul(jump);
+    const arc = s.mul(float(1).sub(s)).mul(4).mul(0.15).mul(jump);
     const depth = float(0.14).add(fract(seed.mul(9.1)).mul(0.12));
     const y = U.waterLevel.sub(depth.mul(float(1).sub(jump))).add(arc);
     // Body wave: stronger toward the tail; pitch follows the leap's arc.

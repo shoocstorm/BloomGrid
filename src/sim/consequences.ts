@@ -3,6 +3,7 @@ import type { City } from './City';
 import { DAY_LENGTH } from './pulseConst';
 import { seasonAt } from './seasons';
 import { applyHappenings } from './happenings';
+import { applyArchipelago } from './archipelago';
 import { applyPolicies } from './policies';
 import { applyCharters } from './charters';
 import { applyStories } from './stories';
@@ -375,6 +376,8 @@ export function updateConsequences(city: City): void {
   mods.tourism = Math.max(0, s.income * 0.2 * (st.reputation - 0.3));
   // Happenings (D-123): festival and cruise visitors, a bumper catch, the mood after a request.
   applyHappenings(city, mods);
+  // The neighbours (plan v8): friends' perks and the mood after an envoy.
+  applyArchipelago(city, mods);
   // Ordinances and sector budgets (plan v5, Phase 25); their running cost is charged here.
   applyPolicies(city, mods);
   // Charter perks (plan v5, Phase 28).

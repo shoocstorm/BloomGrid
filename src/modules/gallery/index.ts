@@ -65,7 +65,7 @@ declare module '@/core/Services' {
 }
 
 /** Halls in the order the gallery lists them; building categories follow Landmarks. */
-export const GROUP_ORDER = ['Landmarks', ...Object.values(CATEGORY_LABELS), 'Transit', 'Sky & sea', 'Sea wonders', 'Sea life', 'Charms', 'Film cast', 'Cutscenes'];
+export const GROUP_ORDER = ['Landmarks', ...Object.values(CATEGORY_LABELS), 'Transit', 'Sky & sea', 'Sea wonders', 'Sea life', 'Archipelago', 'Charms', 'Film cast', 'Cutscenes'];
 
 /** Resolved exhibit: what the list and the info card read. */
 export interface Exhibit {

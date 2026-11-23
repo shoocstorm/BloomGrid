@@ -12,6 +12,7 @@ import { policyTools } from '@/sim/policyTools';
 import { hazardTools } from '@/sim/hazardTools';
 import { fireworksTools } from '@/sim/fireworksTools';
 import { happeningTools } from '@/sim/happeningTools';
+import { archipelagoTools } from '@/sim/archipelagoTools';
 import { chronicleTools } from '@/sim/chronicleTools';
 import { districtTools } from '@/sim/districtTools';
 import { levelTools } from '@/sim/levelTools';
@@ -713,7 +714,7 @@ export const assistantModule: GameModule = {
   deps: ['inventory', 'pulse', 'hud'],
   init(ctx) {
     const agent = ctx.services.get('agent');
-    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...happeningTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...bulkTools, ...roadTools, ...gameTools(), ...foresightTools, ...policyTools, ...districtTools, ...chronicleTools]) agent.register(t);
+    for (const t of [...insightTools, ...actionTools, ...hazardTools, ...fireworksTools, ...happeningTools, ...levelTools, ...consequenceTools, ...switchTools, ...riskTools, ...growthTools, ...proposalTools, ...bulkTools, ...roadTools, ...gameTools(), ...foresightTools, ...policyTools, ...districtTools, ...chronicleTools, ...archipelagoTools]) agent.register(t);
     const a = new Assistant(ctx);
     // Registered last (menus keep their letters on a tie, as with foresight).
     agent.register(planTool(a.memory));

@@ -2,11 +2,16 @@ import type { GameModule } from '@/game/context';
 import { h, setText } from '@/ui/dom';
 import { holoHead } from '@/ui/holo';
 import { icon } from '@/ui/icons';
+import { closeX } from '@/ui/closeX';
 import { spawnStressCity } from './stress';
 import type { createInspector } from './inspector';
 
 /** Draw-call budget (AGENTS.md §3.7): the meter on the Draws tile fills toward it. */
 const DRAW_BUDGET = 300;
+/** 16_784_512 → "16.8M", 412_300 → "412k": the triangle count is usually in the millions. */
+const compact = (n: number): string =>
+  n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e8 ? 0 : 1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}k` : String(n);
+
 /** FPS samples kept for the sparkline (4 Hz → 12 s). */
 const SPARK = 48;
 
@@ -29,7 +34,7 @@ export const debugModule: GameModule = {
       draws: tile('layers', 'Draws'),
       tris: tile('network', 'Triangles'),
       inst: tile('build', 'Instances'),
-      flora: tile('leaf', 'Flora'),
+      flora: tile('leaf', 'Greenery'),
       bldgs: tile('house', 'Buildings'),
       scale: tile('maximize', 'Pixel ratio'),
       tick: tile('pause', 'Sim tick'),
@@ -45,6 +50,7 @@ export const debugModule: GameModule = {
       h('div', { class: 'pf-grid' }, ...Object.values(t).map((x) => x.el)),
       prof,
     );
+    perf.append(closeX('performance telemetry', () => perf.classList.add('hidden')));
     ctx.hud.append(perf);
     const samples: number[] = [];
     const g = spark.getContext('2d')!;
@@ -89,8 +95,14 @@ export const debugModule: GameModule = {
         const info = c.renderer.info.render;
         const rate = c.engine.fps;
         setText(fps, rate.toFixed(0));
-        perf.dataset.tone = rate >= 55 ? 'good' : rate >= 30 ? 'warn' : 'bad';
-        setText(backend, `${c.isWebGPU ? 'WebGPU' : 'WebGL2'} · ${c.quality.tier}`);
+        // Judge the rate against the power manager's cap: a plain cursor move idles at 30 on Balanced
+        // (D-150), which is pacing, not a slowdown.
+        const power = c.services.tryGet('render')?.power;
+        const cap = power?.targetFps() ?? 0;
+        const goal = cap > 0 ? cap : 60;
+        perf.dataset.tone = rate >= goal * 0.9 ? 'good' : rate >= goal * 0.5 ? 'warn' : 'bad';
+        const pacing = !power ? '' : cap === 0 ? ' · uncapped' : ` · cap ${cap}${power.idle ? ' idle' : ''}`;
+        setText(backend, `${c.isWebGPU ? 'WebGPU' : 'WebGL2'} · ${c.quality.tier}${pacing}`);
         samples.push(rate);
         if (samples.length > SPARK) samples.shift();
         drawSpark();
@@ -100,10 +112,12 @@ export const debugModule: GameModule = {
         setText(t.draws.s, `budget ${DRAW_BUDGET}`);
         meter.style.transform = `scaleX(${Math.min(1, info.drawCalls / DRAW_BUDGET)})`;
         t.draws.el.classList.toggle('bad', info.drawCalls > DRAW_BUDGET);
-        setText(t.tris.v, `${(info.triangles / 1000).toFixed(0)}k`);
+        setText(t.tris.v, compact(info.triangles));
+        setText(t.tris.s, 'drawn per frame');
         setText(t.inst.v, c.instancer.instanceCount.toLocaleString());
         setText(t.inst.s, `${c.instancer.batchCount} batches`);
         setText(t.flora.v, c.services.get('world').flora.instanceCount.toLocaleString());
+        setText(t.flora.s, 'wild plant pieces');
         setText(t.bldgs.v, c.city.stats.buildings.toLocaleString());
         setText(t.scale.v, c.renderer.getPixelRatio().toFixed(2));
         setText(t.tick.v, c.city.tick.toLocaleString());

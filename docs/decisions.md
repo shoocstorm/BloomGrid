@@ -1986,7 +1986,7 @@ wasm heap peaks at about the weights twice plus the KV cache, and never shrinks)
   one shader swings legs and the opposite arms on the stride, turns the body to its heading (normals too, through
   `transformNormalToView`) and colours each part (shirt, trousers, shoes, skin, hair from per-walker palettes; eyes
   and a smile). A detailed LOD (≈1,000 triangles) shows within distance 45 and in explore modes; a three-part LOD
-  further out. Both share the instance data, only one draws. Scale ≈0.3 tiles (the explore avatar's height; the
+  further out. Both share the instance data, only one draws. Scale ≈0.3 tiles, ≈0.19 since D-226 (the explore avatar's height; the
   D-122 ×2.1 figure towered over it). Night glow only on the clothes (a glowing body read as a ghost). In explore
   modes the crowd centres on the camera within 50 tiles (80 in the city view).
 - **Critters** (`critters.ts`): butterflies with rounded fore and hind wings (species pattern: base colour, dark
@@ -4042,3 +4042,56 @@ doubt, and only convincing if a change visibly changes the answer.
   postcard says it is one possible future, and the guide tells players to judge trends across looks.
 **Consequences:** The *vs last* numbers also include whatever the city did meanwhile (it keeps playing between looks).
 That is honest, since it is the city's real course, but it is not a controlled experiment.
+
+## D-226 — People and wildlife to the island's scale (2026-11-23)
+
+- **Why**: players saw a walker taller than a car and butterflies the size of a head. The scales were set by eye
+  (D-122, D-124) against nothing. The reference is 1 tile ≈ 11 m: a storey 0.32, a door 0.24, a hover-car 0.32 long
+  and 0.13 high, and the explore steward ≈ 0.2.
+- **Walkers** `FIG` 1.4 → 0.9 (≈ 0.29 → 0.19 tiles tall, the steward's height). `PACE` 0.13 tiles/s (was 0.18–0.3)
+  and stride 26 → 40, so the smaller figures stroll and their feet don't slide.
+- **Wildlife** (explore modes): butterflies 0.15 → 0.04 wingspan, flying at head height (0.16, was 0.45); rabbits
+  0.16 → 0.05 long, hop lift scaled; fish 0.34 → 0.1 long, leap 0.42 → 0.15; birds 0.43–0.8 → 0.12–0.24 wingspan,
+  fold dip 0.35 → 0.12. Still a little larger than life so they read on screen.
+
+## D-225 — The Archipelago: neighbouring islands, trade agreements and envoys in the sim (2026-11-23)
+
+Plan v8, Phase 37. Four neighbouring islands (`NEIGHBOURS` in `sim/archipelago.ts`: the Drift's Brightwater Flotilla,
+the Concord's Bastion Halden, the Lantern Orders' Vellum Holm, the free Kestrel Cay), state `city.archipelago`
+(`archipelagoState.ts`: relation, prosperity, their crisis and director, agreements, the envoy, a dealings log;
+saved v30, hashed).
+
+- **Trade through the main grid.** Energy and water balance per network, so agreements attach to the network that
+  produces most of each (a harbour interconnect) in `pulse.ts` pass 1; food joins the food total. A shipment really
+  moves supply tiers. Credits land in `stats.trade` and `netIncome` (D-115).
+- **Exports never cause a shortage:** they ship only what is spare above `EXPORT_MARGIN` (5%) of home use. Imports
+  deliver only what the partner can spare (their crisis cuts it). Sizes are shares of the city's use at signing, so
+  one rule fits a hamlet and the showcase. Prices from a base per good × the buyer's need × relation.
+- **Envoys (dispatches) are their own one-at-a-time card**, not happenings: they come from someone, carry relation
+  consequences and can arrive during a crisis (a friend's offer of help). Answers are final (`answerDispatch`,
+  undoable = false), like story choices; an envoy left waiting counts as a refusal.
+- **Rng only while `auto`** (off in `makeSim` and the demo): their fortunes, crises and envoys. Contact (by era) and
+  relation drift are deterministic and run regardless.
+- **Their storms reach the island only through the director's queue** (`queueCrisis`, kind `chain`, the cause names the
+  neighbour), with auto crises and a director band: it respects the director's gaps and Sandbox has none.
+- **Perks through existing mod keys** (`tourismMul`, `interest`, `floraDiscount`, `damage`): no new reader. A Hostile
+  neighbour ends its agreements (embargo).
+- `archipelagoHash` lives in the import-free state module: `City.ts` importing `archipelago.ts` closed a cycle
+  (→ levels → hazards) that left `registerCrisis` undefined in some test import orders.
+
+## D-227 — The Archipelago's chart, envoy card, horizon islands and Flora's tools (2026-11-23)
+
+Plan v8, Phases 38–40.
+
+- **Chart dialog** `modules/archipelago/` (compass in `hud.lead`, **T**, the dashboard's `--dlg-w` frame; phones the
+  `--sheet-h` sheet): SVG sea, HTML labels anchored on their dot and running toward the centre (never off the edge on
+  a phone). Repainted at 2 Hz while open, the chart's marks only when contact, tiers, crises or trades change.
+- **Envoy card** reuses the story card's frame and stacks with the `.jc-m` cards; first contact is a minor moment,
+  silent on a city's first pulses (the showcase, an old save) so loading never plays four.
+- **On the horizon:** one merged `Kit` mesh per island in the sea wonders' `wonder` material, ~330 tiles offshore (read
+  through the fog at overview zoom), no shadows; a squall mesh over a struck neighbour; up to six cargo boats as plain
+  meshes posed on the CPU from `U.clock` (≤ 6 matrices a frame). Measured: +5 draw calls at full-island zoom, ~67k
+  vertices for the four islands, 9 ms module init.
+- **Flora:** `neighbour_islands` (read) and `set_trade` (mutate, undoable). Not `archipelago_status`: every `*_status`
+  name scores the word "status" in `selectMenu` and pushed *Headline state* off a plain "status" menu. Flora does not
+  answer envoys (answers are not undoable; the steward answers on the card).

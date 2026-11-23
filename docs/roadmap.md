@@ -358,6 +358,16 @@ over the real island, ending on a postcard with her best levers. Full plan: [`pl
 - [x] Phase 35: The postcard film "If Nothing Changes" played forwards on location, postcard card with deltas and three levers
 - [x] Phase 36: Entry points (Flora `look_ahead`, Coming up, indicator panels) and the what-if loop (*vs last*, *See the difference*) (D-224; deferred: three futures, a proactive offer)
 
+## ✅ Phases 37–40: Plan v8, The Archipelago (2026-11-23)
+
+Four neighbouring islands with stewards of their own: trade agreements, envoys, relations and perks, their storms
+reaching the island; a sea chart, an envoy card, the islands on the horizon with cargo boats. Full plan: [`plan-v8.md`](plan-v8.md).
+
+- [x] Phase 37: The neighbours in the sim: `sim/archipelago.ts`, trade through the main grid, dispatches, tiers and perks, save v30 (D-225)
+- [x] Phase 38: The Archipelago chart (**T**) and the envoy card
+- [x] Phase 39: The islands on the horizon, squalls, cargo boats, gallery hall
+- [x] Phase 40: Flora `neighbour_islands` / `set_trade`, lore, Chronicle page, Seedvault guide and live reference (D-227)
+
 ---
 
 ## Tech debt / open issues

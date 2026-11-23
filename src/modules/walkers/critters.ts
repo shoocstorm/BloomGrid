@@ -45,8 +45,8 @@ const CAP = 1040;
 const REGION = 32;
 /** Chance per green, open tile (scaled by ecology) of hosting one. */
 const DENSITY = 0.16;
-/** Size in tiles of the unit model (wingspan ≈0.14 × this). */
-const SIZE = 1.1;
+/** Size in tiles of the unit model (wingspan ≈0.14 × this: ≈0.04, two-thirds of a walker's head; was 1.1, D-226). */
+const SIZE = 0.3;
 
 /** Parts: body, wings (fore and hind share a colour pattern), antennae, the firefly's lantern. */
 const BODY = 0;
@@ -143,7 +143,8 @@ export class Critters {
     // A slow, looping meander a tile or so round home, bobbing above the grass; heading follows the flight.
     const wander = vec3(
       sin(t.mul(0.7)).mul(1.1),
-      sin(t.mul(1.9)).mul(0.1).add(0.45),
+      // Flower to head height of a walker (≈0.19 tall), not over the rooftops.
+      sin(t.mul(1.9)).mul(0.05).add(0.16),
       cos(t.mul(0.53)).mul(1.1),
     );
     const heading = normalize(

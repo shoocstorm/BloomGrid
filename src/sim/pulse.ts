@@ -23,6 +23,7 @@ import { updateChronicle } from './chronicle';
 import { updateEras } from './eras';
 import { updateObjectives } from './objectives';
 import { updateHappenings } from './happenings';
+import { tradeFlows, updateArchipelago } from './archipelago';
 import { netIncome, taxSplit, updateFinance } from './finance';
 import { sectorOf } from './policies';
 import type { BudgetSector } from './policyState';
@@ -230,6 +231,39 @@ export const pulseSystem: System<SimCtx> = {
       s.waterUsed += demW[i]!;
     }
 
+    // Trade with the neighbouring islands (plan v8): through a harbour interconnect on the main grid (the network
+    // producing most of each), and into the food total. Exports ship only surplus; imports only what partners spare.
+    let mainE = -1;
+    let mainW = -1;
+    for (let i = 0; i < n; i++) {
+      if (mainE < 0 || prodE[i]! + demE[i]! > prodE[mainE]! + demE[mainE]!) mainE = i;
+      if (mainW < 0 || prodW[i]! + demW[i]! > prodW[mainW]! + demW[mainW]!) mainW = i;
+    }
+    const traded = tradeFlows(city, {
+      energy: mainE >= 0 ? { produced: prodE[mainE]!, used: demE[mainE]! } : { produced: 0, used: Infinity },
+      water: mainW >= 0 ? { produced: prodW[mainW]!, used: demW[mainW]! } : { produced: 0, used: Infinity },
+      food: { produced: food, used: population },
+    });
+    if (mainE >= 0) {
+      if (traded.delta.energy > 0) prodE[mainE] += traded.delta.energy;
+      else demE[mainE] -= traded.delta.energy;
+      s.energyProduced += Math.max(0, traded.delta.energy);
+      s.energyUsed += Math.max(0, -traded.delta.energy);
+      netStats[mainE]!.energyProduced = prodE[mainE]!;
+      netStats[mainE]!.energyUsed = demE[mainE]!;
+    }
+    if (mainW >= 0) {
+      if (traded.delta.water > 0) prodW[mainW] += traded.delta.water;
+      else demW[mainW] -= traded.delta.water;
+      s.waterProduced += Math.max(0, traded.delta.water);
+      s.waterUsed += Math.max(0, -traded.delta.water);
+      netStats[mainW]!.waterProduced = prodW[mainW]!;
+      netStats[mainW]!.waterUsed = demW[mainW]!;
+    }
+    food = Math.max(0, food + traded.delta.food);
+    s.trade = traded.credits;
+    city.credits += traded.credits;
+
     const workers = population * LABOUR_SHARE;
     const staffing = jobsTotal > 0 ? Math.min(1, workers / jobsTotal) : 1;
     const unemployment = workers > 1 ? clamp(1 - staffedJobs / workers, 0, 1) : 0;
@@ -402,6 +436,8 @@ export const pulseSystem: System<SimCtx> = {
     updateProjects(city);
     updateWonders(city);
     updateHappenings(city);
+    // The neighbouring islands (plan v8): contact, relations, their own news and envoys.
+    updateArchipelago(city);
     updateStories(city);
     updateConsequences(city);
     // Charters, eras and a challenge's objectives (plan v5, Phase 28).

@@ -237,7 +237,15 @@ slider to look back at the island on any day, and Flora plays the film if you as
 run your city ten days on with no changes from you, then play *If Nothing Changes* over your island (levels slipping, ruins
 where storms will strike) and hand you a postcard: the numbers then against now, the council's verdict, and her best levers as
 one-click builds. Build one and press **See the difference**: the next postcard shows how much better it lands. Ask Flora
-"where is the city heading?" for the same. The model gallery (**G**) shows the island's
+"where is the city heading?" for the same.
+
+**The Archipelago.** Four neighbouring islands lie over the horizon: the Drift's Brightwater Flotilla, the Concord's Bastion
+Halden, the Lantern Orders' Vellum Holm and Kestrel Cay, a free island like yours (the Drift and Kestrel Cay hail you in the
+Grove era, the other two in Canopy). Open the chart with the compass in the top bar or **T**: sign agreements to sell your
+spare energy, water or food (never more than you can spare) or buy what they sell, and watch the cargo boats sail. Their
+envoys come with requests (aid after a storm, families looking for a home, a loan, a dive on the drowned city, a bid against
+Kestrel Cay for the Drift's regatta); answer on the envoy card. Friends bring perks, a Hostile neighbour embargoes, and a storm
+that strikes a neighbour may be heading your way. Zoom out to see their islands on the sea. URL drill: `?dispatch=<kind>:<neighbour>`. The model gallery (**G**) shows the island's
 cat in every coat and lists every film in its **Cutscenes** hall. While Flora sleeps her orb is dim with a "z": open
 it to see what she still needs, each with a **Build** button; when it pulses *Ready to wake*, wake her and watch her
 come online over the Data Spire.

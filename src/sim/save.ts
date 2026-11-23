@@ -14,10 +14,11 @@ import { createFireworksState, type FireworksState } from './fireworksState';
 import { createGrowthState, type GrowthState } from './growthState';
 import { createConsequenceState, neutralMods, type ConsequenceState } from './consequenceState';
 import { createHappeningState, type HappeningState } from './happeningState';
+import { createArchipelagoState, type ArchipelagoState } from './archipelagoState';
 import { builderCode, builderFromCode } from './builders';
 import { loadBridges, saveBridges, type BridgeSave } from './bridges';
 
-export const SAVE_VERSION = 29;
+export const SAVE_VERSION = 30;
 
 export interface SaveData {
   version: number;
@@ -57,6 +58,8 @@ export interface SaveData {
   consequences: Omit<ConsequenceState, 'mods'>;
   /** Residents' requests and good surprises (v18+, D-123). */
   happenings: HappeningState;
+  /** The neighbouring islands, trade agreements and the envoy on the table (v30+, plan v8). */
+  archipelago: ArchipelagoState;
   /** Charters, era and a challenge's objectives (v23+, plan v5 Phase 28). */
   charters: CharterState;
   /** Resident stories (v24+, plan v5 Phase 29). */
@@ -249,6 +252,11 @@ export function migrateSave(data: SaveData): SaveData {
     data.history.roads = pairs(data.history.roads);
     data.version = 29;
   }
+  if (data.version === 29) {
+    // The Archipelago (v30, plan v8): no neighbour met yet; the ones the city's era knows are met on the next pulse.
+    data.archipelago = createArchipelagoState();
+    data.version = 30;
+  }
   if (data.version !== SAVE_VERSION) throw new Error(`Unsupported save version ${data.version}`);
   return data;
 }
@@ -284,6 +292,7 @@ export function serializeCity(city: City): SaveData {
     growth: structuredClone(city.growth),
     consequences: (({ mods, ...rest }) => (void mods, structuredClone(rest)))(city.consequences),
     happenings: structuredClone(city.happenings),
+    archipelago: structuredClone(city.archipelago),
     charters: structuredClone(city.charters),
     stories: structuredClone(city.stories),
     chronicle: structuredClone(city.chronicle),
@@ -322,6 +331,7 @@ export function deserializeCity(city: City, input: SaveData): void {
   Object.assign(city.growth, structuredClone(data.growth));
   Object.assign(city.consequences, structuredClone(data.consequences), { mods: neutralMods() });
   Object.assign(city.happenings, structuredClone(data.happenings));
+  Object.assign(city.archipelago, structuredClone(data.archipelago));
   Object.assign(city.charters, structuredClone(data.charters));
   Object.assign(city.stories, structuredClone(data.stories));
   Object.assign(city.chronicle, structuredClone(data.chronicle));

@@ -1,0 +1,470 @@
+/*
+ * The Archipelago (plan v8, Phase 38): a sea chart in the instrument theme beside a pane for the chosen neighbour.
+ * Static: repainted at 2 Hz while open (text and a few SVG attributes), nothing animates.
+ */
+.ar-btn {
+  color: var(--accent);
+}
+.ar-btn.hidden {
+  display: none;
+}
+.ar-scrim {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 10, 12, 0.55);
+  z-index: 22;
+}
+.ar-scrim.hidden {
+  display: none;
+}
+.ar {
+  --bg: #061315;
+  display: flex;
+  flex-direction: column;
+  width: var(--dlg-w);
+  height: var(--dlg-h);
+  max-height: var(--dlg-h);
+  padding: 12px 14px 14px;
+}
+.ar-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+}
+.ar-head .hh {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ar-summary {
+  display: flex;
+  gap: 14px;
+}
+.ar-sum {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+}
+.ar-sum i {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.ar-sum b {
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.ar-sum.ok b,
+.ar .ok {
+  color: var(--accent);
+}
+.ar-sum.bad b,
+.ar .bad {
+  color: var(--crit);
+}
+.ar-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 12px;
+}
+.ar-chartcol {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+.ar-stage {
+  position: relative;
+  width: min(100%, calc(var(--dlg-h) - 110px));
+  aspect-ratio: 1;
+  border-radius: var(--r-md);
+  background: radial-gradient(circle at 50% 50%, #0b2a30 0%, #061a1f 55%, #041114 100%);
+  overflow: hidden;
+}
+.ar-sea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.ar-swell {
+  fill: none;
+  stroke: rgba(130, 220, 230, 0.08);
+  stroke-width: 1.5;
+}
+.ar-axis {
+  stroke: rgba(130, 220, 230, 0.06);
+  stroke-width: 1;
+}
+.ar-home {
+  fill: #2f6a4c;
+  stroke: #8fe0b0;
+  stroke-width: 2;
+}
+.ar-home-ring {
+  fill: none;
+  stroke: rgba(143, 224, 176, 0.25);
+  stroke-width: 1;
+  stroke-dasharray: 4 6;
+}
+.ar-route {
+  fill: none;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 10 8;
+  opacity: 0.85;
+}
+.ar-route.energy {
+  stroke: #ffd166;
+}
+.ar-route.water {
+  stroke: #5cc8ff;
+}
+.ar-route.food {
+  stroke: #9be36a;
+}
+.ar-route.idle {
+  opacity: 0.3;
+  stroke-dasharray: 3 9;
+}
+.ar-ring-bg {
+  fill: rgba(6, 19, 21, 0.6);
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 5;
+}
+.ar-ring {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.ar-ring.t-hostile {
+  stroke: var(--crit);
+}
+.ar-ring.t-cool {
+  stroke: var(--warn);
+}
+.ar-ring.t-cordial {
+  stroke: #b8d4cf;
+}
+.ar-ring.t-friendly,
+.ar-ring.t-allied {
+  stroke: var(--accent);
+}
+.ar-marks {
+  position: absolute;
+  inset: 0;
+}
+.ar-isle,
+.ar-unknown,
+.ar-home-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+.ar-isle {
+  /* Anchored on its dot (padding + half the dot), so the relation ring circles the dot and the name sits below it,
+     running toward the chart's centre (west islands' names to the right, east ones' to the left): never off the edge. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: var(--cur-pointer, pointer);
+  text-align: left;
+}
+.ar-isle.w {
+  transform: translate(-17px, -15px) !important;
+}
+.ar-isle.e {
+  transform: translate(calc(-100% + 17px), -15px) !important;
+  align-items: flex-end;
+  text-align: right;
+}
+.ar-isle .ar-dot {
+  width: 22px;
+  height: 22px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background: var(--hue);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+.ar-isle b {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.ar-isle small {
+  font-size: 10px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.ar-isle.on b {
+  color: var(--hue);
+}
+.ar-isle.on .ar-dot {
+  border-color: #fff;
+}
+.ar-storm {
+  position: absolute;
+  top: -12px;
+  left: 26px;
+  color: var(--warn);
+}
+.ar-isle.e .ar-storm {
+  left: auto;
+  right: 26px;
+}
+.ar-unknown {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px dashed rgba(130, 220, 230, 0.3);
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.ar-home-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #dff7e8;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.ar-compass {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+.ar-compass i {
+  width: 1px;
+  height: 18px;
+  background: var(--ink-faint);
+}
+.ar-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.ar-who {
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--bg-raise);
+  border-left: 3px solid var(--hue);
+}
+.ar-who-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ar-who-top b {
+  font-size: 15px;
+}
+.ar-who small {
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.ar-who p {
+  margin: 6px 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.ar-tier {
+  padding: 1px 8px;
+  border-radius: var(--pill);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+}
+.ar-tier.t-hostile {
+  color: var(--crit);
+}
+.ar-tier.t-cool {
+  color: var(--warn);
+}
+.ar-tier.t-cordial {
+  color: #b8d4cf;
+}
+.ar-tier.t-friendly,
+.ar-tier.t-allied {
+  color: var(--accent);
+}
+.ar-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.ar-bar i {
+  display: block;
+  height: 100%;
+  background: var(--hue);
+}
+.ar-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+}
+.ar-facts span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.ar-facts i {
+  font-style: normal;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+.ar-facts b {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.ar-perk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0 !important;
+  color: var(--ink-faint) !important;
+}
+.ar-perk.on {
+  color: var(--accent) !important;
+}
+.ar-sec {
+  margin: 8px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.ar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ar-deal,
+.ar-offer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raise);
+}
+.ar-deal-t {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.ar-deal-t b {
+  font-size: 12px;
+}
+.ar-deal-t small {
+  font-size: 10.5px;
+  color: var(--ink-soft);
+}
+.ar-good {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+}
+.ar-good.energy {
+  color: #ffd166;
+}
+.ar-good.water {
+  color: #5cc8ff;
+}
+.ar-good.food {
+  color: #9be36a;
+}
+.ar-rate {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.ar-end,
+.ar-size {
+  min-width: 30px;
+  padding: 3px 8px;
+}
+.ar-sizes {
+  display: flex;
+  gap: 3px;
+}
+.ar-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.ar-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.ar-log li {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ar-log li span {
+  flex: 0 0 26px;
+  font-family: var(--mono);
+  text-align: right;
+}
+/* The envoy card: the story card's frame with a sea-blue kicker. */
+.jc-m.ar-card .ar-card-head {
+  color: #5cc8ff;
+}
+.ar-goal {
+  flex: 1 1 auto;
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+/* Phones: the chart over the pane, in the sheet. */
+.compact .ar-body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.compact .ar-stage {
+  width: 100%;
+}
+.compact .ar-pane {
+  overflow: visible;
+}
+.compact .ar-summary,
+.compact .ar-head .cmap-key {
+  display: none;
+}

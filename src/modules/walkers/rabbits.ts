@@ -37,8 +37,8 @@ const CAP = 1040;
 const REGION = 30;
 /** Chance per wooded, open tile (scaled by ecology) of hosting a rabbit. */
 const DENSITY = 0.05;
-/** Rabbit length in tiles is about 0.13 × this. */
-const SIZE = 1.25;
+/** Rabbit length in tiles is about 0.13 × this (≈0.05: knee-high to a walker; was 1.25, near person-sized, D-226). */
+const SIZE = 0.4;
 const FUR = 0;
 const EAR = 1;
 const WHITE = 2;
@@ -120,7 +120,7 @@ export class Rabbits {
       .div(hopT)
       .clamp(0, 1)
       .mul(5 * Math.PI);
-    const lift = abs(sin(hopPhase)).mul(0.06).mul(hopping);
+    const lift = abs(sin(hopPhase)).mul(0.06 * SIZE).mul(hopping);
     // Stretch on the leap, squash on landing; ears lie back while hopping and twitch at rest.
     const stretch = float(1).add(abs(sin(hopPhase)).mul(0.08).mul(hopping));
     const isEar = step(EAR - 0.5, part).mul(step(part, EAR + 0.5));

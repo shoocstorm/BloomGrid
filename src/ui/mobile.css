@@ -331,12 +331,14 @@ body.compact {
    under the top bar (which stays usable), gutter to gutter, down to just above the Build button. The dialogs'
    scrims start under the top bar too and stay clear, like the console's. */
 .compact .db-scrim,
+.compact .ar-scrim,
 .compact .cmap-scrim {
   display: block;
   top: var(--chips);
   background: none;
 }
 .compact .db-scrim.hidden,
+.compact .ar-scrim.hidden,
 .compact .cmap-scrim.hidden {
   display: none;
 }
@@ -350,6 +352,7 @@ body.compact {
   min-height: 32px;
 }
 .compact .db,
+.compact .ar,
 .compact .cmap,
 .compact .settings,
 .compact .xp-menu {

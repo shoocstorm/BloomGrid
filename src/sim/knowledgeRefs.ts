@@ -1,3 +1,15 @@
+import {
+  BASE_PRICE,
+  DISPATCH_SECONDS,
+  EXPORT_MARGIN,
+  MAX_TRADES,
+  MOOD as ARCHI_MOOD,
+  NEIGHBOURS,
+  PREMIUM,
+  RIVAL_SECONDS,
+  TIERS,
+  TRADE_SIZES,
+} from './archipelago';
 import { APPROVAL, JOB_TYPES, JOB_WANT, MOOD_SECONDS } from './approval';
 import { MATCH_DETOUR } from './mobility';
 import { buildings } from '@/content';
@@ -147,6 +159,34 @@ function happeningsDoc(): KnowledgeDoc {
     tags: ['happening', 'request', 'festival', 'cruise', 'catch', 'reward'],
     related: ['systems-happenings'],
     order: 25,
+    body,
+  });
+}
+
+function archipelagoDoc(): KnowledgeDoc {
+  const m = (sec: number) => (sec % 60 ? `${Math.floor(sec / 60)} min ${sec % 60} s` : `${sec / 60} min`);
+  const goods = (g: readonly string[]) => (g.length ? g.join(', ') : 'nothing');
+  const body = [
+    `The neighbouring islands over the horizon (plan v8). Guide: [The Archipelago](kb:systems-archipelago).`,
+    '',
+    '| Island | Faction | Bearing | Met in | Sells | Buys | Friend perk |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    ...NEIGHBOURS.map((n) => `| ${n.name} | ${n.faction} | ${n.bearing} | ${['Seedling', 'Grove', 'Canopy', 'Bloom'][n.era]} era | ${goods(n.sells)} | ${goods(n.wants)} | ${n.perk} |`),
+    '',
+    `- Relation runs from −100 to 100: ${TIERS.slice(1).map((t) => `${t.name} from ${t.from}`).join(', ')}; below ${TIERS[1]!.from} is ${TIERS[0]!.name} (an embargo: every agreement with them ends and none can be signed). Friendly gives half the perk, Allied all of it.`,
+    `- Agreement sizes: ${TRADE_SIZES.map((z) => `${z.name} ${z.share * 100}%`).join(', ')} of the island's own use of that good (food: one unit per resident) at signing. At most ${MAX_TRADES} agreements at once, one per neighbour, good and direction.`,
+    `- Base prices per unit a second: ${Object.entries(BASE_PRICE).map(([g, p]) => `${g} ◈${p}`).join(', ')}. Exports pay more the more the buyer needs the good and the warmer the relation; imports cost about a quarter more, less from a prosperous, friendly seller.`,
+    `- Exports ship only what is spare above ${Math.round((EXPORT_MARGIN - 1) * 100)}% headroom at home; imports deliver only what the seller can spare (less in their own crisis).`,
+    `- An envoy waits ${m(DISPATCH_SECONDS)} for an answer (no answer counts as a refusal). A shortage request pays ×${PREMIUM.mul} for ${m(PREMIUM.seconds)}. A regatta bid gives ${m(RIVAL_SECONDS)} to reach its target.`,
+    `- Families settling: harmony +${ARCHI_MOOD.welcome} for ${m(ARCHI_MOOD.seconds)}. A Lantern dive allowed: harmony ${ARCHI_MOOD.dive}; refused: +${ARCHI_MOOD.refuse}.`,
+  ].join('\n');
+  return ref({
+    id: 'reference-archipelago',
+    title: 'The Archipelago: numbers',
+    summary: 'The neighbouring islands: what each sells and buys, relation tiers, agreement sizes and prices, envoy timings.',
+    tags: ['archipelago', 'neighbour', 'trade', 'export', 'import', 'envoy', 'relation'],
+    related: ['systems-archipelago'],
+    order: 26,
     body,
   });
 }
@@ -401,6 +441,7 @@ export function referenceDocs(): KnowledgeDoc[] {
     crisesDoc(),
     rulesDoc(),
     happeningsDoc(),
+    archipelagoDoc(),
     policiesDoc(),
     districtsDoc(),
     lensesDoc(),

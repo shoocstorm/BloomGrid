@@ -20,6 +20,7 @@ import { FIREWORK_KINDS, createFireworksState, type FireworksState } from './fir
 import { limitReason, limitStatus } from './limits';
 import { UNLOCK_NAMES, createGrowthState, isOpen, type GrowthState } from './growthState';
 import { createHappeningState, type HappeningState } from './happeningState';
+import { archipelagoHash, createArchipelagoState, type ArchipelagoState } from './archipelagoState';
 import { createCharterState, type CharterState } from './charterState';
 import { createStoryState, type StoryState } from './storyState';
 import { chronicleHash, createChronicleState, type ChronicleState } from './chronicleState';
@@ -107,6 +108,8 @@ export interface CityStats {
   insurance: number;
   /** Running cost of the ordinances in force (credits/s, plan v5). */
   policyCost: number;
+  /** Trade with the neighbouring islands this pulse (credits/s, + exports earned, − imports paid; plan v8). */
+  trade: number;
 }
 
 export type PlacementResult = { ok: true; warning?: string } | { ok: false; reason: string };
@@ -142,6 +145,8 @@ export class City {
   consequences!: ConsequenceState;
   /** Happenings: residents' requests and good surprises (D-123). */
   happenings!: HappeningState;
+  /** The neighbouring islands, trade agreements and the envoy on the table (plan v8; saved v30, hashed). */
+  archipelago!: ArchipelagoState;
   /** Charters, the era and a challenge's objectives (plan v5, Phase 28; saved v23, hashed). */
   charters!: CharterState;
   /** The resident story running now and what stories left behind (plan v5, Phase 29; saved v24, hashed). */
@@ -214,6 +219,7 @@ export class City {
     this.growth = createGrowthState();
     this.consequences = createConsequenceState();
     this.happenings = createHappeningState();
+    this.archipelago = createArchipelagoState();
     this.charters = createCharterState();
     this.stories = createStoryState();
     this.chronicle = createChronicleState();
@@ -549,7 +555,7 @@ export class City {
       (r) => `${r.def}#${r.uid}:${r.x},${r.z},${r.rot},${r.greenery.toFixed(4)},${(r.occupancy ?? 0).toFixed(4)},${(r.condition ?? 1).toFixed(3)},${r.level ?? 0},${r.tier ?? 0},${Math.round(r.age ?? 0)},${Math.round(r.thrive ?? 0)},${(r.scorch ?? 0).toFixed(3)},${r.off ? 1 : 0},${r.by ?? 'system'},${Math.round(r.spent ?? 0)}`,
     );
     return fnv1a(
-      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}|${policyHash(this)}|${approvalHash(this)}|${this.directorHash()}|${charterHash(this)}|${this.storyHash()}|${chronicleHash(this.chronicle)}|${historyHash(this.history)}`,
+      `${this.seed}|${this.tick}|${this.nextUid}|${this.districts.map((d) => `${d.name}:${d.zone ?? ''}`).join(',')}|${this.credits.toFixed(3)}|${this.pulse.taxRate}|${this.steward.loans.map((l) => l.remaining.toFixed(2)).join(',')}|${this.steward.crises.map((c) => `${c.def}@${c.startTick}`).join(',')}|${this.steward.fires.map((f) => `${f.uid}:${f.intensity.toFixed(3)}${f.crew ? '+' : ''}`).join(',')}|${this.steward.ruins.join(',')}|${this.steward.history.length}|${b.join(';')}|${this.roadTiles().join(',')}|${this.channelTiles().join(';')}|${soilChecksum(this.soil)}|${this.steward.seaRise.toFixed(4)}|${this.weaver.bridges.map((b) => `${b.ax},${b.az}-${b.bx},${b.bz}`).join(';')}|${[...this.terrainEdits].map(([c, h]) => `${c}:${h.toFixed(3)}`).join(',')}|${this.fireworksHash()}|${this.growthHash()}|${this.consequenceHash()}|${this.happeningHash()}|${roadLevelHash(this)}|${bridgeHash(this)}|${policyHash(this)}|${approvalHash(this)}|${this.directorHash()}|${charterHash(this)}|${this.storyHash()}|${chronicleHash(this.chronicle)}|${historyHash(this.history)}|${archipelagoHash(this.archipelago)}`,
     );
   }
 }
@@ -578,6 +584,7 @@ export function emptyStats(): CityStats {
     fishing: 0,
     tourism: 0,
     policyCost: 0,
+    trade: 0,
     fireworks: 0,
     insurance: 0,
   };

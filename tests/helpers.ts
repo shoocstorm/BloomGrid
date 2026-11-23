@@ -17,6 +17,8 @@ export function makeSim(seed = 42) {
   city.steward.autoDirector = false;
   // Resident stories (plan v5, Phase 29) draw names and arcs from the rng: off unless a test opts in.
   city.stories.auto = false;
+  // The neighbouring islands (plan v8) draw their news and envoys from the rng: off unless a test opts in.
+  city.archipelago.auto = false;
   const ctx: SimCtx = { city };
   const commands = new CommandStack(ctx);
   registerSimCommands(commands);

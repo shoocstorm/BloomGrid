@@ -519,6 +519,7 @@ await page.evaluate(() => {
   g.city.steward.autoDirector = false;
   if (g.city.stories) g.city.stories.auto = false;
   if (g.city.happenings) g.city.happenings.auto = false;
+  if (g.city.archipelago) g.city.archipelago.auto = false;
   // The demo frames the city, not the console: City Pulse stays folded for the whole capture.
   g.services.get('pulse').fold(true);
 });

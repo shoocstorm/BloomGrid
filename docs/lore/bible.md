@@ -91,8 +91,8 @@ year Ama Reyes lit the lighthouse. The exact present year is deliberately never 
 | ~LT 100 | First Light | The first fishers settle; the first seed is planted; **the Seedvault wakes**; the grid comes on |
 | LT 100 | Steward's Age | The Island Compact names the first **steward** (the player) |
 | LT 100+ | Seedling era | Homes by the water; the first wonders stir; **Flora wakes** |
-| | Grove era | The city takes a charter; the Drift returns (the **Tidesong** ferry) |
-| | Canopy era | The Concord and the Lantern Orders take notice; envoys, archivists, offers |
+| | Grove era | The city takes a charter; the Drift returns (the **Tidesong** ferry, the Brightwater Flotilla); Kestrel Cay hails |
+| | Canopy era | The Concord and the Lantern Orders take notice; envoys, archivists, offers; Bastion Halden and Vellum Holm trade |
 | | Bloom era | The Deep Choir answers in full; the choice at Meridian's flame |
 
 ---
@@ -363,6 +363,30 @@ somewhere. Some want to study it. Some want to switch it on again. Some want to 
 In play the Orders appear in the Canopy era, through the **Lantern Archivist** resident arc. They are curious about
 the Seedvault, and very curious about Flora.
 
+### The Archipelago: the neighbours over the horizon
+
+Between the island and the mainland lie four islands of the Shelf Sea, each run by a steward of its own (plan v8,
+`src/sim/archipelago.ts`). They are the factions' footholds near the island, plus one island like it. The player
+never visits them; they are felt through trade, envoys, ships on the horizon and their lights at night.
+
+| Island | Who | Where | Character |
+| --- | --- | --- | --- |
+| **Brightwater Flotilla** | The Drift: fairground ships and floating markets lashed together off the shoals | South-east | Loud, warm, always singing; forgives quickly. Sells fish; short of fresh water |
+| **Bastion Halden** | The Concord: a walled arcology on a granite rock, tidal turbines in its sluices | North-west | Proud, orderly, remembers a slight. Sells power; short of food; lends money |
+| **Vellum Holm** | The Lantern Orders: a grey holm stacked with archive towers, a lantern in every window | North-east | Curious and divided. Buys power for its archives; pays to dive the drowned city in the bay |
+| **Kestrel Cay** | A free island founded by fishers who followed the same light and found no room in the bay | South-west | A friend and a rival: a young city like the player's, with its own lamp on its hill |
+
+The island reaches them by sea. The Drift returns in the Grove era and Kestrel Cay hails the island then; the
+Concord's bastion and the Orders' holm open their envoys in Canopy. **Envoy Castellan** speaks for Bastion Halden
+and **Archivist Wren Sallow** for Vellum Holm (the same people as in their resident arcs); **Captain Marisol Song**
+for the flotilla; **Steward Hale Brannock** for Kestrel Cay.
+
+What passes between them, in play: standing trade agreements (energy, water, food for credits), aid after their
+storms, families who lost their homes, a shortage at a premium, help offered in the island's own crisis, a Concord
+loan, a Lantern dive on Halcyon's ruins, and a bid against Kestrel Cay to host the Drift's regatta. Storms that
+strike a neighbour to windward sometimes reach the island. Nobody is a villain here either: the bastion's walls
+work, the Orders' dives are scholarship, and Kestrel Cay simply wants what the island wants.
+
 ---
 
 ## Part VI: First Light
@@ -466,7 +490,8 @@ Drift kid who grew up on the story.
 | **The Deep Choir** | The ocean-floor intelligence | Sea wonders, whales, lumen glow; hazards as old wounds | Vast, slow, unknowable |
 | **The Concord** | Walled mainland megacities | Loans, interest, `debt-island`; the Concord Envoy arc | Polite, orderly, walled |
 | **The Drift** | Flotilla nomads | Festivals, cruise happenings, the Tidesong, Bloomtopia | Warm, loud, musical |
-| **The Lantern Orders** | Archivists of drowned cities | The Lantern Archivist arc; hunting Meridian | Curious, obsessive, divided |
+| **The Lantern Orders** | Archivists of drowned cities | The Lantern Archivist arc; hunting Meridian; Vellum Holm | Curious, obsessive, divided |
+| **Kestrel Cay** | A free island founded by fishers who followed the same light | A neighbour and rival in the Archipelago | Plain-spoken, proud of its lamp |
 | **The Island Compact** | The settlers' council | Harmony + budget judgement; the fail clock; game over | Plain-spoken, wary of rulers |
 
 ---
@@ -482,7 +507,9 @@ Drift kid who grew up on the story.
 | **Ilse Marrow** | The last Tidekin reef-singer on the island, who sang the Gates to sleep at LT ~60 | Chronicle, Tide Gates |
 | **Teo Varga** | A young diver who brings up Meridian's seal | The Diver arc |
 | **Envoy Castellan** | The Concord's envoy: courteous, sincere, carrying contracts | The Concord Envoy arc |
-| **Archivist Wren Sallow** | A Lantern scholar who has been looking for Meridian for thirty years | The Lantern Archivist arc |
+| **Archivist Wren Sallow** | A Lantern scholar who has been looking for Meridian for thirty years | The Lantern Archivist arc; Vellum Holm's envoy |
+| **Captain Marisol Song** | Master of the Brightwater Flotilla's flagship, a fairground ship with a wheel on its deck | The Drift's envoy in the Archipelago |
+| **Steward Hale Brannock** | Kestrel Cay's steward, elected by its own compact | Kestrel Cay's envoy; the regatta bids |
 | **Grandmother Tide** | The turtle of Turtle Isle | Turtle Isle lore |
 
 Resident names in arcs are otherwise drawn from the seed; these named characters are fixed.
@@ -527,6 +554,15 @@ Coordinates are tiles, as in `AGENTS.md`. "Then" is what stood there in Halcyon'
 | **Sunken Colonnade** | | Halcyon's harbour temple; Meridian's flame |
 | **Prism Geode** | | One of the Choir's ears |
 | Whale pods | ≈ 154/481, 348/26 | The Choir's voices |
+
+### Over the horizon (the Archipelago)
+
+| Island | Where (tiles from the island's centre) | In the canon |
+| --- | --- | --- |
+| **Brightwater Flotilla** | +330 / +300 (south-east) | The Drift's moored fairground ships |
+| **Bastion Halden** | −360 / −300 (north-west) | The Concord's walled arcology |
+| **Vellum Holm** | +360 / −330 (north-east) | The Lantern Orders' archive towers |
+| **Kestrel Cay** | −330 / +340 (south-west) | The other light: a free island like ours |
 
 ---
 
@@ -580,6 +616,7 @@ each answer only after the right progress (`FRAGMENTS` in `src/sim/chronicle.ts`
 | Sea wonder tales | `LORE` in `src/modules/scenery/lore.ts`; `docs/knowledge/basics/sea-wonders.md` |
 | Era lines | `ERAS` in `src/sim/eras.ts` |
 | Hero building descriptions | `src/content/buildings/<id>.ts` (`aurora-gemini`, `wellspring-spire`, `harmony-gate`, `aegis-precinct`, `elder-banyan`) |
+| The neighbouring islands (names, envoys, lines) | `NEIGHBOURS` in `src/sim/archipelago.ts`; envoy words `describeDispatch`; horizon models `src/modules/archipelago/horizon.ts` |
 | Resident arcs (Diver, Envoy, Archivist) | `ARCS` in `src/sim/stories.ts`; `docs/knowledge/systems/stories.md` |
 | Films | see "The story in the films" below |
 | The steward and the Compact | `docs/knowledge/basics/steward-role.md`; game over `src/modules/crises/GameOver.ts` |

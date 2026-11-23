@@ -40,8 +40,13 @@ import { within } from '@/render/hysteresis';
 const CAP = 4096;
 /** Walkers per tile of pavement at full activity (was 1.4: streets read as crowds, D-165). */
 const PER_TILE = 0.85;
-/** Figure scale: a person stands ≈0.3 tiles, the explore avatar's height (D-124). */
-const FIG = 1.4;
+/**
+ * Figure scale: a person stands ≈0.19 tiles, the explore steward's height (1 tile ≈ 11 m; a door is 0.24, a car's
+ * roof 0.13). Was 1.4 (≈0.3 tiles: taller than a doorway and twice a car, D-226).
+ */
+const FIG = 0.9;
+/** Walking pace in tiles per second, slowed with the smaller figure so the crowd strolls rather than sprints. */
+const PACE = 0.13;
 /** Longest straight stretch a walker strolls before fading out (tiles). */
 const MAX_RUN = 6;
 /** Pavement: how far from the road's centre line walkers keep (tiles). */
@@ -105,8 +110,8 @@ export const walkersModule: GameModule = {
       const t2 = sd.sub(l1).div(max(l2, float(1e-3))).clamp(0, 1);
       const trip = mix(mix(a, k, t1), mix(k, b, t2), leg2);
       const flat = mix(mix(a, b, u), trip, door);
-      // Stride: a step every ≈0.12 tiles of walking, so feet don't slide.
-      const phase = time.mul(pace).mul(26).add(seed.mul(40));
+      // Stride: a step every ≈0.08 tiles of walking (the figure's leg), so feet don't slide.
+      const phase = time.mul(pace).mul(40).add(seed.mul(40));
       // A gentle bob on each step (world units: tiny, AGENTS.md §8) and an end fade so walkers appear and leave softly.
       const bob = abs(sin(phase)).mul(0.005 * FIG);
       // Door trips fade a little longer at the door: residents step in (or out) rather than pop.
@@ -237,7 +242,7 @@ export const walkersModule: GameModule = {
           inf[o + 1] = d.y;
           const out = hash2(Building.uid[eid]!, w, 31) < 0.5;
           inf[o + 2] = (out ? 3 : 1) + (d.alongZ ? 1 : 0) + hash2(eid, w, 37) * 0.999;
-          inf[o + 3] = 0.18 + hash2(eid, w, 41) * 0.08;
+          inf[o + 3] = PACE * (0.9 + hash2(eid, w, 41) * 0.4);
           count++;
         }
       }
@@ -289,7 +294,7 @@ export const walkersModule: GameModule = {
             inf[o] = roadY(ax, az, t);
             inf[o + 1] = roadY(bx, bz, g.index(x + dx * (len - 1), z + dz * (len - 1)));
             inf[o + 2] = hash2(t, w, 77);
-            inf[o + 3] = 0.2 + hash2(t, w, 83) * 0.1;
+            inf[o + 3] = PACE * (1 + hash2(t, w, 83) * 0.5);
             count++;
           }
         }
