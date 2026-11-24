@@ -21,7 +21,14 @@ import './reel.css';
  */
 
 /** Held, every reel's clock stands still (scenes freeze a frame with it and `document.getAnimations()`). */
-export const reelClock = { held: false };
+export const reelClock = {
+  held: false,
+  /**
+   * Scripted capture (`scripts/demo.mjs`): when a number, reel waits count this clock (ms) instead of wall time, so a
+   * film recorded frame by frame keeps its pacing however slow each frame is to capture. Null in play.
+   */
+  virtual: null as number | null,
+};
 
 export interface ReelOptions {
   /** The film's CSS prefix / root class (`mf`, `hw`…); unique across every stylesheet (grep before choosing). */
@@ -142,10 +149,13 @@ export function openReel(ctx: GameContext, opts: ReelOptions, done: () => void):
     async wait(ms) {
       await ready;
       let left = ms;
+      let last = reelClock.virtual;
       while (left > 0 && alive) {
         const step = Math.min(50, left);
-        await new Promise((r) => setTimeout(r, step));
-        if (!reelClock.held) left -= step;
+        await new Promise((r) => setTimeout(r, reelClock.virtual === null ? step : 4));
+        const now = reelClock.virtual;
+        if (!reelClock.held) left -= now === null ? step : now - (last ?? now);
+        last = now;
       }
       return alive;
     },

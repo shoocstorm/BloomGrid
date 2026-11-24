@@ -4095,3 +4095,27 @@ Plan v8, Phases 38–40.
 - **Flora:** `neighbour_islands` (read) and `set_trade` (mutate, undoable). Not `archipelago_status`: every `*_status`
   name scores the word "status" in `selectMenu` and pushed *Headline state* off a plain "status" menu. Flora does not
   answer envoys (answers are not undoable; the steward answers on the card).
+
+## D-228 — The demo films on video time: the reels' clock and CSS animations are stepped per frame (2026-11-23)
+
+The demo (`scripts/demo.mjs`) was re-cut for the features since D-163: the time-lapse "The Island Remembers", whales
+breaching, the Aurora Gemini light show, "If Nothing Changes" and its postcard, and the Archipelago chart (21 shots,
+~2 min). Filming the 3D reels frame by frame needed two more clocks on video time besides the engine and `U.clock`:
+
+- **`reelClock.virtual`** (`modules/moments/reel.ts`): when a number, `reel.wait` counts it (ms) instead of wall time.
+  A captured frame takes far longer than 1/fps, so wall-time waits ended films seconds into the shot. The demo
+  advances it with every frame (by `rate`× for a film shot that plays faster); `null` (play) is unchanged.
+- **CSS animations and transitions** (`document.getAnimations()`): each is slowed to a rate of 1e-4 when first seen
+  and its `currentTime` stepped by the frame's dt, so captions, letterboxes, cards and panels ease in on the video's
+  clock rather than popping; `animationend` / `transitionend` still fire when the stepped time passes the end.
+
+Films start off camera (uncaptured frames until the reel has the `s-play` class) and are skipped at the cut. The sim
+tick is pinned at 61203 (bloom season, two seasonal cycles in) so the made-up 16-day past the time-lapse replays on
+the showcase (as `scripts/scenes/timelapse.js` `FAKE`) lies before "now". `--only 2,9` renders single shots to their
+own clips for a quick look. The page is laid out at 1920 CSS px and drawn at 2 device pixels each (`--css-width`):
+laid out at 3840 CSS px, as before, the HUD, Flora's console, the postcard and the chart were a quarter of the
+frame and unreadable. Ultra caps the renderer at pixel ratio 2, so the 3D still fills the 4K frame.
+
+**Rejected.** A chase of a cargo boat out to the Brightwater Flotilla: the boats and horizon islands are built as
+silhouettes read through fog at overview zoom (D-227) and look like blocks up close. The police drone sortie: too
+small to read at a framing that shows the precinct.
