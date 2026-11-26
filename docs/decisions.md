@@ -4119,3 +4119,18 @@ frame and unreadable. Ultra caps the renderer at pixel ratio 2, so the 3D still 
 **Rejected.** A chase of a cargo boat out to the Brightwater Flotilla: the boats and horizon islands are built as
 silhouettes read through fog at overview zoom (D-227) and look like blocks up close. The police drone sortie: too
 small to read at a framing that shows the precinct.
+
+## D-229 — Release builds find mlx.metallib where mlx-sys 0.6.0 actually puts it (2026-11-26)
+
+The aarch64 release job failed at `beforeBundleCommand`: `scripts/mlx-metallib.mjs` looked for
+`mlx.metallib` under `src-tauri/target/**/release/build/mlx-sys-*/out/build/lib`, the layout of the
+mlx-sys version Flora was first ported from. mlx-sys 0.6.0 (pinned in Cargo.toml) instead writes it
+to `$MLX_RS_METAL_PATH/mlx.metallib`, defaulting to `~/.mlx/lib/<mlx-c-key>/mlx.metallib`; its build
+script only warns if that file is missing. The script now searches the explicit path, the `~/.mlx`
+default and the legacy OUT_DIR layout, and copies the newest file to `src-tauri/resources/`.
+
+Release CI sets `MLX_RS_METAL_PATH` to `src-tauri/target/mlx-metal` (inside rust-cache's target tree)
+so a restored cargo cache also restores the metallib — otherwise a cache hit skips the build script
+and `~/.mlx` is empty on the fresh runner (the reason the MLX array test is ignored). Changing the
+variable re-runs mlx-sys through its `cargo:rerun-if-env-changed`. Local `tauri:build:mac-arm64` builds
+need no env: they use the `~/.mlx` default.

@@ -326,7 +326,10 @@ The knowledge base is never finished: treat it as part of every feature. Flora's
   (`scripts/copy-wllama.mjs`); keep `@wllama/wllama` and `-compat` on the same pinned version. Import wllama only
   dynamically (it must not load at boot).
 - Native MLX: Apple Silicon only (`cfg(mlx)` from `build.rs`); release bundles need `mlx.metallib`
-  (`tauri:build:mac-arm64`). The first `cargo` build compiles MLX's C++ (minutes).
+  (`tauri:build:mac-arm64`). mlx-sys 0.6.0 writes it to `$MLX_RS_METAL_PATH` (default
+  `~/.mlx/lib/<hash>/`), not Cargo's `OUT_DIR`; `scripts/mlx-metallib.mjs` copies the newest one into
+  `src-tauri/resources/`. Release CI pins that env var under `src-tauri/target` so rust-cache keeps it.
+  The first `cargo` build compiles MLX's C++ (minutes).
 - Sim modules that `City.ts` imports must not import `City.ts` values back (only `import type`): a cycle leaves
   constants undefined at load (`DAY_LENGTH` lives in `pulseConst.ts` for this reason).
 - Anything derived from terrain heights must refresh in `City.refreshTerrainDerived()` (sim) or on `terrain:changed`

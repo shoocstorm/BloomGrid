@@ -86,6 +86,9 @@ jobs:
             build: bun run tauri build --target x86_64-apple-darwin --bundles app,dmg
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
+      # mlx-sys 0.6.0 writes mlx.metallib here, not into Cargo's OUT_DIR. Keep it under
+      # target so rust-cache restores it with the build-script outputs on a cache hit.
+      MLX_RS_METAL_PATH: ${{ github.workspace }}/src-tauri/target/mlx-metal
     steps:
       - uses: actions/checkout@v4
         with:
