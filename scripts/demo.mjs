@@ -1,36 +1,35 @@
 #!/usr/bin/env node
 /**
- * Records the ~2 min demo (shots/demo.mp4) from the running dev server, against the showcase city
- * (`scenario=founding-city`; a plain boot is the welcome screen, D-148). Twenty-one shots in four acts on a
+ * Records the ~110 s demo (shots/demo.mp4) from the running dev server, against the showcase city
+ * (`scenario=founding-city`; a plain boot is the welcome screen, D-148). Twenty shots in four acts on a
  * day-and-a-night arc, camera driven per captured frame (lookAt always centers the subject):
  *
  *   I · The island (morning to golden hour)
  *     1. sunrise reveal: tight on the Aurora Gemini, exponential pull to the whole island (title)
- *     2. "The Island Remembers": the time-lapse film, the island growing from its founding hamlet (D-219)
- *     3. downtown skyline dive          4. Bloomtopia park + bridge, golden hour
- *     5. a whale breaching off the south shore (caption: a living sea)
- *     6. Sky Guard jet on afterburners, chase pass with a victory roll
- *     7. drone flight up the hero avenue (caption) ⟶ circle wipe out of the propeller ⟶
- *     8. Aeroline train ride into dusk (caption)
+ *     2. downtown skyline dive          3. Bloomtopia park + bridge, golden hour
+ *     4. a whale breaching off the south shore (caption: a living sea)
+ *     5. Sky Guard jet on afterburners, chase pass with a victory roll
+ *     6. drone flight up the hero avenue (caption) ⟶ circle wipe out of the propeller ⟶
+ *     7. Aeroline train ride into dusk (caption)
  *   II · The night
- *     9. the Aurora Gemini light show (caption)
- *     10. fireworks act I: heart, butterfly (caption)   11. act II: rings, then "BLOOM ♥" in the sky
- *     12. the Lotus Atoll glowing on dark water          13. the Tidesong cruise ferry and her deck show
+ *     8. the Aurora Gemini light show (caption)
+ *     9. fireworks act I: heart, butterfly (caption)   10. act II: rings, then "BLOOM ♥" in the sky
+ *     11. the Lotus Atoll glowing on dark water          12. the Tidesong cruise ferry and her deck show
  *   III · The steward
- *     14. fires break out, Flora's console opens, a live question is sent
- *     15. Flora answers: real Qwen3 1.7B tool calls and text streaming in (caption)
- *     16. "If Nothing Changes": Flora's forward run of the burning city, filmed (D-222)
- *     17. the postcard from the future over the night city (caption)
+ *     13. fires break out, Flora's console opens, a live question is sent
+ *     14. Flora answers: real Qwen3 1.7B tool calls and text streaming in (caption)
+ *     15. "If Nothing Changes": Flora's forward run of the burning city, filmed (D-222)
+ *     16. the postcard from the future over the night city (caption)
  *   IV · Dawn
- *     18. Bloom Retrofit wave through the night into sunrise
- *     19. the Archipelago chart: neighbours, agreements, envoys (caption, plan v8)
- *     20. Flora-Net hive + drone mist     21. pull back to the whole island (end card)
+ *     17. Bloom Retrofit wave through the night into sunrise
+ *     18. the Archipelago chart: neighbours, agreements, envoys (caption, plan v8)
+ *     19. Flora-Net hive + drone mist     20. pull back to the whole island (end card)
  *
  * Pacing: quick dissolves (0.35 s) through the daytime run, longer breaths (0.6–0.8 s) into the night and dawn,
  * a circle wipe out of the drone's propeller into the train ride, and the reveal/end pair mirror each other.
  * City Pulse stays folded (the demo frames the city, not the console). Flora's model core (Qwen3 1.7B,
  * wllama/WebGPU) loads at boot (the first run downloads it once into a persistent Chrome profile; `--no-ai`
- * skips) and shot 14 asks it a real question about the fires.
+ * skips) and shot 13 asks it a real question about the fires.
  *
  * Time discipline: a frame takes far longer than 1/fps to capture, so the engine is stopped and every frame is
  * advanced by hand (`window.__bgFrame`): input, one sim tick, sync and render at an exact dt of 1/fps, `U.clock`
@@ -40,8 +39,7 @@
  *     frame), so captions, the films' letterbox, panels and cards ease in as they do in play, not pop;
  *   - film shots may run `rate`× (the film's stage, its waits) to fit a long film into a few seconds.
  * Films start off camera (`preroll`: uncaptured frames until the reel is playing) and are skipped at the cut.
- * The sim tick is pinned into the bloom season (61203 = 3603 + two seasonal cycles: no weather, no pulses), late
- * enough that the made-up past the time-lapse replays (16 days, as `scripts/scenes/timelapse.js` FAKE) fits before it.
+ * The sim tick is pinned into the bloom season (61203 = 3603 + two seasonal cycles: no weather, no pulses).
  *
  * Each shot's frames are captured into its own segment directory and the encode chains ffmpeg `xfade` dissolves
  * between them. Caption cards are transparent full-frame PNGs overlaid with alpha fades. The page is laid out at
@@ -105,7 +103,7 @@ const chrome = [
   '/usr/bin/chromium',
 ].find(existsSync);
 
-/** The sim tick every shot pins (bloom season, two cycles of 28800 in: later than the time-lapse's made-up past). */
+/** The sim tick every shot pins (bloom season, two cycles of 28800 in: no weather, no pulses). */
 const TICK = 3603 + 2 * 28800;
 
 // Gentler start/stop than smoothstep, so every camera move eases in and out imperceptibly.
@@ -213,56 +211,6 @@ const SKIP_FILM = `(async () => {
   }
   for (let k = 0; k < 20; k++) await window.__bgFrame(1 / 60);
 })()`;
-// A made-up past for the showcase (all founding content, so it has none): every building and highway born by its
-// distance from the island's middle over 16 days, levels a while after, a few replaced lots, a monsoon and era
-// marks — `scripts/scenes/timelapse.js`'s FAKE, so the film replays a growing city.
-const FAKE_PAST = `(() => {
-  const city = window.bloomgrid.city;
-  const h = city.history;
-  const days = 16;
-  const span = days * 360 * 10;
-  const cx = city.size / 2;
-  const cz = city.size / 2;
-  const far = city.size * 0.62;
-  const rnd = (i) => ((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) % 1;
-  const when = (x, z, i) => Math.max(1, Math.round(span * Math.min(0.98, (Math.hypot(x - cx, z - cz) / far) ** 1.3 * 0.9 + rnd(i) * 0.1)));
-  h.born.clear();
-  h.roads.clear();
-  for (const eid of city.buildingEntities()) {
-    const r = city.buildingRecord(eid);
-    if (Math.hypot(r.x - cx, r.z - cz) < 26) continue;
-    h.born.set(r.uid, when(r.x, r.z, r.uid));
-  }
-  for (const t of city.roadTiles()) {
-    const x = t % city.grid.w;
-    const z = (t / city.grid.w) | 0;
-    if (Math.hypot(x - cx, z - cz) < 30) continue;
-    h.roads.set(t, Math.max(1, when(x, z, t) - 40));
-  }
-  h.tiers = [];
-  h.gone = [];
-  let n = 0;
-  for (const eid of city.buildingEntities()) {
-    const r = city.buildingRecord(eid);
-    const born = h.born.get(r.uid);
-    if (!born) continue;
-    if (r.tier > 0) h.tiers.push([r.uid, Math.min(span - 10, born + Math.round(span * 0.12)), r.tier]);
-    if (n++ % 25 === 0 && born > span * 0.3) h.gone.push([r.uid + 100000, r.def, r.x, r.z, r.rot, 0, Math.round(born * 0.4), born - 60]);
-  }
-  h.tiers.sort((a, b) => a[1] - b[1]);
-  city.steward.history.push({ id: 9999, kind: 'monsoon', name: 'Monsoon', icon: 'rain', startTick: Math.round(span * 0.5), endTick: Math.round(span * 0.52), severity: 1, district: 'Westbrook', x: 150, z: 270, hits: 3, lost: 0, fires: 0, displaced: 0, cost: 0, outcome: 'weathered', objects: [] });
-  h.marks = [
-    [Math.round(span * 0.18), 'era', 'grove'],
-    [Math.round(span * 0.36), 'wonder', 'lotus'],
-    [Math.round(span * 0.6), 'era', 'canopy'],
-    [Math.round(span * 0.85), 'era', 'bloom'],
-  ];
-  h.samples = Array.from({ length: 40 }, (_, i) => {
-    const k = i / 39;
-    return [Math.round(span * k), 1 + Math.floor(days * k), Math.round(city.stats.population * k ** 1.6), 0, 60, 0];
-  });
-  city.day = Math.max(city.day, days + 1);
-})()`;
 // Lands a whale breach `lead` seconds into the shot: scans the pod's cycle (the shader's, mirrored on the CPU by
 // `whalesNow`) for the next breach and moves the clock offset so it starts on cue.
 const CUE_BREACH = (time, lead = 1.0) => `(async () => {
@@ -301,21 +249,6 @@ const shots = [
       pitch: lerp(0.17, 1.02, t),
       dist: zoom(34, od * 1.02, t),
     }),
-  },
-  // The Island Remembers: from the founding hamlet to the whole city, the ~56 s film at 6.3×. Its timeline reads
-  // "now" from the tick, so the tick is pinned first (`--only` may have skipped shot 1's pins).
-  {
-    dur: 9.0,
-    film: true,
-    rate: 6.3,
-    enter: () => `(() => {
-      ${SWEEP_TOASTS};
-      window.bloomgrid.city.tick = ${TICK};
-      window.bloomgrid.services.get('timelapse').play();
-    })()`,
-    preroll: PREROLL('.reel.tl.s-play', 30),
-    exit: SKIP_FILM,
-    report: `document.querySelector('.tl-dnum')?.textContent`,
   },
   {
     dur: 4.4,
@@ -590,13 +523,13 @@ const shots = [
     }),
   },
 ];
-// Dissolve per boundary: quick through the daytime run, longer into the films, the night and the dawn; the
+// Dissolve per boundary: quick through the daytime run, longer into the film, the night and the dawn; the
 // drone→Aeroline cut is a circle wipe out of the propeller disc.
 const XF = [
-  0.6, 0.6, 0.35, 0.35, 0.35, 0.45, 0.7, 0.7, 0.45, 0.45, 0.6, 0.35, 0.6, 0.35, 0.6, 0.6, 0.8, 0.5, 0.5, 1.1,
+  0.6, 0.35, 0.35, 0.35, 0.45, 0.7, 0.7, 0.45, 0.45, 0.6, 0.35, 0.6, 0.35, 0.6, 0.6, 0.8, 0.5, 0.5, 1.1,
 ];
 const XT = XF.map(() => 'fade');
-XT[6] = 'circleopen';
+XT[5] = 'circleopen';
 if (XF.length !== shots.length - 1)
   throw new Error(`XF has ${XF.length} dissolves for ${shots.length - 1} shot boundaries`);
 const PLAN = shots.reduce((a, s) => a + s.dur, 0);
@@ -750,7 +683,6 @@ await page.evaluate(async () => {
   g.commands.execute('signTrade', { partner: 'kestrel', good: 'water', dir: 'import', size: 2 });
   g.commands.execute('signTrade', { partner: 'concord', good: 'food', dir: 'export', size: 0 });
 });
-await page.evaluate(FAKE_PAST);
 ({ hive, yard, spire } = await page.evaluate(() => {
   const c = window.bloomgrid.city;
   const find = (id, fb) => {

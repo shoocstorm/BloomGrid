@@ -703,7 +703,9 @@ export function initMaterials(): void {
     return m;
   };
   define('lumen', lumen(8), { fade: true });
-  define('lumenThin', lumen(80));
+  // The halo torus is on sixty-odd building types: from the overview hundreds of thin white loops were the city's
+  // loudest detail (D-230). It dissolves out by its piece `lod` like greenery, so rings belong to close views.
+  define('lumenThin', lumen(80), { fade: true });
 
   // Commuter pod shell: pearl body with a glowing window band (instance glow brightens it at night).
   define('pod', () => {
@@ -842,7 +844,7 @@ export function initMaterials(): void {
     m.emissiveNode = color(0x7ff7e6)
       .mul(lit)
       .mul(dots.mul(0.6).add(0.4))
-      .mul(U.night.mul(1.2).mul(activityGlow()).add(0.12))
+      .mul(U.night.mul(0.75).mul(activityGlow()).add(0.1))
       .mul(blvd.mul(0.3).add(1))
       .add(mix(color(0xfff1c4), color(0x7ff7e6), since.clamp(0, 1)).mul(flash).mul(1.6));
     return m;

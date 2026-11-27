@@ -4134,3 +4134,15 @@ so a restored cargo cache also restores the metallib — otherwise a cache hit s
 and `~/.mlx` is empty on the fresh runner (the reason the MLX array test is ignored). Changing the
 variable re-runs mlx-sys through its `cargo:rerun-if-env-changed`. Local `tauri:build:mac-arm64` builds
 need no env: they use the `~/.mlx` default.
+
+## D-230 — Look and feel pass: quiet arrivals, night water, beaches, close-up halos, a shaped day (2026-11-26)
+
+A review of the showcase from five views found three things that cheapened the look; each has a rule now.
+
+| Problem | Fix | Rule |
+| --- | --- | --- |
+| A city that had just loaded played a 50,000-residents ceremony and toasted "A transit city" and "Credits recovered" in its first seconds (its homes fill from 47k to 57k over ≈20 s); a ceremony also drew over the pause card | `settleClock(ctx)` in `src/game/settle.ts`: `SETTLE_TICKS` (300) sim ticks after boot, `city:reset` or `load:done` in which population milestones only raise their baseline, consequence starts and tier recoveries stay silent; the moments queue waits while `body.city-paused` or a `.modal-scrim` is up | A notice about a change of state asks `settling()` first: arrival is not news. Ceremonies never stack on another card that owns the screen |
+| Night water was the brightest thing in a night frame (pale shallows under the bright moonlight of D-203) | `Water.ts` darkens and blues the base by `U.night`, dims its cyan glow and foam; highway lines glow at 0.75× activity instead of 1.2× | Windows and lamps outshine the sea after dark |
+| Grass ran straight into the sea: the coast rises past the old 0.35-unit sand band within a tile | `Terrain.ts` bakes a chamfer distance to the sea per corner (`coastDistance`, also for the outer ring) and blends a ragged beach about 3 tiles wide onto low land (h < 1.9); rebuilds refresh it and repaint 4 tiles round an edit. Greens a little less lime, dry drifts stronger | Shore looks come from distance to water, not height |
+| From the overview, the `haloRing` torus (on 68 building types) was the loudest detail | `haloRing` gets `lod: 120` and `lumenThin` the dithered fade | Thin decorative loops are a close-up detail |
+| Day looked like one long noon under a milky horizon | New keys at sun elevation 0.2 (warm light, warm horizon) and 0.42 (more contrast, less fill); noon has a bluer sky and less saturation | Noon keeps its fill (0.72) and contrast (1.04): more of either raised the day flicker probe at 20 units from ≈0.031 % to ≈0.044 % (thin spokes against deeper shade). Measured after: 0.032–0.035 % (20), 0.037–0.041 % (35) |

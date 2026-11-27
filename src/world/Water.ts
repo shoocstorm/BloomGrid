@@ -82,7 +82,9 @@ export function createWater(grid: Grid): Mesh {
   const algae = U.algae.mul(patch.mul(0.75).add(0.2)).add(U.algae.mul(streak).mul(patch).mul(0.3)).min(float(0.95));
   const calm = mix(mix(shallow, deep, smoothstep(0.0, 0.7, depth)), color(0x5aa83e), algae.mul(0.7));
   // Stormy sea: darker, slate grey.
-  const base = mix(calm, color(0x2a4a57), U.storm.mul(0.45));
+  // At night the water goes dark and deep (D-230): moonlight is bright for play (D-203), and the pale shallows lit by
+  // it read as daytime turquoise, the brightest thing in a night frame. Lamps and windows should outshine the sea.
+  const base = mix(calm, color(0x2a4a57), U.storm.mul(0.45)).mul(mix(float(1), vec3(0.27, 0.33, 0.44), U.night));
   const foam = smoothstep(0.09, 0.0, depth.add(ripple.mul(0.03))).mul(smoothstep(-0.2, 0.6, ripple2));
   // Whitecaps on open water in a storm: broken crests from a coarse noise, faded at the overview.
   const crest = mx_noise_float(vec3(x.mul(0.22), time.mul(0.5), z.mul(0.22).add(time.mul(0.6))));
@@ -117,7 +119,7 @@ export function createWater(grid: Grid): Mesh {
   const fres = pow(float(1).sub(max(dot(n, view), 0)), 4).mul(0.65).add(0.03).mul(smoothstep(0.15, 0.6, depth));
   const skyRefl = mix(U.horizon, U.zenith, 0.25);
   const lit = mix(base.add(ripple.mul(rippleAmt)).add(ring.mul(0.22)), skyRefl, fres.mul(float(1).sub(U.storm.mul(0.5))));
-  m.colorNode = mix(lit, color(0xf4fffb), white);
+  m.colorNode = mix(lit, mix(color(0xf4fffb), color(0x8fb4c4), U.night.mul(0.6)), white);
   // Sun glitter: a path of sparkles toward a low sun, broken by the ripples and faded before it is sub-pixel.
   const r = reflect(view.negate(), n);
   const lowSun = smoothstep(0.85, 0.1, U.sunDir.y).mul(0.7).add(0.3);
@@ -131,8 +133,8 @@ export function createWater(grid: Grid): Mesh {
   m.roughnessNode = float(0.05).add(ripple2.abs().mul(0.12)).add(U.storm.mul(0.25)).add(ring.mul(0.3));
   m.emissiveNode = color(0x2fd0ff)
     .mul(U.night)
-    .mul(0.08)
-    .add(color(0x9ff7ff).mul(foam.add(wash.mul(0.5))).mul(U.night).mul(0.25))
+    .mul(0.025)
+    .add(color(0x9ff7ff).mul(foam.add(wash.mul(0.5))).mul(U.night).mul(0.18))
     .add(U.sunColor.mul(glint).mul(1.4));
 
   const geo = new PlaneGeometry(grid.w * 4, grid.h * 4, 1, 1).rotateX(-Math.PI / 2);

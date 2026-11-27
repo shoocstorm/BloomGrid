@@ -1,4 +1,5 @@
 import { netIncome, paidShare, taxSplit } from '@/sim/finance';
+import { settleClock } from '@/game/settle';
 import { sectorOf } from '@/sim/policies';
 import { query } from 'bitecs';
 import { CREDIT_FLOW, INDICATOR_NAMES as N, SYSTEM_ORDER } from '@/sim/indicators';
@@ -279,8 +280,10 @@ export const dashboardModule: GameModule = {
       return false;
     });
     // A rule coming into force is news (D-074): a toast that names it; good ones in green.
+    const settling = settleClock(ctx);
     ctx.bus.on('consequence', ({ rule, kind, text }) => {
-      if (ctx.loading) return;
+      // A city just loaded settles its rules from their starting values: that is not news.
+      if (ctx.loading || (kind === 'start' && settling())) return;
       // Neglect boiling over (plan v5, Phase 27) names the crisis it is bringing.
       if (kind === 'escalate') return void ctx.bus.emit('toast', { text: `⚠ ${text}`, tone: 'bad' });
       if (kind !== 'start') return;

@@ -1,4 +1,5 @@
 import type { GameContext, GameModule } from '@/game/context';
+import { settleClock } from '@/game/settle';
 import { Building } from '@/ecs/components';
 import { SYSTEMS, TIERS } from '@/sim/pulseState';
 import { PROJECTS } from '@/sim/projects';
@@ -210,7 +211,10 @@ export const momentsModule: GameModule = {
       });
     };
     const next = () => {
-      if (staged || ceremony.playing || !queue.length || ctx.loading || document.body.classList.contains('chapter-open')) return;
+      const body = document.body.classList;
+      // Never over another card that owns the screen: the pause card, a dialog, the chapter dialog.
+      if (staged || ceremony.playing || !queue.length || ctx.loading || body.contains('chapter-open') || body.contains('city-paused')) return;
+      if (document.querySelector('.modal-scrim')) return;
       if (now() < calmUntil && !queue[0]!.chain) return;
       const { m, done, run, chain } = queue.shift()!;
       if (run) return runStaged(run);
@@ -293,6 +297,7 @@ export const momentsModule: GameModule = {
       topLevel = c.buildingEntities().some((e) => Building.tier[e]! >= 2);
       goldenFor = 0;
     };
+    const settling = settleClock(ctx);
     const armed = () => armIn <= 0;
     for (const ev of ['city:reset', 'load:done'] as const)
       ctx.bus.on(ev, () => {
@@ -508,7 +513,7 @@ export const momentsModule: GameModule = {
       });
 
     ctx.bus.on('consequence', ({ rule, kind, text }) => {
-      if (kind !== 'start' || ctx.loading || !armed()) return;
+      if (kind !== 'start' || ctx.loading || !armed() || settling()) return;
       if (rule === 'harmony-streak')
         play({ id: 'streak', scale: 'minor', tone: 'bloom', emblem: 'happy', eyebrow: 'Reputation · word spreads', title: 'A happy city', lines: [text.split('. ')[0] ?? text], sub: 'Visitors are coming, and Flora works at a discount.', sound: 'milestone' });
       else if (rule === 'transit-city')
@@ -601,6 +606,8 @@ export const momentsModule: GameModule = {
         const c = city();
         // Population milestones (upward crossings only).
         const level = MILESTONES.filter((m) => c.stats.population >= m).length;
+        // A city just loaded fills its homes for a few sim seconds: crossings then are arrival, not growth.
+        if (settling()) popLevel = Math.max(popLevel, level);
         if (level > popLevel) {
           popLevel = level;
           const m = MILESTONES[level - 1]!;

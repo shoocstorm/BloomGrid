@@ -37,15 +37,19 @@ const KEYS: SkyKey[] = [
   { e: -0.35, zenith: 0x0e1a40, horizon: 0x283a6a, sun: 0xa8bcff, sunI: 0.75, hemiI: 0.6, lift: [0.012, 0.024, 0.055], gain: [1.02, 1.06, 1.13], sat: 0.96, con: 1.02, bloom: 0.85 },
   { e: -0.05, zenith: 0x22346e, horizon: 0x6e60a0, sun: 0xaabcff, sunI: 0.55, hemiI: 0.62, lift: [0.032, 0.012, 0.042], gain: [1.05, 1, 1.04], sat: 1.03, con: 1.03, bloom: 0.76 },
   { e: 0.08, zenith: 0x4a6fb8, horizon: 0xffb38a, sun: 0xffb070, sunI: 1.8, hemiI: 0.55, lift: [0, 0.008, 0.025], gain: [1.08, 1, 0.9], sat: 1.14, con: 1.05, bloom: 0.65 },
-  { e: 0.3, zenith: 0x5aa8f0, horizon: 0xd9ecf5, sun: 0xffeccc, sunI: 2.9, hemiI: 0.68, lift: [0, 0, 0.005], gain: [1.02, 1, 0.98], sat: 1.1, con: 1.04, bloom: 0.5 },
-  { e: 1.0, zenith: 0x4f9ff0, horizon: 0xcfeaff, sun: 0xfff6e6, sunI: 3.3, hemiI: 0.72, lift: [0, 0, 0], gain: [1, 1, 1], sat: 1.08, con: 1.04, bloom: 0.45 },
+  // Morning and late afternoon (D-230): the warm light lasts past the first hour, so a day has a shape, not one noon.
+  { e: 0.2, zenith: 0x5596e2, horizon: 0xf0d8bc, sun: 0xffd8a6, sunI: 2.5, hemiI: 0.58, lift: [0, 0.004, 0.018], gain: [1.06, 1, 0.93], sat: 1.08, con: 1.07, bloom: 0.55 },
+  { e: 0.42, zenith: 0x4f9ced, horizon: 0xd2e7f6, sun: 0xffeccc, sunI: 3.0, hemiI: 0.62, lift: [0, 0, 0.006], gain: [1.03, 1, 0.97], sat: 1.05, con: 1.07, bloom: 0.5 },
+  // Day: a bluer sky and a little less saturation than before (the old milky horizon flattened everything behind
+  // the island). Noon keeps its fill and contrast: more of either made thin spokes and rails flicker (D-230).
+  { e: 1.0, zenith: 0x438fe6, horizon: 0xc2def5, sun: 0xfff6e6, sunI: 3.3, hemiI: 0.72, lift: [0, 0, 0], gain: [1, 1, 1], sat: 1.04, con: 1.04, bloom: 0.45 },
 ];
 
 const ca = new Color();
 const cb = new Color();
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 /** Sky colour the environment light was baked under (noon), for the live tint ratio. */
-const NOON = new Color(0xcfeaff).multiplyScalar(0.6).add(new Color(0x4f9ff0).multiplyScalar(0.4));
+const NOON = new Color(0xc2def5).multiplyScalar(0.6).add(new Color(0x438fe6).multiplyScalar(0.4));
 
 /** Sky dome, sun/moon light with camera-following shadows, hemisphere fill and fog. */
 export class Atmosphere {

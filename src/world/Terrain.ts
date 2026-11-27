@@ -9,12 +9,14 @@ import { U } from '@/render/uniforms';
 import { withOverlay } from '@/render/materials/overlay';
 import { cloudShade } from '@/render/grade';
 
+// Greens kept a little short of lime (they are graded up again by the day's saturation), with the meadow drifts
+// leaning gold rather than yellow-green, so the island reads as land and the buildings stay the brightest things on it.
 const C = {
   deep: new Color(0x5b7f6a),
   sand: new Color(0xe3d3a0),
-  grassA: new Color(0x6ea845),
-  grassB: new Color(0x4f8a36),
-  meadow: new Color(0x93bd5a),
+  grassA: new Color(0x669c46),
+  grassB: new Color(0x477f37),
+  meadow: new Color(0x9db562),
   rock: new Color(0x9a8f80),
   mossRock: new Color(0x6e8a58),
   snow: new Color(0xf4f6f8),
@@ -22,12 +24,58 @@ const C = {
 const tmp = new Color();
 const tmp2 = new Color();
 
-function shade(out: Color, h: number, slope: number, x: number, z: number, seed: number): Color {
+const smooth = (a: number, b: number, v: number) => {
+  const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+
+/**
+ * Distance (in world units) from each corner to the nearest corner under the sea, by a two-pass chamfer over an
+ * n×n height grid sampled every `step` units. Capped at `cap`: only the first few tiles inland matter.
+ */
+function coastDistance(n: number, step: number, height: (i: number, j: number) => number, cap = 8): Float32Array {
+  const d = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) d[j * n + i] = height(i, j) < 0 ? 0 : cap;
+  const D = Math.SQRT2 * step;
+  const relax = (k: number, o: number, w: number) => {
+    const v = d[o]! + w;
+    if (v < d[k]!) d[k] = v;
+  };
+  for (let j = 0; j < n; j++)
+    for (let i = 0; i < n; i++) {
+      const k = j * n + i;
+      if (i > 0) relax(k, k - 1, step);
+      if (j > 0) {
+        relax(k, k - n, step);
+        if (i > 0) relax(k, k - n - 1, D);
+        if (i < n - 1) relax(k, k - n + 1, D);
+      }
+    }
+  for (let j = n - 1; j >= 0; j--)
+    for (let i = n - 1; i >= 0; i--) {
+      const k = j * n + i;
+      if (i < n - 1) relax(k, k + 1, step);
+      if (j < n - 1) {
+        relax(k, k + n, step);
+        if (i < n - 1) relax(k, k + n + 1, D);
+        if (i > 0) relax(k, k + n - 1, D);
+      }
+    }
+  return d;
+}
+
+function shade(out: Color, h: number, slope: number, x: number, z: number, seed: number, coast = Infinity): Color {
   if (h < 0) return out.copy(C.sand).lerp(C.deep, Math.min(1, -h / 1.5));
   const n = fbm(x * 0.04, z * 0.04, seed + 41, 3) * 0.5 + 0.5;
   out.copy(C.grassA).lerp(C.grassB, n);
   const meadow = fbm(x * 0.02, z * 0.02, seed + 33, 2);
   if (meadow > 0.15) out.lerp(C.meadow, Math.min(1, (meadow - 0.15) * 3));
+  // A beach a few tiles wide where low land meets the sea: the coast rises past the old height-only band within a
+  // tile, so from the overview grass met the water along a hard line. A ragged inland edge keeps it from reading
+  // as a stripe; high or steep shores keep their grass and stone.
+  const ragged = fbm(x * 0.15, z * 0.15, seed + 57, 2) * 1.2;
+  const beach = smooth(3.6 + ragged, 1.3, coast) * smooth(1.9, 0.9, h);
+  if (beach > 0) out.lerp(C.sand, beach * 0.92);
   if (h < 0.35) out.lerp(C.sand, 1 - h / 0.35);
   if (slope > 0.5) out.lerp(tmp.copy(C.mossRock).lerp(C.rock, Math.min(1, h / 18)), Math.min(1, (slope - 0.5) * 2));
   if (h > 24) out.lerp(C.snow, Math.min(1, (h - 24) / 6) * (slope < 1.6 ? 1 : 0.4));
@@ -54,7 +102,7 @@ function material(): MeshStandardNodeMaterial {
   const clump = mx_noise_float(positionWorld.xz.mul(1.4)).mul(float(1).sub(smoothstep(0.05, 0.25, px)));
   const blade = mx_noise_float(positionWorld.xz.mul(32)).mul(float(1).sub(smoothstep(0.006, 0.025, px)));
   const turf = vc
-    .mul(mix(vec3(1), vec3(1.12, 1.0, 0.62), dry.mul(0.55)))
+    .mul(mix(vec3(1), vec3(1.12, 1.0, 0.62), dry.mul(0.7)))
     .mul(mix(float(1), float(0.82), lush))
     .mul(clump.mul(0.1).add(blade.mul(0.06)).add(1));
   const base = mix(vc, turf, grassy).add(detail).mul(float(1).sub(wet.mul(0.22)));
@@ -105,8 +153,18 @@ export class Terrain {
     this.build();
   }
 
+  /** Distance to the sea per map corner, for the beach band (refreshed on every rebuild). */
+  private coast: Float32Array = new Float32Array(0);
+
+  private refreshCoast(): void {
+    const g = this.grid;
+    const n = g.w + 1;
+    this.coast = coastDistance(n, 1, (i, j) => g.corner(Math.min(i, g.w), Math.min(j, g.h)));
+  }
+
   private build(): void {
     const g = this.grid;
+    this.refreshCoast();
     for (let cz = 0; cz < g.h; cz += this.chunk)
       for (let cx = 0; cx < g.w; cx += this.chunk) {
         const m = this.chunkMesh(cx, cz);
@@ -120,6 +178,12 @@ export class Terrain {
   /** Rebuilds the chunk meshes touching a corner rectangle (after land reclamation). */
   rebuildRegion(x0: number, z0: number, x1: number, z1: number): void {
     const c = this.chunk;
+    this.refreshCoast();
+    // A beach reaches a few tiles inland: chunks that far from the edit may change colour too.
+    x0 -= 4;
+    z0 -= 4;
+    x1 += 4;
+    z1 += 4;
     for (let cz = Math.floor(Math.max(0, z0 - 1) / c) * c; cz <= Math.min(this.grid.h - 1, z1 + 1); cz += c)
       for (let cx = Math.floor(Math.max(0, x0 - 1) / c) * c; cx <= Math.min(this.grid.w - 1, x1 + 1); cx += c) {
         const key = `${cx},${cz}`;
@@ -208,7 +272,7 @@ export class Terrain {
         pos[k] = x;
         pos[k + 1] = h;
         pos[k + 2] = z;
-        shade(tmp2, h, Math.hypot(sx, sz) / 2, x, z, this.seed).toArray(col, k);
+        shade(tmp2, h, Math.hypot(sx, sz) / 2, x, z, this.seed, this.coast[z * (g.w + 1) + x]).toArray(col, k);
       }
     const mesh = this.makeMesh(pos, col, this.gridIndex(n, n));
     mesh.name = `terrain@${x0},${z0}`;
@@ -230,6 +294,7 @@ export class Terrain {
     const hs = new Float32Array(n * n);
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) hs[j * n + i] = terrainHeight(min + i * step, min + j * step, this.seed, g.w);
     const at = (i: number, j: number) => hs[Math.min(n - 1, Math.max(0, j)) * n + Math.min(n - 1, Math.max(0, i))]!;
+    const coast = coastDistance(n, step, at);
     for (let j = 0; j < n; j++)
       for (let i = 0; i < n; i++) {
         const x = min + i * step;
@@ -242,7 +307,7 @@ export class Terrain {
         pos[k] = x;
         pos[k + 1] = h;
         pos[k + 2] = z;
-        shade(tmp2, h, Math.hypot(sx, sz) / 2, x, z, this.seed).toArray(col, k);
+        shade(tmp2, h, Math.hypot(sx, sz) / 2, x, z, this.seed, coast[j * n + i]).toArray(col, k);
       }
     // Index, skipping quads fully inside the playable map.
     const idx: number[] = [];

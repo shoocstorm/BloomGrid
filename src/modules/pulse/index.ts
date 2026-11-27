@@ -1,4 +1,5 @@
 import type { GameModule } from '@/game/context';
+import { settleClock } from '@/game/settle';
 import { TIERS } from '@/sim/pulseState';
 import { h } from '@/ui/dom';
 import { icon } from '@/ui/icons';
@@ -52,8 +53,11 @@ export const pulseModule: GameModule = {
       return true;
     }, -10);
     ctx.systems.add({ id: 'pulse.panel', phase: 'render', order: 110, update: (_c, f) => panel.update(f.dt) });
+    const settling = settleClock(ctx);
     ctx.bus.on('pulse:tier', ({ system, tier, prev }) => {
-      // A new city's first pulses settle occupancy and staffing from their starting values: no alarms yet.
+      // A new city's first pulses settle occupancy and staffing from their starting values: no alarms yet,
+      // and no "recovered" either (that is the city arriving where it already was).
+      if (settling() && tier <= prev) return;
       if (ctx.city.tick < 80) return;
       const worse = tier > prev;
       ctx.bus.emit('toast', {
