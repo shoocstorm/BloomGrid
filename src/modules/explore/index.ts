@@ -19,8 +19,8 @@ const LEDGE = 0.45;
 /** Eight directions for the room-to-stand test round a spawn. */
 const RING = Array.from({ length: 8 }, (_, k) => [Math.cos((k * Math.PI) / 4), Math.sin((k * Math.PI) / 4)] as const);
 
-export type ExploreMode = 'city' | 'tour' | 'walk' | 'board' | 'drone' | 'balloon' | 'roof' | 'follow' | 'train' | 'ferry' | 'jet';
-const CYCLE: ExploreMode[] = ['city', 'tour', 'walk', 'board', 'drone', 'balloon', 'roof', 'follow', 'train', 'ferry', 'jet'];
+export type ExploreMode = 'city' | 'tour' | 'walk' | 'board' | 'drone' | 'balloon' | 'roof' | 'follow' | 'train' | 'ferry' | 'jet' | 'pilot';
+const CYCLE: ExploreMode[] = ['city', 'tour', 'walk', 'board', 'drone', 'balloon', 'roof', 'follow', 'train', 'ferry', 'jet', 'pilot'];
 const LABELS: Record<ExploreMode, string> = {
   city: 'City view',
   tour: 'City tour',
@@ -33,6 +33,7 @@ const LABELS: Record<ExploreMode, string> = {
   train: 'Aeroline',
   ferry: 'Cruise ferry',
   jet: 'Sky Guard jet',
+  pilot: 'Pilot the jet',
 };
 /** Icon (`ui/icons.ts`) and menu note per mode. */
 const MENU: Record<ExploreMode, [icon: string, note: string]> = {
@@ -47,6 +48,7 @@ const MENU: Record<ExploreMode, [icon: string, note: string]> = {
   train: ['train', 'Ride the Aeroline maglev loop'],
   ferry: ['ferry', 'Sail the Tidesong to the sea wonders'],
   jet: ['jet', 'Chase the Sky Guard jet over the island'],
+  pilot: ['jet', 'Take the controls: fly the Sky Guard yourself'],
 };
 const HINTS: Record<ExploreMode, string> = {
   city: '',
@@ -60,6 +62,7 @@ const HINTS: Record<ExploreMode, string> = {
   train: 'Riding the Aeroline maglev round the island · Tab next train · drag to look · Esc city view',
   ferry: 'On the Tidesong’s bridge, sailing the timetable to the sea wonders · drag to look · Esc city view',
   jet: 'Chasing the Sky Guard jet on its patrol · drag to look · Esc city view',
+  pilot: 'Flying Bloom One · W/S climb · dive · A/D bank · E/Q throttle · Shift afterburner · Space roll · X smoke · V cockpit · Esc city view',
 };
 
 /** Player scale in world units (1 tile ≈ 11 m; a storey is 0.32). */
@@ -268,12 +271,12 @@ export const exploreModule: GameModule = {
     document.body.append(padEl);
     /** Which pad parts each mode uses (rides have no stick: they follow their pod or train). */
     const padFor = (m: ExploreMode) => {
-      const moves = ['walk', 'board', 'drone', 'balloon', 'roof'].includes(m);
+      const moves = ['walk', 'board', 'drone', 'balloon', 'roof', 'pilot'].includes(m);
       stick.classList.toggle('hidden', !moves);
-      pad.up.classList.toggle('hidden', !['walk', 'board', 'drone', 'balloon'].includes(m));
+      pad.up.classList.toggle('hidden', !['walk', 'board', 'drone', 'balloon', 'pilot'].includes(m));
       pad.down.classList.toggle('hidden', m !== 'drone' && m !== 'balloon');
       pad.next.classList.toggle('hidden', !['roof', 'follow', 'train'].includes(m));
-      pad.view.classList.toggle('hidden', !['walk', 'roof', 'balloon'].includes(m));
+      pad.view.classList.toggle('hidden', !['walk', 'roof', 'balloon', 'pilot'].includes(m));
       padEl.classList.toggle('hidden', m === 'city' || m === 'tour' || photo);
       if (m === 'city') release();
     };
@@ -375,7 +378,7 @@ export const exploreModule: GameModule = {
         ctx.bus.emit('toast', { text: 'No cruise ferry yet: complete the Tidesong cruise line project (Goals)', tone: 'bad' });
         next = 'city';
       }
-      if (next === 'jet' && !ctx.services.tryGet('skyguard')?.active) {
+      if ((next === 'jet' || next === 'pilot') && !ctx.services.tryGet('skyguard')?.active) {
         ctx.bus.emit('toast', { text: 'No Sky Guard yet: complete the Sky Guard air wing project (Goals)', tone: 'bad' });
         next = 'city';
       }
@@ -398,6 +401,12 @@ export const exploreModule: GameModule = {
       }
       const from = mode;
       mode = next;
+      // Flying the jet (D-233): it leaves its patrol while the player has it; the camera may roll with it.
+      if (from === 'pilot' || next === 'pilot') {
+        ctx.services.tryGet('skyguard')?.pilot(next === 'pilot');
+        camera.up.set(0, 1, 0);
+        firstPerson = false;
+      }
       if (from === 'city' && next !== 'roof') {
         savedView = cameraCtl.getView();
         spawnNear(cameraCtl.target.x, cameraCtl.target.z);
@@ -616,7 +625,7 @@ export const exploreModule: GameModule = {
       if (e.code === 'Escape') return setMode('city'), true;
       if ((mode === 'follow' || mode === 'train') && e.code === 'Tab') return (followIdx++, true);
       if (mode === 'roof' && e.code === 'Tab') return (pickRoof(followIdx + 1), true);
-      if (e.code === 'KeyV' && (mode === 'walk' || mode === 'roof' || mode === 'balloon')) {
+      if (e.code === 'KeyV' && (mode === 'walk' || mode === 'roof' || mode === 'balloon' || mode === 'pilot')) {
         firstPerson = !firstPerson;
         cross.classList.toggle('hidden', photo || !crossOn());
         return true;
@@ -881,6 +890,21 @@ export const exploreModule: GameModule = {
           if (!line?.trains) return setMode('city');
           line.ride(followIdx, eye, ahead);
           ride(eye, ahead);
+        } else if (mode === 'pilot') {
+          // The player flies the Sky Guard (D-233): the stick from WASD / arrows (the touch pad writes the same keys).
+          const sg = ctx.services.tryGet('skyguard');
+          if (!sg?.active) return setMode('city');
+          const stick = {
+            pitch: iz,
+            roll: ix,
+            throttle: (k.has('KeyE') ? 1 : 0) - (k.has('KeyQ') ? 1 : 0),
+            boost: fast,
+          };
+          sg.fly(dt, stick, (x, z) => Math.max(U.waterLevel.value, collider.groundAt(x, z, 999)), firstPerson, eye, ahead, tmp);
+          camera.position.copy(eye);
+          camera.up.copy(tmp);
+          camera.lookAt(ahead);
+          pos.copy(eye);
         } else if (mode === 'ferry' || mode === 'jet') {
           // The cruise ferry's sun deck, or behind the Sky Guard jet (D-141).
           const by = mode === 'ferry' ? ctx.services.tryGet('ferry') : ctx.services.tryGet('skyguard');
@@ -889,7 +913,7 @@ export const exploreModule: GameModule = {
         }
         // Everything that focuses on the camera target (shadows, fog, pollen, agents) follows the player.
         cameraCtl.target.set(pos.x, Math.max(0, g().heightAt(pos.x, pos.z)), pos.z);
-        cameraCtl.distance = ['drone', 'balloon', 'roof', 'follow', 'train', 'ferry', 'jet'].includes(mode) ? Math.max(8, pos.y - cameraCtl.target.y + 6) : 6;
+        cameraCtl.distance = ['drone', 'balloon', 'roof', 'follow', 'train', 'ferry', 'jet', 'pilot'].includes(mode) ? Math.max(8, pos.y - cameraCtl.target.y + 6) : 6;
         cameraCtl.yaw = yaw + Math.PI;
       },
     });

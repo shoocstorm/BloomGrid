@@ -3,7 +3,7 @@ id: basics-ferry-skyguard
 title: The cruise ferry and the Sky Guard jet
 category: basics
 summary: The Tidesong cruise ferry's timetable to the sea wonders and what you can ask its captain (depart, full ahead, charter, deck show, horn, ride), and the Sky Guard jet's patrol and controls (chase cam, victory roll, afterburner, display smoke).
-tags: [ferry, cruise, ship, boat, tidesong, pier, timetable, speed up, full ahead, charter, deck show, horn, ride, jet, sky guard, fighter, plane, afterburner, roll, smoke, chase]
+tags: [pilot, fly the jet, cockpit, hud, ferry, cruise, ship, boat, tidesong, pier, timetable, speed up, full ahead, charter, deck show, horn, ride, jet, sky guard, fighter, plane, afterburner, roll, smoke, chase]
 related: [basics-on-foot, basics-welcome]
 order: 65
 ---
@@ -44,6 +44,19 @@ island at about Mach 1.6, banking hard at each end and rolling as it crosses the
 Click it (the click area is generous, it is fast) for its card: speed, altitude, heading and load.
 
 - **Chase cam**: fly behind it (also in the view menu as Sky Guard jet; Esc to return).
+- **Pilot**: fly it yourself (also *Pilot the jet* in the view menu; see the next section).
+
+## How do I fly the jet myself?
+
+Press **Pilot** in the jet's card, or pick *Pilot the jet* in the view menu. **W / S** (or ↑ / ↓) climb and dive,
+**A / D** (or ← / →) bank, and banking turns the jet; pulling up while banked turns it harder. **E / Q** move the
+throttle, hold **Shift** for the afterburner, **Space** rolls, **X** trails display smoke, **V** switches between the
+chase view and the cockpit. On a phone the joystick flies it (push it to the rim for the afterburner).
+
+The HUD shows a pitch ladder (in the cockpit), the heading tape, speed in knots and Mach with the throttle, altitude
+and climb rate, the load in g, and a radar of the island with the jet in the middle. It can't crash: near the ground,
+a roof or the sea it pulls up by itself and shows PULL UP, and far out over the sea (RETURN TO ISLAND) it turns for
+home. **Esc** hands the controls back and the jet glides onto its patrol again.
 - **Victory roll**: a full roll right away.
 - **Afterburner**: ten seconds of extra speed with long flames.
 - **Display smoke**: sea-green, white and gold trails instead of plain contrails.

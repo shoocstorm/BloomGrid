@@ -75,7 +75,8 @@ body.building .build-fab {
   padding: 8px 14px 8px 11px;
   border: 1px solid var(--line-strong);
   border-radius: var(--pill);
-  background: var(--bg-strong);
+  /* Opaque: these float over the map, and a see-through pill over roofs and roads reads as a glitch. */
+  background: #0a1b1d;
   color: var(--accent);
   font-weight: 600;
   font-size: 12.5px;
@@ -85,7 +86,8 @@ body.building .build-fab {
 }
 .build-quick:hover {
   transform: translateY(-2px);
-  background: var(--bg-hover);
+  /* The hover tint over an opaque base (the tint alone let the map show through). */
+  background: linear-gradient(var(--bg-hover), var(--bg-hover)), #0a1b1d;
 }
 .build-quick .ico {
   width: 16px;
@@ -96,7 +98,7 @@ body.building .build-fab {
   color: var(--crit);
 }
 .build-quick.bq-bulldoze:hover {
-  background: rgba(255, 90, 110, 0.12);
+  background: linear-gradient(rgba(255, 90, 110, 0.16), rgba(255, 90, 110, 0.16)), #0a1b1d;
 }
 body.building .build-quick {
   display: none;
@@ -664,7 +666,8 @@ body:not(.compact) .build {
   padding: 7px 14px 7px 11px;
   border: 1px solid var(--line-strong);
   border-radius: var(--pill);
-  background: var(--bg-strong);
+  /* Opaque: these float over the map, and a see-through pill over roofs and roads reads as a glitch. */
+  background: #0a1b1d;
   color: var(--accent);
   font-size: 12.5px;
   font-weight: 600;

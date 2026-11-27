@@ -4207,3 +4207,44 @@ or Enter to charter), the voyage's course with the sailed stretch lit, the sight
 ship (gliding on a CSS transform transition between the inspector's twice-a-second reads, no animation loop), and a
 pier → loop → home bar. The whale pods roam (D-231), so their course is planned afresh at each departure and stays
 fixed for the voyage.
+
+## D-233 — Pilot the Sky Guard (2026-11-27)
+
+The jet could only be watched or chased. Explore mode `pilot` (view menu *Pilot the jet*, the jet's **Pilot** button)
+hands the player the controls: an arcade flight model (`modules/skyguard/pilot.ts`, `JetPilot`) with heading, pitch
+and bank, a throttle and an afterburner; banking turns, pulling while banked tightens the turn, dives gain speed.
+Assists, not a simulator: the wings level when the stick is centred, the jet pulls itself up over ground, roofs and
+sea (looking ahead by its speed) with PULL UP, holds a ceiling, and banks itself home past the archipelago's edge.
+No crash. Keys: W/S climb · dive (up is up, not a flight stick), A/D bank, E/Q throttle, Shift afterburner, Space
+roll, X smoke, V cockpit / chase; the phone pad's joystick writes the same keys (rim = afterburner). The chase camera
+leans 45 % into the bank (all of it was dizzying); the cockpit rolls fully, and only there does the HUD draw its
+pitch ladder (where it truly sits on the horizon). The HUD (`pilotHud.ts`) is a body-level layer (the city HUD hides
+its panels in explore modes): ladder, bank pointer, heading tape and a heading-up radar move by `transform` each
+frame, numbers at 10 Hz. While piloted the patrol's shader contrails (which follow the patrol curve) are hidden and a
+CPU ribbon of the jet's last positions trails it (≈3 KB a frame, only while piloted). Leaving finds the nearest patrol
+phase and glides the jet onto it over 3 s (position lerp, attitude slerp).
+
+## D-234 — The sky-lane rosette (2026-11-27)
+
+From above the showcase's sky-lanes were a tangle: interchanges every third town block, five crowded round the
+centre, joined by a minimum spanning tree and a star from the Nexus. Two changes. **Topology** (`sim/skylanes.ts`):
+round a central hub, the other hubs of its network fall into rings by distance (a jump of 30 % and 12 tiles starts the
+next; a ring of one or two joins the one outside it); the Nexus links to the inner ring, each ring links round itself
+(neighbours within 110°), and each outer hub links to the inner hub in line with it (within 12°) or to the two either
+side, a petal. Ring links bow by their arc's sagitta (`tan(Δθ/4)/2`, away from the centre) and petal edges bulge 0.12
+away from the petal's axis: `SkyLink.bow`, which the mobility module's `legOf` honours for the lane and every pod on
+it (lifted to clear, never bent elsewhere). Hubs the rings leave out still join by the tree's edges, so networks and
+their rider bonuses are unchanged. **Placement** (`founding-city.ts`): the Pod Interchanges are two rings round the
+Nexus, an inner circle through the Dragonfly Skyport (its angle and distance) and an outer ellipse like the island
+(150 × 104 tiles), half a step turned so every other outer hub is a petal tip; each on the nearest open lot, with an
+access road to the nearest street once the countryside's roads are laid (two outer hubs stand in open country, 50
+tiles from a street, and a hub off the road network never opens). 19 hubs (17 before), 43 trunks, `clearance()`
+clipped 0; zoning, grading and mobility guards pass. `tests/rosette.test.ts` holds it on two seeds.
+
+## D-235 — HUD polish: opaque quick buttons, a wider season card, the way-back card times out like the rest (2026-11-27)
+
+The Highway / Remove quick buttons' hover background was a translucent tint, so the map showed through: the tint now
+sits over an opaque base. The season and weather card is 340 px with its headline kept on one line ("Day 1 of 2 ·
+3% through · 12 min left" wrapped at 268). The "Back to where you were" card closed after 20 s (the call-out time) with
+no sign it would: it now takes the cards' 12 s, with a hairline draining along its foot (transform only; paused on
+hover, restarted when the pointer leaves, as the countdown is).

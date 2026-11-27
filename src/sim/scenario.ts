@@ -78,6 +78,13 @@ export function applyScenario(city: City, id: string): { buildings: number; road
       placed++;
       return true;
     },
+    roadAt: (x, z) => g.inBounds(x, z) && g.road[g.index(x, z)] !== 0,
+    centre(id) {
+      const def = buildings.get(id);
+      for (const eid of city.buildingEntities())
+        if (city.buildingDef(eid) === def) return [Building.x[eid]! + Building.w[eid]! / 2, Building.z[eid]! + Building.d[eid]! / 2];
+      return null;
+    },
     fill(x0, z0, x1, z1, weights, density = 1, limit = Infinity) {
       const ids = Object.keys(weights);
       const sum = ids.reduce((a, k) => a + weights[k]!, 0);

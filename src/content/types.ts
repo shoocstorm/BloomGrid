@@ -271,6 +271,10 @@ export interface ScenarioBuilder {
   roadLevel(x0: number, z0: number, x1: number, z1: number, level: number): void;
   /** Tries to place a building; returns false if invalid. */
   building(def: string, x: number, z: number, rot?: number): boolean;
+  /** Whether a highway (or bridge) tile is laid at (x, z). */
+  roadAt(x: number, z: number): boolean;
+  /** Centre (tiles) of the first building of type `def` placed so far, or null. */
+  centre(def: string): [number, number] | null;
   /** Fills free road-adjacent land in a rectangle using weighted building picks. Returns count. */
   fill(x0: number, z0: number, x1: number, z1: number, weights: Record<string, number>, density?: number, limit?: number): number;
   isLand(x: number, z: number): boolean;

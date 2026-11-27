@@ -485,6 +485,13 @@ export const mobilityModule: GameModule = {
      * Symmetric in its ends (the reverse leg bows the other way, the same track).
      */
     const legCache = new Map<string, number>();
+    /**
+     * Designed curves (D-234): trunks the network lays out as a rosette carry their own bow (`SkyLink.bow`), keyed by
+     * their ends (to half a tile) for a → b; the lane and every pod flying it follow that curve, lifted to clear.
+     */
+    const designed = new Map<string, number>();
+    const endKey = (ax: number, az: number, bx: number, bz: number) =>
+      `${Math.round(ax * 2)},${Math.round(az * 2)},${Math.round(bx * 2)},${Math.round(bz * 2)}`;
     const legOf = (ax: number, az: number, ya: number, bx: number, bz: number, yb: number) => {
       const flip = !(ax < bx || (ax === bx && az <= bz));
       const key = flip ? `${bx},${bz},${yb},${ax},${az},${ya}` : `${ax},${az},${ya},${bx},${bz},${yb}`;
@@ -492,7 +499,11 @@ export const mobilityModule: GameModule = {
       if (best === undefined) {
         const [px, pz, py, qx, qz, qy] = flip ? [bx, bz, yb, ax, az, ya] : [ax, az, ya, bx, bz, yb];
         let score = Infinity;
-        for (const bow of BOWS) {
+        const fwd = designed.get(endKey(px, pz, qx, qz));
+        const back = designed.get(endKey(qx, qz, px, pz));
+        const want = fwd ?? (back !== undefined ? -back : undefined);
+        if (want !== undefined) best = legCode(liftFor(px, pz, py, qx, qz, qy, want), want);
+        else for (const bow of BOWS) {
           const lift = liftFor(px, pz, py, qx, qz, qy, bow);
           const sc = lift + Math.abs(bow) * BOW_COST;
           if (sc < score - 1e-6) [score, best] = [sc, legCode(lift, bow)];
@@ -547,6 +558,17 @@ export const mobilityModule: GameModule = {
     const buildSkylanes = () => {
       if (topsDirty) refreshTops();
       legCache.clear();
+      designed.clear();
+      for (const l of city.pulse.skylanes.links) {
+        if (l.kind !== 'trunk' || l.bow === undefined) continue;
+        // The lane runs between the hubs' ring points (see `ringAt` below), on the hub centres' bearing.
+        const [ha, hb] = [city.pulse.skylanes.hubs[l.a]!, city.pulse.skylanes.hubs[l.b]!];
+        const ra = buildings.get(ha.def).transit!.hub!.radius;
+        const rb = buildings.get(hb.def).transit!.hub!.radius;
+        const len = Math.max(0.001, Math.hypot(hb.x - ha.x, hb.z - ha.z));
+        const [ux, uz] = [(hb.x - ha.x) / len, (hb.z - ha.z) / len];
+        designed.set(endKey(ha.x + ux * ra, ha.z + uz * ra, hb.x - ux * rb, hb.z - uz * rb), l.bow);
+      }
       Object.assign(stats, { lanes: 0, lifted: 0, bowed: 0, clipped: 0, clippedEnds: 0 });
       const pr = podRoute.array as Float32Array;
       const pv = podVia.array as Float32Array;

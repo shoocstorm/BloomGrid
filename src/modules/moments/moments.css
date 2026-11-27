@@ -456,3 +456,32 @@ body.moment-on #hud {
 body.moment-return .rc {
   visibility: hidden;
 }
+
+/* The way-back card's idle countdown (D-232): a hairline draining along its foot, paused while hovered (as the
+   countdown is). Transform only, on the compositor. */
+.mr-drain {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 5px;
+  height: 2px;
+  border-radius: var(--pill);
+  background: var(--accent);
+  opacity: 0.5;
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+.mr-drain.run {
+  animation: mr-drain var(--mr-idle, 12s) linear forwards;
+}
+.mr:hover .mr-drain {
+  animation-play-state: paused;
+}
+@keyframes mr-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}

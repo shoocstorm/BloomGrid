@@ -7,7 +7,11 @@ import { buildings } from '@/content';
  * each other by trunks (a minimum spanning tree over hubs within `TRUNK_MAX`, where a link to a central hub
  * costs half, so the Nexus becomes the backbone; a central hub also links straight to every hub in its reach).
  * A linked dock flies its riders anywhere on the network, so it carries more (`NETWORK_BONUS`, more again when
- * the network has a central hub). Aeroline stations are transfer points (D-052): each links by a rail link to
+ * the network has a central hub). Round a central hub the trunks are laid out as a rosette instead (D-234): the
+ * other hubs fall into rings by distance, the Nexus links to the inner ring, each ring links round itself, and each
+ * hub of an outer ring links to the inner hub in line with it, or the two either side (a petal); ring links follow
+ * their circle and petal edges bulge (`bow`), so from above the network reads as a flower. Hubs the rings leave
+ * out still join by the spanning tree. Aeroline stations are transfer points (D-052): each links by a rail link to
  * the nearest hub within reach (`RAIL_REACH` beyond the hub's own), so riders can fly in and change to the trains;
  * a network with a station carries more again (`RAIL_BONUS`), and a linked station takes more riders
  * (`RAIL_FEED`: pods bring them from beyond its walking radius). Derived each mobility pass from buildings alone:
@@ -51,6 +55,11 @@ export interface SkyLink {
   bz: number;
   /** Dock or station entity (-1 for trunks). */
   eid: number;
+  /**
+   * A designed curve for the lane (D-234): its offset at the middle as a share of its length, to the left of a → b
+   * (the renderer's `legXZ` bow). Unset: the renderer picks the bow that keeps the lane lowest.
+   */
+  bow?: number;
 }
 
 export interface SkyNet {
@@ -100,14 +109,19 @@ export function buildSkyNet(stops: TransitStop[]): SkyNet {
   const n = hubs.length;
   const inTree = new Uint8Array(n);
   const has = new Set<string>();
-  const trunk = (i: number, j: number) => {
+  const trunk = (i: number, j: number, bow?: number) => {
     const [a, b] = i < j ? [i, j] : [j, i];
     const key = `${a}-${b}`;
     if (has.has(key)) return;
     has.add(key);
     const [ha, hb] = [hubs[a]!, hubs[b]!];
-    links.push({ kind: 'trunk', a, b, ax: ha.x, az: ha.z, bx: hb.x, bz: hb.z, eid: -1 });
+    // The bow was given for i → j; the link runs a → b.
+    const link: SkyLink = { kind: 'trunk', a, b, ax: ha.x, az: ha.z, bx: hb.x, bz: hb.z, eid: -1 };
+    if (bow !== undefined) link.bow = a === i ? bow : -bow;
+    links.push(link);
   };
+  /** The spanning tree's edges, laid after the rosettes (only those still needed to join a hub in). */
+  const tree: [number, number][] = [];
   const cost = (i: number, j: number) => {
     const [hi, hj] = [hubs[i]!, hubs[j]!];
     const d = Math.sqrt(d2(hi.x, hi.z, hj.x, hj.z));
@@ -131,19 +145,17 @@ export function buildSkyNet(stops: TransitStop[]): SkyNet {
       inTree[bj] = 1;
       members.push(bj);
       hubs[bj]!.net = root;
-      trunk(bi, bj);
+      tree.push([bi, bj]);
     }
   }
-  for (let i = 0; i < n; i++) {
-    if (!hubs[i]!.central) continue;
-    const r = Math.min(TRUNK_MAX, reach(hubs[i]!));
-    for (let j = 0; j < n; j++)
-      if (
-        j !== i &&
-        hubs[j]!.net === hubs[i]!.net &&
-        d2(hubs[i]!.x, hubs[i]!.z, hubs[j]!.x, hubs[j]!.z) <= r * r
-      )
-        trunk(i, j);
+  // Rosettes round central hubs; then the tree's edges that join anything the rosettes left apart.
+  const joined = rosettes(hubs, trunk);
+  const find = (i: number): number => (joined[i] === i ? i : (joined[i] = find(joined[i]!)));
+  for (const [i, j] of tree) {
+    const [a, b] = [find(i), find(j)];
+    if (a === b) continue;
+    joined[a] = b;
+    trunk(i, j);
   }
 
   // Spokes: each dock to the nearest hub whose reach covers it.
@@ -195,4 +207,102 @@ export function buildSkyNet(stops: TransitStop[]): SkyNet {
   for (const [dk, i] of hubOf) dk.cap *= 1 + bonus(hubs[i]!.net);
   hubs.forEach((h, i) => (hubStop[i]!.cap *= 1 + bonus(h.net)));
   return { hubs, links };
+}
+
+/** Distance growth that starts a new ring round a central hub (and a floor in tiles). */
+const RING_GAP = 1.3;
+const RING_GAP_MIN = 12;
+/** Ring neighbours further apart than this (radians) are not linked; an outer hub this close in angle is "in line". */
+const RING_SPAN = (110 * Math.PI) / 180;
+const IN_LINE = (12 * Math.PI) / 180;
+/** How far petal edges bulge (share of their length). */
+const PETAL_BOW = 0.12;
+
+/**
+ * Lays the rosette round each central hub (see the file comment) through `trunk(i, j, bow)` and returns a union-find
+ * parent array of what it joined (index → parent), for the spanning tree to complete.
+ */
+function rosettes(hubs: SkyHub[], trunk: (i: number, j: number, bow?: number) => void): number[] {
+  const parent = hubs.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i]!)));
+  const link = (i: number, j: number, bow?: number) => {
+    const [hi, hj] = [hubs[i]!, hubs[j]!];
+    if (Math.hypot(hi.x - hj.x, hi.z - hj.z) > TRUNK_MAX) return;
+    trunk(i, j, bow);
+    parent[find(i)] = find(j);
+  };
+  /** The bow that bulges the link i → j toward the point (ox, oz) (`amount` of its length at the middle). */
+  const bowToward = (i: number, j: number, ox: number, oz: number, amount: number) => {
+    const [a, b] = [hubs[i]!, hubs[j]!];
+    const [mx, mz] = [(a.x + b.x) / 2, (a.z + b.z) / 2];
+    // Left of a → b is (−dz, dx).
+    const side = -(b.z - a.z) * (ox - mx) + (b.x - a.x) * (oz - mz);
+    return side >= 0 ? amount : -amount;
+  };
+  hubs.forEach((c, ci) => {
+    if (!c.central) return;
+    const reach = buildings.at(Building.def[c.eid]!).transit!.hub!.reach;
+    const around = hubs
+      .map((h, i) => ({ i, d: Math.hypot(h.x - c.x, h.z - c.z), a: Math.atan2(h.z - c.z, h.x - c.x) }))
+      .filter((o) => o.i !== ci && hubs[o.i]!.net === c.net && o.d <= Math.max(reach, TRUNK_MAX) * 1.4)
+      .sort((p, q) => p.d - q.d || p.i - q.i);
+    // Rings by distance: a jump of more than RING_GAP (and RING_GAP_MIN tiles) starts the next one.
+    const rings: (typeof around)[] = [];
+    for (const o of around) {
+      const ring = rings[rings.length - 1];
+      const last = ring?.[ring.length - 1];
+      if (!ring || (o.d > last!.d * RING_GAP && o.d - last!.d > RING_GAP_MIN)) rings.push([o]);
+      else ring.push(o);
+    }
+    // A "ring" of one or two (a hub a little nearer than its fellows) belongs to the ring outside it.
+    for (let k = rings.length - 2; k >= 0; k--) if (rings[k]!.length < 3) rings.splice(k, 2, [...rings[k]!, ...rings[k + 1]!]);
+    for (const ring of rings) ring.sort((p, q) => p.a - q.a || p.i - q.i);
+    const gap = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(b - a), Math.cos(b - a)));
+    rings.forEach((ring, k) => {
+      // The inner ring hangs on the Nexus by straight spokes.
+      if (k === 0) for (const o of ring) link(ci, o.i);
+      // Round the ring, each link following the circle (bulging away from the centre by its arc's sagitta).
+      if (ring.length >= 3)
+        ring.forEach((o, m) => {
+          const nx = ring[(m + 1) % ring.length]!;
+          const span = gap(o.a, nx.a);
+          if (span > RING_SPAN) return;
+          const sag = Math.tan(span / 4) / 2;
+          const [a, b] = [hubs[o.i]!, hubs[nx.i]!];
+          const [mx, mz] = [(a.x + b.x) / 2, (a.z + b.z) / 2];
+          link(o.i, nx.i, bowToward(o.i, nx.i, mx + (mx - c.x), mz + (mz - c.z), sag));
+        });
+      if (k === 0) return;
+      // Out to the ring inside: the hub in line (straight), or a petal to the two either side.
+      const inner = rings[k - 1]!;
+      for (const o of ring) {
+        const line = inner.find((q) => gap(q.a, o.a) < IN_LINE);
+        if (line) {
+          link(line.i, o.i);
+          continue;
+        }
+        // The nearest inner hub on each side of it by angle.
+        const wrap = (x: number) => ((x % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+        let left = inner[0]!;
+        let right = inner[0]!;
+        for (const q of inner) {
+          if (wrap(q.a - o.a) < wrap(left.a - o.a)) left = q;
+          if (wrap(o.a - q.a) < wrap(o.a - right.a)) right = q;
+        }
+        for (const q of left === right ? [left] : [left, right]) {
+          if (gap(q.a, o.a) > RING_SPAN / 1.5) continue;
+          // A petal: each edge bulges away from the petal's axis (the line from the centre through its tip).
+          const tip = hubs[o.i]!;
+          const base = hubs[q.i]!;
+          const [ax, az] = [tip.x - c.x, tip.z - c.z];
+          const len = Math.hypot(ax, az) || 1;
+          // The base's side of the axis, pushed further out on that side.
+          const side = Math.sign((base.x - c.x) * -az / len + (base.z - c.z) * ax / len) || 1;
+          const [px, pz] = [(tip.x + base.x) / 2 + (-az / len) * side * 50, (tip.z + base.z) / 2 + (ax / len) * side * 50];
+          link(q.i, o.i, bowToward(q.i, o.i, px, pz, PETAL_BOW));
+        }
+      }
+    });
+  });
+  return parent;
 }

@@ -417,6 +417,66 @@ export default defineScenario({
         else fillInBlocks([x0 + k, z0, x0 + k + 1, z1]);
       }
     }
+    // The sky-lane rosette (D-234): Pod Interchanges on two rings round the Skylane Nexus, while their lots are open.
+    // The network links them as a flower (`sim/skylanes.ts`): spokes from the Nexus to the inner ring, each ring
+    // round itself, and the outer hubs in line with the inner ones or as petal tips between them. The inner ring is
+    // a circle through the Dragonfly Skyport (a hub of its own), the outer an ellipse like the island, half a
+    // step turned so every other tip falls between two inner hubs. A hub goes on the nearest open lot to its spot.
+    const nexus = b.centre('skylane-nexus');
+    const port = b.centre('dragonfly-port');
+    /** Spots with no lot yet (open country with no street in reach): tried again once the wind farms' roads run. */
+    const pendingHubs: [number, number][] = [];
+    /** Where each ring hub went (north-west tile), for its access road once the countryside's roads are laid. */
+    const placedHubs: [number, number][] = [];
+    const hub = (tx: number, tz: number, reach = 9) => {
+      for (let r = 0; r <= reach; r++)
+        for (let dz = -r; dz <= r; dz++)
+          for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+            const [x, z] = [Math.round(tx - 2) + dx, Math.round(tz - 2) + dz];
+            if (b.isLand(x + 2, z + 2) && b.building('pod-interchange', x, z, 0)) return placedHubs.push([x, z]), true;
+          }
+      return false;
+    };
+    /**
+     * A hub out in open country gets an access road: straight out from the middle of one of its sides to the nearest
+     * street within reach (a hub off the road network never opens). Run once the countryside's roads are laid.
+     */
+    function access(x: number, z: number): void {
+      const sides: [number, number, number, number][] = [
+        [x + 2, z - 1, 0, -1],
+        [x + 2, z + 4, 0, 1],
+        [x - 1, z + 2, -1, 0],
+        [x + 4, z + 2, 1, 0],
+      ];
+      for (const [sx2, sz2] of sides) if (b.roadAt(sx2, sz2)) return;
+      let best: [number, number, number, number, number] | null = null;
+      for (const [sx2, sz2, dx, dz] of sides)
+        for (let n = 1; n <= 60; n++) {
+          const [px, pz] = [sx2 + dx * n, sz2 + dz * n];
+          if (!b.isLand(px, pz)) break;
+          if (b.roadAt(px, pz)) {
+            if (!best || n < best[4]) best = [sx2, sz2, px - dx, pz - dz, n];
+            break;
+          }
+        }
+      if (best) b.road(best[0], best[1], best[2], best[3]);
+    }
+    if (nexus) {
+      const [nx, nz] = nexus;
+      const a0 = port ? Math.atan2(port[1] - nz, port[0] - nx) : Math.PI / 6;
+      const r1 = port ? Math.min(60, Math.max(40, Math.hypot(port[0] - nx, port[1] - nz))) : 50;
+      for (let k = 1; k < 6; k++) {
+        const a = a0 + (k * Math.PI) / 3;
+        hub(nx + Math.cos(a) * r1, nz + Math.sin(a) * r1);
+      }
+      if (!port) hub(nx + Math.cos(a0) * r1, nz + Math.sin(a0) * r1);
+      for (let k = 0; k < 12; k++) {
+        const a = a0 + (k * Math.PI) / 6;
+        const [tx, tz] = [nx + Math.cos(a) * 150, nz + Math.sin(a) * 104];
+        if (!hub(tx, tz)) pendingHubs.push([tx, tz]);
+      }
+    }
     fillRect(tiles([-3, 4, -2, 5]), { 'supertree-grove': 1 }, 1, 1);
     b.fill(0.46 * S, 0.66 * S, 0.66 * S, 0.8 * S, { 'lotus-pavilion': 1 }, 1, 1);
     // Meridian Arena's venues first, while their blocks are open: the stadium, the pools and the velodrome.
@@ -430,13 +490,8 @@ export default defineScenario({
       const [i0, j0, i1, j1] = t.blocks;
       for (let j = j0 + 1; j <= j1; j += 4) for (let i = i0 + 1; i <= i1; i += 4) fillRect(tiles([i, j, i, j]), { 'ember-watch': 1 }, 1, 1);
     }
-    // Pod Interchanges every third block of each living town (radius 22 covers the blocks round it): the
-    // backbone of public transport once jobs are zoned away from homes (D-049).
-    for (const t of TOWNS) {
-      const [i0, j0, i1, j1] = t.blocks;
-      for (let j = j0 + 1; j <= j1; j += 3)
-        for (let i = i0 + 1; i <= i1; i += 3) if (!subZoneAt(t, i, j)) fillRect(tiles([i, j, i, j]), { 'pod-interchange': 1 }, 1, 1);
-    }
+    // The towns' Pod Interchanges are the sky-lane rosette's (above, D-234): every third block of each living
+    // town used to take one, and the trunks between them were a tangle from above (D-049).
     // Pod Docks on every living block: a home's road commuters travel in one stream to the nearest workplace,
     // and with jobs zoned away from homes those streams would jam the streets between, so most fly instead.
     // Work, industry, venue and sport blocks need none (docks lift commuters from homes). A dock reaches 12
@@ -521,6 +576,10 @@ export default defineScenario({
     const islet = isletRect;
     fillRect(islet, { 'ember-watch': 1 }, 1, 1);
 
+    // The rosette's outer hubs in open country, now that the wind farms' roads reach them (D-234).
+    for (const [tx, tz] of pendingHubs) hub(tx, tz, 14);
+    for (const [x, z] of placedHubs) access(x, z);
+
     // A city that grew from its centre (D-155): the hero district and the blocks round it stand at level 3, the
     // middle rings at level 2 and the edge at level 1, the steps feathered so no street is a hard line between
     // levels. Applied before the sweeps below, which then size power, jobs and food for the grown city. The
@@ -595,7 +654,7 @@ export default defineScenario({
         const built: [number, number][] = [];
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (heroBlocks!.has(`${i},${j}`)) built.push([i, j]);
         built.sort((p, q2) => Math.max(Math.abs(p[0]), Math.abs(p[1])) - Math.max(Math.abs(q2[0]), Math.abs(q2[1])));
-        built.some(([i, j]) => fillRect(tiles([i, j, i, j]), { 'pod-interchange': 1 }, 1, 1) > 0);
+        // (Their interchanges are the rosette's inner ring, D-234.)
         for (const [i, j] of built) dockSides(i, j, 'n');
       }
       // An Ember Watch station for the centre's living and work quarters.

@@ -27,7 +27,8 @@ body.city-paused .jc-top,
 body.city-paused .ch-top,
 body.city-paused .ia-card,
 body.city-paused .mode-bar,
-body.city-paused .mode-frame {
+body.city-paused .mode-frame,
+body.city-paused .jh {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;

@@ -782,3 +782,13 @@
 .si-fc .si-sec {
   margin: 0;
 }
+/* The season card's headline ("Day 1 of 2", "3% through · 12 min left") fits on one line: wider than a stat's card. */
+.si-card.si-season {
+  width: 340px;
+}
+.si-card.si-season .si-val,
+.si-card.si-season .si-val b,
+.si-card.si-season .si-val span,
+.si-card.si-season .si-h > b {
+  white-space: nowrap;
+}

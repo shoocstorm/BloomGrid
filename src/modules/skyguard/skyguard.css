@@ -1,0 +1,347 @@
+/* The pilot's HUD (D-233): instrument green-teal lines over the view, nothing clickable. Moves by transform only. */
+.jh {
+  --hud: #9dffd8;
+  --hud-dim: rgb(157 255 216 / 0.7);
+  /* A dark outline round every line and letter, so the HUD reads over a bright sky as well as the sea. */
+  --hud-edge: 0 0 1px rgb(0 20 16 / 0.95), 0 0 4px rgb(0 20 16 / 0.7);
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  color: var(--hud);
+  font-family: var(--mono);
+  font-weight: 600;
+  text-shadow: var(--hud-edge);
+}
+.jh-rung,
+.jh-tick,
+.jh-bore,
+.jh-thr {
+  box-shadow: var(--hud-edge);
+}
+.jh.hidden {
+  display: none;
+}
+.jh-ladder-win {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 360px;
+  height: 52%;
+  translate: -50% -50%;
+  overflow: hidden;
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 55%, transparent 100%);
+  display: none;
+}
+.jh.cockpit .jh-ladder-win {
+  display: block;
+}
+.jh-ladder {
+  position: absolute;
+  inset: 0;
+}
+.jh-rung {
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  top: calc(50% - var(--deg) * var(--pxdeg, 12px));
+  height: 0;
+  border-top: 2px solid var(--hud);
+}
+.jh-rung.below {
+  border-top-style: dashed;
+}
+.jh-rung.horizon {
+  left: -30%;
+  right: -30%;
+  border-top-width: 2px;
+}
+.jh-rl,
+.jh-rr {
+  position: absolute;
+  top: -8px;
+  font-size: 11px;
+}
+.jh-rl {
+  right: calc(100% + 6px);
+}
+.jh-rr {
+  left: calc(100% + 6px);
+}
+.jh-bore {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 14px;
+  translate: -50% -50%;
+  border: 2px solid var(--hud);
+  border-top: none;
+  border-radius: 0 0 22px 22px;
+}
+.jh-bore::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  width: 4px;
+  height: 4px;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: var(--hud);
+}
+.jh-bank {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 240px;
+  height: 240px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  border-top-color: var(--hud-dim);
+}
+.jh-bank-ptr {
+  position: absolute;
+  inset: 0;
+}
+.jh-bank-ptr::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  translate: -50% 0;
+  border: 6px solid transparent;
+  border-top: 9px solid var(--hud);
+}
+.jh-tape-win {
+  position: absolute;
+  left: 50%;
+  top: 78px;
+  width: 420px;
+  height: 30px;
+  translate: -50% 0;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+.jh-tape {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+}
+.jh-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 7px;
+  background: var(--hud-dim);
+}
+.jh-tick.major {
+  height: 12px;
+  background: var(--hud);
+}
+.jh-tl {
+  position: absolute;
+  top: 13px;
+  left: 0;
+  translate: -50% 0;
+  font-size: 12px;
+}
+.jh-caret {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  translate: -50% 0;
+  border: 6px solid transparent;
+  border-bottom: 8px solid var(--hud);
+}
+.jh-hdg {
+  background: rgb(4 20 18 / 0.6);
+  position: absolute;
+  left: 50%;
+  top: 112px;
+  translate: -50% 0;
+  padding: 1px 8px;
+  border: 1px solid var(--hud);
+  font-size: 14px;
+  font-weight: 700;
+}
+.jh-box {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  min-width: 104px;
+  padding: 8px 12px;
+  border: 1px solid var(--hud-dim);
+  border-radius: 6px;
+  background: rgb(4 20 18 / 0.6);
+}
+.jh-box.left {
+  left: calc(50% - 300px);
+  text-align: right;
+}
+.jh-box.right {
+  right: calc(50% - 300px);
+}
+.jh-cap {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--hud-dim);
+}
+.jh-big {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.jh-small {
+  font-size: 11px;
+}
+.jh-thr {
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: rgb(141 255 208 / 0.18);
+  overflow: hidden;
+}
+.jh-thr-fill {
+  height: 100%;
+  background: var(--hud);
+  transform-origin: 0 50%;
+}
+.jh-flags {
+  position: absolute;
+  left: 50%;
+  bottom: 92px;
+  translate: -50% 0;
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+}
+.jh-flag {
+  background: rgb(4 20 18 / 0.55);
+  padding: 1px 7px;
+  border: 1px solid var(--hud-dim);
+  color: var(--hud-dim);
+}
+.jh-flag.on {
+  border-color: var(--hud);
+  color: var(--hud);
+}
+.jh-flag.ab.on {
+  border-color: #ffb36b;
+  color: #ffb36b;
+}
+.jh-flags .jh-flag:first-child {
+  color: var(--hud);
+  border-color: transparent;
+}
+.jh-warn {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  translate: -50% 0;
+  padding: 3px 12px;
+  border: 2px solid #ff6b6b;
+  color: #ff6b6b;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  visibility: hidden;
+}
+.jh-warn.soft {
+  border-color: #ffd36b;
+  color: #ffd36b;
+  font-size: 14px;
+}
+.jh-warn.on {
+  visibility: visible;
+  animation: jh-blink 0.9s steps(2, jump-none) infinite;
+}
+@keyframes jh-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+.jh-radar {
+  position: absolute;
+  right: 22px;
+  bottom: 90px;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--hud-dim);
+  background: rgb(4 20 18 / 0.6);
+}
+.jh-map {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 128px;
+  height: 128px;
+}
+.jh-me {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  border: 5px solid transparent;
+  border-bottom: 11px solid var(--hud);
+  margin-top: -4px;
+}
+.jh-ring {
+  position: absolute;
+  inset: 25%;
+  border-radius: 50%;
+  border: 1px dashed rgb(141 255 208 / 0.3);
+}
+.jh-keys {
+  padding: 3px 10px;
+  border-radius: var(--pill);
+  background: rgb(4 20 18 / 0.55);
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  translate: -50% 0;
+  font-size: 11px;
+  color: var(--hud-dim);
+  white-space: nowrap;
+}
+.compact .jh-keys {
+  display: none;
+}
+.compact .jh-box.left {
+  left: 10px;
+}
+.compact .jh-box.right {
+  right: 10px;
+}
+.compact .jh-box {
+  min-width: 78px;
+  padding: 5px 8px;
+}
+.compact .jh-big {
+  font-size: 18px;
+}
+.compact .jh-tape-win {
+  top: calc(var(--top, 0px) + 96px);
+  width: 260px;
+}
+.compact .jh-hdg {
+  top: calc(var(--top, 0px) + 130px);
+}
+.compact .jh-radar {
+  right: auto;
+  left: calc(var(--gut-l, 10px) + 4px);
+  bottom: 200px;
+  scale: 0.75;
+  transform-origin: 0 100%;
+}
+.compact .jh-flags {
+  bottom: 190px;
+}
+/* The HUD carries its own key line: the explore hint would repeat it. */
+body.piloting .explore-hint {
+  display: none;
+}

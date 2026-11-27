@@ -22,7 +22,8 @@ export function compassOf(x: number, z: number, size: number): string {
  * The way back (D-209): when a ceremony (a sea wonder rising, an unlock, an era) flies the camera off to where it
  * happened, a card under the top bar says where that is and offers one click back to the view the player was
  * building in. "Stay here" keeps the new view; after going back, a toast keeps a ⌖ Show to the place for a while.
- * Esc or × put it away; left untouched it goes after the call-out idle time (D-201).
+ * Esc or × put it away; left untouched it goes after the same idle time as the other cards (D-201), a bar draining
+ * along its foot to show it (paused while the pointer is on it, D-232).
  */
 export class ReturnCard {
   private card: HTMLElement;
@@ -30,6 +31,7 @@ export class ReturnCard {
   private name = h('b', { class: 'mr-name' });
   private line = h('p', { class: 'mr-line' });
   private ico = h('span', { class: 'mr-ico' });
+  private drain = h('i', { class: 'mr-drain' });
   private view: CameraView | null = null;
   private to: { x: number; z: number; label: string } | null = null;
   private idle;
@@ -43,8 +45,12 @@ export class ReturnCard {
       h('div', { class: 'mr-main' }, this.ico, h('div', { class: 'mr-text' }, this.name, this.line)),
       h('div', { class: 'mr-foot' }, h('button', { class: 'btn ghost mr-stay', onClick: () => this.hide() }, 'Stay here'), back),
       closeX('this card', () => this.hide()),
+      this.drain,
     );
-    this.idle = idleTimer(this.card, IDLE_SECONDS.callout, () => this.hide());
+    this.card.style.setProperty('--mr-idle', `${IDLE_SECONDS.card}s`);
+    this.idle = idleTimer(this.card, IDLE_SECONDS.card, () => this.hide());
+    // The countdown starts again from the top when the pointer leaves: so does the bar.
+    this.card.addEventListener('pointerleave', () => this.restartDrain());
     ctx.hud.append(this.card);
     ctx.input.onKey((e) => {
       if (e.key !== 'Escape' || !this.shown) return false;
@@ -79,6 +85,13 @@ export class ReturnCard {
     this.card.classList.add('mr-in');
     document.body.classList.add('moment-return');
     this.idle.arm();
+    this.restartDrain();
+  }
+
+  private restartDrain(): void {
+    this.drain.classList.remove('run');
+    void this.drain.offsetWidth;
+    this.drain.classList.add('run');
   }
 
   private back(): void {

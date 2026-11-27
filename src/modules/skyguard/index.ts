@@ -1,5 +1,6 @@
 import {
   Box3,
+  Quaternion,
   BufferAttribute,
   BufferGeometry,
   DoubleSide,
@@ -20,6 +21,8 @@ import { registerPickable } from '@/modules/construction/pick';
 import { isOpen } from '@/sim/growthState';
 import { JET, JET_PART, jetGeometry, liveryTexture } from './jetModel';
 import { lapLength, patrolAt, patrolNode } from './flight';
+import { JetPilot, type StickInput } from './pilot';
+import { createPilotHud } from './pilotHud';
 import { bloomMRT } from '@/render/bloomMRT';
 
 /**
@@ -61,6 +64,17 @@ export interface SkyGuardService {
   roll(): void;
   afterburner(): void;
   smoke(on?: boolean): void;
+  /**
+   * The player takes the controls (explore mode `pilot`, D-233): the jet leaves its patrol and follows `fly`; off,
+   * it glides back onto the patrol.
+   */
+  pilot(on: boolean): void;
+  readonly piloting: boolean;
+  /**
+   * One step of piloted flight: the stick, the top of whatever is under a point, the view (`cockpit` or chase); writes
+   * the camera's eye, a point ahead and its up into the vectors given.
+   */
+  fly(dt: number, stick: StickInput, floor: (x: number, z: number) => number, cockpit: boolean, eye: Vector3, ahead: Vector3, up: Vector3): void;
 }
 
 declare module '@/core/Services' {
@@ -214,6 +228,81 @@ export const skyguardModule: GameModule = {
     trails.name = 'skyguard.trails';
     trails.renderOrder = 8;
     ctx.scene.add(jet, trails);
+    // ── Piloted flight (D-233): the flight model, its contrail and the HUD ─────────────────────────────────────
+    const S = ctx.city.size;
+    const pilot = new JetPilot([S / 2, S / 2]);
+    let piloting = false;
+    let cockpitView = false;
+    /** Gliding back onto the patrol after the player lets go: seconds left, and where the jet was. */
+    let rejoin = 0;
+    const REJOIN = 3;
+    const fromPos = new Vector3();
+    const fromQ = new Quaternion();
+    const toQ = new Quaternion();
+    const hudEl = createPilotHud(ctx.city.grid);
+    // A body-level layer: the city HUD (#hud) hides its panels in explore modes.
+    document.body.append(hudEl.el);
+    // The patrol's contrails follow the patrol curve in the shader; while piloted the jet leaves a contrail of its
+    // own: a ribbon through its last positions, written on the CPU (a few KB a frame, only while piloted).
+    const PT = 48;
+    const ptPos = new Float32Array(PT * 6 * 3);
+    const ptAge = new Float32Array(PT * 6 * 2);
+    const ptGeo = new BufferGeometry();
+    ptGeo.setAttribute('position', new BufferAttribute(ptPos, 3));
+    ptGeo.setAttribute('aRib', new BufferAttribute(ptAge, 2));
+    ptGeo.boundingSphere = new Sphere(new Vector3(), 200);
+    const ptMat = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: NormalBlending, side: DoubleSide });
+    {
+      const r = attribute('aRib', 'vec2');
+      const op = float(1)
+        .sub(r.y.mul(r.y))
+        .mul(float(1).sub(r.x).pow(1.4))
+        .mul(mix(float(0.3), float(0.65), smokeOn));
+      ptMat.colorNode = mix(color(0xf4f8fb), color(0x19c39a), smokeOn);
+      ptMat.opacityNode = op;
+      bloomMRT(ptMat, mrt({ emissive: vec4(0, 0, 0, op) }));
+    }
+    const pilotTrail = new Mesh(ptGeo, ptMat);
+    pilotTrail.name = 'skyguard.pilotTrail';
+    pilotTrail.renderOrder = 8;
+    pilotTrail.visible = false;
+    ctx.scene.add(pilotTrail);
+    const hist: Vector3[] = Array.from({ length: PT + 1 }, () => new Vector3());
+    let histAt = 0;
+    const camSide = new Vector3();
+    const segDir = new Vector3();
+    const toCam = new Vector3();
+    const writeTrail = (cam: Vector3) => {
+      let o = 0;
+      let a = 0;
+      for (let k = 0; k < PT; k++) {
+        const p0 = hist[k]!;
+        const p1 = hist[k + 1]!;
+        segDir.subVectors(p0, p1);
+        if (segDir.lengthSq() < 1e-6) segDir.copy(fwd);
+        const w0 = 0.25 + (k / PT) * 1.6;
+        const w1 = 0.25 + ((k + 1) / PT) * 1.6;
+        camSide.crossVectors(segDir, toCam.subVectors(cam, p0)).normalize();
+        const v = (p: Vector3, w: number, side: number, age: number) => {
+          ptPos[o++] = p.x + camSide.x * w * side;
+          ptPos[o++] = p.y + camSide.y * w * side;
+          ptPos[o++] = p.z + camSide.z * w * side;
+          ptAge[a++] = age;
+          ptAge[a++] = side;
+        };
+        const [t0, t1] = [k / PT, (k + 1) / PT];
+        v(p0, w0, -1, t0);
+        v(p1, w1, -1, t1);
+        v(p0, w0, 1, t0);
+        v(p1, w1, -1, t1);
+        v(p1, w1, 1, t1);
+        v(p0, w0, 1, t0);
+      }
+      ptGeo.attributes.position!.needsUpdate = true;
+      ptGeo.attributes.aRib!.needsUpdate = true;
+      ptGeo.boundingSphere!.center.copy(hist[0]!);
+    };
+
     registerPickable({
       object: 'skyguard',
       node: jet,
@@ -242,6 +331,21 @@ export const skyguardModule: GameModule = {
     const acc = new Vector3();
     const basis = new Matrix4();
     const WORLD_UP = new Vector3(0, 1, 0);
+    /** Poses the jet at `pos` along `fwd`, its lift turned toward the right by `roll`. */
+    const pose = (roll: number) => {
+      right.crossVectors(fwd, WORLD_UP).normalize();
+      up.crossVectors(right, fwd);
+      // Turn the lift toward +right by the roll angle.
+      const [cr, sr] = [Math.cos(roll), Math.sin(roll)];
+      const ux = up.x * cr + right.x * sr;
+      const uy = up.y * cr + right.y * sr;
+      const uz = up.z * cr + right.z * sr;
+      right.set(right.x * cr - up.x * sr, right.y * cr - up.y * sr, right.z * cr - up.z * sr);
+      up.set(ux, uy, uz);
+      basis.makeBasis(fwd, up, right).setPosition(pos);
+      jet.matrix.copy(basis);
+      jet.matrixWorldNeedsUpdate = true;
+    };
     ctx.systems.add({
       id: 'skyguard.fly',
       phase: 'sync',
@@ -252,6 +356,28 @@ export const skyguardModule: GameModule = {
         if (!on) return;
         const dt = Math.min(0.1, f.dt);
         const t = U.clock.value;
+        pilotTrail.visible = piloting;
+        trails.visible = !piloting && rejoin <= 0;
+        if (piloting) {
+          // The pose comes from the flight model (`fly`, run by the explore mode before this).
+          burner.value = pilot.burner;
+          pos.copy(pilot.pos);
+          fwd.copy(pilot.fwd);
+          speed = pilot.speed;
+          bank = pilot.bank;
+          const k = Math.min(1, Math.max(0, (t - rollAt) / ROLL));
+          pose(bank + Math.PI * 2 * k * k * (3 - 2 * k));
+          jet.visible = !cockpitView;
+          // The contrail: a sample every ~1.5 tiles of flight.
+          if (pos.distanceTo(hist[0]!) > 1.5 || ++histAt > 30) {
+            histAt = 0;
+            for (let i = PT; i > 0; i--) hist[i]!.copy(hist[i - 1]!);
+          }
+          hist[0]!.copy(pos).addScaledVector(fwd, JET.nozzleX);
+          writeTrail(c.camera.position);
+          hudEl.update(pilot, (c.camera as { fov?: number }).fov ?? 50, { smoke, cockpit: cockpitView });
+          return;
+        }
         burner.value += ((t < burnUntil ? 1 : 0) - burner.value) * Math.min(1, dt * 2.5);
         const rate = omega * (1 + (BURN - 1) * burner.value);
         phase += rate * dt;
@@ -281,17 +407,18 @@ export const skyguardModule: GameModule = {
         bank += (want - bank) * Math.min(1, dt * 3);
         const k = Math.min(1, Math.max(0, (t - rollAt) / ROLL));
         const roll = bank + Math.PI * 2 * k * k * (3 - 2 * k);
-        up.crossVectors(right, fwd);
-        // Turn the lift toward +right by the roll angle.
-        const [cr, sr] = [Math.cos(roll), Math.sin(roll)];
-        const ux = up.x * cr + right.x * sr;
-        const uy = up.y * cr + right.y * sr;
-        const uz = up.z * cr + right.z * sr;
-        right.set(right.x * cr - up.x * sr, right.y * cr - up.y * sr, right.z * cr - up.z * sr);
-        up.set(ux, uy, uz);
-        basis.makeBasis(fwd, up, right).setPosition(pos);
-        jet.matrix.copy(basis);
-        jet.matrixWorldNeedsUpdate = true;
+        pose(roll);
+        // Back onto the patrol after the player let go: from where they left it, over a few seconds.
+        if (rejoin > 0) {
+          rejoin = Math.max(0, rejoin - dt);
+          const k = 1 - rejoin / REJOIN;
+          const e = k * k * (3 - 2 * k);
+          toQ.setFromRotationMatrix(basis);
+          basis.makeRotationFromQuaternion(fromQ.clone().slerp(toQ, e));
+          pos.lerpVectors(fromPos, pos, e);
+          basis.setPosition(pos);
+          jet.matrix.copy(basis);
+        }
         trailGeo.boundingSphere!.center.copy(pos);
         // A roar as it passes the camera.
         const d = c.camera.position.distanceTo(pos);
@@ -353,6 +480,9 @@ export const skyguardModule: GameModule = {
           btn('jet', 'Chase cam', 'Fly behind the jet (Esc back)', () =>
             ctx.services.get('explore').setMode('jet'),
           ),
+          btn('jet', 'Pilot', 'Take the controls yourself: WASD fly, E/Q throttle, Shift afterburner, V cockpit (Esc back)', () =>
+            ctx.services.get('explore').setMode('pilot'),
+          ),
           btn('rotate', 'Victory roll', 'A full roll on the next heartbeat', rollNow),
           btn(
             'fire',
@@ -383,6 +513,58 @@ export const skyguardModule: GameModule = {
       roll: rollNow,
       afterburner,
       smoke: setSmoke,
+      get piloting() {
+        return piloting;
+      },
+      pilot(on) {
+        if (on === piloting) return;
+        piloting = on;
+        hudEl.show(on);
+        document.body.classList.toggle('piloting', on);
+        if (on) {
+          pilot.start(pos, fwd);
+          for (const p of hist) p.copy(pos);
+          bus.emit('toast', { text: 'You have the controls: Bloom One is yours', tone: 'info' });
+          return;
+        }
+        // Rejoin the patrol at the phase nearest where the player left the jet, gliding there.
+        let best = Infinity;
+        const probe = new Vector3();
+        for (let i = 0; i < 512; i++) {
+          const ph = (i / 512) * Math.PI * 2;
+          const d = patrolAt(ph, probe).distanceToSquared(pos);
+          if (d < best) [best, phase] = [d, ph];
+        }
+        fromPos.copy(pos);
+        fromQ.setFromRotationMatrix(jet.matrix);
+        rejoin = REJOIN;
+        cockpitView = false;
+        jet.visible = true;
+      },
+      fly(dt, stick, floor, cockpit, eye, ahead, camUp) {
+        if (!piloting) return;
+        cockpitView = cockpit;
+        pilot.step(dt, stick, floor);
+        const p = pilot.pos;
+        if (cockpit) {
+          // In the canopy, the nose ahead; the view rolls with the jet.
+          eye.copy(p).addScaledVector(pilot.fwd, 1.5).addScaledVector(pilot.up, 0.62);
+          ahead.copy(eye).addScaledVector(pilot.fwd, 20);
+          camUp.copy(pilot.up);
+        } else {
+          // Behind and above along the flight path; the view leans into the bank (part of it: all of it is dizzying).
+          eye.copy(p).addScaledVector(pilot.fwd, -16).addScaledVector(pilot.up, 3.6);
+          ahead.copy(p).addScaledVector(pilot.fwd, 10);
+          camUp.copy(WORLD_UP).lerp(pilot.up, 0.45).normalize();
+        }
+      },
     });
+    // Space rolls and X toggles smoke while piloting (the explore mode passes the stick; these are taps).
+    ctx.input.onKey((e) => {
+      if (!piloting || e.metaKey || e.ctrlKey) return false;
+      if (e.code === 'Space') return rollNow(), true;
+      if (e.code === 'KeyX') return setSmoke(), true;
+      return false;
+    }, 1);
   },
 };
