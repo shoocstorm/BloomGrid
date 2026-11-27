@@ -9,7 +9,24 @@ import {
   Vector3,
   type WebGPURenderer,
 } from 'three/webgpu';
-import { cameraPosition, dot, exp, float, fog, max, mix, normalize, pmremTexture, positionWorld, pow, rangeFogFactor } from 'three/tsl';
+import {
+  cameraPosition,
+  dot,
+  exp,
+  float,
+  fog,
+  length,
+  max,
+  mix,
+  normalize,
+  PCFShadowFilter,
+  pmremTexture,
+  positionWorld,
+  pow,
+  rangeFogFactor,
+  smoothstep,
+  type vec2,
+} from 'three/tsl';
 import { getMaterial } from '@/render/materials/library';
 import { U } from '@/render/uniforms';
 
@@ -90,6 +107,15 @@ export class Atmosphere {
     this.sun.shadow.needsUpdate = true;
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.03;
+    // Shadows fade out toward the shadow map's edge (`U.shadowFade`, D-231): chunks switch their casting on and off
+    // as the view pans (to keep the shadow pass small), and a hard map edge or a chunk's shadows vanishing at once
+    // read as blinking from the island view. Faded in the map's own space, neither shows.
+    const pcf = PCFShadowFilter as unknown as (a: unknown) => ReturnType<typeof float>;
+    // three calls the filter as a plain function of { depthTexture, shadowCoord, shadow, depthLayer }.
+    (this.sun.shadow as unknown as { filterNode: unknown }).filterNode = (args: { shadowCoord: { xy: ReturnType<typeof vec2> } }) => {
+      const r = length(args.shadowCoord.xy.sub(0.5).mul(2));
+      return mix(pcf(args), float(1), smoothstep(U.shadowFade.x, U.shadowFade.y, r));
+    };
     this.setShadowMapSize(2048);
   }
 
@@ -183,6 +209,16 @@ export class Atmosphere {
   /** 0..1 haze (set by weather): pulls the fog in so distant districts soften. */
   haze = 0;
 
+  /**
+   * The shadow map as last drawn: its centre (on the light's axis) and its axes across the light, for choosing
+   * casters in the map's own space (D-231).
+   */
+  get shadowFocus(): Vector3 {
+    return this.lastShadowPos;
+  }
+  readonly shadowRight = new Vector3(1, 0, 0);
+  readonly shadowUp = new Vector3(0, 0, 1);
+
   /** Request a shadow refresh (geometry changed: building placed, removed, growing…). */
   invalidateShadows(): void {
     this.shadowDirty = true;
@@ -235,6 +271,8 @@ export class Atmosphere {
     if ((moved || turned || this.shadowDirty) && this.sinceShadow >= 1 / this.maxShadowHz) {
       this.sun.shadow.needsUpdate = true;
       this.lastShadowPos.copy(this.sun.target.position);
+      this.shadowRight.copy(right);
+      this.shadowUp.copy(lup);
       this.lastShadowDir.copy(this.sunDir);
       this.shadowDirty = false;
       this.sinceShadow = 0;

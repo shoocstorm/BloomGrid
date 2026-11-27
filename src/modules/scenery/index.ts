@@ -15,6 +15,7 @@ import { U } from '@/render/uniforms';
 import { registerPickable } from '@/modules/construction/pick';
 import { LORE } from './lore';
 import { dolphinSchool, dolphinsLeaping, whalePod, whalesNow } from './SeaLife';
+import { journeyOf, podSite } from './whaleRoute';
 import './wonder.css';
 
 const WONDERS: [WonderSite, string, string, string][] = [
@@ -60,7 +61,7 @@ function registerWonders(S: number): void {
       ),
       ...(wonderVisible(city, 'whales')
         ? [
-            ...WONDER_SITES.whales.map(([x, z], i) => obj(`LMK-WHALES-${i + 1}`, `Whale pod ${i + 1}`, x, z, 40, `wonder:whales-${i}`)),
+            ...WONDER_SITES.whales.map((_, i) => obj(`LMK-WHALES-${i + 1}`, `Whale pod ${i + 1}`, ...podSite(i, U.clock.value, S), 40, `wonder:whales-${i}`)),
             ...WONDER_SITES.dolphins.map(([x, z], i) => obj(`LMK-DOLPHINS-${i + 1}`, `Dolphin school ${i + 1}`, x, z, 40, `wonder:dolphins-${i}`)),
           ]
         : []),
@@ -100,7 +101,7 @@ export const sceneryModule: GameModule = {
     ctx.bus.on('wonder:discovered', ({ id, name }) => {
       refresh(true);
       const k = id as keyof typeof WONDER_SITES;
-      const site = (k === 'whales' ? WONDER_SITES.whales[0] : WONDER_SITES[k]) as readonly [number, number] | undefined;
+      const site = (k === 'whales' ? podSite(0, U.clock.value, S) : WONDER_SITES[k]) as readonly [number, number] | undefined;
       ctx.bus.emit('toast', {
         text: `✧ A new sea wonder: ${name} has risen from the sea`,
         tone: 'ok',
@@ -153,10 +154,11 @@ function wonderInspector(ctx: GameContext, meshes: Mesh[]): void {
       box = m.geometry.boundingBox!.clone();
     } else if (m.name === 'whales' || m.name === 'dolphins') {
       const i = pods[m.name]++;
-      const [u, v] = WONDER_SITES[m.name][i]!;
+      // Whale pods roam (their mesh moves, so their box sits round its origin); dolphin schools stay put.
+      const [u, v] = m.name === 'whales' ? [0, 0] : WONDER_SITES.dolphins[i]!.map((k) => k * S);
       const r = m.name === 'whales' ? 42 : 34;
       key = `${m.name}-${i}`;
-      box = new Box3(new Vector3(u * S - r, -1, v * S - r), new Vector3(u * S + r, 4, v * S + r));
+      box = new Box3(new Vector3(u! - r, -1, v! - r), new Vector3(u! + r, 4, v! + r));
     }
     if (!key || !box) continue;
     registerPickable({ object: `wonder:${key}`, node: m, box });
@@ -170,7 +172,12 @@ function sheet(ctx: GameContext, key: string): ObjectSheet | null {
   const [base, pod] = key.split('-') as [string, string | undefined];
   const lore = LORE[base];
   if (!lore || !wonderVisible(city, base === 'dolphins' ? 'whales' : base)) return null;
-  const at = pod !== undefined ? WONDER_SITES[base as 'whales' | 'dolphins'][Number(pod)]! : WONDER_SITES[base as WonderSite];
+  const at =
+    base === 'whales'
+      ? podSite(Number(pod), U.clock.value, S)
+      : pod !== undefined
+        ? WONDER_SITES.dolphins[Number(pod)]!
+        : WONDER_SITES[base as WonderSite];
   const [x, z] = [at[0] * S, at[1] * S];
   const bearing = COMPASS[Math.round(((Math.atan2(x - S / 2, -(z - S / 2)) / (Math.PI * 2)) * 8 + 8)) % 8]!;
   const n = pod !== undefined ? ` ${Number(pod) + 1}` : '';
@@ -197,6 +204,7 @@ function sheet(ctx: GameContext, key: string): ObjectSheet | null {
       ['sparkle', pod !== undefined ? 'Now' : 'Status', now, now === 'Breaching!' || now === 'Leaping' || now === 'Risen' ? 'good' : ''],
       ['eye', 'Best seen', lore.bestSeen],
       ['locate', 'Bearing', bearing[0]!.toUpperCase() + bearing.slice(1)],
+      ...(base === 'whales' ? [['compass', 'Journey', journeyOf(Number(pod), U.clock.value, S)] as [string, string, string]] : []),
     ],
     body: [
       h(

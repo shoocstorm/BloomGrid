@@ -9,7 +9,7 @@ import { clockRate } from '@/sim/dayClock';
 import { Building } from '@/ecs/components';
 import { buildings } from '@/content';
 import { U } from '@/render/uniforms';
-import { within } from '@/render/hysteresis';
+import { MathUtils } from 'three/webgpu';
 
 export interface WorldService {
   atmosphere: Atmosphere;
@@ -116,7 +116,6 @@ export const worldModule: GameModule = {
 
     ctx.services.provide('world', service);
 
-    let overview = false;
     ctx.systems.add({
       id: 'world.atmosphere',
       phase: 'sync',
@@ -128,10 +127,18 @@ export const worldModule: GameModule = {
         // Once per finished pop-in on a shadow caster, not every frame while plants sprout (D-150).
         if (c.instancer.takeShadowChange()) atmosphere.invalidateShadows();
         atmosphere.follow(c.camera.position, c.cameraCtl.target, c.cameraCtl.distance, f.dt);
-        c.instancer.shadowFocus.copy(c.cameraCtl.target);
-        // Zoomed far out, distant shadows are sub-pixel: only the area around the focus casts them.
-        overview = !within(!overview, c.cameraCtl.distance, 180);
-        c.instancer.shadowRadius = atmosphere.shadowExtent * (overview ? 0.45 : 1.1);
+        // Casters are picked round the centre of the shadow map as last drawn, in its own axes, so the set changes only
+        // with a refresh. Zoomed far out, distant shadows are sub-pixel and cost a draw per batch: only the middle of
+        // the map casts them. Shadows fade out well inside the casting radius (`U.shadowFade`, in map half-sizes), and
+        // the radii follow the zoom smoothly, so chunks switching their casting (panning, the O key's glide) never pop
+        // (D-231).
+        const ext = atmosphere.shadowExtent;
+        const k = MathUtils.smoothstep(c.cameraCtl.distance, 150, 300);
+        const outer = 0.97 - 0.32 * k;
+        U.shadowFade.value.set(0.78 - 0.38 * k, outer);
+        c.instancer.shadowFocus.copy(atmosphere.shadowFocus);
+        c.instancer.shadowAxes ??= { right: atmosphere.shadowRight, up: atmosphere.shadowUp };
+        c.instancer.shadowRadius = (outer + 0.1) * ext;
       },
     });
   },

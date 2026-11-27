@@ -26,12 +26,8 @@ export default defineBuilding({
   variants: 1,
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [11.6, 0.3, 11.6], tint: PALETTE.concrete });
-    // The pitch and its markings.
-    b.add({ piece: 'mossBox', p: [0, 0.3, 0], s: [5.6, 0.06, 3.6] });
-    b.add({ piece: 'slab', p: [0, 0.36, 0], s: [0.06, 0.01, 3.4], tint: 0xffffff });
-    b.add({ piece: 'haloRing', p: [0, 0.37, 0], s: [1.1, 0.2, 1.1], glow: 0.2 });
-    for (const x of [-2.75, 2.75])
-      b.add({ piece: 'slab', p: [x, 0.36, 0], s: [0.06, 0.5, 1.0], tint: 0xffffff });
+    // The pitch, its markings painted on (D-232: thin white slabs flashed from mid zoom).
+    b.add({ piece: 'pitch', p: [0, 0.3, 0], s: [5.6, 0.06, 3.6] });
     // Three tiers of terraced seating round an oval.
     for (let t = 0; t < 3; t++) {
       const [ra, rb] = [3.7 + t * 0.85, 2.7 + t * 0.85];
@@ -78,18 +74,14 @@ export default defineBuilding({
       tree(b, Math.cos(a) * 5.4, 0.3, Math.sin(a) * 5.4, 0.55, 0.2);
     }
     flowers(b, 0, 0.3, 5.5, 2.5, 16, 0, 0.6);
-    // Detail (D-097): goal frames and penalty boxes on the pitch, a big screen over the north stand, three lit
-    // entrance gates with turnstiles, a ticket kiosk and plaza lamps.
-    const line = (x: number, z: number, w: number, d: number) =>
-      b.add({ piece: 'slab', p: [x, 0.36, z], s: [w, 0.01, d], tint: 0xffffff });
+    // Detail (D-097): goal frames on the pitch (the boxes are in its markings), a big screen over the north stand,
+    // three lit entrance gates with turnstiles, a ticket kiosk and plaza lamps. Goals a little stout and off-white:
+    // hairline bright frames flashed as the camera moved (D-232).
     for (const s of [-1, 1]) {
-      const gx = s * 2.75;
-      line(s * 2.35, -0.6, 0.8, 0.05);
-      line(s * 2.35, 0.6, 0.8, 0.05);
-      line(s * 1.95, 0, 0.05, 1.25);
+      const gx = s * 2.6;
       for (const z of [-0.4, 0.4])
-        b.add({ piece: 'timberBox', p: [gx + s * 0.04, 0.36, z], s: [0.04, 0.3, 0.04], tint: 0xffffff });
-      b.add({ piece: 'timberBox', p: [gx + s * 0.04, 0.66, 0], s: [0.04, 0.04, 0.84], tint: 0xffffff });
+        b.add({ piece: 'timberBox', p: [gx + s * 0.04, 0.36, z], s: [0.07, 0.3, 0.07], tint: 0xdfe6e0 });
+      b.add({ piece: 'timberBox', p: [gx + s * 0.04, 0.63, 0], s: [0.07, 0.07, 0.87], tint: 0xdfe6e0 });
     }
     for (const x of [-1.0, 1.0])
       b.add({ piece: 'slab', p: [x, 0.3, -5.25], s: [0.14, 3.3, 0.14], tint: 0xf4f1ea });

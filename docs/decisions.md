@@ -4146,3 +4146,64 @@ A review of the showcase from five views found three things that cheapened the l
 | Grass ran straight into the sea: the coast rises past the old 0.35-unit sand band within a tile | `Terrain.ts` bakes a chamfer distance to the sea per corner (`coastDistance`, also for the outer ring) and blends a ragged beach about 3 tiles wide onto low land (h < 1.9); rebuilds refresh it and repaint 4 tiles round an edit. Greens a little less lime, dry drifts stronger | Shore looks come from distance to water, not height |
 | From the overview, the `haloRing` torus (on 68 building types) was the loudest detail | `haloRing` gets `lod: 120` and `lumenThin` the dithered fade | Thin decorative loops are a close-up detail |
 | Day looked like one long noon under a milky horizon | New keys at sun elevation 0.2 (warm light, warm horizon) and 0.42 (more contrast, less fill); noon has a bluer sky and less saturation | Noon keeps its fill (0.72) and contrast (1.04): more of either raised the day flicker probe at 20 units from ≈0.031 % to ≈0.044 % (thin spokes against deeper shade). Measured after: 0.032–0.035 % (20), 0.037–0.041 % (35) |
+
+## D-231 — Roaming whale pods, a better humpback and its waves; shadows fade instead of switching (2026-11-27)
+
+**Whales.** The pods circled one fixed spot each for ever. They now roam a ring of eleven feeding grounds round the
+island (`modules/scenery/whaleRoute.ts`: `GROUNDS`, 150 s at each, eased legs at a mean 1 unit/s, a lap ≈ 1 h; pods
+start at their old homes). It is pure maths on `U.clock`, so the shader, the inspector (*Journey* line), the inventory,
+the ferry, the discovery toast and the demo agree; `tests/whaleRoute.test.ts` keeps every ground and leg in deep sea
+on several seeds and clear of the standing wonders. The scenery module moves each pod's mesh and hands the shader its
+velocity (`route` uniform, one material per roaming pod): under way the pod closes up to a third of its circle and
+heads along its course. The humpback is rebuilt: a 52 × 28 lofted body with the hump and tail-stock knuckles,
+tubercles on the rostrum and chin, the jutting lower jaw, a dark mouth line, throat grooves as ridges and soft pale
+scars that differ per whale; real flukes (swept, pointed, scalloped trailing edge, notch, a black-and-white underside
+in four patterns) and long knobbly flippers built as closed cambered blades; a hooked dorsal fin; chin barnacles.
+The old ring of white hexagon flecks is gone. Water effects are a transparent child mesh (`whales.waves`, one draw
+per pod): a thin Kelvin V, a churned trail, a bow wave and the glassy footprint behind a whale at the surface; rings
+and broken foam (smooth value noise) spreading from the last breach, surfacing or dive, placed where the whale was
+when it happened. Every line widens to at least ~1.5 px and fades by `fwidth`; spray and spouts grow from nothing
+nearer than ~500 units and lumen spots fade out by ~300, so nothing twinkles from the island view. Night foam is dim
+(D-230) with a faint plankton glow.
+
+**Flashing in the island view.** Probes found the O view itself calm (still or slowly panned, ≤ 0.013 %); what
+blinked was shadows. Chunks are 128 units, casting was picked by ground distance at 0.45 of the shadow map, and every
+switch while panning dropped or added a whole block of shadows (6 bursts of 12–14 batches in 200 frames of a gentle
+pan). Now received shadows fade toward the map's edge in the map's own space (a wrapped PCF `filterNode` on the sun,
+`U.shadowFade` in map half-sizes: 0.78→0.97 close, 0.40→0.65 far out, eased by zoom), and casters are chosen in the
+same light-space axes beyond the fade (`Instancer.shadowDistance`: the chunk's box up to 60 units, projected), round
+the centre of the map as last drawn, so the set changes only with a refresh and never where a shadow shows. Fading by
+ground distance was tried first and rejected: under a low sun the map's footprint is a long strip, and a ground circle
+either drops most visible shadows or misses casters whose shadows land inside it. Cost: shadow-refresh frames (≤ 15 Hz,
+only while the view or sun moves) draw ≈ 35–45 more batches into the shadow map (overview 304 → 351, street
+330 → 365); `bun run perf` panning: 300 draws, GPU 5.1 ms (baseline 298, 5.4 ms; headless GPU time is noisy).
+
+New probes: `bun run blink` (blinkers on a held view with everything live, Retina DPR, heat map), `bun run flyprobe`
+(the O glide frame by frame), `flicker --overview` / `--still`.
+
+## D-232 — Painted pitches, flowers shade to green, a moving flicker probe; the ferry's route chart (2026-11-27)
+
+**Flashing at the stadium and the sports fields.** The pitches were drawn with geometry: white `slab` strips 0.04–0.06
+units wide (touchlines, halfway line, penalty boxes), a glowing `haloRing` centre circle and 0.04 white goal frames on
+dark turf. Under a pixel from mid zoom, white on green popped in and out of pixels as the camera moved. They are now
+one `pitch` piece (`render/materials/library.ts`): turf with mowing stripes and the markings as distance-field lines
+in uv (length along the piece's x), at least a pixel soft and faded to the field's mean once thinner than one; goals
+stand 0.07 thick in off-white. The gardens round them sparkled too: `flower` pieces are a tenth of a unit, so their
+petals shade to their leafy green below ~4 px (`pieceCover(4)`, the mean of a bed from afar) and they stop at 80
+units (was 110). Measured (slow pan, day): the pitch piece ≤ 0.010 %, flowers 0.52 → 0.29 % isolated (on black; on
+grass the contrast is now green on green), the arena district 0.032 / 0.024 / 0.024 / 0.005 → 0.038 / 0.018 / 0.017 /
+0.007 % at 35 / 70 / 140 / 260. Rule: markings, lines and lettering on a surface are a material pattern, never
+geometry thinner than ~0.1 unit.
+
+`bun run flicker -- --speed <px>` pans at a real speed and compares each moving frame with a still, converged render of
+the same pose, counting jumps of that error from frame to frame: the slow-pan probe (0.15 px/frame) keeps temporal AA
+in its converged state and misses flashing that only shows while the history is rejected. Its numbers are not yet
+motion-invariant (an isolated edge drags its lag along), so use it to rank pieces, not as an absolute budget.
+
+**Ferry route chart.** The inspector listed the stops as text chips. It now draws them (`modules/ferry/routeChart.ts`):
+a small sea chart (land and shallows painted once from the terrain on a 128² canvas, an SVG over it) with every stop
+numbered in timetable order (this voyage gold and named, the next teal and named, risen, not yet risen dashed; tap
+or Enter to charter), the voyage's course with the sailed stretch lit, the sightseeing loop dashed, the pier and the
+ship (gliding on a CSS transform transition between the inspector's twice-a-second reads, no animation loop), and a
+pier → loop → home bar. The whale pods roam (D-231), so their course is planned afresh at each departure and stays
+fixed for the voyage.

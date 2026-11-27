@@ -1,4 +1,4 @@
-import { Color, Vector3, Vector4 } from 'three/webgpu';
+import { Color, Vector2, Vector3, Vector4 } from 'three/webgpu';
 import { renderGroup, uniform } from 'three/tsl';
 
 /**
@@ -73,6 +73,12 @@ export const U = {
    * pass renders from the sun, so `cameraPosition` there is the light's (D-162).
    */
   eye: uniform(new Vector3()),
+  /**
+   * Where the sun's shadows fade out (D-231): inner and outer radius from the shadow map's centre, in map half-sizes
+   * (1 = the map's edge across the middle). Chunks stop casting only well beyond the outer radius (in the same light
+   * space), so no switch shows. The default never fades (side renders with their own lights).
+   */
+  shadowFade: uniform(new Vector2(2, 3)),
   /** Frame counter (0..63) that moves dither patterns each frame under temporal AA, so they average out (D-162). */
   frame: uniform(0),
   /** Strength of drifting cloud shadows on lit surfaces (0 at night, ≤ 0.15 by day). */

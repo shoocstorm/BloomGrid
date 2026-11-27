@@ -7,6 +7,8 @@ import { CHARTERS } from '@/sim/charters';
 import { ERAS } from '@/sim/eras';
 import { WONDERS } from '@/sim/wonders';
 import { WONDER_SITES } from '@/modules/scenery/sites';
+import { podSite } from '@/modules/scenery/whaleRoute';
+import { U } from '@/render/uniforms';
 import { isOpen, type UnlockId } from '@/sim/growthState';
 import { SYSTEM_LABELS } from '@/modules/pulse/PulsePanel';
 import { SYSTEM_ORDER } from '@/sim/indicators';
@@ -453,8 +455,8 @@ export const momentsModule: GameModule = {
     /** The wonder's ceremony: its emblem and name, and the camera out over the sea to where it stands. */
     const wonderSpec = (id: string, name: string): MomentSpec => {
       const k = id as keyof typeof WONDER_SITES;
-      const site = (k === 'whales' ? WONDER_SITES.whales[0] : WONDER_SITES[k]) as readonly [number, number] | undefined;
       const S = city().size;
+      const site = (k === 'whales' ? podSite(0, U.clock.value, S) : WONDER_SITES[k]) as readonly [number, number] | undefined;
       return {
         id: `wonder:${id}`,
         scale: 'grand',

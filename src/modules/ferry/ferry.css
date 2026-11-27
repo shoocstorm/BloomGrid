@@ -1,9 +1,206 @@
-/* Cruise ferry inspector (D-141): the chartered voyage's chip lit, the facilities as plain tags. */
-.fy-charter .ix-chip.on {
-  border-color: var(--accent);
-  color: var(--accent);
-}
+/* Cruise ferry inspector (D-141): the facilities as plain tags. */
 .fy-aboard .ix-chip {
   cursor: default;
   opacity: 0.85;
+}
+
+/* Route chart (D-232): a sea chart of the timetable's stops, the voyage's course and the ship, then a pier → loop →
+   home strip. Static styles only: the ship glides on a transform transition between the inspector's reads. */
+.fy-chart {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 4px;
+}
+.fy-map {
+  position: relative;
+  aspect-ratio: 1;
+  max-height: 260px;
+  justify-self: center;
+  width: 100%;
+  max-width: 260px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: radial-gradient(circle at 50% 45%, #1d5a78 0%, #133f58 60%, #0d2e42 100%);
+  overflow: hidden;
+}
+.fy-land,
+.fy-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.fy-land {
+  image-rendering: auto;
+  filter: blur(0.6px);
+  opacity: 0.95;
+}
+.fy-course {
+  stroke: rgb(255 255 255 / 0.28);
+  stroke-width: 4;
+  stroke-dasharray: 10 8;
+}
+.fy-course-done {
+  stroke: var(--accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.fy-loop {
+  stroke: #ffd36b;
+  stroke-width: 5;
+  stroke-dasharray: 9 7;
+  stroke-linecap: round;
+}
+.fy-pier rect {
+  fill: #f4efe2;
+  stroke: #0d2e42;
+  stroke-width: 3;
+}
+.fy-ship {
+  transition: transform 0.5s linear;
+}
+.fy-ship path {
+  fill: #fff;
+  stroke: #0d2e42;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.fy-ship-halo {
+  fill: rgb(127 247 230 / 0.28);
+}
+.fy-stop {
+  cursor: var(--cur-pointer, pointer);
+  outline: none;
+}
+.fy-stop circle:not(.fy-stop-ring) {
+  fill: #e8f4f2;
+  stroke: #0d2e42;
+  stroke-width: 3;
+}
+.fy-stop text {
+  font: 700 28px var(--mono);
+  fill: #0d2e42;
+  pointer-events: none;
+}
+.fy-stop-ring {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 4;
+}
+.fy-stop:hover .fy-stop-ring,
+.kbd-nav .fy-stop:focus .fy-stop-ring {
+  stroke: rgb(255 255 255 / 0.7);
+}
+.fy-stop.dest circle:not(.fy-stop-ring) {
+  fill: #ffd36b;
+}
+.fy-stop.dest .fy-stop-ring {
+  stroke: #ffd36b;
+}
+.fy-stop.next circle:not(.fy-stop-ring) {
+  fill: var(--accent);
+}
+.fy-stop.locked {
+  cursor: default;
+}
+.fy-stop.locked circle:not(.fy-stop-ring) {
+  fill: rgb(255 255 255 / 0.12);
+  stroke: rgb(255 255 255 / 0.35);
+  stroke-dasharray: 5 4;
+}
+.fy-stop.locked text {
+  fill: rgb(255 255 255 / 0.45);
+}
+
+.fy-strip {
+  display: grid;
+  gap: 3px;
+}
+.fy-bar {
+  position: relative;
+  height: 6px;
+  border-radius: var(--pill);
+  background: rgb(255 255 255 / 0.1);
+}
+.fy-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.fy-band {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  border-radius: 3px;
+  background: rgb(255 211 107 / 0.35);
+  border: 1px solid rgb(255 211 107 / 0.7);
+}
+.fy-boat {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--accent);
+}
+.fy-strip-labels {
+  display: flex;
+  justify-content: space-between;
+  font: 11px var(--mono);
+  color: var(--ink-soft);
+}
+.fy-dest {
+  color: #ffd36b;
+}
+.fy-chart.boarding .fy-boat {
+  background: #ffd36b;
+}
+.fy-hint {
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+.fy-stop text.fy-label {
+  font: 600 30px var(--ui);
+  fill: #fff;
+  paint-order: stroke;
+  stroke: #0d2e42;
+  stroke-width: 7px;
+  stroke-linejoin: round;
+}
+.fy-stop.dest text.fy-label {
+  fill: #ffd36b;
+}
+.fy-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.fy-key {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.fy-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e8f4f2;
+  border: 1.5px solid #0d2e42;
+}
+.fy-key.dest .fy-dot {
+  background: #ffd36b;
+}
+.fy-key.next .fy-dot {
+  background: var(--accent);
+}
+.fy-key.locked .fy-dot {
+  background: transparent;
+  border: 1.5px dashed rgb(255 255 255 / 0.45);
 }

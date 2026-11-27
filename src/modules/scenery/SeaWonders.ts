@@ -6,7 +6,8 @@ import { U } from '@/render/uniforms';
 import { WONDER_SITES, type WonderSite } from './sites';
 import { dome, LANTERN_Y, lighthouse, lotus, stacks, tideGates } from './wonderModels';
 import { colonnade, geode, turtle } from './laterWonders';
-import { dolphinSchool, whalePod } from './SeaLife';
+import { dolphinSchool, whalePod, type RoamingPod } from './SeaLife';
+import { podAt } from './whaleRoute';
 import type { Kit } from './wonderKit';
 
 /** Each sea wonder's model at the origin, by its lore key (the model gallery). `S` = map size (the Tide Gates face the island). */
@@ -33,8 +34,10 @@ export const WONDER_MODELS: Record<string, (S: number) => Kit> = {
 export class SeaWonders {
   readonly group = new Group();
   private beam: Mesh;
+  /** Whale pods roaming the feeding grounds (`whaleRoute.ts`), by pod number. */
+  readonly pods: RoamingPod[];
 
-  constructor(S: number) {
+  constructor(private S: number) {
     const at = (k: WonderSite) => {
       const [x, z] = WONDER_SITES[k];
       return [x * S, z * S] as const;
@@ -48,9 +51,14 @@ export class SeaWonders {
     this.add('sunken-colonnade', colonnade(...at('colonnade')));
     this.add('prism-geode', geode(...at('geode')));
     this.beam = this.makeBeam(...at('lighthouse'));
+    this.pods = WONDER_SITES.whales.map((_, p) => {
+      const { x, z } = podAt(p, U.clock.value, S);
+      const mesh = whalePod(x, z, p, 4, true);
+      return { mesh, route: mesh.route! };
+    });
     this.group.add(
       this.beam,
-      ...WONDER_SITES.whales.map(([x, z], p) => whalePod(x * S, z * S, p)),
+      ...this.pods.map((p) => p.mesh),
       ...WONDER_SITES.dolphins.map(([x, z], p) => dolphinSchool(x * S, z * S, p)),
     );
   }
@@ -107,6 +115,13 @@ export class SeaWonders {
   update(dt = 0): boolean {
     this.beam.visible = this.lit && U.night.value > 0.05;
     this.beam.rotation.y = U.clock.value * 0.5;
+    for (let p = 0; p < this.pods.length; p++) {
+      const { mesh, route } = this.pods[p]!;
+      const s = podAt(p, U.clock.value, this.S);
+      mesh.position.x = s.x;
+      mesh.position.z = s.z;
+      route.value.set(s.vx, s.vz, s.travel, 0);
+    }
     for (const [m, t] of this.rising) {
       const k = Math.min(1, (t + dt) / 5);
       m.position.y = -40 * (1 - k) ** 3;

@@ -19,11 +19,15 @@ risen wonder. On a fresh island it starts sailing once the first sea wonder has 
 
 ## What can I ask the ferry's captain?
 
-Click the ship (or its pier) for its card: where it is bound, speed, passengers and time to departure or arrival.
+Click the ship (or its pier) for its card: where it is bound, speed, passengers and time to departure or arrival, and
+a route chart: every stop numbered in timetable order on a little sea chart (gold = this voyage, teal = next, dashed =
+not yet risen), the course with the part already sailed lit up, the sightseeing loop, the pier and the ship, and a
+bar from the pier out to the loop and home.
 
 - **Depart now** (while boarding): cast off without waiting.
 - **Full ahead** (under way): the ship rides up on its foils at twice the speed until the voyage ends; **Ease off** slows it again.
-- **Charter**: pick a wonder in the card; the next departure (or this one, while boarding) sails there.
+- **Charter**: tap a stop on the route chart; the next departure (or this one, while boarding) sails there. The whale
+  pods roam, so a voyage to them sails to where the pod is when the ship casts off.
 - **Deck show**: the deck lamps, the waterline glow and the sky wheel run a rainbow for 45 seconds (best at night).
 - **Horn**, **Ride aboard** (watch from the bridge, Esc to return) and **Locate**.
 

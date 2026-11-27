@@ -198,6 +198,9 @@ class InstanceBatch {
   /** Hysteresis state (D-162): whether the far model / shadow casting is on, so a camera near a limit can't flip it. */
   farOn = false;
   shadowOn = true;
+  /** Distance to the shadow focus, and the focus version it was measured for (`ChunkedInstancer.shadowDistance`). */
+  shadowDist = 0;
+  shadowAt = -1;
 
   /** Sets the distance at which the piece's dithered fade completes (D-162; read per object by the materials). */
   setFadeAt(d: number): void {
@@ -361,9 +364,20 @@ export class ChunkedInstancer {
   private tweens: Tween[] = [];
   lodScale = 1;
   time = 0;
-  /** Batches farther than this from `shadowFocus` (xz) stop casting shadows. */
+  /**
+   * Batches farther than this from `shadowFocus` stop casting shadows: measured across the light (in the shadow map's
+   * own axes `shadowAxes`, D-231) when they are set, else on the ground (xz).
+   */
   shadowRadius = Infinity;
   readonly shadowFocus = new Vector3();
+  shadowAxes: { right: Vector3; up: Vector3 } | null = null;
+  private shadowVersion = 0;
+  private readonly lastFocus = new Vector3(NaN, 0, 0);
+  private readonly lastRight = new Vector3();
+  private readonly lastUp = new Vector3();
+  /** Height of a chunk's casters (the top of its box when it is projected along the light; the rare taller tower's
+   * shadow tip is in the faded band). */
+  shadowHeight = 60;
 
   constructor(
     private parent: Object3D,
@@ -554,17 +568,31 @@ export class ChunkedInstancer {
     }
 
     // Bounds, distance LOD and shadow LOD per batch.
+    const ax = this.shadowAxes;
+    if (
+      !this.lastFocus.equals(this.shadowFocus) ||
+      (ax && (!this.lastRight.equals(ax.right) || !this.lastUp.equals(ax.up)))
+    ) {
+      this.shadowVersion++;
+      this.lastFocus.copy(this.shadowFocus);
+      if (ax) {
+        this.lastRight.copy(ax.right);
+        this.lastUp.copy(ax.up);
+      }
+    }
     const cam = camera.position;
     const half = this.chunkSize / 2;
-    const sf = this.shadowFocus;
     for (const b of this.batches.values()) {
       b.flush();
       // Every switch below has a hysteresis band (D-162): without one, a camera resting or easing near a limit
       // flipped a whole chunk's model, visibility or shadows back and forth, and the city blinked.
       if (b.piece.castShadow) {
-        const sx = Math.max(0, Math.abs(sf.x - (b.cx * this.chunkSize + half)) - half);
-        const sz = Math.max(0, Math.abs(sf.z - (b.cz * this.chunkSize + half)) - half);
-        const ds = Math.hypot(sx, sz);
+        // Measured again only when the focus or the map's axes moved (a shadow refresh), not every frame.
+        if (b.shadowAt !== this.shadowVersion) {
+          b.shadowDist = this.shadowDistance(b.cx * this.chunkSize, b.cz * this.chunkSize);
+          b.shadowAt = this.shadowVersion;
+        }
+        const ds = b.shadowDist;
         const r = this.shadowRadius;
         if (b.shadowOn ? ds > r * 1.1 : ds < r) b.shadowOn = !b.shadowOn;
         b.setCastShadow(b.shadowOn);
@@ -588,5 +616,31 @@ export class ChunkedInstancer {
         b.show(b.count > 0, false);
       }
     }
+  }
+
+  /** Distance from the shadow focus to the chunk at `x0`, `z0` (its box up to `shadowHeight`), across the light. */
+  private shadowDistance(x0: number, z0: number): number {
+    const sf = this.shadowFocus;
+    const n = this.chunkSize;
+    const ax = this.shadowAxes;
+    if (!ax) {
+      const sx = Math.max(0, Math.abs(sf.x - (x0 + n / 2)) - n / 2);
+      const sz = Math.max(0, Math.abs(sf.z - (z0 + n / 2)) - n / 2);
+      return Math.hypot(sx, sz);
+    }
+    // The box's shadow-map footprint: its eight corners on the map's axes, as a rectangle round them.
+    let [u0, u1, v0, v1] = [Infinity, -Infinity, Infinity, -Infinity];
+    for (let k = 0; k < 8; k++) {
+      const x = x0 + (k & 1 ? n : 0) - sf.x;
+      const y = (k & 2 ? this.shadowHeight : 0) - sf.y;
+      const z = z0 + (k & 4 ? n : 0) - sf.z;
+      const u = x * ax.right.x + y * ax.right.y + z * ax.right.z;
+      const v = x * ax.up.x + y * ax.up.y + z * ax.up.z;
+      u0 = Math.min(u0, u);
+      u1 = Math.max(u1, u);
+      v0 = Math.min(v0, v);
+      v1 = Math.max(v1, v);
+    }
+    return Math.hypot(Math.max(0, u0, -u1), Math.max(0, v0, -v1));
   }
 }

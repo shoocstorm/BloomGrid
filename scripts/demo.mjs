@@ -212,13 +212,20 @@ const SKIP_FILM = `(async () => {
   for (let k = 0; k < 20; k++) await window.__bgFrame(1 / 60);
 })()`;
 // Lands a whale breach `lead` seconds into the shot: scans the pod's cycle (the shader's, mirrored on the CPU by
-// `whalesNow`) for the next breach and moves the clock offset so it starts on cue.
+// `whalesNow`) for the next breach while the pod lingers off the south shore (pods roam the island, D-231:
+// `podAt` in whaleRoute.ts) and moves the clock offset so it starts on cue.
 const CUE_BREACH = (time, lead = 1.0) => `(async () => {
-  const url = performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes('/src/modules/scenery/SeaLife.ts'));
-  const { whalesNow } = await import(url ?? '/src/modules/scenery/SeaLife.ts');
+  const find = (part) => performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes(part));
+  const { whalesNow } = await import(find('/src/modules/scenery/SeaLife.ts') ?? '/src/modules/scenery/SeaLife.ts');
+  const { podAt } = await import(find('/src/modules/scenery/whaleRoute.ts') ?? '/src/modules/scenery/whaleRoute.ts');
+  const S = window.bloomgrid.city.size;
+  const home = (c) => {
+    const p = podAt(0, c, S);
+    return p.travel === 0 && Math.hypot(p.x - ${WHALES.x}, p.z - ${WHALES.z}) < 1;
+  };
   const now = ${time} + window.__bgOff;
-  for (let c = now + ${lead}; c < now + 900; c += 0.05)
-    if (whalesNow(0, c) === 'Breaching!' && whalesNow(0, c - 0.05) !== 'Breaching!') {
+  for (let c = now + ${lead}; c < now + 9000; c += 0.05)
+    if (whalesNow(0, c) === 'Breaching!' && whalesNow(0, c - 0.05) !== 'Breaching!' && home(c) && home(c + 6)) {
       window.__bgOff += c - (now + ${lead});
       return c;
     }
@@ -228,7 +235,8 @@ const CUE_BREACH = (time, lead = 1.0) => `(async () => {
 let hive = { x: 282, z: 333 };
 let yard = { x: 54, z: 281 };
 let spire = { x: 256, z: 256 }; // the Aurora Gemini's lot centre (D-135)
-const WHALES = { x: 0.3 * 512, z: 0.94 * 512 };
+/** Pod 1's home ground (`GROUNDS[5]` in whaleRoute.ts), where the breach shot waits for it. */
+const WHALES = { x: 0.3 * 512, z: 0.95 * 512 };
 /**
  * Shots. `view(t, od)` poses an orbit (`aim` lifts the orbit point); `track` follows something live; `free` hands
  * the camera to an explore mode; `film` records a reel (`preroll` selector, `rate`). `tod(t)` sets the sun,

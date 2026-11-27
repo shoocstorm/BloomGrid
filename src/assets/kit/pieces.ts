@@ -309,6 +309,8 @@ export function initPieces(): void {
   registerPiece({ id: 'glassCyl', geometry: cyl(20), material: 'glass' });
   registerPiece({ id: 'concreteCyl', geometry: cyl(16), material: 'concrete' });
   registerPiece({ id: 'mossBox', geometry: box(), material: 'moss' });
+  /** A playing field with its markings painted on (`pitch` material; lay its length along x, D-232). */
+  registerPiece({ id: 'pitch', geometry: box(), material: 'pitch', castShadow: false });
   registerPiece({ id: 'algaeTank', geometry: cyl(16), material: 'algae' });
   registerPiece({ id: 'pool', geometry: box(), material: 'pool', castShadow: false });
   registerPiece({ id: 'dome', geometry: new SphereGeometry(0.5, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), material: 'dome', castShadow: false });
@@ -334,7 +336,7 @@ export function initPieces(): void {
   registerPiece({ id: 'palm', geometry: palmGeometry(), material: 'palm', lod: 280, far: { geometry: palmGeometry(true), at: 80 } });
   registerPiece({ id: 'ivy', geometry: new PlaneGeometry(1, 1, 1, 3).translate(0, -0.5, 0.01), material: 'ivy', castShadow: false, lod: 140 });
   registerPiece({ id: 'grass', geometry: grassGeometry(), material: 'grass', castShadow: false, receiveShadow: false, lod: 90 });
-  registerPiece({ id: 'flower', geometry: base(new IcosahedronGeometry(0.5, 0).scale(1, 0.7, 1), 0.35), material: 'flower', castShadow: false, lod: 110 });
+  registerPiece({ id: 'flower', geometry: base(new IcosahedronGeometry(0.5, 0).scale(1, 0.7, 1), 0.35), material: 'flower', castShadow: false, lod: 80 });
   // Lily pad (flat disc) with a small raised flower in the middle.
   const lily = mergeGeometries([
     new CylinderGeometry(0.5, 0.5, 0.04, 10).translate(0, 0.02, 0).toNonIndexed(),

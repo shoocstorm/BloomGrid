@@ -12,7 +12,12 @@
  *   bun run flicker -- --pieces names                # every named module mesh alone (lanes, rails, scenery…)
  *
  * Options: --base, --path (default "/?nodynres"), --dists 70,140,260, --frames 10, --step (tiles per frame; default ≈0.15 px of motion),
- * --threshold 48, --cx/--cz (focus tile, default downtown), --yaw, --pitch. Needs the dev server and a local Chrome.
+ * --threshold 48, --cx/--cz (focus tile, default downtown), --yaw, --pitch, --overview (the O view: whole island, pitch 1.1),
+ * --still (camera held, shader clock running: what twinkles or blinks by itself rather than under motion),
+ * --speed <px> (a pan at a real speed, px per frame: each moving frame is compared with a still, converged render of
+ * the same pose, and what is counted is how much that error jumps from frame to frame. Lag and blur from temporal AA
+ * change smoothly; detail that flashes in and out of pixels while the history is rejected does not, D-232).
+ * Needs the dev server and a local Chrome.
  */
 import { launchChrome } from './lib/chrome.mjs';
 import sharp from 'sharp';
@@ -36,14 +41,22 @@ const args = Object.fromEntries(
     ),
 );
 const base = args.base ?? 'http://localhost:3000';
-const dists = (args.dists ?? '70,140,260').split(',').map(Number);
 const frames = Number(args.frames ?? 10);
 // Pan per frame: by default ~0.15 px on screen at any distance, so a well anti-aliased edge changes by ~15% of its
 // contrast (under the threshold) while a detail that pops in or out of a pixel jumps fully.
-const stepFor = (dist) => (args.step !== undefined ? Number(args.step) : dist * 0.0002);
+const still = args.still === 'true';
+const speed = args.speed !== undefined ? Number(args.speed) : 0;
+const stepFor = (dist) => (still ? 0 : args.step !== undefined ? Number(args.step) : dist * 0.0002);
+if (args.overview === 'true') {
+  args.cx ??= '256';
+  args.cz ??= '266';
+  args.pitch ??= '1.1';
+  args.dists ??= '563';
+}
 const threshold = Number(args.threshold ?? 48);
 const night = args.day !== 'true';
 const [W, H] = [960, 600];
+const dists = (args.dists ?? '70,140,260').split(',').map(Number);
 const chrome =
   args.chrome ??
   process.env.CHROME_PATH ??
@@ -68,7 +81,7 @@ await new Promise((r) => setTimeout(r, 2500));
 
 // Freeze the world: sim paused, shader clock pinned, HUD hidden, night or noon.
 await page.evaluate(
-  async ({ night }) => {
+  async ({ night, still }) => {
     const g = window.bloomgrid;
     g.engine.speed = 0;
     g.city.timeOfDay = night ? 0.95 : 0.5;
@@ -78,7 +91,7 @@ await page.evaluate(
       .map((e) => e.name)
       .find((n) => n.includes('/src/render/uniforms.ts'));
     const { U } = await import(url);
-    Object.defineProperty(U.clock, 'value', { get: () => 100, set() {}, configurable: true });
+    if (!still) Object.defineProperty(U.clock, 'value', { get: () => 100, set() {}, configurable: true });
     // Wait for rendered frames, not animation frames: the engine paces rendering (an unfocused page renders at 15 fps).
     g.services.get('render').power.mode = 'max';
     window.__frames = (n) =>
@@ -115,6 +128,19 @@ await page.evaluate(
       });
       return keep.size;
     };
+    // Frame-exact stepping for --speed: the engine stops and each call renders exactly one frame.
+    let t = 0;
+    window.__step = (n = 1) => {
+      g.engine.stop();
+      for (let i = 0; i < n; i++) {
+        t += 1 / 60;
+        const f = { dt: 1 / 60, tickDt: 1 / 60, alpha: 0, elapsed: t, tick: g.city.tick };
+        g.systems.run('input', g, f);
+        g.systems.run('sync', g, f);
+        g.systems.run('render', g, f);
+      }
+      return new Promise((res) => requestAnimationFrame(() => res()));
+    };
     window.__pieces = () => [...new Set([...g.instancer.batches.values()].map((b) => b.piece.id))];
     window.__names = () => {
       const n = new Set();
@@ -136,7 +162,7 @@ await page.evaluate(
       };
     };
   },
-  { night },
+  { night, still },
 );
 
 const luma = (buf) => {
@@ -186,11 +212,61 @@ async function measure(pieces, x, z, dist) {
   return (sum / frames) * 100;
 }
 
+/**
+ * --speed: mean share (%) of pixels whose error against the still render of the same pose jumps by more than the
+ * threshold from one moving frame to the next.
+ */
+async function measureMoving(pieces, x, z, dist) {
+  await page.evaluate((p) => window.__isolate(p), pieces);
+  const yaw = Number(args.yaw ?? 0.6);
+  const pitch = Number(args.pitch ?? 0.7);
+  // 0.15 px of motion is dist × 0.0002 tiles (see stepFor).
+  const step = (speed / 0.15) * dist * 0.0002;
+  const pose = (f) => [x + f * step, z + f * step * 0.4, dist, yaw, pitch];
+  await page.evaluate((a) => window.__view(...a), pose(-10));
+  await page.evaluate(() => window.__step(40));
+  // In motion for a few frames first, so the history is in its moving state.
+  for (let f = -10; f < 0; f++) {
+    await page.evaluate((a) => window.__view(...a), pose(f));
+    await page.evaluate(() => window.__step(1));
+  }
+  const moving = [];
+  for (let f = 0; f <= frames; f++) {
+    await page.evaluate((a) => window.__view(...a), pose(f));
+    await page.evaluate(() => window.__step(1));
+    moving.push(await grab());
+  }
+  let sum = 0;
+  let prevErr = null;
+  for (let f = 0; f <= frames; f++) {
+    await page.evaluate((a) => window.__view(...a), pose(f));
+    await page.evaluate(() => window.__step(30));
+    const ref = await grab();
+    const err = new Float32Array(ref.length);
+    for (let i = 0; i < ref.length; i++) err[i] = moving[f][i] - ref[i];
+    if (prevErr) {
+      let n = 0;
+      for (let i = 0; i < err.length; i++) if (Math.abs(err[i] - prevErr[i]) > threshold) n++;
+      sum += n / err.length;
+      if (args.diff && f === frames) {
+        const img = Buffer.alloc(err.length);
+        for (let i = 0; i < err.length; i++) img[i] = Math.abs(err[i] - prevErr[i]) > threshold ? 255 : ref[i] * 0.25;
+        await sharp(img, { raw: { width: W, height: H, channels: 1 } })
+          .png()
+          .toFile(args.diff.replace(/\.png$/, `-${(pieces ?? ['scene']).join('+')}-${dist}-moving.png`));
+      }
+    }
+    prevErr = err;
+  }
+  return (sum / frames) * 100;
+}
+const measureAny = (pieces, x, z, dist) => (speed > 0 ? measureMoving(pieces, x, z, dist) : measure(pieces, x, z, dist));
+
 const cx = Number(args.cx ?? 292);
 const cz = Number(args.cz ?? 222);
 const fmt = (v) => v.toFixed(3).padStart(7);
 console.log(
-  `flicker % (pixels jumping > ${threshold}/255 per frame, ${night ? 'night' : 'day'}) at distances ${dists.join(' / ')}`,
+  `flicker % (pixels jumping > ${threshold}/255 per frame, ${night ? 'night' : 'day'}${still ? ', still camera, clock running' : ''}${speed ? `, moving ${speed} px/frame vs still renders` : ''}) at distances ${dists.join(' / ')}`,
 );
 if (args.defs) {
   for (const id of args.defs.split(',')) {
@@ -200,7 +276,7 @@ if (args.defs) {
       continue;
     }
     const r = [];
-    for (const d of dists) r.push(await measure(pieces, at[0] + 1, at[1] + 1, d));
+    for (const d of dists) r.push(await measureAny(pieces, at[0] + 1, at[1] + 1, d));
     console.log(`${id.padEnd(24)} ${r.map(fmt).join(' ')}   at ${at.join(',')} pieces: ${pieces.join(',')}`);
   }
 } else if (args.pieces) {
@@ -213,7 +289,7 @@ if (args.defs) {
   const rows = [];
   for (const p of list) {
     const r = [];
-    for (const d of dists) r.push(await measure([p], cx, cz, d));
+    for (const d of dists) r.push(await measureAny([p], cx, cz, d));
     rows.push([p, r]);
     process.stdout.write('.');
   }
@@ -222,7 +298,7 @@ if (args.defs) {
   for (const [p, r] of rows) console.log(`${p.padEnd(24)} ${r.map(fmt).join(' ')}`);
 } else {
   const r = [];
-  for (const d of dists) r.push(await measure(null, cx, cz, d));
+  for (const d of dists) r.push(await measureAny(null, cx, cz, d));
   console.log(`${'whole scene'.padEnd(24)} ${r.map(fmt).join(' ')}`);
 }
 await browser.close();

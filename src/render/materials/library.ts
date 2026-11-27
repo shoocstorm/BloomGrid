@@ -517,7 +517,10 @@ export function initMaterials(): void {
   define('flower', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.6, flatShading: true });
     m.positionNode = trampled(swayed(0.02));
-    const open = smoothstep(0.12, 0.55, bloomAt(positionWorld.x, positionWorld.z));
+    // A flower is a tenth of a unit: under a few pixels its bright petals popped in and out of pixels as the camera
+    // moved (gardens round the stadium and sports fields sparkled, D-232). It shades to its leafy green, the mean of a
+    // flower bed seen from afar, instead.
+    const open = smoothstep(0.12, 0.55, bloomAt(positionWorld.x, positionWorld.z)).mul(pieceCover(4));
     const tinted = mix(vec3(1), seasonTint.div(max(instanceColor, vec3(0.08))), U.seasonAmount.mul(0.6));
     m.colorNode = mix(vec3(0.44, 0.6, 0.29).div(max(instanceColor, vec3(0.08))), tinted, open);
     // Flowers are a few pixels at street zoom: their glow fades below ~10 px or the gardens sparkle in motion (D-070).
@@ -679,6 +682,39 @@ export function initMaterials(): void {
       .mul(pieceCover(6));
     return m;
   }, { fade: true });
+
+  // A playing field (D-232): turf with mowing stripes and the markings painted on, not built from thin white slabs.
+  // Lines a few hundredths of a unit wide are under a pixel from mid zoom, and white on green popped in and out of
+  // pixels as the camera moved (the stadium and the sports fields flashed). As a pattern, every line is at least a
+  // pixel soft and fades to the field's mean once it is thinner than one. The top face's uv runs along the pitch
+  // (u = length, laid along the piece's x), proportions for a pitch about 1.5 times as long as it is wide.
+  define('pitch', () => {
+    const m = new MeshStandardNodeMaterial({ roughness: 0.95 });
+    const A = 1.5;
+    const t = uv();
+    const q = vec2(t.x.sub(0.5).mul(A), t.y.sub(0.5));
+    const aq = abs(q);
+    const rect = (cx: number, hx: number, hy: number) => {
+      const d = vec2(abs(aq.x.sub(cx)).sub(hx), aq.y.sub(hy));
+      return abs(length(max(d, vec2(0, 0))).add(min(max(d.x, d.y), float(0))));
+    };
+    const edge = A / 2 - 0.04;
+    const d = min(
+      min(min(rect(0, edge, 0.46), aq.x), abs(length(q).sub(0.13))),
+      min(min(rect(edge - 0.11, 0.11, 0.21), rect(edge - 0.04, 0.04, 0.1)), max(length(q).sub(0.012), float(0))),
+    );
+    const hw = float(0.007);
+    const px = max(fwidth(d), float(1e-5));
+    const sharp = float(1).sub(smoothstep(hw.sub(px), hw.add(px), d));
+    // ≈ the share of the field the lines cover: what they average to from afar.
+    const lines = mix(sharp, float(0.08), smoothstep(0.6, 1.6, px.div(hw)));
+    const bands = t.x.mul(12);
+    const mow = sin(bands.mul(Math.PI)).mul(0.5).add(0.5).mul(float(1).sub(smoothstep(0.25, 0.6, fwidth(bands))));
+    const turf = mix(color(0x4a963a), color(0x5aab46), mix(float(0.5), mow, float(1)));
+    const top = smoothstep(0.5, 0.9, normalGeometry.y);
+    m.colorNode = mix(turf.mul(mix(float(0.82), float(1), top)), color(0xf2f5ee), lines.mul(top));
+    return m;
+  });
 
   define('pool', () => {
     const m = new MeshStandardNodeMaterial({ roughness: 0.04, metalness: 0.2 });

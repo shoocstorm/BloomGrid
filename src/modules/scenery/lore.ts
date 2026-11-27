@@ -201,7 +201,7 @@ export const LORE: Record<string, WonderLore> = {
     name: 'Whale pods',
     tagline: 'Glowing humpbacks that sing the island’s weather.',
     story: [
-      'Two pods of humpbacks live in the deep water off the island, their backs dotted with the same lumen glow as the reef. They cruise deep, rise to blow two or three times, then arch their backs and dive with their flukes in the air. On most passes one of them breaches: a whole whale bursting out of the sea, twisting onto its side in mid-air and landing with a crash you can hear from the shore.',
+      'Two pods of humpbacks live in the deep water round the island, their backs dotted with the same lumen glow as the reef. They do not stay put: each pod roams a ring of feeding grounds right round the coast, lingering at one for a while and then swimming slowly on to the next, so the whales off the south shore this morning may be off the east by evening. At a feeding ground they cruise deep, rise to blow two or three times, then arch their backs and dive with their flukes in the air. On most passes one of them breaches: a whole whale bursting out of the sea, twisting onto its side in mid-air and landing with a crash you can hear from the shore.',
       'The fishing crews read the weather from them, a habit they learned from the Tidekin. Breaching means fair skies; a pod that stays deep means a storm is coming. Each pod has a calf that swims at its mother’s side, and the city names every new calf by vote.',
     ],
     look: [
@@ -209,11 +209,14 @@ export const LORE: Record<string, WonderLore> = {
       'A breach: a whale clear of the water, twisting as it falls',
       'Flukes raised as they dive',
       'At night, glowing spots along their flanks',
+      'Rings spreading from a breach, and the smooth slick a fluke leaves',
+      'A pod swimming on to its next feeding ground, its wake behind it',
     ],
     facts: [
       ['Pods', 'Two, four whales each'],
       ['Length', 'Up to 17 m'],
       ['Calves', 'One per pod, by its mother'],
+      ['Range', 'Eleven feeding grounds round the island'],
     ],
     bestSeen: 'Day and night',
     quote: '“When the whales jump, hang out the washing.”',

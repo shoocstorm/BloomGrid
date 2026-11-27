@@ -19,6 +19,8 @@
     "check": "tsc --noEmit && eslint src tests && bun run test && vite build",
     "perf": "node scripts/perf.mjs",
     "flicker": "node scripts/flicker.mjs",
+    "blink": "node scripts/blink.mjs",
+    "flyprobe": "node scripts/flyprobe.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

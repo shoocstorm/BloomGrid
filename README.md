@@ -42,7 +42,7 @@ Loop coaster, the Sky Orbit wheel, spinning Bloom Cups and a splash lagoon — a
 landmark of its own: suspension bridges with lotus or portal towers, a cable-stayed fan over the bay, Helix and
 Bloom Arch bridges over the river.</td>
 <td><b>A whole island to steward.</b> A 512 × 512 tile island with hills, lakes, a river and islets to bridge,
-reclaim or defend — from the Tidewatch Lighthouse and glowing whale pods to a wind farm on Windward Isle.</td>
+reclaim or defend — from the Tidewatch Lighthouse and glowing whale pods roaming the coast to a wind farm on Windward Isle.</td>
 </tr>
 </table>
 

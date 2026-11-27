@@ -21,6 +21,8 @@ import { wonderVisible } from '@/sim/wonders';
 import { isOpen } from '@/sim/growthState';
 import { registerPickable } from '@/modules/construction/pick';
 import { WONDER_SITES, wonderObstacles, type WonderSite } from '@/modules/scenery/sites';
+import { podSite } from '@/modules/scenery/whaleRoute';
+import { createRouteChart, type RouteChart } from './routeChart';
 import { FERRY, FERRY_PART, ferryGeometry, ferrySolids, pierGeometry } from './ferryModel';
 import './ferry.css';
 import {
@@ -91,7 +93,11 @@ const SITES: Site[] = [
     key: 'whales',
     name: 'Whale pod',
     r: 30,
-    at: (S) => [WONDER_SITES.whales[0][0] * S, WONDER_SITES.whales[0][1] * S],
+    // The pod roams the feeding grounds (D-231): sail to where it is when the voyage is planned.
+    at: (S) => {
+      const [x, z] = podSite(0, U.clock.value, S);
+      return [x * S, z * S];
+    },
   },
   site('stacks', 'Verdant Pillars', 22),
   site('colonnade', 'Sunken Colonnade', 28),
@@ -518,6 +524,9 @@ export const ferryModule: GameModule = {
         courses.clear();
         dirty = false;
       }
+      // The whale pod roams (D-231): plan its course afresh at each departure, to where the pod is now; the course
+      // then stays fixed for the voyage.
+      courses.delete('whales');
       if (!dest || !courseTo(dest)) dest = pickNext();
       if (!dest) return;
       phase = 'astern';
@@ -679,6 +688,9 @@ export const ferryModule: GameModule = {
       ].map((f) => h('span', { class: 'ix-chip' }, f)),
     );
     const hud = ctx.services.get('hud');
+    let chart: RouteChart | null = null;
+    // A new coast is painted into a new chart.
+    bus.on('terrain:changed', () => (chart = null));
     hud.objectInspector('ferry', () => {
       if (!shown || !pier) return null;
       const plan = dest ? courseTo(dest) : null;
@@ -694,27 +706,35 @@ export const ferryModule: GameModule = {
               : `Returning to ${PIER_NAME}`
           : PHASE_NAMES[phase];
       const aboard = 820 + ((voyageNo * 7919) % 640);
-      const chips = h(
-        'div',
-        {
-          class: 'ix-group fy-charter',
-          title: 'Charter a voyage: the next departure sails for the wonder you pick',
-        },
-        h('span', { class: 'ix-more' }, phase === 'board' ? 'This voyage:' : 'Charter next:'),
-        ...open()
-          .filter((d) => courseTo(d))
-          .map((d) =>
-            h(
-              'button',
-              {
-                class: `ix-chip ${(phase === 'board' ? dest : charter) === d ? 'on' : ''}`,
-                title: `Sail for ${d.name}`,
-                onClick: () => charterTo(d.key),
-              },
-              d.name.replace(/^the /, ''),
-            ),
-          ),
-      );
+      // The route chart (D-232): every stop in timetable order on a sea chart, the voyage's course and the ship.
+      const list = open();
+      const reachable = (d: Site) => list.includes(d) && !!courseTo(d);
+      const next =
+        charter ??
+        (() => {
+          for (let k = 0; k < SITES.length; k++) {
+            const d = SITES[(rotation + k) % SITES.length]!;
+            if (d !== dest && reachable(d)) return d;
+          }
+          return null;
+        })();
+      chart ??= createRouteChart(city.grid, (key) => void charterTo(key));
+      chart.update({
+        stops: SITES.map((d) => ({
+          key: d.key,
+          name: d.name,
+          at: d.at(S),
+          state: d === dest ? 'dest' : d === next ? 'next' : reachable(d) ? 'open' : 'locked',
+        })),
+        pier: berth(),
+        ship: [pos.x, pos.z],
+        heading,
+        course: plan ? { pts: plan.course.pts, length: plan.course.length, loop: plan.loop } : null,
+        along: s,
+        phase,
+        boarding: phase === 'board' ? Math.min(1, clock / BOARD) : 0,
+        destName: dest?.name ?? null,
+      });
       return {
         glyph: 'ferry',
         code: 'FERRY · TS-1',
@@ -742,11 +762,11 @@ export const ferryModule: GameModule = {
             phase === 'board' || phase === 'sail' ? mmss(eta) : '—',
           ],
         ],
-        body: [chips, facilities],
+        body: [chart.el, facilities],
         rows: [
           ['Voyage', `#${voyageNo} · ${dest?.name ?? '—'}`],
           ['Now', status],
-          ['Next', charter ? `${charter.name} (chartered)` : 'Timetable'],
+          ['Next', next ? `${next.name}${charter ? ' (chartered)' : ''}` : '—'],
           ['Round trip', plan ? `${Math.round(plan.course.length)} tiles` : '—'],
         ],
         note: 'Requests go to the captain: Full ahead lasts to the end of the voyage; a charter changes only the next departure.',

@@ -25,12 +25,13 @@ export default defineBuilding({
   recipe(b) {
     b.add({ piece: 'slab', p: [0, 0, 0], s: [5.9, 0.1, 3.9], tint: PALETTE.concrete });
     for (const x of [-1.45, 1.45]) {
-      b.add({ piece: 'mossBox', p: [x, 0.1, -0.2], s: [2.7, 0.05, 3.0] });
-      b.add({ piece: 'slab', p: [x, 0.15, -0.2], s: [0.04, 0.01, 3.0], tint: 0xffffff });
+      // The pitch runs along z, its markings painted on (D-232: thin white slabs flashed from mid zoom).
+      b.add({ piece: 'pitch', p: [x, 0.1, -0.2], s: [3.0, 0.05, 2.7], r: Math.PI / 2 });
+      // Goals, a little stout and off-white (hairline bright frames flashed as the camera moved).
       for (const z of [-1.6, 1.2]) {
-        beam(b, 'timberBox', [x - 0.4, 0.15, z], [x - 0.4, 0.6, z], 0.05, { tint: 0xffffff });
-        beam(b, 'timberBox', [x + 0.4, 0.15, z], [x + 0.4, 0.6, z], 0.05, { tint: 0xffffff });
-        beam(b, 'timberBox', [x - 0.4, 0.6, z], [x + 0.4, 0.6, z], 0.05, { tint: 0xffffff });
+        beam(b, 'timberBox', [x - 0.4, 0.15, z], [x - 0.4, 0.6, z], 0.07, { tint: 0xdfe6e0 });
+        beam(b, 'timberBox', [x + 0.4, 0.15, z], [x + 0.4, 0.6, z], 0.07, { tint: 0xdfe6e0 });
+        beam(b, 'timberBox', [x - 0.4, 0.6, z], [x + 0.4, 0.6, z], 0.07, { tint: 0xdfe6e0 });
       }
     }
     // Bleachers along the long side.
@@ -53,20 +54,9 @@ export default defineBuilding({
     }
     tree(b, -2.7, 0.1, 0.0, 0.4, 0.2);
     tree(b, 2.7, 0.1, 0.0, 0.4, 0.2);
-    // Detail (D-097): penalty boxes and centre spots, a roof over the bleachers, team benches, a scoreboard and a
-    // low back fence.
+    // Detail (D-097): a roof over the bleachers, team benches, a scoreboard and a low back fence (the penalty boxes
+    // and centre spots are in the pitch's markings).
     for (const x of [-1.45, 1.45]) {
-      for (const z of [-1.3, 0.9]) {
-        b.add({ piece: 'slab', p: [x, 0.15, z], s: [1.2, 0.01, 0.04], tint: 0xffffff });
-        for (const dx of [-0.6, 0.6])
-          b.add({
-            piece: 'slab',
-            p: [x + dx, 0.15, z + (z < 0 ? -0.15 : 0.15)],
-            s: [0.04, 0.01, 0.3],
-            tint: 0xffffff,
-          });
-      }
-      b.add({ piece: 'concreteCyl', p: [x, 0.15, -0.2], s: [0.08, 0.012, 0.08], tint: 0xffffff });
       b.add({ piece: 'timberBox', p: [x, 0.1, -1.9], s: [0.6, 0.12, 0.12], tint: PALETTE.timber });
       b.add({ piece: 'glassBox', p: [x, 0.22, -1.9], s: [0.6, 0.25, 0.02], tint: 0xd6f2ee });
     }

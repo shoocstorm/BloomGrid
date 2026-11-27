@@ -14,7 +14,7 @@ Click a wonder out at sea, or pick it in the Inventory (**I**, kind *Sea wonders
 about it, lists what to look for close up, gives a few facts and a line from its keeper. **Locate** flies the camera
 there; **Charter ferry** sends the *Tidesong* there on her next voyage (once the cruise line runs). Whale pods and
 dolphin schools say live what they are doing: cruising deep, surfacing to blow, diving with flukes up, breaching or
-leaping.
+leaping; a whale pod's card also says where it is on its journey (feeding off a coast, or swimming on to the next).
 
 ## What brings each wonder up from the sea?
 
@@ -59,6 +59,9 @@ Chronicle) tells that story a page at a time as the city earns it, and opens its
 
 ## Whales and dolphins
 
-Two pods of glowing humpbacks (four whales each, a calf beside its mother) cruise deep, surface to blow, dive with
-their flukes up and often breach clear of the sea. Fishing crews say breaching means fair weather. Two dolphin
+Two pods of glowing humpbacks (four whales each, a calf beside its mother) roam a ring of eleven feeding grounds round
+the island: each pod lingers at a ground for a couple of minutes, then closes up and swims slowly on to the next, a
+wake behind it (a full lap takes about an hour). At a ground they cruise deep, surface to blow, dive with their flukes
+up and often breach clear of the sea, leaving rings and foam spreading on the water. To find a pod, pick it in the
+Inventory and press **Locate**. Fishing crews say breaching means fair weather. Two dolphin
 schools race in circles, leaping in arcs, and like to race the ferry.

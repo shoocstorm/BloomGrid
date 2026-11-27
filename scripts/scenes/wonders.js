@@ -1,6 +1,6 @@
 // Sea wonders close up (scenery module, D-146, D-164). `window.WONDER` = 'lighthouse' | 'tideGates' | 'lotus' | 'dome' |
 // 'stacks' | 'turtle' | 'colonnade' | 'geode' | 'whales' | 'dolphins' (default lighthouse); `window.CLOCK` pins the
-// shader clock (whales breach round 0.47 of their cycle); `window.NEAR` distance, `window.YAW`, `window.PITCH`, `window.AIM` (look-at height),
+// shader clock (whales breach round 0.47 of their cycle; pods roam, so `whales` frames pod `window.POD` (0) where it is then); `window.NEAR` distance, `window.YAW`, `window.PITCH`, `window.AIM` (look-at height),
 // `window.NIGHT = 1` (or `window.TIME`), `window.HUD = 1` keeps the HUD. Use `--after 6000`.
 (async () => {
   const g = window.bloomgrid;
@@ -13,10 +13,16 @@
     turtle: [0.94, 0.8, 70, 2],
     colonnade: [0.95, 0.3, 70, 5],
     geode: [0.1, 0.06, 70, 5],
-    whales: [0.3, 0.94, 95, 0],
+    whales: [0.3, 0.95, 95, 0],
     dolphins: [0.62, 0.95, 80, 0],
   };
-  const [u, v, near, aim] = SITES[window.WONDER ?? 'lighthouse'];
+  let [u, v, near, aim] = SITES[window.WONDER ?? 'lighthouse'];
+  if (window.WONDER === 'whales') {
+    // Pods roam the island (D-231): frame pod 1 where it is at the pinned clock (`window.POD` for another).
+    const find = (part) => performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes(part));
+    const { podSite } = await import(find('/src/modules/scenery/whaleRoute.ts') ?? '/src/modules/scenery/whaleRoute.ts');
+    [u, v] = podSite(window.POD ?? 0, window.CLOCK ?? 0, g.city.size);
+  }
   g.city.timeOfDay = window.NIGHT ? 0.92 : (window.TIME ?? 0.4);
   if (!window.HUD) document.getElementById('hud')?.classList.add('photo');
   g.engine.speed = 0;
