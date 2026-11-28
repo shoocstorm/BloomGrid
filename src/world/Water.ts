@@ -72,8 +72,9 @@ export function createWater(grid: Grid): Mesh {
   const chop = U.storm.mul(1.6).add(1);
   const ripple = mx_noise_float(vec3(x.mul(0.6), time.mul(chop.mul(0.35)), z.mul(0.6)));
   const ripple2 = mx_noise_float(vec3(x.mul(2.2), time.mul(chop.mul(0.8)), z.mul(2.2)));
-  const shallow = color(0x7fe3d2);
-  const deep = color(0x1d6a86);
+  // The Natural style (D-243): a greener, less luminous shallows and a deep blue-black sea.
+  const shallow = mix(color(0x7fe3d2), color(0x4f9f94), U.realism);
+  const deep = mix(color(0x1d6a86), color(0x0b3249), U.realism);
   // Algal bloom: slow-drifting patches with streaks of scum, not a flat tint.
   const patch = smoothstep(-0.25, 0.45, mx_noise_float(vec3(x.mul(0.03), time.mul(0.015), z.mul(0.03))));
   const streak = smoothstep(0.35, 0.7, mx_noise_float(vec3(x.mul(0.14), time.mul(0.03), z.mul(0.5)))).mul(
@@ -116,8 +117,10 @@ export function createWater(grid: Grid): Mesh {
   // Sky reflection: grazing views mirror the horizon, steep ones see into the water (open water only).
   const view = normalize(cameraPosition.sub(positionWorld));
   const n = normalize(vec3(ripple.mul(0.12), float(1), ripple2.mul(0.12)));
-  const fres = pow(float(1).sub(max(dot(n, view), 0)), 4).mul(0.65).add(0.03).mul(smoothstep(0.15, 0.6, depth));
-  const skyRefl = mix(U.horizon, U.zenith, 0.25);
+  const facing = float(1).sub(max(dot(n, view), 0));
+  // Natural: Schlick's water fresnel (≈2 % head-on, a mirror at grazing angles) instead of the soft storybook sheen.
+  const fres = mix(pow(facing, 4).mul(0.65).add(0.03), pow(facing, 5).mul(0.9).add(0.02), U.realism).mul(smoothstep(0.15, 0.6, depth));
+  const skyRefl = mix(U.horizon, U.zenith, mix(float(0.25), float(0.4), U.realism));
   const lit = mix(base.add(ripple.mul(rippleAmt)).add(ring.mul(0.22)), skyRefl, fres.mul(float(1).sub(U.storm.mul(0.5))));
   m.colorNode = mix(lit, mix(color(0xf4fffb), color(0x8fb4c4), U.night.mul(0.6)), white);
   // Sun glitter: a path of sparkles toward a low sun, broken by the ripples and faded before it is sub-pixel.

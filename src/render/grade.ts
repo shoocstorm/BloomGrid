@@ -29,7 +29,8 @@ export function grade(c: Node<'vec3'>): Node<'vec3'> {
   o = mix(vec3(lum), o, U.gradeSat);
   // Vignette: a soft fall-off toward the corners (aspect-independent enough at 16:9 and phones).
   const d = length(uv().sub(0.5).mul(vec2(1.0, 0.8)));
-  o = o.mul(float(1).sub(smoothstep(0.35, 0.85, d).mul(U.vignette)));
+  // The Natural style adds a little lens fall-off (D-243).
+  o = o.mul(float(1).sub(smoothstep(0.35, 0.85, d).mul(U.vignette.add(U.realism.mul(0.07)))));
   return clamp(o, 0, 1) as Node<'vec3'>;
 }
 

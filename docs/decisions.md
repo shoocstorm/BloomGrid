@@ -4384,3 +4384,25 @@ The district list is replaced, not edited in place, so `districtGrid`'s cache re
 saved with their rectangles; `City.hash()` now includes the rectangles (a grown district changes the hash). No save
 version bump. `district:named` → a located toast (⌖ Show) from the City map module, quiet while a city settles.
 Districts are never unnamed or shrunk (an undone build leaves its district).
+
+## D-243 — A second visual style, Natural, on one uniform (2026-11-28)
+
+**Context.** Players asked for a realistic look beside the stylised solarpunk one, switchable in game.
+**Decision.** One shared uniform, `U.realism` (0 = Bloom, 1 = Natural), that every look difference blends on, so a
+switch compiles nothing and eases over ~0.9 s (`modules/style`: service `style`, **F4**, Settings → Display,
+`?style=`, kept in localStorage `bloomgrid.style`). Natural is:
+- surfaces: `naturalAlbedo` (`render/materials/natural.ts`) in `define()` for every lit library material and the
+  terrain: a third of the chroma out, mid-tones darkened, whites below paper-white, a broad brightness / warmth
+  variation (~5-tile features, no flicker). Instanced pieces apply it to the tinted colour and divide the tint back
+  out. Emissive × 0.68 (`naturalGlow`): lamps, not neon. Applied before the lens, so data colours read true.
+- light: a second key table `NATURAL` in `world/Atmosphere.ts` at the same elevations (harder sun, weaker hemisphere
+  fill, deeper zenith, hazier horizon, darker greyer night, near-neutral grade with more contrast, weaker bloom),
+  blended key by key; more environment (sky reflection) light, less flat fill.
+- sky: a hazy horizon band, small hot sun disc in a wide halo, hazy floor below the horizon, fainter stars.
+- air: fog starts ~45 % nearer, takes some zenith blue and thins faster with height. Water: darker sea, Schlick
+  fresnel. Grade: a little more vignette.
+**Rejected.** Switching tone mapping (AgX) per style: on Low (no post pipeline) tone mapping is compiled into every
+material, so a switch would rebuild them all. Re-baking the environment: replacing `environmentNode` rebuilds every
+material; the bake stays Bloom-noon (forced at bake time) and `envTint` follows the live sky.
+Stage looks (gallery, films, preview) force `realism = 0` in `withStageLook`: they are designed in the Bloom style.
+

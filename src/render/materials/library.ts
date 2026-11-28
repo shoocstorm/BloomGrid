@@ -53,6 +53,7 @@ import { is, styleData } from './styles';
 import { CODE_LINES, DISPLAY_FRAMES, DISPLAY_RECTS, displayAtlas } from './display';
 import { wonderMaterial } from './wonder';
 import { bumped, reliefFade, roomInterior } from './surface';
+import { naturalAlbedo, naturalGlow } from './natural';
 
 /**
  * Shared material library. Every instanced piece references one of these, so the whole city
@@ -186,13 +187,16 @@ function define(name: string, make: () => Material, opts: DefineOptions = {}): v
     m.maskNode = lod && thin ? lod.and(thin) : (lod ?? thin)!;
   }
   if (m instanceof MeshStandardNodeMaterial && opts.overlay !== 'none') {
+    const instanced = (opts.overlay ?? 'instanced') === 'instanced';
     let base = (m.colorNode ?? materialColor) as Node<'vec3'>;
     if (opts.vitality) base = withVitality(base);
-    m.colorNode = withOverlay(base, (opts.overlay ?? 'instanced') === 'instanced').mul(cloudShade());
+    // The Natural style's albedo (D-243), before the lens so data colours read true in both styles.
+    base = naturalAlbedo(base, instanced);
+    m.colorNode = withOverlay(base, instanced).mul(cloudShade());
     if (m.emissiveNode) {
       let e = m.emissiveNode as Node<'vec3'>;
       if (opts.vitality) e = e.mul(iVitality) as Node<'vec3'>;
-      m.emissiveNode = overlayDim(e);
+      m.emissiveNode = overlayDim(naturalGlow(e));
     }
   }
   lib.set(name, m);
@@ -1007,7 +1011,15 @@ export function initMaterials(): void {
     const sun = sd.pow(900).mul(6).add(sd.pow(12).mul(0.35));
     const cell = floor(dir.mul(260));
     const stars = step(0.9975, hash(cell.dot(vec3(1, 57, 113)))).mul(U.night).mul(smoothstep(0.0, 0.25, dir.y));
-    m.colorNode = base.add(U.sunColor.mul(sun).mul(float(1).sub(U.night.mul(0.9)))).add(vec3(stars));
+    const bloomSky = base.add(U.sunColor.mul(sun).mul(float(1).sub(U.night.mul(0.9)))).add(vec3(stars));
+    // Natural sky (D-243): a deeper zenith over a bright, hazy band at the horizon (more air to look through), a small
+    // hot sun disc in a wide forward-scattering halo, a hazy floor below the horizon and fewer, fainter stars.
+    const below = smoothstep(0.0, -0.2, dir.y);
+    const air = mix(U.horizon, U.zenith, up.pow(0.42)).mul(mix(float(0.94), float(1.06), float(1).sub(up).pow(6)));
+    const haze = mix(air, U.horizon.mul(0.82), below);
+    const disc = sd.pow(3000).mul(14).add(sd.pow(60).mul(0.45)).add(sd.pow(6).mul(0.18).mul(float(1).sub(up)));
+    const naturalSky = haze.add(U.sunColor.mul(disc).mul(float(1).sub(U.night.mul(0.92)))).add(vec3(stars.mul(0.55)));
+    m.colorNode = mix(bloomSky, naturalSky, U.realism);
     return m;
   });
 }

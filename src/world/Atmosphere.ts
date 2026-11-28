@@ -62,6 +62,24 @@ const KEYS: SkyKey[] = [
   { e: 1.0, zenith: 0x438fe6, horizon: 0xc2def5, sun: 0xfff6e6, sunI: 3.3, hemiI: 0.72, lift: [0, 0, 0], gain: [1, 1, 1], sat: 1.04, con: 1.04, bloom: 0.45 },
 ];
 
+/**
+ * The Natural style's keys (D-243), at the same sun elevations as `KEYS` so the two blend key by key on
+ * `U.realism`. Real daylight is a hard sun over a weak sky fill (shadow sides fall off, contrast rises), a deeper
+ * zenith over a paler, hazier horizon, golden hours that redden the light and drain the sky, and a moonlit night that
+ * is darker and greyer than the Bloom style's but still playable. The grade stays near neutral: less saturation, a
+ * filmic contrast, little lift and a weaker bloom (lamps, not neon).
+ */
+const NATURAL: SkyKey[] = [
+  { e: -0.35, zenith: 0x070d22, horizon: 0x1a2440, sun: 0x9fb2dc, sunI: 0.62, hemiI: 0.4, lift: [0.008, 0.014, 0.032], gain: [1, 1.03, 1.08], sat: 0.84, con: 1.07, bloom: 0.62 },
+  { e: -0.05, zenith: 0x1b2a56, horizon: 0x7d6476, sun: 0xa9b6e2, sunI: 0.48, hemiI: 0.42, lift: [0.018, 0.008, 0.024], gain: [1.04, 1, 1.02], sat: 0.9, con: 1.08, bloom: 0.52 },
+  { e: 0.08, zenith: 0x3b5f9c, horizon: 0xf0a56c, sun: 0xff9c56, sunI: 2.3, hemiI: 0.32, lift: [0, 0.004, 0.014], gain: [1.1, 1, 0.86], sat: 1.0, con: 1.12, bloom: 0.42 },
+  { e: 0.2, zenith: 0x3f7cc8, horizon: 0xe6d3bc, sun: 0xffd4a4, sunI: 3.3, hemiI: 0.34, lift: [0, 0.002, 0.008], gain: [1.05, 1, 0.94], sat: 0.94, con: 1.12, bloom: 0.34 },
+  { e: 0.42, zenith: 0x3a7fd2, horizon: 0xcfdcea, sun: 0xfff0da, sunI: 3.9, hemiI: 0.36, lift: [0, 0, 0.004], gain: [1.02, 1, 0.98], sat: 0.92, con: 1.12, bloom: 0.3 },
+  { e: 1.0, zenith: 0x2f74cf, horizon: 0xc6d7e8, sun: 0xfff8ee, sunI: 4.2, hemiI: 0.38, lift: [0, 0, 0], gain: [1, 1, 1], sat: 0.92, con: 1.12, bloom: 0.27 },
+];
+/** The key the atmosphere reads: Bloom and Natural keys blended on `U.realism` (rebuilt each `applyTime`). */
+const BLENDED: SkyKey[] = KEYS.map((k) => ({ ...k, lift: [...k.lift] as V3, gain: [...k.gain] as V3 }));
+
 const ca = new Color();
 const cb = new Color();
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -128,6 +146,9 @@ export class Atmosphere {
 
   /** Bakes an image-based lighting environment from the daytime sky (once). */
   bakeEnvironment(renderer: WebGPURenderer): void {
+    // Baked in the Bloom style whatever the current one: `envTint` measures the live sky against this noon (`NOON`).
+    const r = U.realism.value;
+    U.realism.value = 0;
     try {
       this.applyTime(0.5);
       const envScene = new Scene();
@@ -142,6 +163,8 @@ export class Atmosphere {
       this.scene.environmentNode = pmremTexture(env).mul(U.envTint);
     } catch (e) {
       console.warn('[atmosphere] environment bake failed, continuing without IBL', e);
+    } finally {
+      U.realism.value = r;
     }
   }
 
@@ -153,11 +176,13 @@ export class Atmosphere {
     const az = ang * 0.6 + 0.8;
     this.sunDir.set(Math.cos(az) * Math.cos(Math.asin(elev)), elev, Math.sin(az) * Math.cos(Math.asin(elev))).normalize();
 
-    // Interpolate keyframes.
+    // Interpolate keyframes (of the style: Bloom, Natural or a blend while switching, D-243).
+    const r = U.realism.value;
+    const keys = r <= 0 ? KEYS : r >= 1 ? NATURAL : blendKeys(r);
     let i = 0;
-    while (i < KEYS.length - 2 && elev > KEYS[i + 1]!.e) i++;
-    const a = KEYS[i]!;
-    const b = KEYS[i + 1]!;
+    while (i < keys.length - 2 && elev > keys[i + 1]!.e) i++;
+    const a = keys[i]!;
+    const b = keys[i + 1]!;
     const t = Math.min(1, Math.max(0, (elev - a.e) / (b.e - a.e)));
     U.zenith.value.copy(ca.setHex(a.zenith).lerp(cb.setHex(b.zenith), t));
     U.horizon.value.copy(ca.setHex(a.horizon).lerp(cb.setHex(b.horizon), t));
@@ -196,7 +221,8 @@ export class Atmosphere {
     this.hemi.color.copy(U.horizon.value).lerp(ca.setHex(0xffffff), 0.3);
     this.hemi.groundColor.setHex(night > 0.5 ? 0x1a2a3a : 0x5a7a4a);
     if (elev < 0) this.sunDir.multiplyScalar(-1).setY(Math.max(0.35, -elev));
-    this.scene.environmentIntensity = 0.36 + 0.36 * (1 - night);
+    // The Natural style lights shadow sides from the sky's reflections more than from the flat hemisphere fill.
+    this.scene.environmentIntensity = lerp(0.36 + 0.36 * (1 - night), 0.3 + 0.5 * (1 - night), r);
   }
 
   /** The snapped shadow focus at the last refresh (the light's target, not its position: see `follow`). */
@@ -277,8 +303,10 @@ export class Atmosphere {
       this.shadowDirty = false;
       this.sinceShadow = 0;
     }
-    this.fog.near = Math.max(120, distance * 1.6) * (1 - 0.6 * this.haze);
-    this.fog.far = this.fog.near + 700 * (1 - 0.7 * this.haze);
+    // The Natural style looks through more air (D-243): the haze starts nearer and thickens sooner.
+    const r = U.realism.value;
+    this.fog.near = Math.max(120, distance * 1.6) * (1 - 0.6 * this.haze) * (1 - 0.45 * r);
+    this.fog.far = this.fog.near + 700 * (1 - 0.7 * this.haze) * (1 - 0.25 * r);
   }
 }
 
@@ -288,6 +316,29 @@ const _up = new Vector3(0, 1, 0);
 const _right = new Vector3();
 const _lup = new Vector3();
 const _snap = new Vector3();
+
+/** Bloom and Natural keys blended at `r` into `BLENDED` (colours mixed in sRGB hex space through `Color`). */
+function blendKeys(r: number): SkyKey[] {
+  const mixHex = (x: number, y: number) => ca.setHex(x).lerp(cb.setHex(y), r).getHex();
+  for (let k = 0; k < KEYS.length; k++) {
+    const s = KEYS[k]!;
+    const n = NATURAL[k]!;
+    const o = BLENDED[k]!;
+    o.zenith = mixHex(s.zenith, n.zenith);
+    o.horizon = mixHex(s.horizon, n.horizon);
+    o.sun = mixHex(s.sun, n.sun);
+    o.sunI = lerp(s.sunI, n.sunI, r);
+    o.hemiI = lerp(s.hemiI, n.hemiI, r);
+    for (let j = 0; j < 3; j++) {
+      o.lift[j] = lerp(s.lift[j]!, n.lift[j]!, r);
+      o.gain[j] = lerp(s.gain[j]!, n.gain[j]!, r);
+    }
+    o.sat = lerp(s.sat, n.sat, r);
+    o.con = lerp(s.con, n.con, r);
+    o.bloom = lerp(s.bloom, n.bloom, r);
+  }
+  return BLENDED;
+}
 
 function smooth(a: number, b: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -304,5 +355,7 @@ function fogNode() {
   const factor = range.mul(mix(float(0.6), float(1), height));
   const view = normalize(positionWorld.sub(cameraPosition));
   const toSun = pow(max(dot(view, U.sunDir), 0), 6).mul(float(1).sub(U.night)).mul(0.4);
-  return fog(mix(U.fogColor, U.sunColor, toSun), factor);
+  // Natural (D-243): distance haze takes some of the sky's blue (aerial perspective), and thins faster with height.
+  const tint = mix(U.fogColor, mix(U.fogColor, U.zenith, 0.18), U.realism);
+  return fog(mix(tint, U.sunColor, toSun), factor.mul(mix(float(1), mix(float(0.75), float(1.1), height), U.realism)).min(1));
 }

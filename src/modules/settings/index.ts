@@ -6,6 +6,7 @@ import { icon } from '@/ui/icons';
 import { holoHead } from '@/ui/holo';
 import { floraLocked } from '@/sim/flora';
 import { controlsPane } from './controls';
+import { VISUAL_STYLES } from '@/modules/style';
 import './settings.css';
 
 const QUALITY_LABELS: Record<QualityTier, string> = {
@@ -255,6 +256,17 @@ export const settingsModule: GameModule = {
               ]
             : [];
         })(),
+        ...(() => {
+          // Visual style (D-243): the stylised Bloom look or a realistic Natural one, switched live.
+          const style = ctx.services.tryGet('style');
+          return style
+            ? [
+                h('h4', {}, 'Visual style'),
+                h('p', { class: 'set-hint' }, 'The same island in two looks. F4 switches between them.'),
+                radio('style', VISUAL_STYLES, style.style, (v) => style.set(v)),
+              ]
+            : [];
+        })(),
         h('h4', {}, 'Graphics'),
         radio('quality', QUALITY_LABELS, ctx.quality.tier, (q) => {
           render.setQuality(q);
@@ -331,6 +343,11 @@ export const settingsModule: GameModule = {
       pop.classList.remove('hidden');
       pick(tab ?? current);
     };
+    // F4 switches the style with the panel open: keep its radio in step.
+    ctx.bus.on('style:changed', ({ style }) => {
+      const input = pop.querySelector<HTMLInputElement>(`input[name="style"][value="${style}"]`);
+      if (input) input.checked = true;
+    });
     ctx.services.provide('settings', { open, close, get isOpen() { return !pop.classList.contains('hidden'); } });
     ctx.input.onKey((e) => {
       // Shift+H: Settings → Controls (again closes it). Plain H is the highway tool (D-212).

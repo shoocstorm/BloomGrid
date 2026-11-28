@@ -81,6 +81,12 @@ export const U = {
   shadowFade: uniform(new Vector2(2, 3)),
   /** Frame counter (0..63) that moves dither patterns each frame under temporal AA, so they average out (D-162). */
   frame: uniform(0),
+  /**
+   * Visual style (D-243): 0 = Bloom (the stylised solarpunk look), 1 = Natural (realistic light, colour and air).
+   * Every library material, the sky, water, terrain, fog and grade blend on it, so switching rebuilds no shader; the
+   * style module eases it between the two.
+   */
+  realism: uniform(0),
   /** Strength of drifting cloud shadows on lit surfaces (0 at night, ≤ 0.15 by day). */
   cloudShadow: uniform(0.12),
 };
