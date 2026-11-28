@@ -247,3 +247,217 @@
   width: 100%;
   accent-color: var(--accent, #7fd6a4);
 }
+
+/* Sections, segmented choices, switches and style cards (D-244). */
+.set-sec {
+  padding: 8px 0 10px;
+  border-bottom: 1px solid rgba(95, 242, 218, 0.08);
+}
+.set-sec:last-child {
+  border-bottom: 0;
+}
+.set-sec > h4 {
+  margin-bottom: 6px;
+}
+.set-seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.1));
+  border-radius: var(--r-md, 10px);
+}
+.set-seg-opt {
+  flex: 1;
+  position: relative;
+  text-align: center;
+  cursor: var(--cur-pointer, pointer);
+}
+.set-seg-opt input,
+.set-look input,
+.set-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.set-seg-opt span {
+  display: block;
+  padding: 5px 4px;
+  border-radius: var(--r-sm, 8px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.set-seg-opt:hover span {
+  background: var(--bg-hover);
+}
+.set-seg-opt input:checked + span {
+  background: var(--bg-hover);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.kbd-nav .set-seg-opt input:focus-visible + span,
+.kbd-nav .set-look input:focus-visible ~ b,
+.kbd-nav .set-toggle input:focus-visible + .set-switch {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.set-seg-hint {
+  margin: 5px 2px 0;
+  min-height: 2.6em;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.set-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: var(--cur-pointer, pointer);
+}
+.set-toggle:hover {
+  background: var(--bg-hover);
+}
+.set-toggle-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+.set-toggle-text b {
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.set-toggle-text span {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+.set-switch {
+  flex: none;
+  position: relative;
+  width: 30px;
+  height: 17px;
+  border-radius: 99px;
+  background: rgba(127, 140, 150, 0.35);
+  transition: background 0.15s;
+}
+.set-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+.set-toggle input:checked + .set-switch {
+  background: var(--accent);
+}
+.set-toggle input:checked + .set-switch::after {
+  transform: translateX(13px);
+}
+.set-looks {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.set-look {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 5px 7px;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.12));
+  border-radius: var(--r-md, 10px);
+  cursor: var(--cur-pointer, pointer);
+}
+.set-look:hover {
+  background: var(--bg-hover);
+}
+.set-look:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--bg-raise);
+}
+.set-look b {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.set-look:has(input:checked) b {
+  color: var(--accent);
+}
+.set-look > span:last-child {
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+.set-look-swatch {
+  height: 44px;
+  border-radius: 7px;
+}
+.look-bloom .set-look-swatch {
+  background:
+    radial-gradient(circle at 72% 30%, #ffb7d5 0 14%, transparent 15%),
+    linear-gradient(180deg, #5fb0ff 0 40%, #c2def5 40% 48%, #3ccf8e 48% 78%, #7fe3d2 78%);
+}
+.look-natural .set-look-swatch {
+  background:
+    radial-gradient(circle at 78% 22%, #fff8ee 0 7%, rgba(255, 248, 238, 0.3) 12%, transparent 22%),
+    linear-gradient(180deg, #2f74cf 0%, #c6d7e8 44%, #5f7a4a 48%, #4c5f3d 76%, #0b3249 78%);
+}
+.look-painted .set-look-swatch {
+  background:
+    radial-gradient(ellipse at 30% 66%, rgba(110, 160, 96, 0.75) 0 26%, transparent 42%),
+    radial-gradient(ellipse at 70% 30%, rgba(120, 170, 220, 0.7) 0 22%, transparent 40%),
+    radial-gradient(ellipse at 60% 80%, rgba(230, 170, 120, 0.55) 0 14%, transparent 30%),
+    #f4efe2;
+}
+.look-ink .set-look-swatch {
+  background:
+    linear-gradient(180deg, transparent 47%, #111 47% 52%, transparent 52%),
+    radial-gradient(circle at 74% 28%, #ffd166 0 12%, #111 12% 15%, transparent 15%),
+    linear-gradient(180deg, #57b6ff 0 47%, #40c878 52% 74%, #2a9a5c 74%);
+  box-shadow: inset 0 0 0 2px #111;
+}
+.look-synthwave .set-look-swatch {
+  background:
+    linear-gradient(0deg, transparent 0 46%, #ff5fb0 46% 49%, transparent 49%),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(20, 0, 40, 0.35) 3px 4px),
+    radial-gradient(circle at 50% 46%, #ffd36b 0 18%, #ff7a59 18% 24%, transparent 25%),
+    linear-gradient(180deg, #2a0a4a 0%, #8a1c7c 38%, #ff6a8a 46%, #1a0630 47%, #3b0f5c 100%);
+}
+.look-blueprint .set-look-swatch {
+  background:
+    linear-gradient(90deg, rgba(160, 200, 255, 0.18) 1px, transparent 1px) 0 0 / 9px 9px,
+    linear-gradient(0deg, rgba(160, 200, 255, 0.18) 1px, transparent 1px) 0 0 / 9px 9px,
+    linear-gradient(180deg, transparent 46%, #e8f1ff 46% 50%, transparent 50%),
+    linear-gradient(90deg, transparent 30%, #e8f1ff 30% 32%, transparent 32% 66%, #e8f1ff 66% 68%, transparent 68%),
+    #17407c;
+}
+.look-pixel .set-look-swatch {
+  background:
+    linear-gradient(90deg, transparent 62%, #ffd166 62% 74%, transparent 74%) 0 0 / 100% 25% no-repeat,
+    linear-gradient(90deg, transparent 50%, #ffd166 50% 86%, transparent 86%) 0 11px / 100% 11px no-repeat,
+    linear-gradient(180deg, #4aa3ff 0 50%, #3cb46e 50% 75%, #2a7a4a 75%);
+  image-rendering: pixelated;
+}
+.look-miniature .set-look-swatch {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0, transparent 30% 70%, rgba(255, 255, 255, 0.35) 100%),
+    radial-gradient(circle at 30% 60%, #ff6b8a 0 8%, transparent 9%),
+    radial-gradient(circle at 55% 58%, #ffd23c 0 8%, transparent 9%),
+    radial-gradient(circle at 78% 62%, #4ab3ff 0 8%, transparent 9%),
+    linear-gradient(180deg, #8fd0ff 0 45%, #48d17a 45%);
+}
+.set-look-note {
+  margin-top: 6px;
+}
+.set-look-note.hidden {
+  display: none;
+}
+.compact .set-looks {
+  grid-template-columns: repeat(2, 1fr);
+}

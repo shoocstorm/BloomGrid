@@ -1,5 +1,6 @@
-import { BlendMode, MaterialBlending, Matrix4, RenderPipeline, type Camera, type Node, type PerspectiveCamera, type Scene, type TextureNode, type WebGPURenderer } from 'three/webgpu';
-import { Fn, convertToTexture, emissive, getViewPosition, mrt, output, pass, renderOutput, uniform, uv, vec4 } from 'three/tsl';
+import { BlendMode, MaterialBlending, Matrix4, RenderPipeline, Vector2, type Camera, type Node, type PerspectiveCamera, type Scene, type TextureNode, type WebGPURenderer } from 'three/webgpu';
+import { Fn, convertToTexture, emissive, float, getViewPosition, mrt, output, pass, renderOutput, uniform, uv, vec4 } from 'three/tsl';
+import { PostInputs, beforeTaa, display, needsBeforeTaa, needsResample, resample, type Looks, type PostLook } from './stylize';
 import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { fxaa } from 'three/examples/jsm/tsl/display/FXAANode.js';
 import { traa } from 'three/examples/jsm/tsl/display/TRAANode.js';
@@ -41,6 +42,14 @@ export class PostFX {
   private readonly depthThreshold = uniform(0.0005);
   private readonly edgeDepthDiff = uniform(0.001);
   private taa = false;
+  /**
+   * The style looks drawn by post (D-244, D-245): only those on screen (the chosen style and one still fading out)
+   * are built, so a look costs nothing while it is off. `built` is what the current pipeline holds.
+   */
+  private looks: Looks = new Set();
+  private built: Looks = new Set();
+  private readonly postIn = new PostInputs();
+  private last: QualitySettings | null = null;
 
   constructor(
     private renderer: WebGPURenderer,
@@ -49,9 +58,12 @@ export class PostFX {
   ) {}
 
   configure(q: QualitySettings): void {
+    this.last = q;
     this.pipeline?.dispose();
     this.pipeline = null;
     this.taa = false;
+    this.built = new Set(this.looks);
+    const looks = this.built;
     // Materials' own bloom outputs need the scene pass's emissive target (see bloomMRT.ts).
     setBloomMRT(q.bloom);
     if (!q.bloom) return;
@@ -65,6 +77,11 @@ export class PostFX {
     targets.setBlendMode('emissive', new BlendMode(MaterialBlending));
     scenePass.setMRT(targets);
     let color = scenePass.getTextureNode('output') as Node<'vec4'>;
+    if (needsBeforeTaa(looks)) {
+      // Before TAA, so outlines and bands are resolved with the rest of the frame rather than jittering over it (D-244).
+      const styled = beforeTaa(scenePass.getTextureNode('output'), scenePass.getTextureNode('depth'), this.postIn, looks);
+      color = (q.taa ? convertToTexture(styled) : styled) as Node<'vec4'>;
+    }
     if (q.taa) {
       const depth = scenePass.getTextureNode('depth');
       this.syncMatrices();
@@ -77,14 +94,29 @@ export class PostFX {
       color = t as unknown as Node<'vec4'>;
     }
     const glow = scenePass.getTextureNode('emissive');
-    const b = bloom(glow, U.bloom as unknown as number, 0.55, 0);
+    let b = bloom(glow, U.bloom as unknown as number, 0.55, 0) as unknown as Node<'vec4'>;
+    // Blueprint keeps a faint glow: coloured halos would break its one blue.
+    if (looks.has('blueprint')) b = b.mul(float(1).sub(U.blueprint.mul(0.8))) as Node<'vec4'>;
     const lit = renderOutput(color.add(b));
-    let out = vec4(grade(lit.rgb), 1) as Node<'vec4'>;
-    if (!q.taa && q.msaa === 0) out = fxaa(out) as unknown as Node<'vec4'>;
+    let out = vec4(display(grade(lit.rgb), looks, this.postIn), 1) as Node<'vec4'>;
+    if (needsResample(looks)) out = resample(convertToTexture(out), this.postIn, looks);
+    else if (!q.taa && q.msaa === 0) out = fxaa(out) as unknown as Node<'vec4'>;
     const pipeline = new RenderPipeline(this.renderer);
     pipeline.outputColorTransform = false;
     pipeline.outputNode = out;
     this.pipeline = pipeline;
+  }
+
+  /**
+   * The style looks to draw (D-244, D-245). A change rebuilds the post pipeline, which compiles only post nodes, not
+   * the scene's materials: a frame or two. No effect without post-processing (Low).
+   */
+  setLooks(next: Iterable<PostLook>): void {
+    const set = new Set(next);
+    const same = set.size === this.looks.size && [...set].every((l) => this.looks.has(l));
+    if (same) return;
+    this.looks = set;
+    if (this.last?.bloom) this.configure(this.last);
   }
 
   /**
@@ -140,6 +172,14 @@ export class PostFX {
       this.renderer.render(this.scene, this.camera);
       return;
     }
+    if (this.built.size) {
+      const cam = this.camera as PerspectiveCamera;
+      this.postIn.near.value = cam.near;
+      this.postIn.far.value = cam.far;
+      this.renderer.getDrawingBufferSize(_size);
+      this.postIn.texel.value.set(1 / Math.max(1, _size.x), 1 / Math.max(1, _size.y));
+      this.postIn.dpr.value = this.renderer.getPixelRatio();
+    }
     if (this.taa) {
       this.syncMatrices();
       // Moves dither patterns (LOD dissolve) each frame so TAA averages them into a smooth fade (D-162).
@@ -149,3 +189,5 @@ export class PostFX {
     if (this.taa) this.prevViewProj.value.multiplyMatrices(this.proj.value, (this.camera as PerspectiveCamera).matrixWorldInverse);
   }
 }
+
+const _size = new Vector2();

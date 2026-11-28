@@ -53,7 +53,7 @@ import { is, styleData } from './styles';
 import { CODE_LINES, DISPLAY_FRAMES, DISPLAY_RECTS, displayAtlas } from './display';
 import { wonderMaterial } from './wonder';
 import { bumped, reliefFade, roomInterior } from './surface';
-import { naturalAlbedo, naturalGlow } from './natural';
+import { styleAlbedo, styleGlow } from './looks';
 
 /**
  * Shared material library. Every instanced piece references one of these, so the whole city
@@ -191,12 +191,12 @@ function define(name: string, make: () => Material, opts: DefineOptions = {}): v
     let base = (m.colorNode ?? materialColor) as Node<'vec3'>;
     if (opts.vitality) base = withVitality(base);
     // The Natural style's albedo (D-243), before the lens so data colours read true in both styles.
-    base = naturalAlbedo(base, instanced);
+    base = styleAlbedo(base, instanced);
     m.colorNode = withOverlay(base, instanced).mul(cloudShade());
     if (m.emissiveNode) {
       let e = m.emissiveNode as Node<'vec3'>;
       if (opts.vitality) e = e.mul(iVitality) as Node<'vec3'>;
-      m.emissiveNode = overlayDim(naturalGlow(e));
+      m.emissiveNode = overlayDim(styleGlow(e));
     }
   }
   lib.set(name, m);

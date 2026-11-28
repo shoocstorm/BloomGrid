@@ -7,7 +7,7 @@ import { terrainHeight } from '@/sim/terrain';
 import { fbm } from '@/sim/noise';
 import { U } from '@/render/uniforms';
 import { withOverlay } from '@/render/materials/overlay';
-import { naturalAlbedo } from '@/render/materials/natural';
+import { styleAlbedo } from '@/render/materials/looks';
 import { cloudShade } from '@/render/grade';
 
 // Greens kept a little short of lime (they are graded up again by the day's saturation), with the meadow drifts
@@ -130,7 +130,7 @@ function material(): MeshStandardNodeMaterial {
   const gx = abs(fract(positionWorld.x).sub(0.5));
   const gz = abs(fract(positionWorld.z).sub(0.5));
   const line = smoothstep(0.46, 0.5, max(gx, gz)).mul(U.grid).mul(float(1).sub(steep));
-  m.colorNode = withOverlay(mix(naturalAlbedo(ground), color(0xeafff6), line.mul(0.5)), false).mul(cloudShade());
+  m.colorNode = withOverlay(mix(styleAlbedo(ground), color(0xeafff6), line.mul(0.5)), false).mul(cloudShade());
   // Turf and sand relief close up: clumps and blades bend the light a little (flat on walls).
   const sandRipple = mx_noise_float(vec3(positionWorld.x.mul(3), 0, positionWorld.z.mul(0.8))).mul(float(1).sub(grassy));
   const relief = clump.mul(0.008).add(blade.mul(0.003).mul(grassy)).add(sandRipple.mul(0.01).mul(float(1).sub(smoothstep(0.02, 0.08, px))));

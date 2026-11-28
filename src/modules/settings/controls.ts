@@ -78,7 +78,7 @@ export function controlsPane(ctx: GameContext): HTMLElement[] {
       ['Next fire', '.'],
       ['Explore · photo', 'N', 'J'],
       ['Hide the HUD (clean view)', 'F2'],
-      ['Visual style: Bloom · Natural', 'F4'],
+      ['Visual style (cycles the eight looks)', 'F4'],
     ]),
     group('settings', 'General', [
       ['Undo · redo', `${MOD}Z`, `⇧${MOD}Z`],

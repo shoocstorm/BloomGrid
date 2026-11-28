@@ -4406,3 +4406,98 @@ material, so a switch would rebuild them all. Re-baking the environment: replaci
 material; the bake stays Bloom-noon (forced at bake time) and `envTint` follows the live sky.
 Stage looks (gallery, films, preview) force `realism = 0` in `withStageLook`: they are designed in the Bloom style.
 
+## D-244 — Two more styles (Painted, Ink) and a tidier Settings panel (2026-11-28)
+
+**Styles.** Each style is a weight uniform (`U.realism`, `U.painted`, `U.cel`; at most one is 1, Bloom is all 0)
+eased by `modules/style` (**F4** cycles Bloom → Natural → Painted → Ink). `render/materials/natural.ts` became
+`looks.ts` (`styleAlbedo` / `styleGlow` for all styles).
+- **Painted** (watercolour): pigment albedo lifted slightly toward paper white; post: soft 7-level banding per
+  channel, pigment granulation in the darks, screen-space paper grain (static on screen, so no flicker), a slow
+  wash, and darker, more saturated pigment pooled along edges.
+- **Ink** (cel): saturated flat albedo; post: four hue-preserving light bands and near-black outlines.
+- Outlines (`render/stylize.ts` `inkEdges`): Laplacian of inverse depth (zero across any plane, so only silhouettes
+  and creases), distance-relative, lighter far away, **drawn before TRAA** into a half-float target so TAA resolves
+  them; drawn after it they followed the per-frame jitter and shimmered. A one-sided (one-pixel) line averaged to a
+  faint grey under the jitter, so lines take both sides of an edge (two pixels). The pass exists only while an
+  outlined style is chosen or fading out (`PostFX.setEdges` rebuilds the post pipeline only; no material compiles).
+  Without post (Low) Painted and Ink keep their colours but have no paper, banding or outlines; Settings says so.
+- Ink's light bands are drawn in the same pre-TAA pass (in linear light on a perceptual scale): banded after TAA,
+  a hair of shading change while the camera moved flipped whole bands.
+**Measured** (`bun run flicker -- --day --dists 35,70,140,260`, High): Bloom 0.045 / 0.011 / 0.022 / 0.013 %, Painted
+0.035 / 0.010 / 0.013 / 0.011 %, Ink 0.234 / 0.083 / 0.059 / 0.022 % (first cut with post-TAA bands and a sharp
+edge ramp: 1.99 / 1.55 / 1.61 / 1.28 %). Ink stays above the ≤ 0.04 % reference up close: dark outlines are
+high-contrast by nature; it is an opt-in style and Bloom is unchanged. GPU (`perf ?gputime`, headless, noisy):
+Bloom 8.31 / 5.12 ms, Ink 4.93 / 6.34 ms across two pairs; no measurable cost from the outline pass.
+**Settings.** Gameplay preferences (Moments, Flora's heads-ups, tip bubbles, auto-collect, little charms) moved from
+Display to Game. Display: Visual style cards (swatch, name, one line), Graphics and Frame rate as segmented controls
+whose hint line describes the chosen option, Screen (clean view, desktop fullscreen). On / off settings are switch
+rows. Each tab is a few numbered sections (`section`).
+
+## D-245 — Four more styles (Noir, Blueprint, Pixel, Miniature) on a style system that scales (2026-11-28)
+
+**Context.** Eight styles on D-243/D-244's design would have every material compute eight colour curves and the post
+pipeline carry every effect.
+**Decision.**
+- **Surfaces are parameters**, not per-style branches: `styleAlbedo` is one curve (saturation, a·c² + b·c, macro
+  variation, lift colour, gain; glow gain) on `U.alb` / `U.albLift` / `U.albGain` / `U.glowGain`, which
+  `modules/style` blends on the CPU from the weights (`VISUAL_STYLES[*].surface`). A fragment pays for one curve
+  however many styles exist; Bloom's parameters are the identity. Natural, Painted and Ink keep their D-243/D-244
+  values.
+- **Post looks are built only while on screen**: `PostFX.setLooks` gets the chosen style's look and any still fading
+  out, and the pipeline (post nodes only, no material compile) holds just those. Three stages in `render/stylize.ts`:
+  `beforeTaa` (outlines, Ink bands, Blueprint paper), `display` (after the grade), `resample` (reads the finished
+  frame as a texture, one extra target: Pixel, Miniature).
+- **Noir**: B&W printed a stop darker (daylight on white façades washed out to paper first), S-curve, cool shadows and
+  warm silver highlights, static grain, heavy vignette; glow keeps its brightness, so night windows burn white.
+- **Blueprint**: the scene's light as one blue before TAA (sky included), pale-blue linework from the depth edges, a
+  CSS-pixel drafting grid (24 / 120 px) after the grade, glow × 0.2 (coloured halos broke the blue).
+- **Pixel**: 4-CSS-px blocks sampled at their centres, 8 levels per channel, a light static dither keyed to the block
+  (full-range dither at 5 levels read as speckle).
+- **Miniature**: tilt-shift (a 12-tap Vogel disc, up to 7 CSS px, sharp across a band through the middle of the
+  screen), toy-bright colour (saturation 1.3, contrast).
+**Measured** (`flicker --day --dists 35,70,140,260`, %): Pixel 0.008 / 0.000 / 0.003 / 0.001, Miniature 0.009 /
+0.002 / 0.007 / 0.002 (both steadier than Bloom: blocks and blur hold still), Noir 0.116 / 0.039 / 0.076 / 0.053,
+Blueprint 0.427 / 0.076 / 0.018 / 0.019 (first cut 1.94 / 0.95 / 0.55 / 0.65: white lines on dark paper; now a
+softer ramp, paler lines, stronger distance fade), Ink unchanged at 0.253 / 0.083 / 0.070 / 0.025. Blueprint and Ink
+stay above the ≤ 0.04 % reference up close: high-contrast outlines are what they are; both are opt-in. GPU
+(`perf ?gputime`, headless, noisy): Bloom 4.85–4.98 ms, Miniature 5.35–6.41, Blueprint 5.38–6.36, Pixel 5.96,
+Noir 6.24.
+
+## D-246 — Pixel redone as sprite art; Miniature and Ink swap places (2026-11-28)
+
+**Context.** The first Pixel style (D-245) read as a vague, speckled blur: one point sample per block from a detailed
+frame, and a random dither across every surface.
+**Decision.** Pixel is now built for sprite art:
+- **Blocks:** 5 CSS px, each the mean of nine sub-samples (one steady colour per block).
+- **Palette:** light falls into five hue-preserving bands and saturation is pushed (1.3). Brightness and colour are
+  quantised separately: eight brightness levels with a light 4×4 Bayer dither, and colour (the offset from grey) on a
+  coarse 0.09 grid without one. Per-channel steps broke pale, hazy areas into coloured checkers.
+- **Outlines:** near-black and a block wide, drawn in `beforeTaa` so TAA steadies them. The depth Laplacian spans one
+  block and only lines the rim of a form that continues into its neighbours: lining one-block poles and wires
+  peppered the sky. Read from the raw depth at block scale after TAA, the outlines flickered even on a still view
+  (0.6–2.2 %), and thinner lines were averaged into the block mean as a faint grey.
+- `beforeTaa` now gives each look its own line coverage (`line(weight, colour, coverage)`), so Pixel's wider lines
+  don't widen the others'.
+**Measured** (`flicker --day --dists 35,70,140,260`, %): moving 0.890 / 0.461 / 0.455 / 0.335, still 0.470 / 0.641 /
+0.182 / 0.215. That is above Bloom's ≤ 0.04: hard palette steps and dark block outlines tip as frames change, which is
+the nature of crisp pixel art. Pixel is opt-in.
+**Order.** Miniature and Ink swapped places (`VISUAL_STYLES` order: Bloom, Natural, Painted, Miniature, Noir,
+Blueprint, Pixel, Ink), so Settings and F4 follow it.
+
+## D-247 — Sharper Pixel; Synthwave replaces Noir (2026-11-28)
+
+**Pixel.** 5-CSS-px blocks turned a bird's-eye city to mush. Blocks are now 3 CSS px, with the outline Laplacian's
+span matched to them. The palette is finer so detail survives: seven light bands, twelve brightness levels with a
+lighter Bayer dither (0.25 of a step), and colour on a 0.06 grid. Measured (`flicker --day --dists 35,70,140,260`):
+0.512 / 0.330 / 0.267 / 0.174 %, steadier than D-246's 5 px.
+**Synthwave** (`synthwave`, weight `U.synth`, post look `synth`) replaces Noir:
+- brightness mapped onto an 80s sunset ramp (indigo → violet → hot pink → orange → pale gold), weighted toward the
+  dark end so a sunlit city sits in violet and pink;
+- a quarter of the scene's own hue kept; strongly saturated pixels (lamps, signs, lens colours) keep their colour;
+- bright edge lines drawn before TAA, which the ramp reads as gold and pink neon;
+- static 3-CSS-px scanlines and a violet vignette; surface glow × 1.4.
+
+Tried and dropped: keeping pixels by saturation relative to their brightness, so the lines stay cyan. That let the
+green grass through and broke the palette. Measured: 0.249 / 0.101 / 0.117 / 0.109 %. A saved `noir` choice is no
+longer valid and falls back to Bloom.
+

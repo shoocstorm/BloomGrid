@@ -84,9 +84,30 @@ export const U = {
   /**
    * Visual style (D-243): 0 = Bloom (the stylised solarpunk look), 1 = Natural (realistic light, colour and air).
    * Every library material, the sky, water, terrain, fog and grade blend on it, so switching rebuilds no shader; the
-   * style module eases it between the two.
+   * style module eases it (and `painted` / `cel`, at most one style weight is 1).
    */
   realism: uniform(0),
+  /** Painted style weight 0..1 (D-244): a watercolour wash, paper grain and pooled pigment at edges. */
+  painted: uniform(0),
+  /** Ink style weight 0..1 (D-244): cel-banded light, flat saturated colour and ink outlines. */
+  cel: uniform(0),
+  /** Synthwave style weight (D-247): an 80s sunset palette, neon outlines and scanlines (replaced Noir). */
+  synth: uniform(0),
+  /** Blueprint style weight (D-245): white linework on blue drafting paper. */
+  blueprint: uniform(0),
+  /** Pixel style weight (D-245): chunky pixels and a dithered, limited palette. */
+  pixel: uniform(0),
+  /** Miniature style weight (D-245): tilt-shift blur and toy-bright colour. */
+  mini: uniform(0),
+  /**
+   * Surface colour per style (D-245), blended on the CPU by the style module (`render/materials/looks.ts`): saturation,
+   * curve a·c² + b·c, macro-variation amount, unused; lift colour (rgb) and amount; overall gain; emissive gain. The
+   * defaults are the Bloom style (identity).
+   */
+  alb: uniform(new Vector4(1, 0, 1, 0)),
+  albLift: uniform(new Vector4(1, 1, 1, 0)),
+  albGain: uniform(1),
+  glowGain: uniform(1),
   /** Strength of drifting cloud shadows on lit surfaces (0 at night, ≤ 0.15 by day). */
   cloudShadow: uniform(0.12),
 };

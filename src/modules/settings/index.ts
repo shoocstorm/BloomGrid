@@ -6,15 +6,16 @@ import { icon } from '@/ui/icons';
 import { holoHead } from '@/ui/holo';
 import { floraLocked } from '@/sim/flora';
 import { controlsPane } from './controls';
-import { VISUAL_STYLES } from '@/modules/style';
+import { STYLE_ORDER, VISUAL_STYLES } from '@/modules/style';
 import './settings.css';
 
 const QUALITY_LABELS: Record<QualityTier, string> = {
-  low: 'Low: no shadows or glow, lowest resolution',
-  medium: 'Medium: shadows and glow, 1× resolution',
-  high: 'High: 1.25× resolution, MSAA',
-  ultra: 'Ultra: 2× resolution, large shadow maps',
+  low: 'No shadows, glow or post effects, lowest resolution: for older laptops and phones.',
+  medium: 'Shadows, glow and temporal anti-aliasing at 1× resolution.',
+  high: 'Sharper: 1.25× resolution.',
+  ultra: '2× resolution and large shadow maps: for a strong GPU.',
 };
+const POWER_SHORT: Record<PowerMode, string> = { battery: 'Battery', balanced: 'Balanced', max: 'Max' };
 const STORAGE_KEY = 'bloomgrid.quality';
 
 /** Desktop shell only (Tauri): native fullscreen toggle, also on F11. */
@@ -30,7 +31,7 @@ function desktopSection(setFullscreen: (on: boolean) => Promise<void>): HTMLElem
       toggle();
     }
   });
-  return h('div', {}, h('h4', {}, 'Window'), h('button', { class: 'set-new', onClick: toggle }, '⛶ Toggle fullscreen (F11)'));
+  return h('button', { class: 'set-new', onClick: toggle }, icon('maximize'), ' Toggle fullscreen (F11)');
 }
 
 /** Volume sliders and mute for the audio service (D-077), if present. */
@@ -131,8 +132,8 @@ const TAB_KEY = 'bloomgrid.settings.tab';
 
 /**
  * Settings (⚙, D-081, D-087): one panel with four tabs, sharing one grid cell so switching never jumps. **Game**: the saved city with Save / Load (moved from the top
- * bar), found a new city, the guide. **Sound**: volumes and mute. **Display**: power mode, desktop window, graphics
- * quality. **Controls**: basic controls and common hotkeys (Shift+H opens it). Quality, power and the open tab are per-viewer conveniences in localStorage; `?quality=` still wins.
+ * bar), found a new city, the guide, and gameplay preferences (moments, Flora's heads-ups, tips, charms). **Sound**:
+ * volumes and mute. **Display** (D-244): visual style, graphics quality, frame rate, clean view and the desktop window. **Controls**: basic controls and common hotkeys (Shift+H opens it). Quality, power and the open tab are per-viewer conveniences in localStorage; `?quality=` still wins.
  */
 export interface SettingsService {
   /** Opens Settings (on a tab, else the last one). */
@@ -159,123 +160,171 @@ export const settingsModule: GameModule = {
       /* storage unavailable */
     }
 
-    const radio = <T extends string>(name: string, options: Record<T, string>, current: T, onPick: (v: T) => void) =>
-      h(
+    /**
+     * A segmented control (one choice of a few, short labels) with a hint line under it that describes the chosen
+     * option. Radio inputs underneath, so arrow keys and screen readers work as for any radio group.
+     */
+    const segmented = <T extends string>(
+      name: string,
+      options: Record<T, { label: string; hint?: string }>,
+      current: T,
+      onPick: (v: T) => void,
+    ) => {
+      const hint = h('p', { class: 'set-seg-hint' });
+      const show = (k: T) => (hint.textContent = options[k].hint ?? '');
+      const row = h(
         'div',
-        { class: 'set-group' },
+        { class: 'set-seg', role: 'radiogroup' },
         ...(Object.keys(options) as T[]).map((k) => {
           const input = h('input', { type: 'radio', name, value: k }) as HTMLInputElement;
           input.checked = k === current;
-          input.addEventListener('change', () => onPick(k));
-          return h('label', { class: 'set-opt' }, input, h('span', {}, options[k]));
+          input.addEventListener('change', () => (show(k), onPick(k)));
+          return h('label', { class: 'set-seg-opt' }, input, h('span', {}, options[k].label));
         }),
       );
+      show(current);
+      return h('div', { class: 'set-seg-wrap' }, row, hint);
+    };
+
+    /** An on / off setting as one row: name and explanation on the left, a switch on the right. */
+    const toggle = (label: string, hint: string, on: boolean, onChange: (on: boolean) => void) => {
+      const input = h('input', { type: 'checkbox', role: 'switch' }) as HTMLInputElement;
+      input.checked = on;
+      input.addEventListener('change', () => onChange(input.checked));
+      return h('label', { class: 'set-toggle' }, h('span', { class: 'set-toggle-text' }, h('b', {}, label), h('span', {}, hint)), input, h('i', { class: 'set-switch', 'aria-hidden': 'true' }));
+    };
+
+    /** A titled block of settings (one per subject, so each tab reads as a few short sections). */
+    const section = (title: string, ...body: (HTMLElement | null | false | undefined)[]) =>
+      h('section', { class: 'set-sec' }, h('h4', {}, title), ...body.filter((b): b is HTMLElement => !!b));
+
+    let refreshLookNote = () => {};
+    /** Visual style (D-243, D-244, D-245): a card per look, with a swatch that suggests it. */
+    const styleCards = () => {
+      const style = ctx.services.tryGet('style');
+      if (!style) return null;
+      const cards = STYLE_ORDER.map((id) => {
+        const s = VISUAL_STYLES[id];
+        const input = h('input', { type: 'radio', name: 'style', value: id }) as HTMLInputElement;
+        input.checked = id === style.style;
+        input.addEventListener('change', () => style.set(id));
+        return h('label', { class: `set-look look-${id}` }, input, h('span', { class: 'set-look-swatch', 'aria-hidden': 'true' }), h('b', {}, s.name), h('span', {}, s.blurb));
+      });
+      const lowNote = h('p', { class: 'set-hint set-look-note' }, 'This look is drawn by post-processing: on Low graphics only its colours show. Medium or higher draws all of it.');
+      const sync = () => lowNote.classList.toggle('hidden', !(VISUAL_STYLES[style.style].post && ctx.quality.tier === 'low'));
+      ctx.bus.on('style:changed', sync);
+      refreshLookNote = sync;
+      sync();
+      return section('Visual style', h('p', { class: 'set-hint' }, 'The same island in eight looks. F4 cycles through them.'), h('div', { class: 'set-looks', role: 'radiogroup' }, ...cards), lowNote);
+    };
 
     const close = () => pop.classList.add('hidden');
     const saves = saveSection(ctx, close);
+    const moments = ctx.services.tryGet('moments');
+    const flora = ctx.services.tryGet('assistant');
+    const juice = ctx.services.tryGet('juice');
+    const charm = ctx.services.tryGet('charm');
+    const qualityNote = (q: QualityTier) => ({ label: q[0]!.toUpperCase() + q.slice(1), hint: QUALITY_LABELS[q] });
     const panes: Record<TabId, HTMLElement> = {
       game: h(
         'div',
         { class: 'set-pane' },
-        h('h4', {}, 'Saved city'),
-        saves.el,
-        h('h4', {}, 'City'),
-        h('button', { class: 'set-new', onClick: () => (close(), ctx.services.get('crises').newCity()) }, icon('sparkle'), ' New chapter: resume, new island, showcase…'),
-        h('button', { class: 'set-new', onClick: () => (close(), ctx.services.tryGet('wizard')?.guide()) }, icon('console'), ' How to play (guide)'),
+        section('Saved city', saves.el),
+        section(
+          'City',
+          h('button', { class: 'set-new', onClick: () => (close(), ctx.services.get('crises').newCity()) }, icon('sparkle'), ' New chapter: resume, new island, showcase…'),
+          h('button', { class: 'set-new', onClick: () => (close(), ctx.services.tryGet('wizard')?.guide()) }, icon('console'), ' How to play (guide)'),
+        ),
+        // Gameplay preferences (moved from Display): how the game talks to the steward.
+        moments &&
+          section(
+            'Moments',
+            segmented(
+              'moments',
+              {
+                all: { label: 'All', hint: 'Full-screen ceremonies for big events: Flora waking, unlocks, sea wonders, milestones. Click or Esc skips one.' },
+                major: { label: 'Major only', hint: 'Only the grand, once-a-city moments; smaller ones are skipped.' },
+                off: { label: 'Off', hint: 'No ceremonies.' },
+              },
+              moments.mode,
+              (m) => (moments.mode = m),
+            ),
+          ),
+        flora &&
+          !floraLocked(ctx.city) &&
+          section(
+            'Flora’s heads-ups',
+            segmented(
+              'foresight',
+              {
+                quiet: { label: 'Quiet', hint: 'Flora does not warn about forecasts on her own; ask her what is coming.' },
+                normal: { label: 'Normal', hint: 'Flora speaks up about trouble due within about 5 minutes that she is sure of.' },
+                eager: { label: 'Eager', hint: 'Flora speaks up early and more often, even about trends that may still turn.' },
+              },
+              flora.foresight,
+              (m) => (flora.foresight = m),
+            ),
+          ),
+        (juice || charm) &&
+          section(
+            'Little extras',
+            juice && toggle('Tip bubbles', 'Happy buildings now and then float a bubble: pop it for a small tip and a word from residents.', juice.tips, (on) => (juice.tips = on)),
+            juice &&
+              toggle(
+                'Auto-collect tips',
+                juice.tipJar
+                  ? 'Bubbles collect themselves after a few seconds. Pop them sooner for a bigger combo.'
+                  : `Unlocks when the treasury first reaches ◈${juice.autoAt.toLocaleString('en-US')}.`,
+                juice.autoTips,
+                (on) => (juice.autoTips = on),
+              ),
+            charm && toggle('Little charms', "The island's cat on the rooftops, paper planes with notes and sleepy homes at night.", charm.on, (on) => (charm.on = on)),
+          ),
       ),
       sound: h(
         'div',
         { class: 'set-pane' },
-        h('h4', {}, 'Sound'),
-        h('p', { class: 'set-hint' }, 'Generative music, island ambience and effects, all synthesised. Press , to mute.'),
-        ...soundSliders(ctx),
+        section('Sound', h('p', { class: 'set-hint' }, 'Generative music, island ambience and effects, all synthesised. Press , to mute.'), ...soundSliders(ctx)),
       ),
       display: h(
         'div',
         { class: 'set-pane' },
-        h('h4', {}, 'Power'),
-        h('p', { class: 'set-hint' }, 'Caps how often the city is redrawn. The simulation runs at full speed in every mode.'),
-        radio('power', Object.fromEntries(Object.entries(POWER_MODES).map(([k, v]) => [k, v.label])) as Record<PowerMode, string>, render.power.mode, (m) =>
-          render.power.setMode(m),
+        styleCards(),
+        section(
+          'Graphics',
+          segmented(
+            'quality',
+            Object.fromEntries((Object.keys(QUALITY_TIERS) as QualityTier[]).map((q) => [q, qualityNote(q)])) as Record<QualityTier, { label: string; hint: string }>,
+            ctx.quality.tier,
+            (q) => {
+              render.setQuality(q);
+              try {
+                localStorage.setItem(STORAGE_KEY, q);
+              } catch {
+                /* ignore */
+              }
+              refreshLookNote();
+            },
+          ),
         ),
-        ...(ctx.platform.setFullscreen ? [desktopSection(ctx.platform.setFullscreen.bind(ctx.platform))] : []),
-        // Clean view (D-238): the city with no HUD, for screenshots and streams (registered after Settings).
-        h('h4', {}, 'Clean view'),
-        h('p', { class: 'set-hint' }, 'Hides the HUD, cards and bubbles while the city keeps running. F2 or Esc brings them back.'),
-        h('button', { class: 'set-new', onClick: () => (close(), ctx.services.tryGet('cleanview')?.set(true)) }, icon('eye'), ' Hide the HUD (F2)'),
-        ...(() => {
-          // City moments (D-094): full-screen ceremonies for the big events.
-          const moments = ctx.services.tryGet('moments');
-          return moments
-            ? [
-                h('h4', {}, 'Moments'),
-                h('p', { class: 'set-hint' }, 'Full-screen ceremonies for big events: Flora waking, unlocks, sea wonders, milestones. Click or Esc skips one.'),
-                radio('moments', { all: 'All moments', major: 'Major only', off: 'Off' }, moments.mode, (m) => (moments.mode = m)),
-              ]
-            : [];
-        })(),
-        ...(() => {
-          // Flora's foresight (plan v5): how readily she warns about forecast trouble.
-          const flora = ctx.services.tryGet('assistant');
-          return flora && !floraLocked(ctx.city)
-            ? [
-                h('h4', {}, 'Flora’s heads-ups'),
-                h('p', { class: 'set-hint' }, 'Flora watches the trends and speaks up before a supply runs short. Normal: only trouble due within about 5 minutes that she is sure of.'),
-                radio('foresight', { quiet: 'Quiet', normal: 'Normal', eager: 'Eager' }, flora.foresight, (m) => (flora.foresight = m)),
-              ]
-            : [];
-        })(),
-        ...(() => {
-          // Tip bubbles (D-118): residents' tips over happy buildings.
-          const juice = ctx.services.tryGet('juice');
-          return juice
-            ? [
-                h('h4', {}, 'Tip bubbles'),
-                h('p', { class: 'set-hint' }, 'Now and then a happy building floats a bubble: pop it for a small tip and a word from its residents.'),
-                radio('tips', { on: 'On', off: 'Off' }, juice.tips ? 'on' : 'off', (m) => (juice.tips = m === 'on')),
-                h('h4', {}, 'Auto-collect tips'),
-                h(
-                  'p',
-                  { class: 'set-hint' },
-                  juice.tipJar
-                    ? 'Bubbles collect themselves a few seconds after they appear (a ring fills round them), with the same coins and combos. Pop them sooner for a bigger combo.'
-                    : `Unlocks when the treasury first reaches ◈${juice.autoAt.toLocaleString('en-US')}: bubbles then collect themselves after a few seconds.`,
-                ),
-                radio('autotips', { on: 'On', off: 'Off' }, juice.autoTips ? 'on' : 'off', (m) => (juice.autoTips = m === 'on')),
-              ]
-            : [];
-        })(),
-        ...(() => {
-          // Little charms (D-175): the island's cat, paper planes, sleepy homes.
-          const charm = ctx.services.tryGet('charm');
-          return charm
-            ? [
-                h('h4', {}, 'Little charms'),
-                h('p', { class: 'set-hint' }, "The island's cat on the rooftops, paper planes with notes from residents, and sleepy homes at night."),
-                radio('charms', { on: 'On', off: 'Off' }, charm.on ? 'on' : 'off', (m) => (charm.on = m === 'on')),
-              ]
-            : [];
-        })(),
-        ...(() => {
-          // Visual style (D-243): the stylised Bloom look or a realistic Natural one, switched live.
-          const style = ctx.services.tryGet('style');
-          return style
-            ? [
-                h('h4', {}, 'Visual style'),
-                h('p', { class: 'set-hint' }, 'The same island in two looks. F4 switches between them.'),
-                radio('style', VISUAL_STYLES, style.style, (v) => style.set(v)),
-              ]
-            : [];
-        })(),
-        h('h4', {}, 'Graphics'),
-        radio('quality', QUALITY_LABELS, ctx.quality.tier, (q) => {
-          render.setQuality(q);
-          try {
-            localStorage.setItem(STORAGE_KEY, q);
-          } catch {
-            /* ignore */
-          }
-        }),
+        section(
+          'Frame rate',
+          segmented(
+            'power',
+            Object.fromEntries(Object.entries(POWER_MODES).map(([k, v]) => [k, { label: POWER_SHORT[k as PowerMode], hint: `${v.label}. The simulation runs at full speed in every mode.` }])) as Record<
+              PowerMode,
+              { label: string; hint: string }
+            >,
+            render.power.mode,
+            (m) => render.power.setMode(m),
+          ),
+        ),
+        section(
+          'Screen',
+          // Clean view (D-238): the city with no HUD, for screenshots and streams (registered after Settings).
+          h('button', { class: 'set-new', onClick: () => (close(), ctx.services.tryGet('cleanview')?.set(true)) }, icon('eye'), ' Hide the HUD (F2): F2 or Esc brings it back'),
+          ...(ctx.platform.setFullscreen ? [desktopSection(ctx.platform.setFullscreen.bind(ctx.platform))] : []),
+        ),
       ),
       controls: h('div', { class: 'set-pane p-controls' }, ...controlsPane(ctx)),
     };

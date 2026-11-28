@@ -53,8 +53,8 @@ export function mixLook(a: StageLook, b: StageLook, t: number, out: StageLook = 
 }
 
 /** Uniforms a stage overrides while it draws, restored after. */
-const SAVED = ['night', 'lateNight', 'grid', 'overlay', 'storm', 'heat', 'algae', 'rain', 'seasonAmount', 'pollen', 'bloom', 'gradeSat', 'gradeCon', 'vignette', 'cloudShadow', 'realism'] as const;
-const SAVED_V = ['sunDir', 'zenith', 'horizon', 'sunColor', 'gradeLift', 'gradeGain', 'envTint', 'eye', 'walker', 'flash'] as const;
+const SAVED = ['night', 'lateNight', 'grid', 'overlay', 'storm', 'heat', 'algae', 'rain', 'seasonAmount', 'pollen', 'bloom', 'gradeSat', 'gradeCon', 'vignette', 'cloudShadow', 'realism', 'painted', 'cel', 'synth', 'blueprint', 'pixel', 'mini', 'albGain', 'glowGain'] as const;
+const SAVED_V = ['sunDir', 'zenith', 'horizon', 'sunColor', 'gradeLift', 'gradeGain', 'envTint', 'eye', 'walker', 'flash', 'alb', 'albLift'] as const;
 const saved: number[] = [];
 const savedV = SAVED_V.map((k) => (U[k].value as Vector3 | Color | Vector4).clone());
 
@@ -75,7 +75,10 @@ export function withStageLook(look: StageLook, eye: Vector3, draw: () => void): 
   U.vignette.value = 0.32;
   U.cloudShadow.value = 0;
   // Stage looks are designed in the Bloom style (gallery, films, the inspector preview).
-  U.realism.value = 0;
+  U.realism.value = U.painted.value = U.cel.value = U.synth.value = U.blueprint.value = U.pixel.value = U.mini.value = 0;
+  U.alb.value.set(1, 0, 1, 0);
+  U.albLift.value.set(1, 1, 1, 0);
+  U.albGain.value = U.glowGain.value = 1;
   U.sunDir.value.set(...look.sunDir).normalize();
   U.sunColor.value.setHex(look.sun);
   U.zenith.value.setHex(look.zenith);
