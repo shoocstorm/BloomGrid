@@ -100,7 +100,9 @@ function tower(b: KitBuilder, side: 1 | -1): void {
       b.add({ piece: 'lumenRib', p: [cx + Math.cos(a) * d * 0.5, y, -Math.sin(a) * d * 0.5], s: [0.09, TIER, 0.09], tint: LOOK.rib, glow: 0.9 });
     }
     y += TIER;
-    b.add({ piece: 'concreteCyl', p: [cx, y, 0], s: [d + 0.26, 0.07, d + 0.26], tint: LOOK.plate });
+    // The plate straddles the seam: starting at y, its underside was flush with the next drum's (and its ribs')
+    // bottom caps, which z-fought and flashed seen from below (a drone climbing the shaft).
+    b.add({ piece: 'concreteCyl', p: [cx, y - 0.035, 0], s: [d + 0.26, 0.07, d + 0.26], tint: LOOK.plate });
     // A helix of solar sun-fins climbing the outside, every other storey.
     if (i % 2 === 1 && i < TIERS - 2 && !GARDENS.has(i) && !GARDENS.has(i + 1)) {
       const a = i * 0.42;

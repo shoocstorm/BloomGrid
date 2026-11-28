@@ -9,6 +9,7 @@ import { icon } from '@/ui/icons';
 import { holoHead } from '@/ui/holo';
 import { approvalBand, complaintLine } from '@/sim/approval';
 import { dayAt } from '@/modules/timelapse/timeline';
+import { settleClock } from '@/game/settle';
 import './citymap.css';
 
 export type CityMapMode = 'zones' | 'districts' | 'approval';
@@ -601,5 +602,11 @@ export const cityMapModule: GameModule = {
       },
     });
     ctx.systems.add({ id: 'citymap', phase: 'render', order: 110, update: (_c, f) => map.update(f.dt) });
+    // A growing island names the neighbourhoods the player builds (D-242): say so, with a fly-to.
+    const settling = settleClock(ctx);
+    ctx.bus.on('district:named', ({ name, zone, x, z }) => {
+      if (settling()) return;
+      ctx.bus.emit('toast', { text: `New district: ${name} (${ZONES[zone].label})`, tone: 'ok', at: { x, z } });
+    });
   },
 };

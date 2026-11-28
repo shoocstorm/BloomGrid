@@ -76,6 +76,10 @@ const CAM_RING = 0.12;
 /** Explore near plane (D-239): how far round the camera geometry is sampled, and the most the near plane may reach. */
 const NEAR_REACH = 3;
 const NEAR_MAX = 2;
+/** Modes whose first-person eye sits in or on an avatar. */
+const AVATAR_MODES: readonly string[] = ['walk', 'board', 'drone', 'balloon', 'roof'];
+/** The Sky Guard jet's half-span, as the near plane's margin when the camera trails it. */
+const JET_R = 3;
 const GRAVITY = 6;
 
 
@@ -699,6 +703,14 @@ export const exploreModule: GameModule = {
     const _chase = new Vector3();
     const _from = new Vector3();
     /**
+     * The nearest thing the camera is meant to show this frame (an avatar, a pod, the jet): its distance from the
+     * camera less its radius, read and cleared by `explore.near`, which keeps the near plane well inside it (D-241).
+     */
+    let subject = Infinity;
+    const seen = (at: Readonly<Vector3>, radius: number) => {
+      subject = Math.min(subject, camera.position.distanceTo(at) - radius);
+    };
+    /**
      * Orbits the camera `dist` behind `target` (drag pitches it), smoothing toward the spot, `clear` above the ground
      * there (and never under `minY`). The camera never enters a building, tree or hillside: it pulls in along the line
      * to the target, starting `skip` out (past the avatar itself), and snaps in at once when something cuts in (it
@@ -718,6 +730,7 @@ export const exploreModule: GameModule = {
       // The smoothing lags behind: lift it out of any ground it trails into (walking uphill, turning on a slope).
       camera.position.y = Math.max(camera.position.y, floorAt(camera.position.x, camera.position.z, feet) + Math.min(clear, CAM_CLEAR), minY);
       camera.lookAt(target);
+      seen(target, skip);
     };
 
     ctx.systems.add({
@@ -888,6 +901,7 @@ export const exploreModule: GameModule = {
           _from.copy(_chase).sub(pos).setLength(0.35).add(pos);
           const k = collider.reach(_from, _chase, 0.035);
           camera.position.copy(k < 1 ? _from.lerp(_chase, Math.max(0, k - 0.02)) : _chase);
+          seen(pos, 0.35);
           const p0 = pitch - 0.28;
           look.set(-Math.sin(yaw) * Math.cos(p0), Math.sin(p0), -Math.cos(yaw) * Math.cos(p0));
           camera.lookAt(fwd.copy(camera.position).add(look));
@@ -911,11 +925,13 @@ export const exploreModule: GameModule = {
           camera.up.copy(tmp);
           camera.lookAt(ahead);
           pos.copy(eye);
+          if (!firstPerson) seen(sg.position, JET_R);
         } else if (mode === 'ferry' || mode === 'jet') {
           // The cruise ferry's sun deck, or behind the Sky Guard jet (D-141).
           const by = mode === 'ferry' ? ctx.services.tryGet('ferry') : ctx.services.tryGet('skyguard');
           if (!by?.ride(eye, ahead)) return setMode('city');
           ride(eye, ahead);
+          if (mode === 'jet') seen(by.position, JET_R);
         }
         // Everything that focuses on the camera target (shadows, fog, pollen, agents) follows the player.
         cameraCtl.target.set(pos.x, Math.max(0, g().heightAt(pos.x, pos.z)), pos.z);
@@ -936,10 +952,14 @@ export const exploreModule: GameModule = {
       update() {
         if (mode === 'city') return;
         const c = camera.position;
+        // Through the avatar's own eyes its body, basket or deck rail is centimetres away.
+        if (firstPerson && AVATAR_MODES.includes(mode)) subject = 0;
         let top = Math.max(U.waterLevel.value, 0);
         top = Math.max(top, collider.groundAt(c.x, c.z, 999));
         for (const [ox, oz] of RING) top = Math.max(top, collider.groundAt(c.x + ox * NEAR_REACH, c.z + oz * NEAR_REACH, 999));
-        const near = MathUtils.clamp((c.y - top) * 0.3, 0.02, NEAR_MAX);
+        // Never past the subject (a drone 1.4 behind would vanish once high above the roofs, D-241).
+        const near = MathUtils.clamp(Math.min((c.y - top) * 0.3, subject * 0.5), 0.02, NEAR_MAX);
+        subject = Infinity;
         if (Math.abs(camera.near - near) <= near * 0.02) return;
         camera.near = near;
         camera.updateProjectionMatrix();

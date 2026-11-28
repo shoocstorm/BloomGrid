@@ -17,6 +17,7 @@ import { updateWonders, wonderHarmony } from './wonders';
 import { ageWear, size, updateLevels, upkeepMul, use } from './levels';
 import { updateConsequences } from './consequences';
 import { updateDirector } from './director';
+import { updateDistrictNaming } from './districtNaming';
 import { updateCharters } from './charters';
 import { updateStories } from './stories';
 import { updateChronicle } from './chronicle';
@@ -448,6 +449,8 @@ export const pulseSystem: System<SimCtx> = {
     updateChronicle(city);
     // The director reads this pulse's settled state; the crisis step reads its dials on the next (Phase 27).
     updateDirector(city);
+    // Growing islands name the neighbourhoods the player builds (D-242).
+    updateDistrictNaming(city);
 
     // The time-lapse's ledger (D-219): residents, credits and harmony now and then over the city's whole life.
     sampleHistory(city, city.tick / PULSE_TICKS, population, s.happiness);

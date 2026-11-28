@@ -4,7 +4,7 @@ title: Districts, approval and migration
 category: systems
 summary: Every district has its own approval of the steward. It decides who moves in or out, whether homes and workplaces grow, and whether the district petitions, protests or says thank you. What lifts it and how to fix an unhappy district.
 tags:
-  [district, districts, approval, neighbourhood, unhappy district, angry, protest, petition, praise, thank you, migration, moving out, people leaving, moved in, commute, job match, jobs they want, smog]
+  [district, districts, district name, new district, named, naming, outskirts, approval, neighbourhood, unhappy district, angry, protest, petition, praise, thank you, migration, moving out, people leaving, moved in, commute, job match, jobs they want, smog]
 related: [reference-districts, systems-harmony, systems-happenings, systems-mobility, systems-policies]
 order: 12
 ---
@@ -19,6 +19,15 @@ want. City harmony is the average of the districts, weighted by residents. The p
 
 Open the **City map** (M) and choose **Approval**: districts turn red to green, lowest first in the list, each with
 its biggest complaint. A building's inspector shows its district's card too.
+
+## Where do new district names come from?
+
+On a fresh island the city names its own neighbourhoods as you grow. Build four or more buildings close together
+in open country and, within a few seconds, they become a district with a name (for example *Fern Gardens*,
+*Heron Cove* by the sea or *Rowan Heights* on the hills) and a zone from what you built most there. A toast says so
+and **Show** flies you to it. Buildings put up just past a district's edge join it, so districts grow with your
+streets, up to about 44 tiles a side; beyond that, or across another district, a new one starts. One or two lone
+buildings stay in the outskirts. The showcase city's districts are fixed.
 
 ## Why are people leaving a district?
 

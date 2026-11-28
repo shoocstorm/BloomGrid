@@ -16,6 +16,8 @@ declare module '@/core/EventBus' {
     'building:removed': { eid: number; record: BuildingRecord };
     'road:changed': { tiles: number[] };
     'stats:updated': void;
+    /** A growing island named a new district round a cluster of buildings (D-242). */
+    'district:named': { name: string; zone: import('@/content/types').ZoneKind; x: number; z: number };
     'pulse:tier': { system: SystemKey; tier: Tier; prev: Tier };
     'crisis:forecast': { crisis: CrisisInstance };
     'crisis:start': { crisis: CrisisInstance };

@@ -81,6 +81,9 @@ tell it what to do — it looks things up, proposes builds as cards, and asks be
 
 ## 🌿 Systems that react to each other
 
+- **Neighbourhoods that name themselves.** On a new island every cluster of buildings you raise in open country
+  becomes a named district (*Fern Gardens*, *Heron Cove*, *Rowan Heights*…), and districts grow as you build past
+  their edge.
 - **Seasons and the Bloom.** Monsoon showers, golden harvests and dusty haze. Flowers open across the city as the
   bloom season peaks, and a **Bloom Retrofit** sends a wave of sunflower crowns and courtyard waterfalls through a
   district.

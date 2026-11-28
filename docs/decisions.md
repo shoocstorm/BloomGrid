@@ -4360,3 +4360,27 @@ glowing): from the side the worst-flashing piece (0.42 / 0.29 / 0.10 % at 80 / 1
 `lumenThin` take `thin: true` (D-238's dissolve): 0.30 / 0.06 / 0.01 %. What still flashes on its side views is
 balcony slabs (0.07 thick) and posts in the façade materials, where a `discard` would cost hidden-surface removal.
 `flicker --hide` also takes `name:<mesh>`.
+
+## D-241 — The explore near plane stops short of what the camera follows (2026-11-28)
+
+D-239 fitted the explore near plane to the camera's clearance (up to 2), but chase cameras trail close behind their
+subject (the drone 1.4 units back, closer still when a building pulls the camera in), so once high above the roofs
+the drone fell inside the near plane and vanished, reappearing lower down. Every camera that follows something now
+reports it (`seen(at, radius)`: `chase`, the followed pod, the Sky Guard jet in `jet` / `pilot`), and
+`explore.near` keeps the near plane under half that distance less the subject's radius; first-person views from an
+avatar (walk, board, drone, balloon, roof) keep 0.02. Drone at 50 units up: near 0.6, drone drawn (was 2, clipped).
+
+## D-242 — Growing islands name their own districts (2026-11-28)
+
+A fresh island had one named district (Old Harbour); everything the player built beyond it was "Outskirts" for
+ever, so approval, the City map, petitions and Flora's district reports had nothing to say about the new town.
+`sim/districtNaming.ts` runs every 5 pulses on progression islands only (the showcase's districts are designed):
+outskirts buildings within `GROW_REACH` (6) of a district extend its rectangle (capped at `MAX_SIDE` 44, never into
+another district); what is left is clustered (centres within `LINK` 9), and a cluster of `MIN_BUILDINGS` (4)+
+becomes a district: footprints padded by 3, trimmed off any district it overlaps, zone = the members' main use by
+area, name = a root word plus a zone ending (or a coast / hill ending from the ground round it), picked by
+`hash2` of the rectangle and the seed, never `city.rng` (the rest of the sim's draws stay as they were), and unique.
+The district list is replaced, not edited in place, so `districtGrid`'s cache rebuilds. Districts were already
+saved with their rectangles; `City.hash()` now includes the rectangles (a grown district changes the hash). No save
+version bump. `district:named` → a located toast (⌖ Show) from the City map module, quiet while a city settles.
+Districts are never unnamed or shrunk (an undone build leaves its district).
