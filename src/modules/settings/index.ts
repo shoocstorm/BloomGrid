@@ -198,6 +198,10 @@ export const settingsModule: GameModule = {
           render.power.setMode(m),
         ),
         ...(ctx.platform.setFullscreen ? [desktopSection(ctx.platform.setFullscreen.bind(ctx.platform))] : []),
+        // Clean view (D-238): the city with no HUD, for screenshots and streams (registered after Settings).
+        h('h4', {}, 'Clean view'),
+        h('p', { class: 'set-hint' }, 'Hides the HUD, cards and bubbles while the city keeps running. F2 or Esc brings them back.'),
+        h('button', { class: 'set-new', onClick: () => (close(), ctx.services.tryGet('cleanview')?.set(true)) }, icon('eye'), ' Hide the HUD (F2)'),
         ...(() => {
           // City moments (D-094): full-screen ceremonies for the big events.
           const moments = ctx.services.tryGet('moments');

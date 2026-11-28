@@ -1,35 +1,26 @@
 #!/usr/bin/env node
 /**
- * Records the ~110 s demo (shots/demo.mp4) from the running dev server, against the showcase city
- * (`scenario=founding-city`; a plain boot is the welcome screen, D-148). Twenty shots in four acts on a
- * day-and-a-night arc, camera driven per captured frame (lookAt always centers the subject):
+ * Records the ~65 s demo (shots/demo.mp4) from the running dev server, against the showcase city
+ * (`scenario=founding-city`; a plain boot is the welcome screen, D-148). Fifteen shots tell one day on the island,
+ * sunrise to sunrise, in clean view (D-238: no HUD, toasts, cards or bubbles; a shot keeps only the panel it is
+ * about, `hud`; `--with-hud` records the full HUD):
  *
- *   I · The island (morning to golden hour)
- *     1. sunrise reveal: tight on the Aurora Gemini, exponential pull to the whole island (title)
- *     2. downtown skyline dive          3. Bloomtopia park + bridge, golden hour
- *     4. a whale breaching off the south shore (caption: a living sea)
- *     5. Sky Guard jet on afterburners, chase pass with a victory roll
- *     6. drone flight up the hero avenue (caption) ⟶ circle wipe out of the propeller ⟶
- *     7. Aeroline train ride into dusk (caption)
- *   II · The night
- *     8. the Aurora Gemini light show (caption)
- *     9. fireworks act I: heart, butterfly (caption)   10. act II: rings, then "BLOOM ♥" in the sky
- *     11. the Lotus Atoll glowing on dark water          12. the Tidesong cruise ferry and her deck show
- *   III · The steward
- *     13. fires break out, Flora's console opens, a live question is sent
- *     14. Flora answers: real Qwen3 1.7B tool calls and text streaming in (caption)
- *     15. "If Nothing Changes": Flora's forward run of the burning city, filmed (D-222)
- *     16. the postcard from the future over the night city (caption)
- *   IV · Dawn
- *     17. Bloom Retrofit wave through the night into sunrise
- *     18. the Archipelago chart: neighbours, agreements, envoys (caption, plan v8)
- *     19. Flora-Net hive + drone mist     20. pull back to the whole island (end card)
+ *   I · Arrival            1. from low over the sea, crane up and push in on the island (title)
+ *                          2. match cut: the push dives into the downtown skyline, tilting up at the towers
+ *                          3. city view: rooftop-height truck over the Gardens' streets (caption)
+ *                          4. city view: crane down over the bay onto the Bayfront waterfront
+ *   II · A living island   5. whale breach (caption)   6. Sky Guard chase with a victory roll
+ *                          7. drone up the hero avenue (caption) ⟶ circle wipe out of the propeller ⟶
+ *                          8. Aeroline ride into dusk (caption)
+ *   III · The night        9. city view: the Lumen Promenade at blue hour from the water
+ *                          10. Aurora Gemini light show (caption)   11. fireworks: heart, then "BLOOM ♥" (caption)
+ *   IV · The steward       12. fires; Flora's console answers live (Qwen3 1.7B) during a push in (caption)
+ *                          13. the postcard from the future over the night city (caption)
+ *   V · Dawn               14. a Bloom Retrofit wave into sunrise   15. pull back from the drone mist (end card)
  *
- * Pacing: quick dissolves (0.35 s) through the daytime run, longer breaths (0.6–0.8 s) into the night and dawn,
- * a circle wipe out of the drone's propeller into the train ride, and the reveal/end pair mirror each other.
- * City Pulse stays folded (the demo frames the city, not the console). Flora's model core (Qwen3 1.7B,
- * wllama/WebGPU) loads at boot (the first run downloads it once into a persistent Chrome profile; `--no-ai`
- * skips) and shot 13 asks it a real question about the fires.
+ * Camera language: every move has a motive (reveal, push toward the subject, truck for parallax, crane onto it),
+ * shots that meet on a dissolve share a bearing (1→2), and the open and the close mirror each other. Flora's model
+ * core loads at boot (the first run downloads it once into a persistent Chrome profile; `--no-ai` skips).
  *
  * Time discipline: a frame takes far longer than 1/fps to capture, so the engine is stopped and every frame is
  * advanced by hand (`window.__bgFrame`): input, one sim tick, sync and render at an exact dt of 1/fps, `U.clock`
@@ -41,7 +32,8 @@
  * Films start off camera (`preroll`: uncaptured frames until the reel is playing) and are skipped at the cut.
  * The sim tick is pinned into the bloom season (61203 = 3603 + two seasonal cycles: no weather, no pulses).
  *
- * Each shot's frames are captured into its own segment directory and the encode chains ffmpeg `xfade` dissolves
+ * Wall time is roughly frames × (render + screenshot): `--fps 30` halves it, `--width 1920 --height 1080` quarters
+ * the readback. Each shot's frames are captured into its own segment directory and the encode chains ffmpeg `xfade` dissolves
  * between them. Caption cards are transparent full-frame PNGs overlaid with alpha fades. The page is laid out at
  * 1920 CSS px (`--css-width`) and drawn at 2 device pixels each (quality ultra, so the renderer fills the capture),
  * which keeps the HUD at its played size in a 4K 60 fps output (`--width/--height/--fps`); `--crf` (default 20) sets
@@ -50,14 +42,14 @@
  * (`--keep-frames` keeps them).
  *
  *   bun run dev                # keep it running
- *   bun run demo               # or: node scripts/demo.mjs [--duration 120] [--fps 30] [--no-ai] [--keep-frames]
- *   node scripts/demo.mjs --only 2,9 --width 1280 --height 720 --dpr 1 --fps 30 --no-ai
+ *   bun run demo               # or: node scripts/demo.mjs [--duration 60] [--fps 30] [--no-ai] [--with-hud] [--keep-frames]
+ *   node scripts/demo.mjs --only 3,4,9 --width 1280 --height 720 --fps 30 --no-ai
  *                              # quick look: renders only those shots (1-based) to shots/demo-shot-NN.mp4
  */
 import { launchChrome } from './lib/chrome.mjs';
 import { mkdirSync, existsSync, readdirSync, rmSync, rmdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const arg = (k, d) => {
@@ -77,6 +69,8 @@ const out = arg('out', 'shots/demo.mp4');
 /** Flora's live model core in the video (skipped with --no-ai). Downloads once into the profile. */
 const withAi = !process.argv.includes('--no-ai');
 const keepFrames = process.argv.includes('--keep-frames');
+/** Clean view (D-238) hides the HUD for the whole video; `--with-hud` records it as a player sees it. */
+const cleanView = !process.argv.includes('--with-hud');
 /** Quick look: only these shots (1-based) are captured, each to its own clip; the others still run their setup. */
 const only = arg('only', '')
   .split(',')
@@ -124,7 +118,6 @@ const near = `(x, z) => {
   }
   return best;
 }`;
-const SWEEP_TOASTS = `document.querySelectorAll('.toasts .toast').forEach((t) => t.remove())`;
 const ENTER_TRAIN = `window.bloomgrid.services.get('explore').setMode('train')`;
 const EXIT_TRAIN = `window.bloomgrid.services.get('explore').setMode('city')`;
 // Drone flight: enter drone mode on the hero avenue south of the centre and fly it WEST along the street itself
@@ -202,15 +195,6 @@ const PREROLL = (sel, extra = 60) => `(async () => {
   for (let k = 0; k < ${extra}; k++) await window.__bgFrame(1 / 60);
   return i;
 })()`;
-const SKIP_FILM = `(async () => {
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  document.querySelector('.reel-skip')?.click();
-  for (let i = 0; i < 600 && document.querySelector('.reel'); i++) {
-    await window.__bgFrame(1 / 60);
-    await sleep(4);
-  }
-  for (let k = 0; k < 20; k++) await window.__bgFrame(1 / 60);
-})()`;
 // Lands a whale breach `lead` seconds into the shot: scans the pod's cycle (the shader's, mirrored on the CPU by
 // `whalesNow`) for the next breach while the pod lingers off the south shore (pods roam the island, D-231:
 // `podAt` in whaleRoute.ts) and moves the clock offset so it starts on cue.
@@ -244,300 +228,241 @@ const WHALES = { x: 0.3 * 512, z: 0.95 * 512 };
  * enter and exit even when `--only` skips it (state later shots need).
  */
 const shots = [
-  // ── I · The island ──
+  // ── I · Arrival (sunrise to noon) ──
+  // Establishing: from low over the sea the island rises on the horizon, then the camera cranes up and pushes in.
   {
-    dur: 6.4,
+    dur: 5.6,
     card: 'title',
-    easeOut: true,
-    tod: (t) => lerp(0.33, 0.4, t),
+    tod: (t) => lerp(0.3, 0.36, t),
     view: (t, od) => ({
-      x: lerp(spire.x, 270, t),
-      z: lerp(spire.z, 250, t),
-      yaw: lerp(0.55, 1.05, t),
-      pitch: lerp(0.17, 1.02, t),
-      dist: zoom(34, od * 1.02, t),
+      x: lerp(256, 262, t),
+      z: lerp(262, 258, t),
+      yaw: lerp(0.62, 0.95, t),
+      pitch: lerp(0.05, 0.72, t),
+      dist: zoom(od * 1.25, od * 0.5, t),
     }),
   },
-  {
-    dur: 4.4,
-    tod: (t) => lerp(0.44, 0.5, t),
-    view: (t) => ({
-      x: 292,
-      z: 222,
-      yaw: lerp(1.15, 2.0, t),
-      pitch: lerp(0.6, 0.44, t),
-      dist: lerp(56, 37, t),
-    }),
-  },
+  // Match cut on the same bearing: the push continues down into the downtown skyline, tilting up at the towers.
   {
     dur: 4.6,
-    tod: (t) => lerp(0.58, 0.63, t),
+    tod: (t) => lerp(0.38, 0.42, t),
     view: (t) => ({
-      x: 252,
-      z: lerp(416, 441, t),
-      yaw: lerp(2.6, 3.14, t),
-      pitch: lerp(0.56, 0.46, t),
-      dist: lerp(82, 46, t),
+      x: lerp(268, 292, t),
+      z: lerp(250, 224, t),
+      aim: lerp(0, 9, t),
+      yaw: lerp(0.95, 1.55, t),
+      pitch: lerp(0.66, 0.3, t),
+      dist: zoom(190, 44, t),
     }),
   },
-  // A living sea: a whale breaching off the south shore in the late sun, the island behind it.
+  // City view: street life in the Gardens quarter, a lateral truck at rooftop height (parallax over the streets).
   {
-    dur: 5.0,
+    dur: 4.0,
+    card: 'city',
+    tod: (t) => lerp(0.45, 0.48, t),
+    view: (t) => ({
+      x: lerp(208, 236, t),
+      z: 286,
+      aim: 2,
+      yaw: lerp(0.12, 0.3, t),
+      pitch: lerp(0.44, 0.38, t),
+      dist: lerp(40, 34, t),
+    }),
+  },
+  // City view: crane down over the bay onto the Bayfront waterfront.
+  {
+    dur: 4.0,
+    tod: (t) => lerp(0.52, 0.55, t),
+    view: (t) => ({
+      x: lerp(288, 282, t),
+      z: lerp(326, 332, t),
+      aim: lerp(0, 3, t),
+      yaw: lerp(-0.3, 0.12, t),
+      pitch: lerp(0.66, 0.2, t),
+      dist: lerp(120, 62, t),
+    }),
+  },
+  // ── II · A living island (afternoon to dusk) ──
+  // Out to sea: a whale breaching off the south shore in the late sun, the island behind it.
+  {
+    dur: 4.4,
     card: 'sea',
-    enter: (time) => CUE_BREACH(time, 1.0),
-    tod: (t) => lerp(0.64, 0.66, t),
+    enter: (time) => CUE_BREACH(time, 0.9),
+    tod: (t) => lerp(0.62, 0.64, t),
     view: (t) => ({
       x: WHALES.x,
       z: WHALES.z,
       aim: 3,
-      yaw: lerp(-0.4, -0.1, t),
+      yaw: lerp(-0.4, -0.12, t),
       pitch: lerp(0.2, 0.13, t),
-      dist: lerp(78, 58, t),
+      dist: lerp(76, 58, t),
     }),
   },
-  // The Sky Guard on afterburners: a banked chase pass, a victory roll two seconds in (both key off U.clock).
+  // Up into the sky: the Sky Guard on afterburners, a banked chase pass with a victory roll.
   {
-    dur: 4.8,
+    dur: 3.6,
     track: 'jet',
-    tod: () => 0.68,
+    tod: () => 0.67,
     enter: () => `(() => {
        window.bloomgrid.services.get('skyguard').afterburner();
        delete window.__jp;
        delete window.__jy;
-       ${SWEEP_TOASTS};
      })()`,
-    at: [[2.0, `(() => { window.bloomgrid.services.get('skyguard').roll(); ${SWEEP_TOASTS}; })()`]],
+    at: [[1.5, `window.bloomgrid.services.get('skyguard').roll()`]],
   },
   {
-    dur: 6.3,
+    dur: 4.4,
     free: true,
     card: 'drone',
     enter: ENTER_DRONE,
     exit: EXIT_DRONE,
     tod: () => 0.7,
-    at: [[1.6, `window.bloomgrid.input.keys.delete('KeyE')`]],
+    at: [[1.4, `window.bloomgrid.input.keys.delete('KeyE')`]],
   },
   {
-    dur: 7.0,
+    dur: 5.2,
     free: true,
     card: 'train',
     enter: () => ENTER_TRAIN,
     exit: EXIT_TRAIN,
-    tod: (t) => lerp(0.74, 0.86, t),
+    tod: (t) => lerp(0.75, 0.85, t),
   },
-  // ── II · The night ──
-  // The Aurora Gemini's light show: searchlights fan through the spectrum, an aurora over the Sun Gate. It runs
-  // 42 s, so it is still dancing behind the fireworks.
+  // ── III · The night ──
+  // City view: the Lumen Promenade lights up at blue hour, seen from the water, drifting along the shore.
   {
-    dur: 6.8,
+    dur: 4.0,
+    tod: (t) => lerp(0.865, 0.885, t),
+    view: (t) => ({
+      x: lerp(292, 308, t),
+      z: 352,
+      aim: 4,
+      yaw: lerp(0.36, -0.04, t),
+      pitch: lerp(0.36, 0.27, t),
+      dist: lerp(58, 42, t),
+    }),
+  },
+  // The Aurora Gemini's light show: searchlights fan through the spectrum (it keeps dancing behind the fireworks).
+  {
+    dur: 4.8,
     card: 'aurora',
     enter: () => `(() => {
       const c = window.bloomgrid.city;
       const e = c.buildingEntities().find((e) => c.buildingDef(e).id === 'aurora-gemini');
       window.bloomgrid.services.get('aurora').show(e);
-      ${SWEEP_TOASTS};
     })()`,
-    tod: (t) => lerp(0.885, 0.91, t),
+    tod: (t) => lerp(0.89, 0.91, t),
     view: (t) => ({
       x: spire.x,
       z: spire.z,
-      aim: lerp(26, 34, t),
-      yaw: lerp(2.1, 2.75, t),
+      aim: lerp(24, 34, t),
+      yaw: lerp(2.15, 2.7, t),
       pitch: lerp(0.08, 0.2, t),
-      dist: lerp(175, 140, t),
+      dist: lerp(180, 140, t),
     }),
   },
+  // Fireworks: a heart, then the island's own message in the sky.
   {
-    dur: 8.2,
+    dur: 7.2,
     card: 'fireworks',
     showPace: true,
     exit: CLEAR_SKY,
-    tod: (t) => lerp(0.91, 0.95, t),
+    tod: (t) => lerp(0.91, 0.94, t),
     at: [
-      [0.4, launch({ shape: 'heart' })],
-      [3.6, launchWhenClear({ shape: 'butterfly' })],
+      [0.3, launch({ shape: 'heart' })],
+      [3.3, launchWhenClear({ text: 'BLOOM ♥' })],
     ],
     view: (t) => ({
       x: yard.x + 2,
       z: yard.z + 2,
-      yaw: lerp(Math.PI * 0.05, Math.PI * 0.3, t),
-      pitch: lerp(0.2, 0.1, t),
-      dist: lerp(220, 160, t),
+      aim: lerp(14, 24, t),
+      yaw: lerp(Math.PI * 0.05, Math.PI * 0.28, t),
+      pitch: lerp(0.2, 0.15, t),
+      dist: lerp(230, 180, t),
     }),
   },
+  // ── IV · The steward ──
+  // Fires break out: a slow push toward the burning downtown while Flora (the one panel left on screen) answers live.
   {
-    dur: 7.6,
-    showPace: true,
-    exit: CLEAR_SKY,
-    tod: () => 0.94,
-    at: [
-      [0.4, launch({ shape: 'rings' })],
-      [3.5, launchWhenClear({ text: 'BLOOM ♥' })],
-    ],
-    view: (t) => ({
-      x: yard.x + 2,
-      z: yard.z + 2,
-      yaw: lerp(Math.PI * 0.38, Math.PI * 0.62, t),
-      pitch: lerp(0.12, 0.16, t),
-      dist: lerp(150, 138, t),
-    }),
-  },
-  {
-    dur: 4.4,
-    tod: () => 0.95,
-    view: (t) => ({
-      x: 230,
-      z: 31,
-      yaw: lerp(Math.PI - 0.22, Math.PI + 0.16, t),
-      pitch: lerp(0.16, 0.11, t),
-      dist: lerp(36, 24, t),
-    }),
-  },
-  {
-    dur: 5.0,
-    track: 'ferry',
-    tod: () => 0.95,
-    enter: () => `(() => {
-       const f = window.bloomgrid.services.get('ferry');
-       if (f.active) { f.departNow(); f.advance(10); f.deckShow(); }
-       ${SWEEP_TOASTS};
-     })()`,
-  },
-  // ── III · The steward ──
-  {
-    dur: 4.6,
+    dur: 7.2,
+    card: 'flora',
+    hud: ['.ai'],
     tod: () => 0.94,
     keep: true,
     enter: () => FLORA_OPEN,
-    at: [[2.6, ASK_FLORA('Fires just broke out — what is happening, and what should I do first?')]],
+    at: [[0.5, ASK_FLORA('Fires just broke out — what is happening, and what should I do first?')]],
     view: (t) => ({
-      x: 292,
-      z: 224,
-      yaw: lerp(2.4, 2.6, t),
-      pitch: lerp(0.82, 0.78, t),
-      dist: lerp(120, 95, t),
+      x: lerp(278, 290, t),
+      z: lerp(236, 226, t),
+      aim: lerp(4, 10, t),
+      yaw: lerp(2.45, 2.75, t),
+      pitch: lerp(0.5, 0.36, t),
+      dist: zoom(150, 85, t),
     }),
   },
+  // Postcards from the future: where the city lands in ten days if nothing changes, over the night skyline.
   {
-    dur: 6.8,
-    card: 'flora',
-    tod: () => 0.94,
-    view: (t) => ({
-      x: 264,
-      z: 250,
-      yaw: lerp(2.6, 2.8, t),
-      pitch: lerp(0.85, 0.8, t),
-      dist: lerp(150, 135, t),
-    }),
-  },
-  // If Nothing Changes: Flora runs the burning city ten days on in a worker, then films where it lands (2.6×).
-  {
-    dur: 8.0,
-    film: true,
-    rate: 2.6,
+    dur: 4.6,
+    card: 'future',
+    hud: ['.fpc'],
+    tod: () => 0.96,
     enter: () => `(async () => {
       const g = window.bloomgrid;
       g.services.get('assistant').toggle(false);
       g.city.credits = 64000;
-      ${SWEEP_TOASTS};
-      await g.services.get('future').project(10);
-      void g.services.get('future').show(10);
+      void g.services.get('future').postcard(10);
     })()`,
-    preroll: PREROLL('.reel.fz.s-play', 30),
-    exit: SKIP_FILM,
-    report: `[document.querySelector('.fz-dnum')?.textContent, document.querySelector('.reel-cap')?.textContent].join(' · ')`,
-  },
-  // The postcard it leaves: residents, harmony, credits then and now, and the levers to change it.
-  {
-    dur: 5.2,
-    card: 'future',
-    tod: () => 0.96,
     preroll: PREROLL('.fpc:not(.hidden)', 20),
     exit: `document.querySelector('.fpc .pop-x')?.click()`,
     view: (t) => ({
       x: lerp(250, 262, t),
       z: 256,
-      yaw: lerp(2.9, 3.05, t),
-      pitch: lerp(0.95, 0.9, t),
-      dist: lerp(210, 190, t),
+      aim: 12,
+      yaw: lerp(2.9, 3.1, t),
+      pitch: lerp(0.42, 0.36, t),
+      dist: lerp(220, 190, t),
     }),
   },
-  // ── IV · Dawn ──
+  // ── V · Dawn ──
   // The steward answers: a Bloom Retrofit wave rolls through the old quarter as the night turns to sunrise.
   {
-    dur: 5.8,
+    dur: 4.8,
     tod: (t) => lerp(0.97, 1.36, t) % 1,
     enter: () => `(() => {
         const g = window.bloomgrid;
         g.city.steward.fires.length = 0;
-        document.querySelector('.hz-panel')?.classList.add('hidden');
         g.city.credits = 1e6;
         g.commands.execute('retrofit', { x: 222, z: 284, radius: 14 });
-        ${SWEEP_TOASTS};
       })()`,
     view: (t) => ({
-      x: lerp(280, 270, t),
-      z: 244,
-      yaw: lerp(2.8, 3.15, t),
-      pitch: lerp(0.72, 0.56, t),
-      dist: lerp(95, 150, t),
+      x: lerp(232, 224, t),
+      z: lerp(270, 282, t),
+      yaw: lerp(2.8, 3.2, t),
+      pitch: lerp(0.66, 0.5, t),
+      dist: lerp(70, 110, t),
     }),
   },
-  // The Archipelago: the chart of the neighbours over the horizon, their fortunes and the agreements under way.
+  // Bookend of the arrival: from Flora-Net's drone mist over the gardens, pull back to the whole island.
   {
-    dur: 5.4,
-    card: 'trade',
-    tod: () => 0.42,
-    enter: () =>
-      `(() => { window.bloomgrid.services.get('archipelago').toggle(true, 'drift'); ${SWEEP_TOASTS}; })()`,
-    exit: `window.bloomgrid.services.get('archipelago').toggle(false)`,
-    view: (t) => ({
-      x: 300,
-      z: 300,
-      yaw: lerp(-2.2, -2.05, t),
-      pitch: lerp(0.3, 0.28, t),
-      dist: lerp(300, 280, t),
-    }),
-  },
-  {
-    dur: 5.0,
-    tod: (t) => lerp(0.44, 0.47, t),
-    enter: () =>
-      `window.bloomgrid.commands.execute('mist', { x: ${Math.round(hive.x)} + 6, z: ${Math.round(hive.z)} + 4 })`,
-    view: (t) => ({
-      x: hive.x + 2,
-      z: hive.z + 2,
-      yaw: lerp(1.1, 1.9, t),
-      pitch: lerp(0.48, 0.42, t),
-      dist: lerp(34, 26, t),
-    }),
-  },
-  // Bookend of the reveal: pull out to the whole island, easing into the end card; the toasts leave with it.
-  {
-    dur: 7.4,
+    dur: 6.4,
     card: 'end',
     easeOut: true,
-    enter: () => `(() => {
-       ${SWEEP_TOASTS};
-       document.querySelector('.hz-panel')?.classList.add('hidden');
-     })()`,
-    tod: (t) => lerp(0.47, 0.53, t),
+    enter: () =>
+      `window.bloomgrid.commands.execute('mist', { x: ${Math.round(hive.x)} + 6, z: ${Math.round(hive.z)} + 4 })`,
+    tod: (t) => lerp(0.38, 0.44, t),
     view: (t, od) => ({
-      x: lerp(270, 256, t),
-      z: lerp(250, 258, t),
-      yaw: lerp(3.15, 3.55, t),
-      pitch: lerp(0.56, 1.0, t),
-      dist: zoom(150, od, t),
+      x: lerp(hive.x + 2, 256, t),
+      z: lerp(hive.z + 2, 258, t),
+      yaw: lerp(1.3, 2.2, t),
+      pitch: lerp(0.46, 1.0, t),
+      dist: zoom(32, od, t),
     }),
   },
 ];
-// Dissolve per boundary: quick through the daytime run, longer into the film, the night and the dawn; the
-// drone→Aeroline cut is a circle wipe out of the propeller disc.
-const XF = [
-  0.6, 0.35, 0.35, 0.35, 0.45, 0.7, 0.7, 0.45, 0.45, 0.6, 0.35, 0.6, 0.35, 0.6, 0.6, 0.8, 0.5, 0.5, 1.1,
-];
+// Dissolve per boundary: a match dissolve out of the establishing shot, quick through the day, a circle wipe out of
+// the drone's propeller into the Aeroline ride, longer breaths into the night and the dawn.
+const XF = [0.5, 0.4, 0.4, 0.5, 0.35, 0.4, 0.6, 0.6, 0.45, 0.45, 0.6, 0.45, 0.7, 0.6];
 const XT = XF.map(() => 'fade');
-XT[5] = 'circleopen';
+XT[6] = 'circleopen';
 if (XF.length !== shots.length - 1)
   throw new Error(`XF has ${XF.length} dissolves for ${shots.length - 1} shot boundaries`);
 const PLAN = shots.reduce((a, s) => a + s.dur, 0);
@@ -559,6 +484,7 @@ const shotStarts = [];
 const total = seconds - xfs.reduce((a, b) => a + b, 0);
 
 mkdirSync(framesDir, { recursive: true });
+mkdirSync(dirname(out), { recursive: true });
 for (const f of readdirSync(framesDir))
   if (f !== '.gitignore') rmSync(join(framesDir, f), { recursive: true, force: true });
 
@@ -624,28 +550,24 @@ const CARDS = {
       ['A SOLARPUNK ISLAND CITY BUILDER', 66, 22, 76, '#dbffe9'],
     ]),
   },
-  sea: { png: await sub('A LIVING SEA', 'whales, dolphins and wonders beyond the shore'), a: 0.8, b: 4.4 },
-  drone: { png: await sub('FLY YOUR CITY', 'a drone’s-eye view of every district'), a: 1.0, b: 5.2 },
-  train: { png: await sub('RIDE THE AEROLINE', 'a solar maglev loop round the island'), a: 1.2, b: 5.4 },
+  sea: { png: await sub('A LIVING SEA', 'whales, dolphins and wonders beyond the shore'), a: 0.7, b: 4.0 },
+  city: { png: await sub('A CITY THAT GROWS BACK', 'every street, rooftop and quarter alive'), a: 0.5, b: 3.6 },
+  drone: { png: await sub('FLY YOUR CITY', 'a drone’s-eye view of every district'), a: 0.8, b: 4.0 },
+  train: { png: await sub('RIDE THE AEROLINE', 'a solar maglev loop round the island'), a: 1.0, b: 4.8 },
   aurora: {
     png: await sub('LIGHT UP THE SKYLINE', 'the Aurora Gemini twin towers put on a show'),
-    a: 1.0,
-    b: 5.8,
+    a: 0.8,
+    b: 4.4,
   },
-  fireworks: { png: await sub('SHAPES IN THE SKY', 'fireworks you design'), a: 1.5, b: 6.5 },
-  flora: { png: await sub('MEET FLORA', 'a local AI steward’s assistant, by your side'), a: 0.8, b: 5.9 },
+  fireworks: { png: await sub('SHAPES IN THE SKY', 'fireworks you design'), a: 1.2, b: 6.0 },
+  flora: { png: await sub('MEET FLORA', 'a local AI steward’s assistant, by your side'), a: 0.8, b: 6.2 },
   future: {
     png: await sub(
       'POSTCARDS FROM THE FUTURE',
       'see where your city is heading, while you can still change it',
     ),
     a: 0.6,
-    b: 4.6,
-  },
-  trade: {
-    png: await sub('THE ARCHIPELAGO', 'trade and friendship with the islands over the horizon'),
-    a: 0.7,
-    b: 5.0,
+    b: 4.2,
   },
   end: {
     png: await card([
@@ -655,6 +577,7 @@ const CARDS = {
   },
 };
 
+await page.evaluateOnNewDocument((clean) => (window.__bgClean = clean), cleanView);
 await page.goto(base + path, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.bloomgrid?.engine && document.body.classList.contains('booted'), {
   timeout: 120000,
@@ -673,6 +596,8 @@ await page.evaluate(async () => {
   if (c.archipelago) c.archipelago.auto = false;
   g.services.get('moments').mode = 'off';
   g.services.get('pulse').fold(true);
+  // Clean view (D-238): no HUD, toasts, cards, bubbles or pins over the picture; shots that show a panel keep it.
+  if (window.__bgClean) g.services.get('cleanview').set(true, { quiet: true });
   // The films' Skip button is for players, not viewers; the cat's chatter and the time-lapse's invitation would sit over the subject.
   const st = document.createElement('style');
   st.textContent = '.reel-skip, .ch-talk, .tli { visibility: hidden !important; }';
@@ -762,8 +687,17 @@ await page.evaluate(async () => {
     const px = x + Math.sin(yaw) * cp * dist;
     const py = y + Math.sin(pitch) * dist;
     const pz = z + Math.cos(yaw) * cp * dist;
-    g.camera.position.set(px, floor ? Math.max(py, Math.max(0, g.city.grid.heightAt(px, pz)) + 1.5) : py, pz);
+    const ground = Math.max(0, g.city.grid.heightAt(px, pz));
+    const cy = floor ? Math.max(py, ground + 1.5) : py;
+    g.camera.position.set(px, cy, pz);
     g.camera.lookAt(cam.target);
+    // The near plane follows the eye's height as CityCamera.fitNear does (D-237): `cinematic` hands back 0.5, and
+    // the establishing shots sit 400–700 units out, where a 0.5 near plane z-fights pool decks and kerbs.
+    const nearPlane = Math.min(20, Math.max(0.5, (cy - ground) * 0.04));
+    if (Math.abs(g.camera.near - nearPlane) > nearPlane * 0.01) {
+      g.camera.near = nearPlane;
+      g.camera.updateProjectionMatrix();
+    }
   };
   window.__bgPose = (v) => {
     const h = Math.max(0, g.city.grid.heightAt(v.x, v.z));
@@ -850,12 +784,16 @@ for (let i = 0; i < shots.length; i++) {
   }
   mkdirSync(segDir(i), { recursive: true });
   // Posed shots take the camera over completely (`cinematic`); free shots and films give it back.
+  // and only the panels a shot is about (`hud`) show through the clean view.
   await page.evaluate(
-    (free) => {
-      window.bloomgrid.cameraCtl.cinematic = !free;
+    (free, keep) => {
+      const g = window.bloomgrid;
+      g.cameraCtl.cinematic = !free;
       delete window.__bgTy;
+      if (window.__bgClean) g.services.get('cleanview').set(true, { keep, quiet: true });
     },
     !!(shot.free || shot.film),
+    shot.hud ?? [],
   );
   if (shot.enter) await page.evaluate(shot.enter(time));
   if (shot.preroll) console.log(`[demo] shot ${i + 1} prerolled ${await page.evaluate(shot.preroll)} frames`);
@@ -901,6 +839,8 @@ for (let i = 0; i < shots.length; i++) {
       path: join(segDir(i), `f${String(f).padStart(4, '0')}.jpg`),
       type: 'jpeg',
       quality: 96,
+      // Skips PNG-grade compression work in the compositor readback: a large share of each frame's wall time.
+      optimizeForSpeed: true,
     });
     if (++done % 150 === 0)
       console.log(`[demo] frame ${done}/${totalFrames} (${((Date.now() - t0) / 1000).toFixed(0)}s elapsed)`);

@@ -32,6 +32,14 @@ export class PostFX {
   private readonly projInv = uniform(new Matrix4());
   private readonly camWorld = uniform(new Matrix4());
   private readonly prevViewProj = uniform(new Matrix4());
+  /**
+   * TRAA's history tests compare raw perspective depth, where a world-space gap shrinks in proportion to the near
+   * plane. Its defaults (0.0005 / 0.001) were tuned at near = 0.5; the city camera's near plane follows its height
+   * (D-237), which made the same tests reject history for depth steps of a few units, and every rejected pixel shows
+   * the raw aliased frame. The thresholds scale with the near plane so they keep their world-space meaning (D-238).
+   */
+  private readonly depthThreshold = uniform(0.0005);
+  private readonly edgeDepthDiff = uniform(0.001);
   private taa = false;
 
   constructor(
@@ -62,7 +70,11 @@ export class PostFX {
       this.syncMatrices();
       this.prevViewProj.value.multiplyMatrices(this.proj.value, (this.camera as PerspectiveCamera).matrixWorldInverse);
       const velocity = convertToTexture(this.cameraVelocity(depth));
-      color = traa(color, depth, velocity, this.camera) as unknown as Node<'vec4'>;
+      const t = traa(color, depth, velocity, this.camera);
+      // Read at setup as numbers or nodes: uniforms keep them live (see `depthThreshold`).
+      (t as unknown as { depthThreshold: unknown }).depthThreshold = this.depthThreshold;
+      (t as unknown as { edgeDepthDiff: unknown }).edgeDepthDiff = this.edgeDepthDiff;
+      color = t as unknown as Node<'vec4'>;
     }
     const glow = scenePass.getTextureNode('emissive');
     const b = bloom(glow, U.bloom as unknown as number, 0.55, 0);
@@ -97,6 +109,9 @@ export class PostFX {
     this.proj.value.copy(cam.projectionMatrix);
     this.projInv.value.copy(cam.projectionMatrixInverse);
     this.camWorld.value.copy(cam.matrixWorld);
+    const k = cam.near / 0.5;
+    this.depthThreshold.value = 0.0005 * k;
+    this.edgeDepthDiff.value = 0.001 * k;
   }
 
   /**

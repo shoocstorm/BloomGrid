@@ -143,6 +143,13 @@ body.compact .xp-pad:not(.hidden) {
 #hud.touring {
   visibility: hidden;
 }
+/* …and so does every body-level layer over the city (tip bubbles, paper planes, the cat, cards, toasts), hidden
+   rather than removed so each comes back as it was (D-240). */
+body.touring > :not(.tour-ui):not(#game):not(#hud):not(.boot-screen):not(.bt-loader):not(.reel) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 .tour-ui {
   position: fixed;
   inset: 0;

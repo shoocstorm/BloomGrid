@@ -25,8 +25,9 @@ export default defineBuilding({
     b.add({ piece: 'mossBox', p: [0, 0.25, 0], s: [7.4, 0.04, 5.4], tint: 0xdfe9e2 });
     // Racing pool with lane ropes, and the lagoon.
     b.add({ piece: 'pool', p: [-0.8, 0.22, -0.6], s: [5.0, 0.1, 2.6] });
+    // Lane ropes lie on the water (their top was flush with the pool's and z-fought).
     for (let i = 1; i < 6; i++)
-      b.add({ piece: 'slab', p: [-0.8, 0.31, -1.9 + i * 0.43], s: [5.0, 0.01, 0.03], tint: 0xffd36b });
+      b.add({ piece: 'slab', p: [-0.8, 0.32, -1.9 + i * 0.43], s: [5.0, 0.012, 0.03], tint: 0xffd36b });
     b.add({ piece: 'pool', p: [2.4, 0.22, 1.6], s: [2.0, 0.1, 1.6] });
     // Diving tower.
     b.add({ piece: 'concreteCyl', p: [2.4, 0.25, -1.4], s: [0.35, 3.0, 0.35], tint: 0xf4f1ea });
@@ -101,7 +102,8 @@ export default defineBuilding({
     // edges, and a halo on the main dome's crown.
     b.level(3, () => {
       b.add({ piece: 'dome', p: [-2.0, 0.25, -2.0], s: [3.6, 3.0, 1.6], tint: PALETTE.glass });
-      b.add({ piece: 'pool', p: [-2.0, 0.26, -2.1], s: [3.2, 0.03, 1.2] });
+      // Its water stands clear of the deck (a top flush with the deck's z-fought).
+      b.add({ piece: 'pool', p: [-2.0, 0.26, -2.1], s: [3.2, 0.05, 1.2] });
       b.add({ piece: 'concreteCyl', p: [2.4, 0.25, -1.4], s: [0.3, 4.2, 0.3], tint: 0xf4f1ea });
       b.add({ piece: 'slab', p: [1.9, 4.4, -1.4], s: [1.2, 0.08, 0.4], tint: 0xf4f1ea });
       b.add({ piece: 'lumenRib', p: [1.32, 4.48, -1.4], s: [0.03, 0.03, 0.4], tint: 0x9ee6ff, glow: 1 });

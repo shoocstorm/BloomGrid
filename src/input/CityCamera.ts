@@ -51,8 +51,22 @@ export class CityCamera {
   /**
    * Set by the city tour (D-145): another system poses the camera (and keeps `target` / `yaw` / `pitch` / `distance`
    * describing it) while the city view's LODs and focus stay as they are; input and locate glides are ignored.
+   * Taking the camera over hands back the base near plane (`fitNear` only knows the orbit pose).
    */
-  cinematic = false;
+  get cinematic(): boolean {
+    return this._cinematic;
+  }
+  set cinematic(on: boolean) {
+    this._cinematic = on;
+    if (on) this.setNear(CityCamera.NEAR);
+  }
+  private _cinematic = false;
+
+  /** The near plane close in; `fitNear` pushes it out with the eye's height (D-237). */
+  static readonly NEAR = 0.5;
+  /** Share of the eye's height above the ground the near plane may reach, and its cap. */
+  static readonly NEAR_SHARE = 0.04;
+  static readonly NEAR_MAX = 20;
 
   /** Closest zoom: far enough that the view stays a city view, never a street-level peek (D-209). */
   minDistance = 18;
@@ -297,6 +311,24 @@ export class CityCamera {
     const ground = Math.max(0, g.heightAt(cam.x, cam.z)) + CityCamera.GROUND_CLEAR;
     if (cam.y < ground) cam.y = ground;
     this.camera.lookAt(this.target);
+    this.fitNear(cam.y - ground + CityCamera.GROUND_CLEAR);
+  }
+
+  /**
+   * Depth precision falls with the square of the distance over the near plane: with a fixed 0.5 near plane the
+   * bird's-eye view (eye 200–500 above the island) resolved only 1–4 cm, so surfaces a few centimetres apart (pool
+   * tops and decks, painted tracks under pitches, kerbs and pavements) z-fought and flashed as the view moved. The
+   * near plane follows the eye's height instead: nothing but flying things comes within a few percent of it (D-237).
+   */
+  private fitNear(height: number): void {
+    this.setNear(MathUtils.clamp(height * CityCamera.NEAR_SHARE, CityCamera.NEAR, CityCamera.NEAR_MAX));
+  }
+
+  private setNear(near: number): void {
+    const cam = this.camera;
+    if (Math.abs(cam.near - near) < near * 0.01) return;
+    cam.near = near;
+    cam.updateProjectionMatrix();
   }
 
   /** Advances a locate glide: the target eases across, distance arcs up and back down, pitch tips to look down. */

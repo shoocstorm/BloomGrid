@@ -426,7 +426,11 @@ export const audioModule: GameModule = {
 
     // Effects on game events (never while a city loads in bulk).
     const bus = ctx.bus;
-    const quiet = () => ctx.loading;
+    // The city tour is a show (D-240): the city's chimes, tips, alerts and ceremonies hold while it flies; its
+    // scenery (trains, the ferry's horn, the jet, weather) still sounds.
+    let touring = false;
+    bus.on('explore:mode', ({ mode }) => (touring = mode === 'tour'));
+    const quiet = () => ctx.loading || touring;
     document.addEventListener('click', (e) => {
       if ((e.target as HTMLElement | null)?.closest?.('button')) s.tone(1800, 0.05, 0.035, 'triangle');
     });
@@ -540,11 +544,13 @@ export const audioModule: GameModule = {
       'pulse:tier',
       // Not while a new city settles (the pulse panel holds its toasts for the same 8 s).
       ({ tier, prev }) =>
+        !quiet() &&
         ctx.city.tick >= 80 && tier > prev && tier >= 3 && s.tone(330, 0.5, 0.08, 'triangle', 247),
     );
     // City moments (D-094): each ceremony has its sound. Flora wakes (D-092): a low swell, then a rising major
     // arpeggio that blooms into a held chord and a shimmer.
     bus.on('moment', ({ sound }) => {
+      if (touring) return;
       if (sound === 'awake') {
         s.burst(2.4, 0.18, 'lowpass', 160, 900);
         [262, 330, 392, 523, 659, 784, 1047].forEach((f, i) => s.tone(f, 2.6 - i * 0.12, 0.07, 'triangle', undefined, 1.6 + i * 0.13));
@@ -732,6 +738,7 @@ export const audioModule: GameModule = {
       if (!s.levels.muted) s.score?.hit(hit, delay, dur);
     });
     bus.on('crisis:forecast', () => {
+      if (quiet()) return;
       s.tone(440, 0.35, 0.08, 'square', undefined, 0);
       s.tone(440, 0.35, 0.08, 'square', undefined, 0.5);
     });

@@ -1,4 +1,5 @@
 import { Color, Euler, Frustum, Matrix4, Quaternion, Sphere, Vector3 } from 'three/webgpu';
+import { separateFlushFaces } from './flushFaces';
 import { Building, Greenery, Problem, Service } from '@/ecs/components';
 import { buildings } from '@/content';
 import type { BuildingDef, KitBuilder, PieceSpec, Spin } from '@/content/types';
@@ -136,6 +137,8 @@ export function buildingTemplate(def: BuildingDef, variant: number): BuildingTem
     rng,
     ...(roof.main.length ? { roofPlant: roof.main } : {}),
   };
+  // Coplanar faces of differing pieces z-fight: move the smaller's face out (D-237, D-238).
+  separateFlushFaces([...t.pieces, ...t.ranged]);
   templates.set(key, t);
   return t;
 }

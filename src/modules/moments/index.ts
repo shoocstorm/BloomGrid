@@ -215,7 +215,9 @@ export const momentsModule: GameModule = {
     const next = () => {
       const body = document.body.classList;
       // Never over another card that owns the screen: the pause card, a dialog, the chapter dialog.
-      if (staged || ceremony.playing || !queue.length || ctx.loading || body.contains('chapter-open') || body.contains('city-paused')) return;
+      // …nor during the city tour (D-240).
+      if (staged || ceremony.playing || !queue.length || ctx.loading) return;
+      if (body.contains('chapter-open') || body.contains('city-paused') || body.contains('touring')) return;
       if (document.querySelector('.modal-scrim')) return;
       if (now() < calmUntil && !queue[0]!.chain) return;
       const { m, done, run, chain } = queue.shift()!;

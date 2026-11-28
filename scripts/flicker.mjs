@@ -13,6 +13,9 @@
  *
  * Options: --base, --path (default "/?nodynres"), --dists 70,140,260, --frames 10, --step (tiles per frame; default ≈0.15 px of motion),
  * --threshold 48, --cx/--cz (focus tile, default downtown), --yaw, --pitch, --overview (the O view: whole island, pitch 1.1),
+ * --save shots/m.png (with --speed: writes each moving frame),
+ * --hide a,b (the whole scene without these pieces: how much of its flashing they cause),
+ * --fov <deg> (a narrow lens: far views magnified, for z-fighting between close surfaces),
  * --still (camera held, shader clock running: what twinkles or blinks by itself rather than under motion),
  * --speed <px> (a pan at a real speed, px per frame: each moving frame is compared with a still, converged render of
  * the same pose, and what is counted is how much that error jumps from frame to frame. Lag and blur from temporal AA
@@ -46,7 +49,9 @@ const frames = Number(args.frames ?? 10);
 // contrast (under the threshold) while a detail that pops in or out of a pixel jumps fully.
 const still = args.still === 'true';
 const speed = args.speed !== undefined ? Number(args.speed) : 0;
-const stepFor = (dist) => (still ? 0 : args.step !== undefined ? Number(args.step) : dist * 0.0002);
+// A narrow lens (--fov) magnifies: shrink the step with it to keep ≈0.15 px of motion on screen.
+const lens = args.fov ? Number(args.fov) / 45 : 1;
+const stepFor = (dist) => (still ? 0 : args.step !== undefined ? Number(args.step) : dist * 0.0002 * lens);
 if (args.overview === 'true') {
   args.cx ??= '256';
   args.cz ??= '266';
@@ -81,8 +86,15 @@ await new Promise((r) => setTimeout(r, 2500));
 
 // Freeze the world: sim paused, shader clock pinned, HUD hidden, night or noon.
 await page.evaluate(
-  async ({ night, still }) => {
+  async ({ night, still, fov, hide }) => {
     const g = window.bloomgrid;
+    // --fov: a narrow lens magnifies far buildings without bringing the camera closer (depth precision and z-fighting
+    // depend on distance, not on the lens).
+    window.__hide = hide;
+    if (fov) {
+      g.camera.fov = fov;
+      g.camera.updateProjectionMatrix();
+    }
     g.engine.speed = 0;
     g.city.timeOfDay = night ? 0.95 : 0.5;
     document.getElementById('hud').style.visibility = 'hidden';
@@ -126,6 +138,12 @@ await page.evaluate(
       g.scene.traverse((o) => {
         if (o.isMesh || o.isPoints || o.isLine || o.isSprite) o.layers.set(!pieces || keep.has(o) ? 0 : 31);
       });
+      // --hide: everything but these pieces (what a piece adds to the whole scene's flashing).
+      if (window.__hide) {
+        for (const b of g.instancer.batches.values()) if (window.__hide.includes(b.piece.id)) b.mesh.layers.set(31);
+        // `name:<mesh>` hides a named module mesh and everything under it.
+        g.scene.traverse((o) => window.__hide.includes(`name:${o.name}`) && o.traverse((c) => c.layers.set(31)));
+      }
       return keep.size;
     };
     // Frame-exact stepping for --speed: the engine stops and each call renders exactly one frame.
@@ -162,7 +180,7 @@ await page.evaluate(
       };
     };
   },
-  { night, still },
+  { night, still, fov: args.fov ? Number(args.fov) : 0, hide: args.hide ? args.hide.split(',') : null },
 );
 
 const luma = (buf) => {
@@ -221,7 +239,7 @@ async function measureMoving(pieces, x, z, dist) {
   const yaw = Number(args.yaw ?? 0.6);
   const pitch = Number(args.pitch ?? 0.7);
   // 0.15 px of motion is dist × 0.0002 tiles (see stepFor).
-  const step = (speed / 0.15) * dist * 0.0002;
+  const step = (speed / 0.15) * dist * 0.0002 * lens;
   const pose = (f) => [x + f * step, z + f * step * 0.4, dist, yaw, pitch];
   await page.evaluate((a) => window.__view(...a), pose(-10));
   await page.evaluate(() => window.__step(40));
@@ -235,6 +253,11 @@ async function measureMoving(pieces, x, z, dist) {
     await page.evaluate((a) => window.__view(...a), pose(f));
     await page.evaluate(() => window.__step(1));
     moving.push(await grab());
+    // --save: each moving frame (luma) for stepping through by eye.
+    if (args.save)
+      await sharp(Buffer.from(moving[f].map((v) => Math.round(v))), { raw: { width: W, height: H, channels: 1 } })
+        .png()
+        .toFile(args.save.replace(/\.png$/, `-${dist}-${String(f).padStart(2, '0')}.png`));
   }
   let sum = 0;
   let prevErr = null;

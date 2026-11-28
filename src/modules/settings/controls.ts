@@ -77,6 +77,7 @@ export function controlsPane(ctx: GameContext): HTMLElement[] {
       ['City map', 'M'],
       ['Next fire', '.'],
       ['Explore · photo', 'N', 'J'],
+      ['Hide the HUD (clean view)', 'F2'],
     ]),
     group('settings', 'General', [
       ['Undo · redo', `${MOD}Z`, `⇧${MOD}Z`],

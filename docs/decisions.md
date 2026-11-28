@@ -4263,3 +4263,100 @@ on signed distances (undefined for x < 0) is `x · x`, and every `smoothstep` ru
 wake's `smoothstep(d·0.33, d·0.2, …)` met at d = 0); the rule is in AGENTS.md §8. At the player's request the rings
 spreading from breaches, surfacings and dives are gone (the breach keeps its spray crown; a whale at the surface keeps
 its wake and slick).
+
+## D-237 — Bird's-eye z-fighting: the near plane follows the camera's height; flush tops lifted apart (2026-11-28)
+
+From the bird's-eye view the Moonflower Concert Hall's blue pool base, the Lagoon Aquatic Centre's pools and the
+running track between the Meadow Sports Fields' pitches flashed as the camera moved, as did kerbs and pavements.
+The city camera's near plane was a fixed 0.5 with the far plane at 4000: depth precision falls with distance² / near,
+so at 400–500 units the depth buffer resolved only ≈ 2–4 cm and surfaces a few centimetres apart (pool tops and
+decks, the track 1.8 cm under the turf) z-fought. Measured with the new `flicker --fov 5` (a narrow lens magnifies
+far buildings without bringing the camera closer): 0.32–0.41 % of pixels flashing per frame at 500 units, 30–100×
+the same view at 250.
+
+- `CityCamera.fitNear` sets the near plane to 4 % of the eye's height above the ground (0.5 to 20): ≈ 40× the
+  precision at the overview. Only flying things ever come that close to an eye hundreds of units up. Setting
+  `cinematic` hands back 0.5 (the tour, films and the demo pose the camera themselves); explore modes set their own.
+  TRAA's camera velocity reprojects with the matrices, so a moving near plane is harmless.
+- Exactly coplanar faces fight at any distance, so `buildingTemplate` runs `separateFlushFaces`
+  (`modules/construction/flushFaces.ts`; walls and cylinders were added in D-238): when the tops of two differing flat-topped pieces (box or cylinder, upright;
+  differing = another piece or tint) coincide and overlap, the smaller is raised `TOP_LIFT` (4 mm) per layer, layers
+  picked greedily so rings of two-colour seats alternate. It touched 19 building types (Aurora Gemini drums, canopy
+  tower rails, stadium seating, Wellspring Spire…). `tests/flushFaces.test.ts` keeps every template free of them.
+- The aquatic centre's lane ropes and wave pool were also moved off their flush planes in the recipe.
+
+After: 0.002–0.004 % at 250 and 500 units on all three buildings (day and night); overview and downtown unchanged.
+
+## D-238 — Clean view (F2) and a shorter, story-led demo (2026-11-28)
+
+The demo video carried the HUD into every frame (top bar, Build buttons, toasts, the cat's bubbles, fire pins), and
+the script swept toasts by hand shot by shot. It also ran ~110 s over twenty shots, so a 4K 60 fps capture took long.
+
+- **Clean view** (`src/modules/cleanview/`, service `cleanview`: `set(on, { keep, quiet })`, `toggle()`): a player
+  feature, F2 or Settings → Display, Esc or F2 to leave. `body.clean-view` hides `#hud` and every body-level overlay
+  by `visibility` (state and layout kept) except the 3D canvas, films (`.reel`), ceremonies (`.fa-stage`), the
+  loaders and the gallery. Unlike photo mode it adds no letterbox and leaves the clock running. `keep` selectors are
+  set visible again under the hidden HUD (CSS lets a child of a `visibility: hidden` parent show), which is how the
+  demo shows only Flora's console or the postcard in the shots about them. A new body-level layer that is HUD is
+  hidden automatically; one that is the city's (like a film) must be added to the exclusions in `cleanview.css`.
+- **Demo** (`scripts/demo.mjs`): fifteen shots, ~65 s, one day on the island in five acts (arrival, a living island,
+  night, the steward, dawn); four plain city views (the skyline dive, a rooftop truck over the Gardens, a crane onto
+  the Bayfront, the Lumen Promenade at blue hour); every move motivated (reveal, push, truck, crane), a match cut out
+  of the establishing shot, and the open and close mirrored. Dropped: the Lotus Atoll, ferry, a second fireworks act,
+  the "If Nothing Changes" film (the postcard is shown directly), the Archipelago chart and the hive shot. Posed
+  shots fit the near plane to the eye's height as `CityCamera.fitNear` does (D-237). Screenshots use
+  `optimizeForSpeed`. `--with-hud` records the HUD as before.
+
+## D-238 — Side-view flashing: thin detail dissolves under half a pixel; flush walls; TAA thresholds follow the near plane (2026-11-28)
+
+After D-237 the steward still saw vertical lines flashing on façades from the side (Sky Ark, garden residences,
+canopy towers). Measured from low angles with `flicker --fov 6 --pitch 0.25` (and A/B against the last commit in a
+worktree), three causes:
+
+- **Thin detail.** Timber louvre fins (2.5 cm), handrails (2.2 cm), lamp posts and ivy strands are a fraction of a
+  pixel at ordinary distances and hit or miss pixel centres from frame to frame. `define(…, { thin: true })` adds
+  `thinKeep` (library.ts): where a face spans under ≈ 0.6 px across (from `fwidth(positionGeometry)`, as `pieceCover`
+  reads it) it dissolves with the frame-keyed dither, gone under ≈ 0.25 px, so TAA averages it to its true share.
+  On `timber` (only `timberBox`) and `ivy`. Not on glass or concrete: a `discard` in the material of whole façades
+  would cost the GPU's hidden-surface removal there. Canopy towers at 500 units: 0.29 % → 0.11 %; garden
+  residences 0.048 % → 0.004 %. Close views are untouched.
+- **Flush walls.** `separateFlushFaces` now also moves walls (the smaller piece widens 4 mm per side about its
+  centre) and coaxial cylinders of one radius (the shorter one's radius grows); the Sky Ark's podium glass front
+  (11 × 0.75) was flush with the concrete face (its front view at 500 units: 0.083 % → 0.021 %).
+- **TAA after D-237.** TRAA's history tests (`depthThreshold`, `edgeDepthDiff`) compare raw perspective depth, where a
+  world gap shrinks in proportion to the near plane, so D-237's larger near plane made it drop history (and show the
+  raw aliased frame) for depth steps of a few units. `PostFX` passes them as uniforms scaled by `near / 0.5`.
+
+Rejected: rooms behind glass (D-160) were suspected (parallax the camera-only velocity cannot follow) but switching
+them off changed nothing measurable. Probe additions: `flicker --hide a,b` (the scene without those pieces) and
+`--save` (each moving frame of a `--speed` run).
+
+## D-239 — Explore modes and the city tour: the near plane follows the camera's clearance (2026-11-28)
+
+**N** enters explore modes, the city tour first. Every explore mode set the near plane to 0.02 (right for walking
+at street level), and the tour films from 50–300 units away: at 150 units that resolves only ≈ 7 cm, so the sports
+fields' running track broke through the turf in patches, the Aeroline deck streaked and the stacked drums beside the
+Wellspring Spire striped, all shimmering as the tour circled (stills at 160 units, narrow lens: plain z-fighting at
+0.02, clean when fitted). D-238's TAA thresholds, which scale with the near plane, made a 0.02 near plane worse still.
+
+`explore.near` (render phase, before `core.render`, so it covers whichever system posed the camera: tour, chase,
+rides) samples the highest geometry under and round the camera (`collider.groundAt` at the camera and on a ring
+`NEAR_REACH` = 3 out) and sets the near plane to 30 % of the clearance above it, between 0.02 and `NEAR_MAX` = 2
+(below the sampled reach, so nothing it could clip goes unsampled). At street level it stays 0.02.
+
+## D-240 — The city tour is a quiet show; lumen ribs dissolve when thinner than a pixel (2026-11-28)
+
+**Quiet tour.** The tour held the sim speed at 0 and hid `#hud`, but body-level layers over the city (tip bubbles,
+paper planes, the cat, toast and request cards: `jc-top`, `ch-top`, …) stayed on screen, ceremonies could start and
+alert / chime sounds played. Now `body.touring` (set with the mode) hides every body-level layer but the tour's own
+(`explore.css`, hidden not removed, as `body.cutscene-on` does for films); the moments queue waits while it is set;
+the audio module's `quiet()` includes the tour (building, tip, juice, roadworks, selection, ceremony, tier and
+forecast sounds), while scenery sounds (trains, ferry horn, jet, weather) still play. The reported "black squares
+flashing" in the tour were not reproduced (≈ 400 tour frames scanned for pure-black blinks and NaN pixels); the
+dark cards popping over the film are the likeliest cause and are now hidden.
+
+**Lumen ribs.** The Sky Ark's "vertical white lines" are `lumenRib` strips (0.1 wide, tower-tall, pearl white,
+glowing): from the side the worst-flashing piece (0.42 / 0.29 / 0.10 % at 80 / 150 / 300 units, day). `lumen` and
+`lumenThin` take `thin: true` (D-238's dissolve): 0.30 / 0.06 / 0.01 %. What still flashes on its side views is
+balcony slabs (0.07 thick) and posts in the façade materials, where a `discard` would cost hidden-surface removal.
+`flicker --hide` also takes `name:<mesh>`.

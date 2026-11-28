@@ -135,6 +135,8 @@ interface DefineOptions {
   vitality?: boolean;
   /** Dissolve before the instancer's distance cull (D-162): for materials of pieces with a finite `lod`. */
   fade?: boolean;
+  /** Dissolve where the piece is under about half a pixel across (D-238): for materials of fine detail. */
+  thin?: boolean;
 }
 
 /**
@@ -159,9 +161,30 @@ const lodKeep = () => {
   return ign.greaterThanEqual(fade);
 };
 
+/**
+ * Thin-detail dissolve (D-238): fins, handrails, posts and ivy strands a few centimetres across are under a pixel at
+ * ordinary viewing distances. Such a sliver hits pixel centres on one frame and misses them on the next, and while
+ * the camera moves (temporal AA's history rejected) that read as vertical lines flashing on every façade. Where a
+ * face spans under ≈ 0.6 px across (from `fwidth(positionGeometry)`: a unit piece spans 1, as `pieceCover` reads it)
+ * it dissolves with the same frame-keyed dither as the LOD fade, gone under ≈ 0.25 px: temporal AA averages that
+ * into the sliver's true share of the pixel instead of a flash. Thicker pieces and close views are untouched.
+ */
+const thinKeep = () => {
+  const g = fwidth(positionGeometry);
+  const across = float(1).div(max(max(g.x, g.y), max(g.z, float(1e-5))));
+  const keep = smoothstep(0.25, 0.6, across);
+  const px = screenCoordinate.xy.add(U.frame.mul(5.588238)).add(vec2(17, 29));
+  const ign = fract(fract(px.x.mul(0.06711056).add(px.y.mul(0.00583715))).mul(52.9829189));
+  return ign.lessThan(keep);
+};
+
 function define(name: string, make: () => Material, opts: DefineOptions = {}): void {
   const m = make();
-  if (opts.fade && m instanceof MeshStandardNodeMaterial) m.maskNode = lodKeep();
+  if (m instanceof MeshStandardNodeMaterial && (opts.fade || opts.thin)) {
+    const lod = opts.fade ? lodKeep() : null;
+    const thin = opts.thin ? thinKeep() : null;
+    m.maskNode = lod && thin ? lod.and(thin) : (lod ?? thin)!;
+  }
   if (m instanceof MeshStandardNodeMaterial && opts.overlay !== 'none') {
     let base = (m.colorNode ?? materialColor) as Node<'vec3'>;
     if (opts.vitality) base = withVitality(base);
@@ -293,7 +316,7 @@ export function initMaterials(): void {
     m.normalNode = bumped(grain.mul(0.05).sub(joints.mul(0.01)), reliefFade(0.1));
     m.roughnessNode = float(0.72).add(grime.mul(0.2)).add(joints.mul(0.1));
     return m;
-  });
+  }, { thin: true });
 
   // Solar-glass composite: reflective tinted panes, mullions, and warm lit windows at night.
   define('glass', () => {
@@ -507,7 +530,7 @@ export function initMaterials(): void {
     return m;
   }, { vitality: true, fade: true });
   define('grass', foliage(0.03, true, true), { vitality: true, fade: true });
-  define('ivy', foliage(0.025, true), { vitality: true, fade: true });
+  define('ivy', foliage(0.025, true), { vitality: true, fade: true, thin: true });
 
   define('bark', () => new MeshStandardNodeMaterial({ roughness: 1, flatShading: true }), { fade: true });
 
@@ -738,10 +761,10 @@ export function initMaterials(): void {
     m.emissiveNode = color(0x8ff8ec).mul(iGlow).mul(U.night.mul(0.6).add(0.1)).mul(pieceCover(px));
     return m;
   };
-  define('lumen', lumen(8), { fade: true });
+  define('lumen', lumen(8), { fade: true, thin: true });
   // The halo torus is on sixty-odd building types: from the overview hundreds of thin white loops were the city's
   // loudest detail (D-230). It dissolves out by its piece `lod` like greenery, so rings belong to close views.
-  define('lumenThin', lumen(80), { fade: true });
+  define('lumenThin', lumen(80), { fade: true, thin: true });
 
   // Commuter pod shell: pearl body with a glowing window band (instance glow brightens it at night).
   define('pod', () => {

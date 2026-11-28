@@ -73,6 +73,9 @@ const EYE = 0.17;
  */
 const CAM_CLEAR = 0.1;
 const CAM_RING = 0.12;
+/** Explore near plane (D-239): how far round the camera geometry is sampled, and the most the near plane may reach. */
+const NEAR_REACH = 3;
+const NEAR_MAX = 2;
 const GRAVITY = 6;
 
 
@@ -456,6 +459,9 @@ export const exploreModule: GameModule = {
       const exploring = next !== 'city' && next !== 'tour';
       hud?.classList.toggle('exploring', exploring);
       hud?.classList.toggle('touring', next === 'tour');
+      // The tour is a show: body-level layers (tip bubbles, paper planes, the cat, cards) step aside and the
+      // city's alerts and chimes hold until it ends (explore.css, audio, moments, juice, charm).
+      document.body.classList.toggle('touring', next === 'tour');
       hint.classList.toggle('hidden', !exploring);
       padFor(next);
       cross.classList.toggle('hidden', !crossOn());
@@ -919,6 +925,27 @@ export const exploreModule: GameModule = {
     });
 
     // Photo capture right after the frame is drawn (same task, so the canvas still holds it).
+    // Depth precision (D-239): the street-level near plane (0.02) resolved only 3–12 cm at the tour's 50–300 unit
+    // shots, so pitches, tracks and stacked parts z-fought and flashed. Before each frame (whichever system posed
+    // the camera: tour, chase, ride) the near plane grows with the camera's clearance over the highest geometry under
+    // and round it, capped below that sampled reach so nothing it could clip goes unseen; at street level it stays.
+    ctx.systems.add({
+      id: 'explore.near',
+      phase: 'render',
+      order: -10,
+      update() {
+        if (mode === 'city') return;
+        const c = camera.position;
+        let top = Math.max(U.waterLevel.value, 0);
+        top = Math.max(top, collider.groundAt(c.x, c.z, 999));
+        for (const [ox, oz] of RING) top = Math.max(top, collider.groundAt(c.x + ox * NEAR_REACH, c.z + oz * NEAR_REACH, 999));
+        const near = MathUtils.clamp((c.y - top) * 0.3, 0.02, NEAR_MAX);
+        if (Math.abs(camera.near - near) <= near * 0.02) return;
+        camera.near = near;
+        camera.updateProjectionMatrix();
+      },
+    });
+
     ctx.systems.add({
       id: 'explore.capture',
       phase: 'render',
