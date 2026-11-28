@@ -209,7 +209,7 @@ export const LORE: Record<string, WonderLore> = {
       'A breach: a whale clear of the water, twisting as it falls',
       'Flukes raised as they dive',
       'At night, glowing spots along their flanks',
-      'Rings spreading from a breach, and the smooth slick a fluke leaves',
+      'The smooth slick a fluke leaves on the water',
       'A pod swimming on to its next feeding ground, its wake behind it',
     ],
     facts: [

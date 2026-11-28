@@ -1,4 +1,4 @@
-import { Matrix4, RenderPipeline, type Camera, type Node, type PerspectiveCamera, type Scene, type TextureNode, type WebGPURenderer } from 'three/webgpu';
+import { BlendMode, MaterialBlending, Matrix4, RenderPipeline, type Camera, type Node, type PerspectiveCamera, type Scene, type TextureNode, type WebGPURenderer } from 'three/webgpu';
 import { Fn, convertToTexture, emissive, getViewPosition, mrt, output, pass, renderOutput, uniform, uv, vec4 } from 'three/tsl';
 import { bloom } from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { fxaa } from 'three/examples/jsm/tsl/display/FXAANode.js';
@@ -49,7 +49,13 @@ export class PostFX {
     if (!q.bloom) return;
     this.taa = q.taa;
     const scenePass = pass(this.scene, this.camera, { samples: q.taa ? 0 : q.msaa });
-    scenePass.setMRT(mrt({ output, emissive }));
+    // three blends only `output` by default: every other target is written raw, so a transparent mesh (a wake, a
+    // contrail, a lane) overwrote the glow behind it with its own, even where it was invisible, and the night sea
+    // round it went dark in the shape of its quad (D-236). The emissive target blends like the material does; a
+    // transparent material writes its opacity as the emissive alpha (bloomMRT.ts).
+    const targets = mrt({ output, emissive });
+    targets.setBlendMode('emissive', new BlendMode(MaterialBlending));
+    scenePass.setMRT(targets);
     let color = scenePass.getTextureNode('output') as Node<'vec4'>;
     if (q.taa) {
       const depth = scenePass.getTextureNode('depth');

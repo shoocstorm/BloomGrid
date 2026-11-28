@@ -4248,3 +4248,18 @@ sits over an opaque base. The season and weather card is 340 px with its headlin
 3% through · 12 min left" wrapped at 268). The "Back to where you were" card closed after 20 s (the call-out time) with
 no sign it would: it now takes the cards' 12 s, with a hairline draining along its foot (transform only; paused on
 hover, restarted when the pointer leaves, as the countdown is).
+
+## D-236 — The dark square round the whales: the emissive target now blends; breach rings dropped (2026-11-27)
+
+At night a dark square sat on the sea round each whale pod, the size of the D-231 ring effect's quad (the wake's
+quad did the same). Bisected: it stayed with the material's colour, opacity and emissive all neutral, vanished with
+the quad hidden and at Low quality (no bloom pass). three's `MRTNode` blends only the `output` target with the
+material's blending; every other target defaults to `NoBlending`, so a transparent mesh wrote its raw emissive over
+the glow already there, zeroing the night water's bloom wherever its quad covered, visible or not. `PostFX` now gives
+the scene pass's `emissive` target `MaterialBlending`. The `vec4(rgb, opacity)` convention for transparent materials'
+emissive (D-162) finally does what it was meant to; opaque materials are unaffected (no blending for opaque), and the
+sky-lanes, contrails and beam look the same. While bisecting, two shader hazards were fixed in `SeaLife.ts`: `pow(x, 2)`
+on signed distances (undefined for x < 0) is `x · x`, and every `smoothstep` runs low to high with distinct edges (the
+wake's `smoothstep(d·0.33, d·0.2, …)` met at d = 0); the rule is in AGENTS.md §8. At the player's request the rings
+spreading from breaches, surfacings and dives are gone (the breach keeps its spray crown; a whale at the surface keeps
+its wake and slick).

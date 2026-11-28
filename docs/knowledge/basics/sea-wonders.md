@@ -62,6 +62,6 @@ Chronicle) tells that story a page at a time as the city earns it, and opens its
 Two pods of glowing humpbacks (four whales each, a calf beside its mother) roam a ring of eleven feeding grounds round
 the island: each pod lingers at a ground for a couple of minutes, then closes up and swims slowly on to the next, a
 wake behind it (a full lap takes about an hour). At a ground they cruise deep, surface to blow, dive with their flukes
-up and often breach clear of the sea, leaving rings and foam spreading on the water. To find a pod, pick it in the
+up and often breach clear of the sea with a crown of spray; a whale at the surface leaves a wake and a smooth slick. To find a pod, pick it in the
 Inventory and press **Locate**. Fishing crews say breaching means fair weather. Two dolphin
 schools race in circles, leaping in arcs, and like to race the ferry.

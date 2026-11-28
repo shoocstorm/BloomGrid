@@ -61,9 +61,9 @@ import { BALL_LO, FLECK, petal, TINY } from './wonderKit';
  * Kinds of part (`aBody.z`): 0 body (posed), 1 spout (from the blowhole, grows while blowing), 2 splash (at the
  * animal's spot on the water during a breach or a leap). A whale pod also has a child mesh of soft water effects
  * (transparent, one draw): 4 the wake round a whale at the surface (a Kelvin V, a churned trail and the smooth
- * "footprint" a fluke stroke leaves), 5 rings and foam spreading from the last breach, surfacing or dive. They are
- * drawn as smooth functions that widen to at least a pixel and fade to their mean by `fwidth`, so nothing crawls or
- * flashes from far away (D-162); small bright bits (lumen spots, spray) fade out with distance for the same reason.
+ * "footprint" a fluke stroke leaves), drawn as smooth functions that widen to at least a pixel and fade to their mean
+ * by `fwidth`, so nothing crawls or flashes from far away (D-162); small bright bits (lumen spots, spray) fade out
+ * with distance for the same reason. (Rings spreading from breaches and dives were dropped, D-236.)
  */
 
 const LUMEN = 0x8ff7ff;
@@ -75,9 +75,6 @@ const WHALE_L = 12;
 const DOLPHIN_L = 2.6;
 /** Blowhole in the whale's frame at size 1 (spouts rise from here). */
 const BLOWHOLE = [0, 0.085 * WHALE_L, 0.3 * WHALE_L] as const;
-/** Seconds the rings from a breach or a dive spread before they are gone; their speed (units/s at size 1). */
-const RING_LIFE = 9;
-const RING_SPEED = 3.2;
 
 type Key = readonly [u: number, rx: number, ry: number, y: number];
 /**
@@ -450,7 +447,13 @@ function pose(v: Node<'vec3'>, roll: Node<'float'>, pitch: Node<'float'>, tx: No
   return vec3(x1.mul(tz).add(z2.mul(tx)), y2, x1.mul(tx.negate()).add(z2.mul(tz)));
 }
 
-const bump = (x: Node<'float'>, at: number, w: number) => exp(x.sub(at).div(w).pow(2).negate());
+/**
+ * x², written as x · x: WGSL / Metal `pow` is undefined for a negative base. Likewise every `smoothstep` here runs low
+ * to high with distinct edges (undefined otherwise): one NaN pixel survives zero opacity (NaN × 0) and the bloom's
+ * blur smears it over a whole region, which showed as a dark square on the night sea round the whales (D-236).
+ */
+const sq = (x: Node<'float'>) => x.mul(x);
+const bump = (x: Node<'float'>, at: number, w: number) => exp(sq(x.sub(at).div(w)).negate());
 
 /**
  * Every animal's swim and cycle from its attributes (shared by the body and the water effects). `route` = the
@@ -541,7 +544,7 @@ function podMaterial(route: UniformNode<'vec4', Vector4>): MeshBasicNodeMaterial
   const { s, kind, isD, t, seed, bw, h, pitch, roll, at, tx, tz } = w;
   const far = eyeDistance(at);
   // Spray is a few pixels wide from the island view: grow it from nothing near, never show it as flecks far off.
-  const near = smoothstep(520, 300, far);
+  const near = float(1).sub(smoothstep(300, 520, far));
 
   // Body: the tail beats up and down, stronger toward the flukes (less in the air).
   const p = positionGeometry;
@@ -565,7 +568,7 @@ function podMaterial(route: UniformNode<'vec4', Vector4>): MeshBasicNodeMaterial
   const glow = col
     .mul(attribute('aGlow', 'float'))
     .mul(U.night.mul(0.9).add(0.04))
-    .mul(varying(smoothstep(300, 120, far)));
+    .mul(varying(float(1).sub(smoothstep(120, 300, far))));
   m.colorNode = skyShade(col, n).add(glow);
   bloomMRT(m, mrt({ emissive: glow.mul(0.7) }));
   return m;
@@ -585,12 +588,13 @@ function vnoise(p: Node<'vec2'>): Node<'float'> {
 }
 
 /**
- * The pod's water effects (kinds 4 and 5, see the class comment): soft foam, crests and slicks on transparent quads
- * lying on the sea, by night with a faint blue-green glow (the lumen whales stir the plankton).
+ * The pod's water effect (kind 4, see the class comment): the wake round a whale at the surface, soft foam, crests and
+ * a slick on a transparent quad lying on the sea, by night with a faint blue-green glow (the lumen whales stir the
+ * plankton).
  */
 function waveMaterial(route: UniformNode<'vec4', Vector4>): MeshBasicNodeMaterial {
   const w = swim(route);
-  const { s, kind, t, T, tc, at, tx, tz, h, bw, breach, bStart, orbit } = w;
+  const { s, t, at, tx, tz, h, bw } = w;
   const L = s.mul(WHALE_L);
   const q = positionGeometry;
   const lift = vec3(0, 0.05, 0);
@@ -606,38 +610,18 @@ function waveMaterial(route: UniformNode<'vec4', Vector4>): MeshBasicNodeMateria
     .mul(step(0.01, surf))
     .add(lift);
 
-  // ── 5 · Rings and foam from the last event: the breach's crash (else the surfacing), then the dive.
-  const tA = mix(T.mul(0.53), bStart.add(0.86 * 3.2), breach);
-  const strA = mix(float(0.4), float(1), breach);
-  const tB = T.mul(0.8);
-  const afterB = step(tB, tc);
-  const afterA = step(tA, tc);
-  const age = select(afterB.greaterThan(0.5), tc.sub(tB), select(afterA.greaterThan(0.5), tc.sub(tA), tc.add(T).sub(tB)));
-  const str = select(afterB.greaterThan(0.5), float(0.75), select(afterA.greaterThan(0.5), strA, float(0.75)));
-  const alive = step(age, RING_LIFE);
-  const speed = float(RING_SPEED).mul(s.sqrt());
-  const extent = speed.mul(RING_LIFE).add(L.mul(0.5));
-  // Where the whale was when it happened, the pod's drift since taken back out.
-  const there = orbit(t.sub(age)).sub(vec3(route.x, 0, route.y).mul(age));
-  const ringPos = there.add(vec3(q.x, 0, q.z).mul(extent).mul(alive)).add(lift);
-
   const m = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: NormalBlending, side: DoubleSide });
-  m.positionNode = select(kind.lessThan(4.5), wakePos, ringPos);
+  m.positionNode = wakePos;
 
   // Fragment: both kinds from the quad's own −1..1 coordinates.
   const vSurf = varying(surf);
-  const vAge = varying(age);
-  const vStr = varying(str.mul(alive));
-  const vExt = varying(extent);
-  const vSpeed = varying(speed);
   const vL = varying(L);
-  const isWake = varying(float(1).sub(step(4.5, kind)));
 
   /** A soft line at `d` = 0, `wd` wide but never under ~1.5 pixels (energy kept as it widens: it fades instead). */
   const line = (d: Node<'float'>, wd: Node<'float'>) => {
     const px = fwidth(d).mul(1.5);
-    const ww = max(wd, px);
-    return exp(d.div(ww).pow(2).negate()).mul(wd.div(ww));
+    const ww = max(max(wd, px), float(1e-4));
+    return exp(sq(d.div(ww)).negate()).mul(wd.div(ww));
   };
   /**
    * Broken foam in 0..1: two octaves of smooth value noise drifting in world units (`x`, `z`, cells `scale` wide),
@@ -659,12 +643,14 @@ function waveMaterial(route: UniformNode<'vec4', Vector4>): MeshBasicNodeMateria
   const behind = smoothstep(0, vL.mul(0.4), d).mul(float(1).sub(smoothstep(vL.mul(0.8), vL.mul(2.5), d)));
   // Kelvin arms at ~19.5° each side of the track, thin, broadening and fading aft (a whale swims slowly).
   const arm = line(abs(b).sub(d.mul(0.354)), vL.mul(0.012).add(d.mul(0.012))).mul(behind);
-  const inside = smoothstep(d.mul(0.33), d.mul(0.2), abs(b)).mul(behind);
+  // Edges low to high, and never equal (at d = 0 they met: 0 / 0, NaN, which the bloom smeared over the quad).
+  const dd = max(d, vL.mul(0.02));
+  const inside = float(1).sub(smoothstep(dd.mul(0.2), dd.mul(0.33), abs(b))).mul(behind);
   const ripple = sin(d.div(vL).mul(9).sub(t.mul(1.6))).mul(0.5).add(0.5);
   const transverse = inside.mul(ripple).mul(float(1).sub(clamp(fwidth(d.div(vL).mul(9)), 0, 1)));
   // The footprint: a smooth, glassy oval where the flukes stroked, with broken foam round the tail.
-  const fp = smoothstep(vL.mul(0.26), vL.mul(0.08), abs(b)).mul(exp(d.sub(vL.mul(1.5)).div(vL.mul(0.9)).pow(2).negate()));
-  const tail = smoothstep(vL.mul(0.2), vL.mul(0.05), abs(b)).mul(exp(d.sub(vL).div(vL.mul(0.35)).pow(2).negate()));
+  const fp = float(1).sub(smoothstep(vL.mul(0.08), vL.mul(0.26), abs(b))).mul(exp(sq(d.sub(vL.mul(1.5)).div(vL.mul(0.9))).negate()));
+  const tail = float(1).sub(smoothstep(vL.mul(0.05), vL.mul(0.2), abs(b))).mul(exp(sq(d.sub(vL).div(vL.mul(0.35))).negate()));
   const froth = tail.mul(smoothstep(0.3, 0.75, churn(b, a, vL.mul(0.12))));
   // A low bow wave curling off the head to both sides.
   const bow = line(vec2(a.add(vL.mul(0.02)), b.mul(0.9)).length().sub(vL.mul(0.1)), vL.mul(0.015)).mul(
@@ -673,25 +659,8 @@ function waveMaterial(route: UniformNode<'vec4', Vector4>): MeshBasicNodeMateria
   const wakeFoam = arm.mul(0.28).add(transverse.mul(0.035)).add(froth.mul(0.45)).add(bow.mul(0.3));
   const wakeOp = wakeFoam.add(fp.mul(0.1)).mul(vSurf);
 
-  // Rings.
-  const r = length(vec2(q.x, q.z)).mul(vExt);
-  const fade = float(1).sub(vAge.div(RING_LIFE)).max(0).pow(1.6);
-  let rings: Node<'float'> = float(0);
-  for (let k = 0; k < 3; k++) {
-    const ak = vAge.sub(k * 0.6);
-    const rk = vSpeed.mul(ak.max(0)).add(vL.mul(0.2));
-    rings = rings.add(line(r.sub(rk), float(0.35).add(ak.max(0).mul(0.09)).mul(vL.div(WHALE_L).sqrt())).mul(step(0, ak)).mul(1 - k * 0.25));
-  }
-  const patch = vL.mul(0.45).add(vAge.mul(0.5));
-  const foam = smoothstep(patch, patch.mul(0.35), r)
-    .mul(smoothstep(0.2, 0.7, churn(q.x.mul(vExt), q.z.mul(vExt), vL.mul(0.1))))
-    .mul(exp(vAge.div(3.2).negate()));
-  const slick = smoothstep(patch.mul(1.5), patch.mul(0.6), r).mul(exp(vAge.div(6).negate()));
-  const ringFoam = rings.mul(fade).mul(0.5).add(foam.mul(0.9));
-  const ringOp = ringFoam.add(slick.mul(0.12)).mul(vStr);
-
-  const foamAmt = mix(ringFoam.mul(vStr), wakeFoam.mul(vSurf), isWake);
-  const op = mix(ringOp, wakeOp, isWake).min(0.9);
+  const foamAmt = wakeFoam.mul(vSurf);
+  const op = wakeOp.min(0.9);
   // Foam white by day; at night a faint plankton glow in the churn.
   // (Dim after dark: windows and lamps outshine the sea, D-230.)
   const glow = vec3(0.45, 1.0, 0.95).mul(U.night.mul(0.16)).mul(foamAmt.min(1));
@@ -734,7 +703,6 @@ export function whalePod(x: number, z: number, p: number, n = 4, roaming = false
     const kind = (k: number): Extra => ({ aPath: path, aBody: [a0, seed, k, s], aCyc: cyc });
     whale(b, s, (p * 3 + w) % 4, kind(0), kind(1), kind(2));
     fx.add(QUAD, tf(0, 0, 0), SPRAY, 0, kind(4));
-    fx.add(QUAD, tf(0, 0, 0), SPRAY, 0, kind(5));
   }
   const mesh = podMesh(b, cx, cz, 70, 'whales', podMat(route));
   const water = podMesh(fx, cx, cz, 90, 'whales.waves', waveMat(route));
